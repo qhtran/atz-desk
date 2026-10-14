@@ -22,9 +22,13 @@ Mở `https://auth.atz.vn/if/admin/`. User là `akadmin`. Xem mật khẩu:
 ssh -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes root@112.213.88.230 cat /opt/authentik/secrets/akadmin.password
 ```
 
-Thêm user: Directory → Users → Create. Gán nhóm nếu user đó được vào app.
+2FA bằng TOTP là bắt buộc. User chưa có mã sẽ thấy mã QR ngay sau mật khẩu và phải quét trước khi vào `atz.vn`. Quét bằng ứng dụng Authenticator, rồi nhập 6 số.
 
-2FA: user tự thêm tại `https://auth.atz.vn/if/user/#/settings` mục MFA devices, chọn TOTP. Authentik chỉ hỏi mã sau khi thiết bị đã được thêm. Chưa bật bắt buộc cho mọi user, vì bật trước khi quét mã sẽ khóa đăng nhập.
+Đăng ký: trên trang đăng nhập có liên kết đăng ký, hoặc mở `https://auth.atz.vn/if/flow/atz-enrollment/`. Tài khoản mới nằm ở nhóm `cho-duyet`, trạng thái chưa kích hoạt, nên chưa đăng nhập được.
+
+Phê duyệt: `https://auth.atz.vn/if/admin/` → Directory → Users. Lọc nhóm `cho-duyet`, mở user, bật **Active**, rồi Update. User đăng nhập lại, quét TOTP, rồi vào `https://atz.vn`.
+
+Giao diện Authentik 2026.8.3 không có gói tiếng Việt. Form đăng ký dùng nhãn tiếng Việt. Các nút sẵn của Authentik vẫn là tiếng Anh.
 
 ## Gia hạn chứng chỉ auth.atz.vn
 

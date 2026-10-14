@@ -1,0 +1,132 @@
+version: 1
+metadata:
+  name: atz.vn enrollment and totp
+  labels:
+    blueprints.goauthentik.io/instantiate: "true"
+entries:
+  - model: authentik_stages_authenticator_validate.authenticatorvalidatestage
+    identifiers:
+      name: default-authentication-mfa-validation
+    attrs:
+      not_configured_action: configure
+      device_classes:
+        - totp
+      configuration_stages:
+        - !Find [authentik_stages_authenticator_totp.authenticatortotpstage, [name, default-authenticator-totp-setup]]
+  - model: authentik_core.group
+    id: pending-group
+    identifiers:
+      name: cho-duyet
+  - model: authentik_stages_prompt.prompt
+    id: field-username
+    identifiers:
+      name: atz-enroll-username
+    attrs:
+      field_key: username
+      label: Tên đăng nhập
+      type: username
+      required: true
+      placeholder: Tên đăng nhập
+      order: 0
+  - model: authentik_stages_prompt.prompt
+    id: field-email
+    identifiers:
+      name: atz-enroll-email
+    attrs:
+      field_key: email
+      label: Email
+      type: email
+      required: true
+      placeholder: Email
+      order: 1
+  - model: authentik_stages_prompt.prompt
+    id: field-password
+    identifiers:
+      name: atz-enroll-password
+    attrs:
+      field_key: password
+      label: Mật khẩu
+      type: password
+      required: true
+      placeholder: Mật khẩu
+      order: 2
+  - model: authentik_stages_prompt.prompt
+    id: field-password-repeat
+    identifiers:
+      name: atz-enroll-password-repeat
+    attrs:
+      field_key: password_repeat
+      label: Nhập lại mật khẩu
+      type: password
+      required: true
+      placeholder: Nhập lại mật khẩu
+      order: 3
+  - model: authentik_stages_prompt.promptstage
+    id: enroll-prompt
+    identifiers:
+      name: atz-enrollment-prompt
+    attrs:
+      fields:
+        - !KeyOf field-username
+        - !KeyOf field-email
+        - !KeyOf field-password
+        - !KeyOf field-password-repeat
+  - model: authentik_stages_user_write.userwritestage
+    id: enroll-write
+    identifiers:
+      name: atz-enrollment-write
+    attrs:
+      user_creation_mode: always_create
+      create_users_as_inactive: true
+      create_users_group: !KeyOf pending-group
+      user_type: internal
+  - model: authentik_flows.flow
+    id: enroll-flow
+    identifiers:
+      slug: atz-enrollment
+    attrs:
+      name: Đăng ký atz.vn
+      title: Đăng ký tài khoản
+      designation: enrollment
+      authentication: none
+      denied_action: message_continue
+      policy_engine_mode: any
+      layout: stacked
+  - model: authentik_flows.flowstagebinding
+    identifiers:
+      target: !KeyOf enroll-flow
+      stage: !KeyOf enroll-prompt
+      order: 10
+  - model: authentik_flows.flowstagebinding
+    identifiers:
+      target: !KeyOf enroll-flow
+      stage: !KeyOf enroll-write
+      order: 20
+  - model: authentik_flows.flowstagebinding
+    identifiers:
+      target: !KeyOf enroll-flow
+      stage: !Find [authentik_stages_user_login.userloginstage, [name, default-authentication-login]]
+      order: 30
+  - model: authentik_stages_identification.identificationstage
+    identifiers:
+      name: default-authentication-identification
+    attrs:
+      user_fields:
+        - email
+        - username
+      enrollment_flow: !KeyOf enroll-flow
+  - model: authentik_policies_expression.expressionpolicy
+    id: active-policy
+    identifiers:
+      name: atz-user-is-active
+    attrs:
+      expression: "return bool(request.user and request.user.is_active)"
+  - model: authentik_policies.policybinding
+    identifiers:
+      order: 0
+      target: !Find [authentik_core.application, [slug, atz]]
+      policy: !KeyOf active-policy
+    attrs:
+      enabled: true
+      negate: false
+      failure_result: false
