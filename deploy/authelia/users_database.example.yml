@@ -1,0 +1,9 @@
+---
+users:
+  admin:
+    disabled: false
+    displayname: Admin
+    email: admin@atz.vn
+    password: "REPLACE_WITH_ARGON2_HASH"
+    groups:
+      - admins
