@@ -10,25 +10,26 @@
 ## Phạm vi làm
 1. Chuẩn hóa config.py (đưa ngưỡng ROE, volume, watchlist, tham số chỉ báo vào đây).
 2. Tách module theo hướng:
-   - data/ : lấy dữ liệu
-   - analysis/ : canslim, technical, patterns, screening
-   - ui/ : các thành phần giao diện, charts
-   - app.py chỉ điều hướng
+   - `datasource/`: lấy dữ liệu. Không dùng tên `data/` cho code vì `data/` là cache trên volume.
+   - `analysis/`: canslim, technical, patterns, screening.
+   - `ui/`: các thành phần giao diện, charts.
+   - `app.py` chỉ điều hướng.
 3. Đơn giản hóa biểu đồ: nến chính rõ (MA + Bollinger), các chỉ báo khác để trong expander.
-4. Thêm Dashboard đơn giản (trạng thái thị trường + Top 20).
+4. Thêm Dashboard đơn giản (trạng thái thị trường + Top 20). Có tab Dashboard trong `app.py` và trang `dashboard.py` cùng nội dung đó. Trang một mã không còn nằm ở `dashboard.py`.
 
 ## Tiêu chí hoàn thành (Definition of Done)
-- [ ] Các giá trị hardcode chính đã chuyển vào config.py
-- [ ] app.py không còn chứa logic phân tích dài
-- [ ] Biểu đồ nến là phần nổi bật, chỉ báo phụ có thể thu gọn
-- [ ] Có view/tab Dashboard
-- [ ] App khởi động không lỗi
-- [ ] Đã commit và push
+- [x] Các giá trị hardcode chính đã chuyển vào config.py
+- [x] app.py không còn chứa logic phân tích dài
+- [x] Biểu đồ nến là phần nổi bật, chỉ báo phụ có thể thu gọn
+- [x] Có view/tab Dashboard (trạng thái phiên + Top 20)
+- [x] App khởi động không lỗi
+- [x] Đã commit và push
 
 ## Cách kiểm tra
-- Chạy app và mở được trang chính
+- Chạy `streamlit run app.py` và mở được trang chính
 - Xem được biểu đồ của một mã (ví dụ POW)
-- Top 20 vẫn hiển thị
+- Top 20 vẫn hiển thị ở tab Dashboard
+- Chạy `streamlit run dashboard.py` và thấy trạng thái phiên cùng bảng Top 20
 - Không có traceback trong log
 
 ## Lưu ý

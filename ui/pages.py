@@ -110,7 +110,7 @@ def show_dashboard(board: pd.DataFrame) -> None:
     st.caption("Sáng 9:00–11:30, chiều 13:00–14:45. Cuối tuần là ngoài phiên.")
     st.subheader(f"Top {min(TOP_N, len(board))} dẫn dắt" if not board.empty else "Top 20 dẫn dắt")
     if board.empty:
-        st.info("Chưa có top20_cache.csv. Bấm «Quét và làm mới dữ liệu» ở thanh bên.")
+        st.info("Chưa có top20_cache.csv. Quét từ app.py bằng nút «Quét và làm mới dữ liệu».")
         return
     st.dataframe(
         style_board(board),
