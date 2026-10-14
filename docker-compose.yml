@@ -1,0 +1,14 @@
+services:
+  vnstocks:
+    build:
+      context: .
+      secrets:
+        - vnstock_index
+    container_name: vnstocks
+    restart: unless-stopped
+    ports: ["8501:8501"]
+    volumes: ["./data:/app/data", "./vnstock_home:/root/.vnstock"]
+    env_file: [".env"]
+secrets:
+  vnstock_index:
+    file: ./.pip_index

@@ -1,0 +1,19 @@
+# secrets
+.env
+.pip_index
+*.key
+# vnstock device registration
+vnstock_home/
+# data cache (mounted volume)
+data/
+top20_cache.csv
+# python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+# misc
+*.log
+.DS_Store
+*.bak*
