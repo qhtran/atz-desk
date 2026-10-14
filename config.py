@@ -27,8 +27,14 @@ TOP_N = 20
 WORKERS = 8
 SCAN_DAYS = 230          # số ngày lịch lấy giá khi quét
 CHART_DAYS = 400         # số ngày lịch cho đồ thị (đủ ~52 tuần cho chữ N và mẫu cốc)
+RS_LOOKBACK_DAYS = 91    # cửa sổ sức mạnh giá 3 tháng trong bộ lọc Top 20
+MIN_BARS = 20
+BARS_MAX_AGE_DAYS = 4
+INDUSTRY_MAX_AGE_DAYS = 7
 INDUSTRY_LEVEL = 3
 MARKET_INDEX = "VNINDEX"
+QUOTA_RETRIES = 6
+QUOTA_SLEEP_SECONDS = 20
 
 # --- Chỉ báo ---
 MA_SHORT = 20
@@ -41,7 +47,10 @@ RSI_OVERBOUGHT = 70
 RSI_OVERSOLD = 30
 MACD_FAST, MACD_SLOW, MACD_SIGNAL = 12, 26, 9
 MFI_LENGTH = 14
+MFI_HOT = 80
+MFI_COLD = 20
 VOLUME_AVG = 20
+VOLUME_SPIKE = 1.5       # KL phiên cuối / TB20 để ghi chú "đột biến"
 
 # --- Hỗ trợ / đáy trung tâm ---
 SUPPORT_DAYS = 183
@@ -75,8 +84,21 @@ PATTERNS = {
 }
 
 HN_ZONE = ZoneInfo("Asia/Ho_Chi_Minh")
+# Phiên HOSE, inclusive, tính bằng phút từ 0:00. Cuối tuần luôn ngoài phiên.
+SESSION_MORNING = (9 * 60, 11 * 60 + 30)
+SESSION_AFTERNOON = (13 * 60, 14 * 60 + 45)
 THOUSAND_VND = 1000.0    # vnstock trả giá theo nghìn đồng
+DEFAULT_CAPITAL = 100_000_000
+CAPITAL_STEP = 1_000_000
+RISK_MIN, RISK_MAX, RISK_DEFAULT = 1, 5, 2
+CAPITAL_TRANCHES = 4
 COLUMNS = ["Mã", "Giá", "RS 3 tháng (%)", "ROE (%)", "KLGD TB 20 phiên"]
+
+# Nến đơn của phiên cuối (Murphy / Nison). Không dùng cho mẫu hình nhiều tuần.
+CANDLE = {
+    "DOJI_BODY_RATIO": 0.10,  # thân <= 10% biên độ
+    "SHADOW_BODY": 2.0,       # bóng dài >= 2 lần thân
+}
 
 # --- Đồ thị (charts.py) ---
 CHART = {

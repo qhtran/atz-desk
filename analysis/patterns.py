@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 
 import config as C
-from indicators import sma
+from analysis.technical import sma
 
 P = C.PATTERNS
 

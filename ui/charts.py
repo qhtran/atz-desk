@@ -91,7 +91,7 @@ def macd_chart(symbol: str, w: pd.DataFrame) -> go.Figure:
 def mfi_chart(symbol: str, w: pd.DataFrame) -> go.Figure:
     fig = go.Figure()
     _line(fig, _dates(w), w["MFI"], "MFI", S["MFI"])
-    for level in (80, 20):
+    for level in (config.MFI_HOT, config.MFI_COLD):
         fig.add_hline(y=level, line_dash="dot", line_color=S["REF"])
     fig.update_yaxes(range=[0, 100])
     return _layout(fig, f"{symbol} — MFI({config.MFI_LENGTH}), dòng tiền", S["SUB_HEIGHT"])
