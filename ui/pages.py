@@ -473,11 +473,15 @@ def open_page() -> None:
             + f", tối đa {filters['top_n']} mã."
         )
     prepared = prepare(shown)
-    dashboard_tab, station_tab, classroom_tab = st.tabs(
-        ["Dashboard", "Trạm Đầu Tư Thực Chiến", "Trạm Học Tập & Đọc Vị Nến"]
+    dashboard_tab, station_tab, classroom_tab, portfolio_tab = st.tabs(
+        ["Dashboard", "Trạm Đầu Tư Thực Chiến", "Trạm Học Tập & Đọc Vị Nến", "Danh mục"]
     )
     with dashboard_tab:
         show_dashboard(shown, filter_note)
+    with portfolio_tab:
+        from ui.portfolio_page import show_portfolio
+
+        show_portfolio()
     if prepared is None:
         return
     symbol, bars, base, neckline = prepared
