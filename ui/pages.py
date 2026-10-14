@@ -13,15 +13,16 @@ from analysis import candles, patterns
 from analysis.canslim import check_a, check_c, check_i, check_l, check_m, check_n, check_s, return_3m, score, universe_returns
 from analysis.position import position_plan, recommendation_stop
 from analysis.session import market_session
+from analysis.screening import apply_filter
 from analysis.support import support_scan
 from analysis.technical import enrich, money_flow_summary
 from analysis.valuation import valuation_board
 from config import (
     CACHE_PATH, CAPITAL_STEP, CAPITAL_TRANCHES, CHART_DAYS, DEFAULT_CAPITAL, MFI_COLD, MFI_HOT,
-    MFI_LENGTH, MIN_BARS, RISK_DEFAULT, RISK_MAX, RISK_MIN, RSI_LENGTH, RSI_OVERBOUGHT, RSI_OVERSOLD,
-    THOUSAND_VND, TOP_N, VOLUME_SPIKE,
+    MFI_LENGTH, MIN_AVG_VOLUME, MIN_BARS, MIN_ROE, RISK_DEFAULT, RISK_MAX, RISK_MIN, RS_FILTER_OFF,
+    RSI_LENGTH, RSI_OVERBOUGHT, RSI_OVERSOLD, THOUSAND_VND, TOP_N, UNIVERSE, VOLUME_SPIKE,
 )
-from datasource.cache import read_cache
+from datasource.cache import read_cache, read_universe
 from datasource.client import call, load_bars, load_index_bars
 from datasource.fundamentals import eps_growth, latest_roe, ratio_quarterly, stored_roe
 import config
@@ -72,6 +73,30 @@ def render_sidebar() -> tuple[float, float]:
         st.caption(
             f"Lệnh 2, 3 và 4 mỗi lệnh {probe:,.0f} VND. Ba phần sau chờ giá vượt đáy trung tâm."
         )
+        st.header("Bộ lọc")
+        min_roe_pct = st.number_input(
+            "ROE tối thiểu (%)",
+            min_value=0.0,
+            max_value=100.0,
+            value=float(MIN_ROE * 100),
+            step=0.5,
+        )
+        min_volume = st.number_input(
+            "KLGD trung bình 20 phiên tối thiểu",
+            min_value=0.0,
+            value=float(MIN_AVG_VOLUME),
+            step=10_000.0,
+        )
+        min_rs = st.number_input(
+            "RS 3 tháng tối thiểu (%)",
+            min_value=RS_FILTER_OFF,
+            max_value=200.0,
+            value=RS_FILTER_OFF,
+            step=1.0,
+            help="Mức sàn không cắt thêm. Tăng số này để chỉ giữ mã mạnh hơn.",
+        )
+        top_n = st.slider("Số mã hiển thị", min_value=5, max_value=len(UNIVERSE), value=TOP_N)
+        st.caption("Mặc định vẫn là Top 20: ROE 12% và khối lượng 100.000. Quét ghi lại đúng bộ mặc định.")
         st.header("Dữ liệu")
         refresh = st.button("Quét và làm mới dữ liệu", width="stretch")
         if CACHE_PATH.exists():
@@ -99,16 +124,26 @@ def render_sidebar() -> tuple[float, float]:
         st.sidebar.info(note)
     for message in st.session_state.get("scan_errors", []):
         st.sidebar.text(message)
-    return float(capital), float(risk_pct)
+    filters = {
+        "min_roe_pct": float(min_roe_pct),
+        "min_volume": float(min_volume),
+        "min_rs": float(min_rs),
+        "top_n": int(top_n),
+    }
+    return float(capital), float(risk_pct), filters
 
 
-def show_dashboard(board: pd.DataFrame) -> None:
+def show_dashboard(board: pd.DataFrame, note: str | None = None) -> None:
     status, clock = market_session()
     columns = st.columns(2)
     columns[0].metric("Trạng thái thị trường", status)
     columns[1].metric("Giờ Hà Nội", clock)
     st.caption("Sáng 9:00–11:30, chiều 13:00–14:45. Cuối tuần là ngoài phiên.")
-    st.subheader(f"Top {min(TOP_N, len(board))} dẫn dắt" if not board.empty else "Top 20 dẫn dắt")
+    if note:
+        st.caption(note)
+        st.subheader(f"Kết quả lọc ({len(board)} mã)" if not board.empty else "Kết quả lọc")
+    else:
+        st.subheader(f"Top {min(TOP_N, len(board))} dẫn dắt" if not board.empty else "Top 20 dẫn dắt")
     if board.empty:
         st.info("Chưa có top20_cache.csv. Quét từ app.py bằng nút «Quét và làm mới dữ liệu».")
         return
@@ -304,20 +339,12 @@ def show_canslim(symbol: str, bars: pd.DataFrame) -> None:
     ]
     passed, rated = score(rows)
     st.metric("Điểm CANSLIM", f"{passed}/{rated}", help="Chỉ tính các chữ có dữ liệu (bỏ N/A).")
-
-    def paint_mark(value: object) -> str:
-        if value == "✓":
-            return "color: #3ddc97; font-weight: 700"
-        if value == "✗":
-            return "color: #ff6b6b"
-        return "color: #888"
-
-    st.dataframe(
-        pd.DataFrame(rows).style.map(paint_mark, subset=["Đạt"]),
-        hide_index=True,
-        width="stretch",
-        alt="Checklist CANSLIM đầy đủ C, A, N, S, L, I, M",
-    )
+    for row in rows:
+        mark = row["Đạt"]
+        st.markdown(f"**{row['Chữ']} · {mark}** — {row['Tiêu chí']}")
+        detail = str(row["Thực tế"])
+        note = str(row["Ghi chú"]).strip()
+        st.caption(detail if not note else f"{detail}. {note}")
     st.caption(
         "Theo William J. O'Neil. Ngưỡng chỉnh trong config.CANSLIM. "
         "I (tổ chức) chưa có nguồn dữ liệu nên để N/A; M cần dữ liệu VNINDEX. "
@@ -387,13 +414,33 @@ def prepare(board: pd.DataFrame):
     return symbol, bars, base, neckline
 
 
-def show_station(symbol: str, bars: pd.DataFrame, base, neckline: float | None) -> None:
+def show_symbol_header(symbol: str, bars: pd.DataFrame, board: pd.DataFrame) -> None:
+    work = enrich(bars)
+    price = float(work["close"].iloc[-1])
+    ma20 = float(work["MA20"].iloc[-1]) if pd.notna(work["MA20"].iloc[-1]) else None
+    matched = board.loc[board["Mã"].astype(str) == symbol] if not board.empty else board
+    columns = st.columns(4)
+    columns[0].metric("Giá", f"{price:.2f}")
+    columns[1].metric("MA20", f"{ma20:.2f}" if ma20 is not None else "—")
+    if matched.empty:
+        columns[2].metric("RS 3 tháng", "—")
+        columns[3].metric("ROE", "—")
+        return
+    row = matched.iloc[0]
+    columns[2].metric("RS 3 tháng", f"{float(row['RS 3 tháng (%)']):+.1f}%")
+    columns[3].metric("ROE", f"{float(row['ROE (%)']):.1f}%")
+
+
+def show_station(symbol: str, bars: pd.DataFrame, base, neckline: float | None, board: pd.DataFrame) -> None:
+    st.subheader(symbol)
+    show_symbol_header(symbol, bars, board)
     show_charts(symbol, bars, neckline)
     commentary(symbol, bars)
-    show_patterns(symbol, bars)
     if base is not None:
         show_support(base)
-    show_valuation(symbol)
+    with st.expander("Định giá và mẫu hình", expanded=False):
+        show_patterns(symbol, bars)
+        show_valuation(symbol)
 
 
 def open_page() -> None:
@@ -402,19 +449,41 @@ def open_page() -> None:
     except Exception as error:
         st.error(f"Không đọc được cache: {error}")
         return
-    capital, risk_pct = render_sidebar()
-    prepared = prepare(board)
+    capital, risk_pct, filters = render_sidebar()
+    universe = read_universe()
+    source = universe if universe is not None else board
+    shown = apply_filter(
+        source,
+        filters["min_roe_pct"],
+        filters["min_volume"],
+        filters["min_rs"],
+        filters["top_n"],
+    )
+    loosened = filters["min_roe_pct"] < MIN_ROE * 100 or filters["min_volume"] < MIN_AVG_VOLUME
+    if universe is None and loosened:
+        filter_note = (
+            f"Đang hiện {len(shown)} mã từ Top 20 đã lưu. "
+            "Hạ ROE dưới 12% hoặc khối lượng dưới 100.000 cần bấm Quét để có đủ mã."
+        )
+    else:
+        filter_note = (
+            f"Đang hiện {len(shown)} mã. ROE ≥ {filters['min_roe_pct']:.1f}%, "
+            f"KL ≥ {filters['min_volume']:,.0f}"
+            + ("" if filters["min_rs"] <= RS_FILTER_OFF else f", RS ≥ {filters['min_rs']:.0f}%")
+            + f", tối đa {filters['top_n']} mã."
+        )
+    prepared = prepare(shown)
     dashboard_tab, station_tab, classroom_tab = st.tabs(
         ["Dashboard", "Trạm Đầu Tư Thực Chiến", "Trạm Học Tập & Đọc Vị Nến"]
     )
     with dashboard_tab:
-        show_dashboard(board)
+        show_dashboard(shown, filter_note)
     if prepared is None:
         return
     symbol, bars, base, neckline = prepared
     show_position(symbol, float(bars["close"].iloc[-1]), bars, capital, risk_pct)
     with station_tab:
-        show_station(symbol, bars, base, neckline)
+        show_station(symbol, bars, base, neckline, shown)
     with classroom_tab:
         show_candle_lesson(symbol, bars)
         show_canslim(symbol, bars)

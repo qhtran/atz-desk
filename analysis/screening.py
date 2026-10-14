@@ -8,8 +8,8 @@ import pandas as pd
 from vnstock import Fundamental
 
 from config import (
-    COLUMNS, MIN_AVG_VOLUME, MIN_BARS, MIN_ROE, RS_LOOKBACK_DAYS, SCAN_DAYS, TOP_N,
-    UNIVERSE, VOLUME_AVG, WORKERS,
+    COLUMNS, MIN_AVG_VOLUME, MIN_BARS, MIN_ROE, RS_FILTER_OFF, RS_LOOKBACK_DAYS, SCAN_DAYS,
+    SCAN_UNIVERSE_PATH, TOP_N, UNIVERSE, VOLUME_AVG, WORKERS,
 )
 from datasource.client import call, day_index, ohlcv, save_bars
 from datasource.fundamentals import latest_metric, latest_roe, ratio_quarterly, store_valuation
@@ -29,9 +29,40 @@ def price_stats(bars: pd.DataFrame) -> tuple[float, float, float]:
     return last, strength, volume
 
 
+def apply_filter(
+    board: pd.DataFrame,
+    min_roe_pct: float,
+    min_volume: float,
+    min_rs: float,
+    top_n: int,
+) -> pd.DataFrame:
+    """Lọc bảng đã quét. Không gọi API. Mặc định ROE 12%, KL 100.000, RS tắt, lấy 20 mã."""
+    if board.empty:
+        return pd.DataFrame(columns=COLUMNS)
+    work = board.copy()
+    work["ROE (%)"] = pd.to_numeric(work["ROE (%)"], errors="coerce")
+    work["KLGD TB 20 phiên"] = pd.to_numeric(work["KLGD TB 20 phiên"], errors="coerce")
+    work["RS 3 tháng (%)"] = pd.to_numeric(work["RS 3 tháng (%)"], errors="coerce")
+    work = work.loc[work["ROE (%)"] >= min_roe_pct]
+    work = work.loc[work["KLGD TB 20 phiên"] >= min_volume]
+    if min_rs > RS_FILTER_OFF:
+        work = work.loc[work["RS 3 tháng (%)"] >= min_rs]
+    if work.empty:
+        return pd.DataFrame(columns=COLUMNS)
+    return (
+        work.sort_values("RS 3 tháng (%)", ascending=False)
+        .head(top_n)[COLUMNS]
+        .reset_index(drop=True)
+    )
+
+
 def scan_one(
-    symbol: str, start: str, end: str
-) -> tuple[dict[str, object] | None, str | None, dict[str, object] | None]:
+    symbol: str,
+    start: str,
+    end: str,
+    min_volume: float = MIN_AVG_VOLUME,
+    min_roe: float = MIN_ROE,
+) -> tuple[dict[str, object] | None, str | None, dict[str, object] | None, dict[str, object] | None]:
     try:
         bars = day_index(ohlcv(symbol, start, end))
         save_bars(symbol, bars)
@@ -45,20 +76,16 @@ def scan_one(
             "ROE": roe,
         }
     except Exception as error:
-        return None, f"{symbol}: {error}", None
-    if volume < MIN_AVG_VOLUME or roe < MIN_ROE:
-        return None, None, quote
-    return (
-        {
-            "Mã": symbol,
-            "Giá": price,
-            "RS 3 tháng (%)": strength,
-            "ROE (%)": round(roe * 100, 2),
-            "KLGD TB 20 phiên": volume,
-        },
-        None,
-        quote,
-    )
+        return None, f"{symbol}: {error}", None, None
+    record = {
+        "Mã": symbol,
+        "Giá": price,
+        "RS 3 tháng (%)": strength,
+        "ROE (%)": round(roe * 100, 2),
+        "KLGD TB 20 phiên": volume,
+    }
+    passed = volume >= min_volume and roe >= min_roe
+    return (record if passed else None), None, quote, record
 
 
 def scan_top20(on_progress=None) -> tuple[pd.DataFrame, list[str]]:
@@ -75,15 +102,22 @@ def scan_top20(on_progress=None) -> tuple[pd.DataFrame, list[str]]:
         for index, future in enumerate(as_completed(futures), start=1):
             if on_progress is not None:
                 on_progress(index, len(UNIVERSE))
-            row, error, quote = future.result()
+            _passed, error, quote, record = future.result()
             if error:
                 errors.append(error)
-            elif row is not None:
-                rows.append(row)
+            if record is not None:
+                rows.append(record)
             if quote is not None:
                 quotes.append(quote)
     store_valuation(quotes)
-    if not rows:
-        return pd.DataFrame(columns=COLUMNS), errors
-    board = pd.DataFrame(rows).sort_values("RS 3 tháng (%)", ascending=False).head(TOP_N)
-    return board[COLUMNS].reset_index(drop=True), errors
+    if rows:
+        SCAN_UNIVERSE_PATH.parent.mkdir(parents=True, exist_ok=True)
+        pd.DataFrame(rows)[COLUMNS].to_csv(SCAN_UNIVERSE_PATH, index=False)
+    board = apply_filter(
+        pd.DataFrame(rows),
+        min_roe_pct=MIN_ROE * 100,
+        min_volume=MIN_AVG_VOLUME,
+        min_rs=RS_FILTER_OFF,
+        top_n=TOP_N,
+    )
+    return board, errors

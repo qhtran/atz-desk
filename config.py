@@ -9,6 +9,7 @@ from zoneinfo import ZoneInfo
 APP_DIR = Path(__file__).resolve().parent
 DATA_DIR = APP_DIR / "data"
 CACHE_PATH = DATA_DIR / "top20_cache.csv"
+SCAN_UNIVERSE_PATH = DATA_DIR / "scan_universe.csv"
 BARS_DIR = DATA_DIR / "ohlcv"
 INDUSTRY_PATH = DATA_DIR / "industry_l3.csv"
 VALUATION_PATH = DATA_DIR / "valuation.csv"
@@ -24,6 +25,7 @@ UNIVERSE = [
 MIN_AVG_VOLUME = 100_000
 MIN_ROE = 0.12
 TOP_N = 20
+RS_FILTER_OFF = -100.0   # sàn RS trên giao diện; mức này không cắt Top 20 mặc định
 WORKERS = 8
 SCAN_DAYS = 230          # số ngày lịch lấy giá khi quét
 CHART_DAYS = 400         # số ngày lịch cho đồ thị (đủ ~52 tuần cho chữ N và mẫu cốc)
