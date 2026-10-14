@@ -99,6 +99,7 @@ def render_sidebar() -> tuple[float, float]:
         st.caption("Mặc định vẫn là Top 20: ROE 12% và khối lượng 100.000. Quét ghi lại đúng bộ mặc định.")
         st.header("Dữ liệu")
         refresh = st.button("Quét và làm mới dữ liệu", width="stretch")
+        st.link_button("Tài khoản", "https://auth.atz.vn/if/user/", width="stretch")
         if CACHE_PATH.exists():
             st.caption(f"Cache: data/{CACHE_PATH.name}")
         else:
