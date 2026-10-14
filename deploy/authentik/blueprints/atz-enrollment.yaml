@@ -97,15 +97,43 @@ entries:
       target: !KeyOf enroll-flow
       stage: !KeyOf enroll-prompt
       order: 10
+  - model: authentik_stages_prompt.prompt
+    id: field-done
+    identifiers:
+      name: atz-enroll-done
+    attrs:
+      field_key: notice
+      label: Đăng ký thành công!
+      type: alert_info
+      required: false
+      order: 0
+      initial_value: |
+        <p>Tài khoản của bạn đang chờ quản trị viên phê duyệt.<br>
+        Bạn có thể thử đăng nhập lại sau khi được duyệt.</p>
+        <p>Trong lúc chờ, vui lòng đọc hướng dẫn:<br>
+        <a href="https://atz.vn/huong-dan">Hướng dẫn thiết lập 2FA và sử dụng trang xác thực</a></p>
+  - model: authentik_stages_prompt.promptstage
+    id: enroll-done
+    identifiers:
+      name: atz-enrollment-done
+    attrs:
+      fields:
+        - !KeyOf field-done
   - model: authentik_flows.flowstagebinding
     identifiers:
       target: !KeyOf enroll-flow
       stage: !KeyOf enroll-write
       order: 20
   - model: authentik_flows.flowstagebinding
+    state: absent
     identifiers:
       target: !KeyOf enroll-flow
       stage: !Find [authentik_stages_user_login.userloginstage, [name, default-authentication-login]]
+      order: 30
+  - model: authentik_flows.flowstagebinding
+    identifiers:
+      target: !KeyOf enroll-flow
+      stage: !KeyOf enroll-done
       order: 30
   - model: authentik_stages_identification.identificationstage
     identifiers:

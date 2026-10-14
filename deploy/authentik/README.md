@@ -24,7 +24,7 @@ ssh -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes root@112.213.88.230 cat /opt/auth
 
 2FA bằng TOTP là bắt buộc. User chưa có mã sẽ thấy mã QR ngay sau mật khẩu và phải quét trước khi vào `atz.vn`. Quét bằng ứng dụng Authenticator, rồi nhập 6 số.
 
-Đăng ký: trên trang đăng nhập có liên kết đăng ký, hoặc mở `https://auth.atz.vn/if/flow/atz-enrollment/`. Tài khoản mới nằm ở nhóm `cho-duyet`, trạng thái chưa kích hoạt, nên chưa đăng nhập được.
+Đăng ký: trên trang đăng nhập có liên kết đăng ký, hoặc mở `https://auth.atz.vn/if/flow/atz-enrollment/`. Tài khoản mới nằm ở nhóm `cho-duyet`, trạng thái chưa kích hoạt, nên chưa đăng nhập được. Sau khi gửi form, user thấy thông báo chờ duyệt và link `https://atz.vn/huong-dan`. Trang này không yêu cầu đăng nhập.
 
 Phê duyệt: `https://auth.atz.vn/if/admin/` → Directory → Users. Lọc nhóm `cho-duyet`, mở user, bật **Active**, rồi Update. User đăng nhập lại, quét TOTP, rồi vào `https://atz.vn`.
 

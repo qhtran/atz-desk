@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Hướng dẫn đăng nhập và 2FA</title>
+    <style>
+        :root {
+            color-scheme: light;
+            --ink: #1c1917;
+            --muted: #57534e;
+            --line: #e7e5e4;
+            --paper: #f6f3ee;
+            --card: #fff;
+            --accent: #0f6e56;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            background: var(--paper);
+            color: var(--ink);
+            font: 17px/1.55 "Segoe UI", sans-serif;
+        }
+        main {
+            max-width: 40rem;
+            margin: 0 auto;
+            padding: 2.5rem 1.25rem 4rem;
+        }
+        h1 { font-size: 1.8rem; line-height: 1.25; margin: 0 0 0.5rem; }
+        h2 { font-size: 1.2rem; margin: 2rem 0 0.6rem; }
+        p, li { color: var(--ink); }
+        .lead { color: var(--muted); margin-top: 0; }
+        a { color: var(--accent); }
+        section, .steps {
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            padding: 1rem 1.1rem;
+            margin-top: 0.8rem;
+        }
+        ol, ul { margin: 0.4rem 0 0; padding-left: 1.2rem; }
+        li + li { margin-top: 0.35rem; }
+        code { font-family: ui-monospace, monospace; font-size: 0.92em; }
+    </style>
+</head>
+<body>
+<main>
+    <h1>Hướng dẫn thiết lập 2FA và sử dụng trang xác thực</h1>
+    <p class="lead">Dùng cho tài khoản tại atz.vn. Đọc một lần trước khi đăng nhập lần đầu.</p>
+
+    <h2>Quy trình cho người mới</h2>
+    <ol class="steps">
+        <li>Đăng ký tại <a href="https://auth.atz.vn/if/flow/atz-enrollment/">trang đăng ký</a>.</li>
+        <li>Chờ quản trị viên phê duyệt. Trong lúc này đăng nhập sẽ chưa được.</li>
+        <li>Sau khi được duyệt, đăng nhập và quét mã QR để bật 2FA.</li>
+        <li>Vào <a href="https://atz.vn/">ứng dụng</a>.</li>
+    </ol>
+
+    <h2>A. Thiết lập 2FA</h2>
+    <section>
+        <p>Cài một ứng dụng xác thực trên điện thoại: Google Authenticator, Authy hoặc Microsoft Authenticator. Cả ba đều có trên App Store và Google Play.</p>
+        <ol>
+            <li>Được duyệt xong, mở <a href="https://auth.atz.vn/">auth.atz.vn</a> và đăng nhập bằng tên cùng mật khẩu đã đăng ký.</li>
+            <li>Trang hiện mã QR. Trong ứng dụng chọn thêm tài khoản, rồi quét mã.</li>
+            <li>Nhập 6 số đang hiện trong ứng dụng. Mỗi mã chỉ dùng được khoảng 30 giây.</li>
+            <li>Giữ điện thoại. Lần sau, sau mật khẩu, nhập mã mới từ cùng ứng dụng.</li>
+        </ol>
+    </section>
+
+    <h2>B. Dùng auth.atz.vn</h2>
+    <section>
+        <ul>
+            <li>Đăng nhập: <a href="https://auth.atz.vn/">https://auth.atz.vn/</a></li>
+            <li>Tài khoản, đổi mật khẩu và quản lý 2FA: <a href="https://auth.atz.vn/if/user/">https://auth.atz.vn/if/user/</a></li>
+            <li>Ứng dụng sau khi đã xác thực: <a href="https://atz.vn/">https://atz.vn/</a></li>
+        </ul>
+        <p>Quên mật khẩu, mất điện thoại hoặc không còn mã 2FA: liên hệ quản trị viên. Hệ thống không gửi email đặt lại mật khẩu. Quản trị viên xóa thiết bị 2FA cũ rồi bạn đăng nhập và quét mã mới.</p>
+    </section>
+</main>
+</body>
+</html>
