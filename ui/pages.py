@@ -472,26 +472,38 @@ def open_page() -> None:
             + ("" if filters["min_rs"] <= RS_FILTER_OFF else f", RS ≥ {filters['min_rs']:.0f}%")
             + f", tối đa {filters['top_n']} mã."
         )
-    prepared = prepare(shown)
-    dashboard_tab, station_tab, classroom_tab, portfolio_tab, alerts_tab = st.tabs(
-        ["Dashboard", "Trạm Đầu Tư Thực Chiến", "Trạm Học Tập & Đọc Vị Nến", "Danh mục", "Cảnh báo"]
+    page = st.segmented_control(
+        "Trang",
+        [
+            "Dashboard",
+            "Trạm Đầu Tư Thực Chiến",
+            "Trạm Học Tập & Đọc Vị Nến",
+            "Danh mục",
+            "Cảnh báo",
+        ],
+        default="Dashboard",
+        key="open_page",
     )
-    with dashboard_tab:
+    if page in (None, "Dashboard"):
         show_dashboard(shown, filter_note)
-    with portfolio_tab:
+        return
+    if page == "Danh mục":
         from ui.portfolio_page import show_portfolio
 
         show_portfolio()
-    with alerts_tab:
+        return
+    if page == "Cảnh báo":
         from ui.alerts_page import show_alerts
 
         show_alerts()
+        return
+    prepared = prepare(shown)
     if prepared is None:
         return
     symbol, bars, base, neckline = prepared
     show_position(symbol, float(bars["close"].iloc[-1]), bars, capital, risk_pct)
-    with station_tab:
+    if page == "Trạm Đầu Tư Thực Chiến":
         show_station(symbol, bars, base, neckline, shown)
-    with classroom_tab:
-        show_candle_lesson(symbol, bars)
-        show_canslim(symbol, bars)
+        return
+    show_candle_lesson(symbol, bars)
+    show_canslim(symbol, bars)

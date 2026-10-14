@@ -73,12 +73,12 @@ def show_portfolio() -> None:
 
     with st.form("add_position"):
         st.markdown("**Thêm vị thế**")
-        columns = st.columns(5)
-        symbol = columns[0].text_input("Mã", value="POW")
-        buy_price = columns[1].number_input("Giá mua", min_value=0.0, value=10.0, step=0.05)
-        shares = columns[2].number_input("Khối lượng", min_value=0.0, value=100.0, step=10.0)
-        buy_date = columns[3].date_input("Ngày mua", value=date.today())
-        tranches = columns[4].number_input("Phần đã giải ngân", min_value=1, max_value=CAPITAL_TRANCHES, value=1)
+        left, right = st.columns(2)
+        symbol = left.text_input("Mã", value="POW")
+        buy_price = right.number_input("Giá mua", min_value=0.0, value=10.0, step=0.05)
+        shares = left.number_input("Khối lượng", min_value=0.0, value=100.0, step=10.0)
+        buy_date = right.date_input("Ngày mua", value=date.today())
+        tranches = left.number_input("Phần đã giải ngân", min_value=1, max_value=CAPITAL_TRANCHES, value=1)
         submitted = st.form_submit_button("Lưu vị thế")
     if submitted:
         try:

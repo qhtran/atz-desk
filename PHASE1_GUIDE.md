@@ -15,7 +15,7 @@
    - `ui/`: các thành phần giao diện, charts.
    - `app.py` chỉ điều hướng.
 3. Đơn giản hóa biểu đồ: nến chính rõ (MA + Bollinger), các chỉ báo khác để trong expander.
-4. Thêm Dashboard đơn giản (trạng thái thị trường + Top 20). Có tab Dashboard trong `app.py` và trang `dashboard.py` cùng nội dung đó. Trang một mã không còn nằm ở `dashboard.py`.
+4. Thêm Dashboard đơn giản (trạng thái thị trường + Top 20). Có trang Dashboard trong `app.py` và trang `dashboard.py` cùng nội dung đó. Trang một mã không còn nằm ở `dashboard.py`. `app.py` chọn trang bằng thanh ngang. Chỉ trang đang chọn được tính, nên Dashboard không tải biểu đồ và CANSLIM.
 
 ## Tiêu chí hoàn thành (Definition of Done)
 - [x] Các giá trị hardcode chính đã chuyển vào config.py
