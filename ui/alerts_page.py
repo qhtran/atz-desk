@@ -14,7 +14,7 @@ def show_alerts() -> None:
     if bulletin is None:
         st.info(
             "Chưa có bản tin. Tạo file data/ban_tin.md với vài dòng chữ. "
-            "Sau này Daily Market News Agent có thể ghi vào đúng file này."
+            "Bản tin hằng ngày có thể ghi vào đúng file này."
         )
         st.caption(str(BULLETIN_PATH))
     else:

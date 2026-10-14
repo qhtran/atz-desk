@@ -13,8 +13,8 @@ warnings.filterwarnings("ignore", category=UserWarning, module=r"vnstock(\.|$)")
 
 
 def main() -> None:
-    st.set_page_config(page_title="Dashboard", layout="wide")
-    st.title("Dashboard")
+    st.set_page_config(page_title="Tổng quan", layout="wide")
+    st.title("Tổng quan")
     st.caption("Trạng thái phiên HOSE và Top 20 đã lọc. Biểu đồ từng mã nằm ở app.py.")
     try:
         board = read_cache()

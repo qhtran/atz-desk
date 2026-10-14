@@ -101,7 +101,7 @@ def render_sidebar() -> tuple[float, float]:
         refresh = st.button("Quét và làm mới dữ liệu", width="stretch")
         st.link_button("Tài khoản", "https://auth.atz.vn/if/user/", width="stretch")
         if CACHE_PATH.exists():
-            st.caption(f"Cache: data/{CACHE_PATH.name}")
+            st.caption(f"Đã lưu: data/{CACHE_PATH.name}")
         else:
             st.caption("Chưa có file cache.")
     if refresh:
@@ -201,7 +201,7 @@ def show_money_flow(symbol: str, work: pd.DataFrame) -> None:
 
 
 def show_patterns(symbol: str, bars: pd.DataFrame) -> None:
-    st.subheader("Mẫu hình kỹ thuật (heuristic)")
+    st.subheader("Mẫu hình kỹ thuật")
     rows = [
         {"Mẫu hình": item["name"], "Khớp": "✓" if item["found"] else "—", "Chi tiết": item["detail"]}
         for item in patterns.detect_all(bars)
@@ -476,16 +476,16 @@ def open_page() -> None:
     page = st.segmented_control(
         "Trang",
         [
-            "Dashboard",
+            "Tổng quan",
             "Trạm Đầu Tư Thực Chiến",
             "Trạm Học Tập & Đọc Vị Nến",
             "Danh mục",
             "Cảnh báo",
         ],
-        default="Dashboard",
+        default="Tổng quan",
         key="open_page",
     )
-    if page in (None, "Dashboard"):
+    if page in (None, "Tổng quan", "Dashboard"):
         show_dashboard(shown, filter_note)
         return
     if page == "Danh mục":
