@@ -20,30 +20,16 @@ from vnstock import Fundamental, Market, Reference
 # Cảnh báo phân quyền của vnstock là UserWarning. Trang này không gọi báo cáo đầy đủ.
 warnings.filterwarnings("ignore", category=UserWarning, module=r"vnstock(\.|$)")
 
-UNIVERSE = [
-    "POW", "FPT", "HPG", "VNM", "SSI", "MWG", "TCB", "ACB", "VCB", "MBB",
-    "STB", "VPB", "HDB", "VRE", "VHM", "VIC", "MSN", "GAS", "PLX", "SAB",
-    "VJC", "BID", "CTG", "TPB", "MSB", "EIB", "PDR", "DIG", "DXG", "REE",
-    "GMD", "PVS", "VCI", "HCM",
-]
-MIN_AVG_VOLUME = 100_000
-MIN_ROE = 0.12
-TOP_N = 20
-WORKERS = 8
-CACHE_PATH = Path(__file__).with_name("top20_cache.csv")
-BARS_DIR = Path(__file__).with_name("data") / "ohlcv"
-INDUSTRY_PATH = Path(__file__).with_name("data") / "industry_l3.csv"
-VALUATION_PATH = Path(__file__).with_name("data") / "valuation.csv"
-COLUMNS = ["Mã", "Giá", "RS 3 tháng (%)", "ROE (%)", "KLGD TB 20 phiên"]
-INDUSTRY_LEVEL = 3
-BB_LENGTH = 20
-BB_STD = 2.0
-SUPPORT_DAYS = 183
-SUPPORT_BAND = 0.015
-HN_ZONE = ZoneInfo("Asia/Ho_Chi_Minh")
-EPS_DIR = Path(__file__).with_name("data") / "eps"
-# vnstock trả giá theo nghìn đồng. Bảng khuyến nghị dùng cùng đơn vị.
-THOUSAND_VND = 1000.0
+from config import (
+    BARS_DIR, BB_LENGTH, BB_STD, CACHE_PATH, CHART_DAYS, COLUMNS, EPS_DIR, HN_ZONE,
+    INDUSTRY_LEVEL, INDUSTRY_PATH, MARKET_INDEX, MIN_AVG_VOLUME, MIN_ROE, SCAN_DAYS,
+    SUPPORT_BAND, SUPPORT_DAYS, THOUSAND_VND, TOP_N, UNIVERSE, VALUATION_PATH, WORKERS,
+)
+import canslim
+import charts
+import config
+import indicators
+import patterns
 
 
 def _quota_hit(error: Exception) -> bool:
@@ -223,7 +209,7 @@ def scan_top20() -> tuple[pd.DataFrame, list[str]]:
     rows: list[dict[str, object]] = []
     errors: list[str] = []
     quotes: list[dict[str, object]] = []
-    start = (date.today() - timedelta(days=230)).isoformat()
+    start = (date.today() - timedelta(days=SCAN_DAYS)).isoformat()
     end = date.today().isoformat()
     progress = st.progress(0, text="Đang quét...")
     with ThreadPoolExecutor(max_workers=WORKERS) as pool:
@@ -298,94 +284,60 @@ def _line(values: pd.Series) -> list[float | None]:
     return [None if pd.isna(value) else float(value) for value in values]
 
 
-def candle_chart(symbol: str, frame: pd.DataFrame, neckline: float | None = None) -> go.Figure:
-    work = frame.copy()
-    work.ta.sma(length=20, append=True)
-    lower, middle, upper = _bollinger(work["close"])
-    dates = [day.strftime("%Y-%m-%d") for day in work["_day"]]
-    figure = go.Figure()
-    figure.add_trace(
-        go.Candlestick(
-            x=dates,
-            open=work["open"].tolist(),
-            high=work["high"].tolist(),
-            low=work["low"].tolist(),
-            close=work["close"].tolist(),
-            name="Giá",
-            increasing={"line": {"color": "#3ddc97"}, "fillcolor": "#3ddc97"},
-            decreasing={"line": {"color": "#ff6b6b"}, "fillcolor": "#ff6b6b"},
-        )
-    )
-    figure.add_trace(
-        go.Scatter(
-            x=dates,
-            y=_line(work["SMA_20"]),
-            mode="lines",
-            name="MA20",
-            line={"color": "#f4a261", "width": 1.8},
-        )
-    )
-    figure.add_trace(
-        go.Scatter(
-            x=dates,
-            y=_line(upper),
-            mode="lines",
-            name="BB trên",
-            line={"color": "#4cc9f0", "width": 1.2},
-        )
-    )
-    figure.add_trace(
-        go.Scatter(
-            x=dates,
-            y=_line(middle),
-            mode="lines",
-            name="BB giữa",
-            line={"color": "#90e0ef", "width": 1.2, "dash": "dot"},
-        )
-    )
-    figure.add_trace(
-        go.Scatter(
-            x=dates,
-            y=_line(lower),
-            mode="lines",
-            name="BB dưới",
-            line={"color": "#4cc9f0", "width": 1.2},
-        )
-    )
-    if neckline is not None and neckline > 0:
-        figure.add_hline(
-            y=neckline,
-            line_dash="dash",
-            line_color="#c77dff",
-            annotation_text="Đáy trung tâm",
-            annotation_font_color="#c77dff",
-        )
-    figure.update_layout(
-        template="plotly_dark",
-        title=f"{symbol} — nến ngày, MA20 và Bollinger (20, 2)",
-        yaxis_title="Giá (nghìn đồng)",
-        height=600,
-        paper_bgcolor="#0e1117",
-        plot_bgcolor="#0e1117",
-        font={"color": "#f0f2f6"},
-        xaxis_rangeslider_visible=False,
-        margin={"l": 40, "r": 140, "t": 100, "b": 30},
-        legend={
-            "orientation": "v",
-            "yanchor": "top",
-            "y": 1,
-            "xanchor": "left",
-            "x": 1.02,
-        },
-    )
-    return figure
+def show_charts(symbol: str, bars: pd.DataFrame, neckline: float | None) -> None:
+    """Đồ thị nến chính, bên dưới là các tab con cho từng chỉ báo."""
+    w = indicators.enrich(bars)
+    st.plotly_chart(charts.candle_chart(symbol, w, neckline), width="stretch", theme=None,
+                    alt=f"Nến ngày, MA20/MA50, Bollinger và đáy trung tâm của {symbol}")
+    with st.expander("Chỉ báo: khối lượng, RSI, MACD, MFI", expanded=True):
+        for tab, (name, builder) in zip(st.tabs(list(charts.INDICATOR_CHARTS)), charts.INDICATOR_CHARTS.items()):
+            with tab:
+                st.plotly_chart(builder(symbol, w), width="stretch", theme=None, alt=f"{name} của {symbol}")
+
+
+def show_money_flow(symbol: str, bars: pd.DataFrame) -> None:
+    """Bảng dòng tiền & chỉ báo phiên cuối, kèm diễn giải ngắn."""
+    st.subheader("Dòng tiền & chỉ báo")
+    w = indicators.enrich(bars)
+    m = indicators.money_flow_summary(w)
+    cols = st.columns(5)
+    cols[0].metric(f"RSI({config.RSI_LENGTH})", f"{m['rsi']:.1f}")
+    cols[1].metric(f"MFI({config.MFI_LENGTH})", f"{m['mfi']:.1f}")
+    cols[2].metric("MACD hist", f"{m['macd_hist']:+.2f}")
+    cols[3].metric("KL / TB20", f"{m['vol_ratio']:.2f}×")
+    cols[4].metric("OBV 20 phiên", "Tăng" if m["obv_up"] else "Giảm")
+    notes = []
+    if m["rsi"] >= config.RSI_OVERBOUGHT:
+        notes.append("RSI vùng quá mua")
+    elif m["rsi"] <= config.RSI_OVERSOLD:
+        notes.append("RSI vùng quá bán")
+    notes.append("MACD trên signal (động lượng tăng)" if m["macd"] > m["macd_signal"] else "MACD dưới signal (động lượng yếu)")
+    if m["mfi"] >= 80:
+        notes.append("MFI > 80: tiền vào nóng")
+    elif m["mfi"] <= 20:
+        notes.append("MFI < 20: tiền rút mạnh")
+    notes.append("OBV đi lên: dòng tiền tích luỹ" if m["obv_up"] else "OBV đi xuống: dòng tiền phân phối")
+    if m["vol_ratio"] >= 1.5:
+        notes.append("khối lượng đột biến")
+    st.caption(f"{symbol}: " + "; ".join(notes) + ".")
+
+
+def show_patterns(symbol: str, bars: pd.DataFrame) -> None:
+    st.subheader("Mẫu hình kỹ thuật (heuristic)")
+    rows = [
+        {"Mẫu hình": r["name"], "Khớp": "✓" if r["found"] else "—", "Chi tiết": r["detail"]}
+        for r in patterns.detect_all(bars)
+    ]
+    st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch",
+                 alt=f"Mẫu hình giá nhận diện tự động cho {symbol}")
+    st.caption("Nhận diện bằng quy tắc đơn giản trên nến ngày (ngưỡng trong config.PATTERNS). "
+               "Chỉ là gợi ý, luôn kiểm tra lại bằng mắt trên đồ thị.")
 
 
 def commentary(symbol: str, frame: pd.DataFrame) -> None:
-    work = frame.copy()
-    work.ta.sma(length=20, append=True)
+    work = indicators.enrich(frame)
     price = float(work["close"].iloc[-1])
-    ma20 = float(work["SMA_20"].iloc[-1])
+    ma20 = float(work["MA20"].iloc[-1])
     window = work.tail(20)
     support = float(window["low"].min())
     resistance = float(window["high"].max())
@@ -740,8 +692,32 @@ def _stored_roe(symbol: str) -> float | None:
     return float(value)
 
 
-def show_canslim(symbol: str) -> None:
-    st.subheader("CANSLIM — chữ C và chữ A")
+def load_index_bars() -> pd.DataFrame | None:
+    """Nến VNINDEX cho chữ M và so sánh RS. Lỗi hoặc không có dữ liệu thì trả None."""
+    start = (date.today() - timedelta(days=CHART_DAYS)).isoformat()
+    path = BARS_DIR / f"{MARKET_INDEX}.csv"
+    cached = _fresh_bars(path, start)
+    if cached is not None:
+        return _day_index(cached)
+    end = date.today().isoformat()
+    attempts = [
+        lambda: Market().index(MARKET_INDEX).ohlcv(start=start, end=end, interval="1D"),
+        lambda: Market().equity(MARKET_INDEX).ohlcv(start=start, end=end, interval="1D", source="kbs"),
+        lambda: Market().equity(MARKET_INDEX).ohlcv(start=start, end=end, interval="1D"),
+    ]
+    for attempt in attempts:
+        try:
+            frame = _call(attempt)
+            if frame is not None and not frame.empty and "close" in frame.columns:
+                _save_bars(MARKET_INDEX, frame)
+                return _day_index(frame)
+        except Exception:
+            continue
+    return None
+
+
+def show_canslim(symbol: str, bars: pd.DataFrame) -> None:
+    st.subheader("CANSLIM — checklist 7 chữ")
     growth = None
     period = "—"
     roe = None
@@ -758,40 +734,38 @@ def show_canslim(symbol: str) -> None:
             roe = _latest_roe(ratios)
     except Exception:
         roe = None
-    growth_pct = None if growth is None else growth * 100
-    roe_pct = None if roe is None else roe * 100
-    passed_c = bool(growth_pct is not None and growth_pct > 25)
-    passed_a = bool(roe_pct is not None and roe_pct > 17)
-    checklist = pd.DataFrame(
-        [
-            {
-                "Chữ": "C",
-                "Tiêu chí": "EPS quý tăng hơn 25% so với cùng kỳ",
-                "Kỳ": period,
-                "Thực tế": "—" if growth_pct is None else f"{growth_pct:.1f}%",
-                "Đạt": "✓" if passed_c else "—",
-            },
-            {
-                "Chữ": "A",
-                "Tiêu chí": "ROE quý mới nhất trên 17%",
-                "Kỳ": "quý mới nhất",
-                "Thực tế": "—" if roe_pct is None else f"{roe_pct:.1f}%",
-                "Đạt": "✓" if passed_a else "—",
-            },
-        ]
-    )
+    index_bars = load_index_bars()
+    index_ret = canslim.return_3m(index_bars) if index_bars is not None else None
+    peers = canslim.universe_returns()
+    rows = [
+        canslim.check_c(None if growth is None else growth * 100, period),
+        canslim.check_a(None if roe is None else roe * 100),
+        canslim.check_n(bars),
+        canslim.check_s(bars),
+        canslim.check_l(canslim.return_3m(bars), peers, index_ret),
+        canslim.check_i(),
+        canslim.check_m(index_bars),
+    ]
+    passed, rated = canslim.score(rows)
+    st.metric("Điểm CANSLIM", f"{passed}/{rated}", help="Chỉ tính các chữ có dữ liệu (bỏ N/A).")
+
     def paint_mark(value: object) -> str:
-        return "color: #3ddc97; font-weight: 700" if value == "✓" else ""
+        if value == "✓":
+            return "color: #3ddc97; font-weight: 700"
+        if value == "✗":
+            return "color: #ff6b6b"
+        return "color: #888"
 
     st.dataframe(
-        checklist.style.map(paint_mark, subset=["Đạt"]),
+        pd.DataFrame(rows).style.map(paint_mark, subset=["Đạt"]),
         hide_index=True,
         width="stretch",
-        alt="Checklist CANSLIM: tăng trưởng EPS quý và ROE",
+        alt="Checklist CANSLIM đầy đủ C, A, N, S, L, I, M",
     )
     st.caption(
-        "Chữ C theo William J. O'Neil: EPS quý này so với cùng kỳ năm trước. "
-        "Chữ A trong bảng này dùng ROE quý mới nhất, ngưỡng 17%."
+        "Theo William J. O'Neil. Ngưỡng chỉnh trong config.CANSLIM. "
+        "I (tổ chức) chưa có nguồn dữ liệu nên để N/A; M cần dữ liệu VNINDEX. "
+        "L so với các mã có cache giá trong data/ohlcv."
     )
 
 
@@ -878,7 +852,7 @@ def main() -> None:
         st.header("Dữ liệu")
         refresh = st.button("Quét và làm mới dữ liệu", width="stretch")
         if CACHE_PATH.exists():
-            st.caption(f"Cache: {CACHE_PATH.name}")
+            st.caption(f"Cache: data/{CACHE_PATH.name}")
         else:
             st.caption("Chưa có file cache.")
 
@@ -888,6 +862,7 @@ def main() -> None:
         if board.empty:
             st.session_state["scan_note"] = "Quét xong nhưng không có mã qua lọc ROE và thanh khoản."
         else:
+            CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
             board.to_csv(CACHE_PATH, index=False)
             st.session_state["scan_note"] = f"Đã ghi {len(board)} mã vào {CACHE_PATH.name}."
         st.rerun()
@@ -915,7 +890,7 @@ def main() -> None:
     ).strip().upper()
     symbol = typed or selected
 
-    start = (date.today() - timedelta(days=220)).isoformat()
+    start = (date.today() - timedelta(days=CHART_DAYS)).isoformat()
     try:
         bars = load_bars(symbol, start)
     except Exception as error:
@@ -945,19 +920,16 @@ def main() -> None:
                 width="stretch",
                 alt="Top cổ phiếu theo sức mạnh giá 3 tháng sau lọc thanh khoản và ROE",
             )
-        st.plotly_chart(
-            candle_chart(symbol, bars, neckline),
-            width="stretch",
-            theme=None,
-            alt=f"Nến ngày, MA20, Bollinger và đáy trung tâm của {symbol}",
-        )
+        show_charts(symbol, bars, neckline)
         commentary(symbol, bars)
+        show_money_flow(symbol, bars)
+        show_patterns(symbol, bars)
         if base is not None:
             show_support(base)
         show_valuation(symbol)
     with classroom:
         show_candle_lesson(symbol, bars)
-        show_canslim(symbol)
+        show_canslim(symbol, bars)
 
 
 if __name__ == "__main__":
