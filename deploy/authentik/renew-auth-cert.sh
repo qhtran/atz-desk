@@ -1,6 +1,5 @@
 #!/bin/sh
 # Renew auth.atz.vn and copy the certificate files into the nginx volume.
-# Nginx reads regular files, not the symlinks in /etc/letsencrypt/live.
 set -eu
 certbot renew --cert-name auth.atz.vn --quiet
 src=/etc/letsencrypt/live/auth.atz.vn
