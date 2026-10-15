@@ -79,3 +79,26 @@ def kqkd_cells(symbol: str) -> tuple[str, str]:
         f"{_format_billion(current)} ({period})",
         f"{_format_billion(older)} ({prior})",
     )
+
+
+def kqkd_map(symbols, *, cap: int = 40) -> dict[str, tuple[str, str]]:
+    """Map mã → (KQKD hiện tại, KQKD cùng kỳ). Tối đa ``cap`` mã gọi API/cache; phần còn lại là «—»."""
+    unique: list[str] = []
+    seen: set[str] = set()
+    for symbol in symbols:
+        code = str(symbol).strip().upper()
+        if not code or code in seen:
+            continue
+        seen.add(code)
+        unique.append(code)
+    result: dict[str, tuple[str, str]] = {}
+    for index, code in enumerate(unique):
+        if index >= cap:
+            result[code] = ("—", "—")
+        else:
+            try:
+                result[code] = kqkd_cells(code)
+            except Exception:
+                result[code] = ("—", "—")
+    return result
+

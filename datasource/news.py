@@ -97,10 +97,11 @@ def _write_cache(items: list[dict]) -> None:
     )
 
 
-def fetch_news(limit: int = 12) -> list[dict]:
+def fetch_news(limit: int | None = None) -> list[dict]:
+    """Trả danh sách tin đã cache/RSS. ``limit=None`` lấy hết (phục vụ phân trang UI)."""
     cached = _read_cache()
     if cached is not None:
-        return cached[:limit]
+        return cached if limit is None else cached[:limit]
     try:
         request = Request(_RSS_URL, headers={"User-Agent": _USER_AGENT})
         with urlopen(request, timeout=12) as response:
@@ -110,6 +111,7 @@ def fetch_news(limit: int = 12) -> list[dict]:
             items = _placeholder()
         else:
             _write_cache(items)
-        return items[:limit]
+        return items if limit is None else items[:limit]
     except Exception:
-        return _placeholder()[:limit]
+        items = _placeholder()
+        return items if limit is None else items[:limit]

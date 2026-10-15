@@ -170,10 +170,21 @@ def show_filters() -> None:
                     else:
                         row["mail"] = ""
                 if reports:
+                    from datasource.kqkd import kqkd_map
+
                     board = pd.DataFrame(reports)[
                         ["symbol", "filter_name", "bar_date", "matched", "signal_type", "reason", "price", "mail"]
                     ]
                     board.columns = ["Mã", "Filter", "Ngày nến", "Khớp", "Tín hiệu", "Lý do", "Giá", "Mail"]
+                    # KQKD chỉ cho các mã trong kết quả; tối đa 40 mã gọi cache/API.
+                    filled = kqkd_map(board["Mã"].tolist(), cap=40)
+                    board["KQKD quý hiện tại"] = [
+                        filled.get(str(symbol).upper(), ("—", "—"))[0] for symbol in board["Mã"]
+                    ]
+                    board["KQKD quý cùng kỳ"] = [
+                        filled.get(str(symbol).upper(), ("—", "—"))[1] for symbol in board["Mã"]
+                    ]
+                    st.caption("KQKD = LNST quý hiện tại / cùng kỳ (cache data/kqkd). Thiếu dữ liệu thì «—».")
                     st.dataframe(board, hide_index=True, width="stretch")
                     from ui.trading_desk import offer_to_desk
 
