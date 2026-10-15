@@ -10,5 +10,8 @@ COPY *.py ./
 COPY datasource ./datasource
 COPY analysis ./analysis
 COPY ui ./ui
+COPY engine ./engine
+COPY filters ./filters
+COPY storage ./storage
 EXPOSE 8501
 CMD ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0", "--server.headless=true"]
