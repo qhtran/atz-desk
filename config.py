@@ -20,6 +20,10 @@ INDUSTRY_PATH = DATA_DIR / "industry_l3.csv"
 VALUATION_PATH = DATA_DIR / "valuation.csv"
 EPS_DIR = DATA_DIR / "eps"
 SIGNALS_DB = DATA_DIR / "signals.db"
+WATCHLISTS_DIR = DATA_DIR / "watchlists"
+KQKD_DIR = DATA_DIR / "kqkd"
+POSTS_PATH = DATA_DIR / "member_posts.json"
+NEWS_CACHE_PATH = DATA_DIR / "news_cache.json"
 
 # --- Danh sách quét và bộ lọc Top 20 (ROE + thanh khoản + RS 3 tháng) ---
 UNIVERSE = [

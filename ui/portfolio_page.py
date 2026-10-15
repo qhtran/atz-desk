@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import date
 
+import pandas as pd
 import streamlit as st
 
 from config import CAPITAL_TRANCHES

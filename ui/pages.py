@@ -494,15 +494,25 @@ def open_page() -> None:
         return
     if page == "Danh mục":
         from ui.portfolio_page import show_portfolio
+        from ui.watchlists_page import show_watchlists
 
-        show_portfolio()
+        section = st.segmented_control(
+            "Mục",
+            ["Watchlist", "Vị thế"],
+            default="Watchlist",
+            key="portfolio_section",
+        )
+        if section == "Vị thế":
+            show_portfolio()
+        else:
+            show_watchlists()
         return
     if page == "Tin tức / Bài viết":
         from ui.alerts_page import show_alerts
+        from ui.posts_page import show_news_and_posts
 
         show_alerts()
-        st.subheader("Bài viết của thành viên")
-        st.info("Chưa có bài viết. Khung đăng và xem bài sẽ gắn ở bước sau.")
+        show_news_and_posts()
         return
     if page == "Bộ lọc tín hiệu":
         from ui.filters_page import show_filters

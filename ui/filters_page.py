@@ -9,7 +9,7 @@ import streamlit as st
 
 from config import SIGNALS_DB, UNIVERSE
 from engine.exchange import export_user, import_user
-from engine.identity import username_from_headers
+from engine.identity import current_username
 from engine.notify import BrevoSender, maybe_notify
 from engine.runner import load_frames_for_run, run_frames
 from filters import load_registry
@@ -23,15 +23,6 @@ from storage.repository import (
     save_filter_config,
     set_user_settings,
 )
-
-
-def current_username() -> str:
-    """Header X-authentik-username nếu proxy gửi. Chạy local thì 'local'."""
-    try:
-        headers = dict(st.context.headers)
-    except Exception:
-        headers = {}
-    return username_from_headers(headers)
 
 
 def _field(filter_name: str, param: ParamSpec, current: dict) -> object:
@@ -120,7 +111,13 @@ def show_filters() -> None:
                 ["mua", "ban", "giu", "cho"],
                 default=list(settings.get("loai_nhan") or ["mua", "ban"]),
             )
-        symbols = st.multiselect("Mã cần lọc", options=list(UNIVERSE))
+        preset = [
+            str(item).strip().upper()
+            for item in st.session_state.get("filter_symbols", [])
+            if str(item).strip()
+        ]
+        preset = [item for item in preset if item in UNIVERSE]
+        symbols = st.multiselect("Mã cần lọc", options=list(UNIVERSE), default=preset)
         columns = st.columns(3)
         save_clicked = columns[0].button("Lưu cấu hình", width="stretch")
         run_clicked = columns[1].button("Chạy lọc", width="stretch")

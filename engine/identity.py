@@ -18,3 +18,15 @@ def username_from_headers(headers: Mapping[str, str] | None) -> str:
         if key.lower() == _HEADER and str(value).strip():
             return str(value).strip()
     return "local"
+
+
+def current_username() -> str:
+    """Đọc username từ header Authentik qua Streamlit. Không có thì 'local'."""
+    try:
+        import streamlit as st
+
+        headers = dict(st.context.headers)
+    except Exception:
+        headers = None
+    return username_from_headers(headers)
+

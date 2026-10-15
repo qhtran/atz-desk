@@ -10,6 +10,7 @@ import streamlit as st
 from analysis.candles import candle_pattern
 from analysis.technical import bollinger, ichimoku, macd, mcdx, rsi, sma
 from config import BARS_DIR, INDUSTRY_PATH, UNIVERSE
+from datasource.kqkd import kqkd_cells
 from engine.runner import load_symbol_csv
 
 TOP_PER_INDUSTRY = 5
@@ -228,6 +229,13 @@ def build_industry_top(universe: list[str] | None = None) -> pd.DataFrame:
                 strength, liquidity = None, None
         row["_strength"] = strength
         row["_liquidity"] = liquidity
+        try:
+            current, prior = kqkd_cells(symbol)
+            row["KQKD quý hiện tại"] = current
+            row["KQKD quý cùng kỳ"] = prior
+        except Exception:
+            row["KQKD quý hiện tại"] = "—"
+            row["KQKD quý cùng kỳ"] = "—"
         grouped.setdefault(industry, []).append(row)
 
     chosen: list[dict[str, object]] = []
@@ -256,7 +264,7 @@ def show_industry_top() -> None:
     st.caption(
         "Mỗi ngành lấy tối đa 5 mã trong danh sách quét. "
         "Điểm = 70% thứ hạng sức mạnh giá 20 phiên + 30% thứ hạng khối lượng trung bình 10 phiên, so trong ngành. "
-        "Nến đọc từ data/ohlcv. KQKD quý chưa có nguồn."
+        "Nến đọc từ data/ohlcv. KQKD = lợi nhuận sau thuế (LNST) quý hiện tại và cùng kỳ năm trước, cache trong data/kqkd. Thiếu dữ liệu thì «—»."
     )
     try:
         board = build_industry_top()
