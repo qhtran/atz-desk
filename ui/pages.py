@@ -477,34 +477,47 @@ def open_page() -> None:
         "Trang",
         [
             "Tổng quan",
-            "Trạm Đầu Tư Thực Chiến",
-            "Trạm Học Tập & Đọc Vị Nến",
+            "Trạm Trading",
+            "Bộ lọc tín hiệu",
             "Danh mục",
-            "Cảnh báo",
+            "Tin tức / Bài viết",
         ],
         default="Tổng quan",
         key="open_page",
     )
     if page in (None, "Tổng quan", "Dashboard"):
-        show_dashboard(shown, filter_note)
+        from ui.overview_page import show_overview
+
+        show_overview()
+        with st.expander("Top dẫn dắt đã lưu", expanded=False):
+            show_dashboard(shown, filter_note)
         return
     if page == "Danh mục":
         from ui.portfolio_page import show_portfolio
 
         show_portfolio()
         return
-    if page == "Cảnh báo":
+    if page == "Tin tức / Bài viết":
         from ui.alerts_page import show_alerts
 
         show_alerts()
+        st.subheader("Bài viết của thành viên")
+        st.info("Chưa có bài viết. Khung đăng và xem bài sẽ gắn ở bước sau.")
         return
+    if page == "Bộ lọc tín hiệu":
+        from ui.filters_page import show_filters
+
+        show_filters()
+        return
+    from ui.trading_desk import show_trading_desk
+
+    show_trading_desk(capital)
     prepared = prepare(shown)
     if prepared is None:
         return
     symbol, bars, base, neckline = prepared
     show_position(symbol, float(bars["close"].iloc[-1]), bars, capital, risk_pct)
-    if page == "Trạm Đầu Tư Thực Chiến":
-        show_station(symbol, bars, base, neckline, shown)
-        return
-    show_candle_lesson(symbol, bars)
-    show_canslim(symbol, bars)
+    show_station(symbol, bars, base, neckline, shown)
+    if st.checkbox("Mở phần đọc vị nến và CANSLIM", value=False):
+        show_candle_lesson(symbol, bars)
+        show_canslim(symbol, bars)

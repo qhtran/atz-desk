@@ -37,6 +37,53 @@ def macd(close: pd.Series, fast=C.MACD_FAST, slow=C.MACD_SLOW, signal=C.MACD_SIG
     return line, sig, line - sig
 
 
+def _donchian_mid(high: pd.Series, low: pd.Series, length: int) -> pd.Series:
+    highest = high.rolling(length, min_periods=length).max()
+    lowest = low.rolling(length, min_periods=length).min()
+    return (highest + lowest) / 2
+
+
+def ichimoku(
+    high: pd.Series,
+    low: pd.Series,
+    tenkan: int = C.ICHIMOKU_TENKAN,
+    kijun: int = C.ICHIMOKU_KIJUN,
+    senkou_b: int = C.ICHIMOKU_SENKOU_B,
+    displacement: int = C.ICHIMOKU_DISPLACEMENT,
+):
+    """Tenkan, Kijun, và mây Senkou A/B đã dịch tới phiên hiện tại.
+
+    Senkou Span A/B tính xong rồi shift `displacement` phiên. Giá trị tại
+    phiên cuối chính là mây đang treo trên giá, không phải span vừa tính.
+    """
+    tenkan_sen = _donchian_mid(high, low, tenkan)
+    kijun_sen = _donchian_mid(high, low, kijun)
+    span_a = (tenkan_sen + kijun_sen) / 2
+    span_b = _donchian_mid(high, low, senkou_b)
+    return tenkan_sen, kijun_sen, span_a.shift(displacement), span_b.shift(displacement)
+
+
+def mcdx(
+    close: pd.Series,
+    banker_period: int = C.MCDX_BANKER_PERIOD,
+    banker_base: float = C.MCDX_BANKER_BASE,
+    banker_sens: float = C.MCDX_BANKER_SENS,
+    hot_period: int = C.MCDX_HOT_PERIOD,
+    hot_base: float = C.MCDX_HOT_BASE,
+    hot_sens: float = C.MCDX_HOT_SENS,
+):
+    """Banker, Hot Money (thang 0–20) và Banker chưa kẹp.
+
+    Banker = sensitivity × (RSI(period) − base), kẹp [0, 20].
+    Bản chưa kẹp dùng để bắt cắt qua 0: RSI cắt lên base là sức mạnh tăng.
+    """
+    banker_raw = banker_sens * (rsi(close, banker_period) - banker_base)
+    hot_raw = hot_sens * (rsi(close, hot_period) - hot_base)
+    banker = banker_raw.clip(lower=0, upper=20)
+    hot = hot_raw.clip(lower=0, upper=20)
+    return banker, hot, banker_raw
+
+
 def obv(close: pd.Series, volume: pd.Series) -> pd.Series:
     direction = close.diff().apply(lambda d: 1 if d > 0 else (-1 if d < 0 else 0))
     return (direction * volume).cumsum()

@@ -6,3 +6,4 @@ streamlit==1.65
 pandas
 plotly
 pandas-ta
+pytest

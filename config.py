@@ -15,9 +15,11 @@ JOURNAL_PATH = DATA_DIR / "journal.csv"
 ALERTS_PATH = DATA_DIR / "alerts.csv"
 BULLETIN_PATH = DATA_DIR / "ban_tin.md"
 BARS_DIR = DATA_DIR / "ohlcv"
+FLOW_DIR = DATA_DIR / "flow"
 INDUSTRY_PATH = DATA_DIR / "industry_l3.csv"
 VALUATION_PATH = DATA_DIR / "valuation.csv"
 EPS_DIR = DATA_DIR / "eps"
+SIGNALS_DB = DATA_DIR / "signals.db"
 
 # --- Danh sách quét và bộ lọc Top 20 (ROE + thanh khoản + RS 3 tháng) ---
 UNIVERSE = [
@@ -52,6 +54,17 @@ RSI_LENGTH = 14
 RSI_OVERBOUGHT = 70
 RSI_OVERSOLD = 30
 MACD_FAST, MACD_SLOW, MACD_SIGNAL = 12, 26, 9
+ICHIMOKU_TENKAN = 9
+ICHIMOKU_KIJUN = 26
+ICHIMOKU_SENKOU_B = 52
+ICHIMOKU_DISPLACEMENT = 26
+# MCDX (Banker / Hot Money) theo bản RSI phổ biến ở Việt Nam, thang 0–20.
+MCDX_BANKER_PERIOD = 50
+MCDX_BANKER_BASE = 50.0
+MCDX_BANKER_SENS = 1.5
+MCDX_HOT_PERIOD = 40
+MCDX_HOT_BASE = 30.0
+MCDX_HOT_SENS = 0.7
 MFI_LENGTH = 14
 MFI_HOT = 80
 MFI_COLD = 20
