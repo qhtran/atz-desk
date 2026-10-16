@@ -16,8 +16,10 @@ alert_dispatcher:
       retries: 2                       # tổng 3 lần thử
       broadcast_chat_ids: [-1003736327598]   # channel atz_alert: nhận mọi signal
     email:
-      enabled: false                   # chưa có Brevo key trên VPS -> tắt, không mở circuit, không log lỗi
-      timeout_seconds: 30
+      enabled: true                    # Brevo HTTP API, key BREVO_API_KEY trong .env.alert
+      timeout_seconds: 15
+      sender_email: null               # null -> BREVO_SENDER_EMAIL hoặc mặc định engine/notify.py (mail@atz.vn)
+      sender_name: "ATZ Alerts"
       retries: 1
     inapp:
       enabled: true

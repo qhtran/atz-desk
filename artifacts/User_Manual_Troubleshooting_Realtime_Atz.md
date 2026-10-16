@@ -83,7 +83,7 @@ Log nên chứa các trường tối thiểu:
 | Error Code       | Mô tả                              | Cách xử lý                                      |
 |------------------|------------------------------------|-------------------------------------------------|
 | ERR-ALERT-001    | Telegram send failed               | Kiểm tra bot token (.env.alert), network, bot còn là admin channel |
-| ERR-ALERT-002    | Email (Brevo) failed               | Kiểm tra BREVO_SMTP_LOGIN/KEY; kênh email đang `enabled: false` |
+| ERR-ALERT-002    | Email (Brevo) failed               | Brevo HTTP API lỗi (401 key sai/IP chưa whitelist, 400 sender chưa verify); kiểm tra BREVO_API_KEY trong .env.alert |
 | ERR-ALERT-003    | Channel circuit open               | 5 lỗi/300s -> tạm dừng 300s rồi thử lại; user fallback sang email (nếu bật) |
 | ERR-ALERT-004    | User rate limit hit                | >10/5min hoặc >30/giờ (user hoặc channel broadcast); vẫn ghi in-app |
 | ERR-ALERT-005    | Preference not found               | User chưa có telegram_chat_id/email (log tối đa 1 lần/user/giờ); chỉ in-app + broadcast |
@@ -91,7 +91,8 @@ Log nên chứa các trường tối thiểu:
 **Alert Dispatcher - hành vi (Module 3)**: container `atz-alert`, config `config/alert_dispatcher.yaml`, secret `.env.alert` (chmod 600, không commit).
 - Mỗi signal: dedup theo signal_id (24h) -> ghi `signal_history` (unique user+mã+filter+ngày) -> in-app (`inapp:{user_id}` Redis) -> channel broadcast Telegram (`-1003736327598`, gộp cùng mã+filter+chiều 10 phút, rate limit 10/5min 30/h) -> kênh riêng user (Telegram ưu tiên, fallback Email).
 - Quiet hours: `cai_dat_chung.quiet_hours = {"start":"22:00","end":"07:00"}` (giờ +07:00); trong giờ yên lặng chỉ ghi in-app.
-- Delivery log: bảng SQLite `alert_deliveries` (status sent/failed/skipped + error_code).
+- Email: Brevo HTTP API `POST https://api.brevo.com/v3/smtp/email` (header api-key), sender mặc định `mail@atz.vn`, user cần `email_nhan_thong_bao` + `cai_dat_chung.email_bat=true`; tắt bằng `channels.email.enabled: false`.
+- Delivery log: bảng SQLite `alert_deliveries` (status sent/failed/skipped + error_code + provider_message_id = Telegram message_id / Brevo messageId).
 - Lệnh: `docker exec atz-alert python -m alert_dispatcher.health`; `docker logs atz-alert --tail 100`.
 
 ### Position Monitor

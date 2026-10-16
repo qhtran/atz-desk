@@ -35,7 +35,7 @@ def _safe(e) -> str:
     """Thông điệp lỗi đã xoá token."""
     msg = f"{type(e).__name__}: {e}"
     tok = os.environ.get("TELEGRAM_BOT_TOKEN")
-    for s in filter(None, [tok, os.environ.get("BREVO_SMTP_KEY")]):
+    for s in filter(None, [tok, os.environ.get("BREVO_SMTP_KEY"), os.environ.get("BREVO_API_KEY")]):
         msg = msg.replace(s, "***")
     return msg[:300]
 
@@ -68,15 +68,42 @@ class TelegramAdapter:
 
 
 class EmailAdapter:
+    """Brevo HTTP API (POST /v3/smtp/email, header api-key). Key chỉ đọc từ env BREVO_API_KEY."""
     name = "email"
+    URL = "https://api.brevo.com/v3/smtp/email"
 
-    def __init__(self, retries: int, sender=None):
-        from engine.notify import BrevoSender
-        self.retries, self.sender = retries, sender or BrevoSender()
+    def __init__(self, timeout: float, retries: int, sender_email: str | None = None, sender_name: str | None = None,
+                 api_key: str | None = None, opener=None):
+        from engine.notify import _DEFAULT_SENDER
+        self.timeout, self.retries = timeout, retries
+        self.api_key = api_key if api_key is not None else os.environ.get("BREVO_API_KEY", "").strip()
+        self.sender = {"email": sender_email or os.environ.get("BREVO_SENDER_EMAIL", "").strip() or _DEFAULT_SENDER}
+        name = sender_name or os.environ.get("BREVO_SENDER_NAME", "").strip() or "ATZ Alerts"
+        self.sender["name"] = name
+        self.opener = opener or urllib.request.urlopen
 
     def send(self, to: str, subject: str, text: str) -> str:
-        _retry(lambda: self.sender.send_email(to, subject, text), self.retries)
-        return "smtp"
+        if not self.api_key:
+            raise ChannelError("thiếu BREVO_API_KEY")
+        payload = json.dumps({"sender": self.sender, "to": [{"email": to}], "subject": subject, "textContent": text}).encode()
+
+        def once():
+            req = urllib.request.Request(self.URL, data=payload, method="POST",
+                                         headers={"api-key": self.api_key, "Content-Type": "application/json", "Accept": "application/json"})
+            try:
+                with self.opener(req, timeout=self.timeout) as resp:
+                    body = json.load(resp)
+            except urllib.error.HTTPError as e:
+                try:
+                    detail = json.load(e).get("message", "")[:150]
+                except Exception:  # noqa: BLE001
+                    detail = ""
+                raise ChannelError(f"HTTP {e.code} {detail}") from None
+            mid = body.get("messageId")
+            if not mid:
+                raise ChannelError("brevo: thiếu messageId")
+            return str(mid)
+        return _retry(once, self.retries)
 
 
 class InAppAdapter:

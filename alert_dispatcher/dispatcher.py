@@ -43,7 +43,7 @@ class Dispatcher:
         if self.enabled["telegram"]:
             self.adapters["telegram"] = adapters.get("telegram") or TelegramAdapter(ch["telegram"]["timeout_seconds"], ch["telegram"]["retries"])
         if self.enabled["email"]:
-            self.adapters["email"] = adapters.get("email") or EmailAdapter(ch["email"]["retries"])
+            self.adapters["email"] = adapters.get("email") or EmailAdapter(ch["email"]["timeout_seconds"], ch["email"]["retries"], ch["email"].get("sender_email"), ch["email"].get("sender_name"))
         self.inapp = InAppAdapter(self.r, ch["inapp"]["max_per_user"])
         c = ad["circuit"]
         self.circuits = {n: Circuit(n, c["failure_threshold"], c["window_seconds"], c["open_seconds"]) for n in self.adapters}
@@ -68,7 +68,7 @@ class Dispatcher:
             return False
         t0 = time.monotonic()
         try:
-            call()
+            provider_id = call()
         except ChannelError as e:
             ms = int((time.monotonic() - t0) * 1000)
             opened = circ.failure()
@@ -86,12 +86,12 @@ class Dispatcher:
             log("CIRCUIT", f"{channel} circuit CLOSED", channel=channel, circuit_state="closed")
         self.stats[channel]["sent"] += 1
         log("SEND", f"{channel} sent", symbol=sig["symbol"], user_id=uid, latency_ms=ms, channel=channel, signal_id=sig["signal_id"])
-        self._log_delivery(sig, hist_id, channel, target, "sent", latency_ms=ms)
+        self._log_delivery(sig, hist_id, channel, target, "sent", latency_ms=ms, provider_id=provider_id)
         return True
 
-    def _log_delivery(self, sig, hist_id, channel, target, status, code=None, err=None, latency_ms=None):
+    def _log_delivery(self, sig, hist_id, channel, target, status, code=None, err=None, latency_ms=None, provider_id=None):
         try:
-            store.log_delivery(self.db, sig, hist_id, channel, _mask(channel, target), status, code, err, latency_ms)
+            store.log_delivery(self.db, sig, hist_id, channel, _mask(channel, target), status, code, err, latency_ms, provider_id)
         except Exception as e:  # noqa: BLE001
             log("TRACK", f"delivery log failed: {e}", logging.ERROR, error_code=ERR_SYS_SQLITE, signal_id=sig["signal_id"])
 

@@ -36,6 +36,10 @@ def migrate_alert(conn: sqlite3.Connection) -> list[str]:
         conn.execute("ALTER TABLE users ADD COLUMN telegram_chat_id TEXT")
         done.append("users.telegram_chat_id")
     conn.executescript(DELIVERY_SCHEMA)
+    dcols = {r[1] for r in conn.execute("PRAGMA table_info(alert_deliveries)")}
+    if "provider_message_id" not in dcols:   # Telegram message_id / Brevo messageId
+        conn.execute("ALTER TABLE alert_deliveries ADD COLUMN provider_message_id TEXT")
+        done.append("alert_deliveries.provider_message_id")
     conn.commit()
     return done
 
@@ -75,12 +79,12 @@ def record_history(conn, sig: dict) -> int | None:
     return sid
 
 
-def log_delivery(conn, sig: dict, hist_id, channel, target, status, error_code=None, error=None, latency_ms=None):
+def log_delivery(conn, sig: dict, hist_id, channel, target, status, error_code=None, error=None, latency_ms=None, provider_id=None):
     conn.execute(
-        "INSERT INTO alert_deliveries (signal_id, signal_history_id, user_id, channel, target, status, error_code, error, latency_ms, created_at)"
-        " VALUES (?,?,?,?,?,?,?,?,?,?)",
+        "INSERT INTO alert_deliveries (signal_id, signal_history_id, user_id, channel, target, status, error_code, error, latency_ms, created_at, provider_message_id)"
+        " VALUES (?,?,?,?,?,?,?,?,?,?,?)",
         (sig["signal_id"], hist_id, str(sig["user_id"]), channel, None if target is None else str(target), status,
-         error_code, error, latency_ms, datetime.now().astimezone().isoformat(timespec="seconds")))
+         error_code, error, latency_ms, datetime.now().astimezone().isoformat(timespec="seconds"), provider_id))
     conn.commit()
 
 

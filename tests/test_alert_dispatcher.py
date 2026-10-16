@@ -149,8 +149,51 @@ def test_t2_telegram_fail_circuit_fallback_email(tmp_path, r, caplog):
     print("\n".join(l for *_x, l in entries(caplog) if "ERR-ALERT-00" in l)[:1200])
 
 
+class FakeResp:
+    def __init__(self, body):
+        self.b = json.dumps(body).encode()
+
+    def read(self, *a):
+        return self.b
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
+
+def test_t2c_brevo_api_adapter_mock(tmp_path, r, caplog):
+    import io
+    import urllib.error
+    from alert_dispatcher.adapters import EmailAdapter
+    calls = []
+
+    def ok(req, timeout):
+        calls.append(req)
+        return FakeResp({"messageId": "<abc@smtp-relay.mailin.fr>"})
+    a = EmailAdapter(5, 0, api_key="k-test", opener=ok)
+    d, db = build(tmp_path, r, tg=FakeTG(fail=True), mail=a, broadcast=())
+    make_user(db, chat=None, email="a@b.vn", settings={"email_bat": True})
+    assert d.handle(sig(1))["user"] == ["sent"]
+    req = calls[0]
+    body = json.loads(req.data)
+    assert req.full_url == "https://api.brevo.com/v3/smtp/email" and req.get_header("Api-key") == "k-test"
+    assert body["to"] == [{"email": "a@b.vn"}] and body["sender"]["email"] == "mail@atz.vn"
+    row = db.execute("SELECT target, provider_message_id FROM alert_deliveries WHERE channel='email'").fetchone()
+    assert row[0] == "a***@b.vn" and row[1] == "<abc@smtp-relay.mailin.fr>"
+
+    def bad(req, timeout):
+        raise urllib.error.HTTPError(req.full_url, 401, "x", {}, io.BytesIO(b'{"message":"Key not found"}'))
+    d.adapters["email"].opener = bad
+    for i in range(5):
+        d.handle(sig(10 + i))
+    assert codes(caplog).count("ERR-ALERT-002") == 5 and d.circuits["email"].state == "open"
+    assert "k-test" not in caplog.text
+
+
 def test_t2b_email_disabled_no_error_spam(tmp_path, r, caplog):
-    d, db = build(tmp_path, r, broadcast=())
+    d, db = build(tmp_path, r, broadcast=())   # mail=None -> email enabled=false
     make_user(db, chat=None, email="a@b.vn", settings={"email_bat": True})
     for i in range(5):
         d.handle(sig(i))
