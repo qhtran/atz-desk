@@ -68,6 +68,10 @@ def r():
     client.flushdb()
 
 
+# Test plumbing của runner dựa vào RSI quá bán phiên cuối -> dùng mode cơ bản (F1 cần 2 đáy).
+_CLASSIC = {"mode": "co_ban"}
+
+
 def falling_bars(days=120, start=80.0):
     """Nến giảm đều -> RSI rất thấp (quá bán) -> filter rsi trả 'mua'."""
     today = datetime.now().date()
@@ -119,7 +123,7 @@ def fake_module(name, fn):
 
 
 def test_t1_quote_runs_existing_filter_and_emits_contract_signal(r, caplog):
-    runner, bars = make_runner(r, {"3": [{"kind": "filter", "name": "rsi", "params": {}},
+    runner, bars = make_runner(r, {"3": [{"kind": "filter", "name": "rsi", "params": _CLASSIC},
                                          {"kind": "filter", "name": "macd", "params": {}}]})
     assert {"rsi", "macd", "ma", "volume"} <= set(runner.registry.names())
     signals = runner.process_quote(quote_for(bars))
@@ -146,7 +150,7 @@ def test_t2_isolation_timeout_and_disabled(r, caplog):
 
     modules = dict(load_registry())
     modules["boom"], modules["slow"] = fake_module("boom", boom), fake_module("slow", slow)
-    plan = {"3": [{"kind": "filter", "name": n, "params": {}} for n in ("boom", "slow", "rsi")]}
+    plan = {"3": [{"kind": "filter", "name": n, "params": _CLASSIC} for n in ("boom", "slow", "rsi")]}
     runner, bars = make_runner(r, plan, modules, **{"evaluator.timeout_seconds": 0.3,
                                                     "filter_circuit.failure_threshold": 2})
     first = runner.process_quote(quote_for(bars, "VNM"))
@@ -166,7 +170,7 @@ def test_t2_isolation_timeout_and_disabled(r, caplog):
 
 
 def test_t3_dedup_suppresses_duplicate_within_window(r, caplog):
-    runner, bars = make_runner(r, {"3": [{"kind": "filter", "name": "rsi", "params": {}}]})
+    runner, bars = make_runner(r, {"3": [{"kind": "filter", "name": "rsi", "params": _CLASSIC}]})
     q = quote_for(bars)
     assert len(runner.process_quote(q)) == 1
     assert runner.process_quote(q) == []
@@ -182,7 +186,7 @@ def test_t3_dedup_suppresses_duplicate_within_window(r, caplog):
 
 
 def test_consumer_group_ack_pending_recovery_and_backpressure(r, caplog):
-    runner, bars = make_runner(r, {"3": [{"kind": "filter", "name": "rsi", "params": {}}]},
+    runner, bars = make_runner(r, {"3": [{"kind": "filter", "name": "rsi", "params": _CLASSIC}]},
                                **{"backpressure.lag_threshold": 2, "consumer.claim_min_idle_ms": 0})
     for sym in ("VNM", "VNM", "VNM", "HPG", "HPG"):
         r.xadd("stream:quotes", quote_for(bars, sym))
@@ -197,7 +201,7 @@ def test_consumer_group_ack_pending_recovery_and_backpressure(r, caplog):
 
 
 def test_health_check_ok(r):
-    runner, bars = make_runner(r, {"3": [{"kind": "filter", "name": "rsi", "params": {}}]})
+    runner, bars = make_runner(r, {"3": [{"kind": "filter", "name": "rsi", "params": _CLASSIC}]})
     runner.process_quote(quote_for(bars))
     cfg = copy.deepcopy(config.load())
     cfg["redis"]["url"] = TEST_URL

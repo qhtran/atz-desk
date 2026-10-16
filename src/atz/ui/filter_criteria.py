@@ -1,6 +1,8 @@
 """Bảng Tiêu chí lọc (F1 mục 7) — catalog mentor, map sang filter hiện có.
 
 Không thay engine lọc. Mục 5–6 / phần II còn thiếu mô tả mentor thì ghi chú.
+"Bộ lọc app" bắt đầu bằng tên filter trong registry (filters/*.py); F1_FILTERS là
+map hàng → (filter, params) mà filter runner / engine chạy.
 """
 
 from __future__ import annotations
@@ -13,24 +15,24 @@ CRITERIA_ROWS = (
         "TT": "1",
         "Tên tiêu chí": "Nến Nhật",
         "Ghi chú F1": "Đảo chiều tại hỗ trợ; mạnh / TB / yếu / 3 đáy",
-        "Bộ lọc app": "candle (Nến đơn)",
-        "Trạng thái": "Có filter — logic F1 đầy đủ chưa gắn",
+        "Bộ lọc app": "candle (mode f1)",
+        "Trạng thái": "Đã gắn F1: Engulfing tăng / Hammer chạm hỗ trợ 6 tháng; mạnh/TB/yếu chưa có",
     },
     {
         "Nhóm": "I. Chỉ tiêu kỹ thuật",
         "TT": "2",
         "Tên tiêu chí": "RSI",
         "Ghi chú F1": "2–3 đáy vùng 30, vượt đáy trung tâm",
-        "Bộ lọc app": "rsi",
-        "Trạng thái": "Có filter",
+        "Bộ lọc app": "rsi (mode f1)",
+        "Trạng thái": "Đã gắn F1: ≥2 đáy RSI ≤ 30+5, vượt đáy trung tâm RSI",
     },
     {
         "Nhóm": "I. Chỉ tiêu kỹ thuật",
         "TT": "3",
         "Tên tiêu chí": "MACD",
         "Ghi chú F1": "Cắt lên Signal + histogram cải thiện ≥ 2 phiên",
-        "Bộ lọc app": "macd",
-        "Trạng thái": "Có filter",
+        "Bộ lọc app": "macd (mode f1)",
+        "Trạng thái": "Đã gắn F1: cắt lên Signal ≤3 phiên + histogram tăng ≥2 phiên",
     },
     {
         "Nhóm": "I. Chỉ tiêu kỹ thuật",
@@ -65,6 +67,13 @@ CRITERIA_ROWS = (
         "Trạng thái": "Chưa có",
     },
 )
+
+# Hàng F1 đã gắn logic: TT -> (tên filter trong registry, params gửi cho evaluate).
+F1_FILTERS = {
+    "1": ("candle", {"mode": "f1"}),
+    "2": ("rsi", {"mode": "f1"}),
+    "3": ("macd", {"mode": "f1"}),
+}
 
 
 def criteria_board() -> pd.DataFrame:

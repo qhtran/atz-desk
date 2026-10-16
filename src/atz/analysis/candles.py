@@ -73,3 +73,30 @@ def explain_pattern(name: str) -> str:
         ),
     }
     return notes[name]
+
+
+BULLISH_REVERSAL = ("Engulfing tăng", "Hammer")
+
+
+def reversal_at_support(bars: pd.DataFrame) -> dict[str, object]:
+    """Nến đảo chiều tăng ở phiên cuối và có chạm vùng hỗ trợ (F1 mục 7, hàng 1).
+
+    Hỗ trợ lấy từ analysis.support.support_scan (đáy 6 tháng + dải SUPPORT_BAND).
+    Chạm = low thấp nhất của 2 phiên cuối nằm trong vùng. Ném ValueError khi thiếu dữ liệu.
+    """
+    from analysis.support import support_scan
+
+    pattern = candle_pattern(bars)
+    scan = support_scan(bars)
+    lows = pd.to_numeric(bars["low"], errors="coerce").tail(2)
+    if lows.isna().all():
+        raise ValueError("thiếu giá thấp nhất 2 phiên cuối")
+    touched = bool(float(lows.min()) <= float(scan["zone_top"]))
+    return {
+        "pattern": pattern,
+        "bullish": pattern in BULLISH_REVERSAL,
+        "at_support": touched,
+        "support": round(float(scan["support"]), 4),
+        "zone_top": round(float(scan["zone_top"]), 4),
+        "support_tests": int(scan["tests"]),
+    }

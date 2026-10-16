@@ -14,8 +14,12 @@ def support_scan(bars: pd.DataFrame) -> dict[str, object]:
     work = bars.copy()
     for column in ("high", "low", "close"):
         work[column] = pd.to_numeric(work[column], errors="coerce")
+    if "_day" not in work.columns:
+        # Nến từ filter runner / test có thể chỉ có cột time: suy ra ngày, thiếu cả hai thì dùng toàn bộ.
+        work["_day"] = pd.to_datetime(work["time"], errors="coerce").dt.date if "time" in work.columns else None
     cutoff = date.today() - timedelta(days=SUPPORT_DAYS)
-    window = work.loc[work["_day"] >= cutoff].reset_index(drop=True)
+    days = pd.to_datetime(work["_day"], errors="coerce").dt.date
+    window = work.loc[days.notna() & (days >= cutoff)].reset_index(drop=True)
     if len(window) < MIN_BARS:
         window = work.reset_index(drop=True)
     if window["low"].dropna().empty or len(window) < 2:

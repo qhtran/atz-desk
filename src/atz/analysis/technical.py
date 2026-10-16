@@ -132,3 +132,61 @@ def money_flow_summary(w: pd.DataFrame) -> dict[str, object]:
         "vol_ratio": vol_ratio,
         "obv_up": obv_slope > 0,
     }
+
+
+def rsi_bottoms(values: pd.Series, zone: float, order: int = 3, lookback: int = 60) -> dict[str, object]:
+    """Đáy RSI trong vùng quá bán và "đáy trung tâm" của RSI (F1 mục 7, hàng 2).
+
+    Đáy = cực tiểu cục bộ trong ±order phiên, giá trị <= zone, các đáy cách nhau >= order phiên.
+    Đáy trung tâm dùng cùng định nghĩa với analysis.support: đỉnh RSI cao nhất giữa
+    đáy đầu và đáy cuối. crossed = RSI phiên cuối vừa vượt lên trên mức đó.
+    """
+    series = pd.to_numeric(values, errors="coerce").tail(lookback).reset_index(drop=True)
+    data = series.to_numpy(dtype=float)
+    bottoms: list[int] = []
+    for index in range(order, len(data) - order):
+        window = data[index - order : index + order + 1]
+        if pd.isna(window).any() or data[index] > zone or data[index] != window.min():
+            continue
+        if bottoms and index - bottoms[-1] < order:
+            continue
+        bottoms.append(index)
+    result: dict[str, object] = {
+        "bottoms": len(bottoms),
+        "bottom_values": [round(float(data[index]), 2) for index in bottoms],
+        "neckline": None,
+        "crossed": False,
+        "last": None if len(data) == 0 or pd.isna(data[-1]) else round(float(data[-1]), 2),
+    }
+    if len(bottoms) >= 2 and len(data) >= 2 and not pd.isna(data[-2:]).any():
+        neckline = float(max(data[bottoms[0] : bottoms[-1] + 1]))
+        result["neckline"] = round(neckline, 2)
+        result["crossed"] = bool(data[-2] <= neckline < data[-1])
+    return result
+
+
+def macd_improving(line: pd.Series, signal: pd.Series, hist: pd.Series, cross_window: int = 3, improve_bars: int = 2) -> dict[str, object]:
+    """MACD cắt lên Signal gần đây + histogram tăng liên tiếp >= improve_bars phiên (F1 mục 7, hàng 3).
+
+    cross_ago = số phiên kể từ lần MACD cắt lên Signal (0 = phiên cuối), None nếu không có
+    trong cross_window phiên. improving = hist tăng đều improve_bars phiên gần nhất.
+    """
+    need = max(cross_window, improve_bars) + 1
+    tail_line, tail_sig, tail_hist = line.tail(need + 1), signal.tail(need + 1), hist.tail(need + 1)
+    if len(tail_hist) < need + 1 or tail_line.isna().any() or tail_sig.isna().any() or tail_hist.isna().any():
+        raise ValueError(f"cần ít nhất {need + 1} phiên có MACD/Signal")
+    above = (tail_line > tail_sig).to_numpy()
+    cross_ago = None
+    for ago in range(cross_window):
+        index = len(above) - 1 - ago
+        if above[index] and not above[index - 1]:
+            cross_ago = ago
+            break
+    values = tail_hist.to_numpy(dtype=float)[-(improve_bars + 1) :]
+    improving = bool(all(values[i + 1] > values[i] for i in range(improve_bars)))
+    return {
+        "cross_ago": cross_ago,
+        "above": bool(above[-1]),
+        "improving": improving,
+        "histogram": round(float(values[-1]), 4),
+    }

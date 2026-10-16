@@ -8,14 +8,14 @@ from tests.bars import frame
 
 def test_rsi_buy_after_a_decline() -> None:
     closes = [100 - index for index in range(20)]
-    result = evaluate(frame(closes), {"length": 14, "oversold": 30, "overbought": 70})
+    result = evaluate(frame(closes), {"mode": "co_ban", "length": 14, "oversold": 30, "overbought": 70})
     assert result.matched is True
     assert result.signal_type == "mua"
 
 
 def test_rsi_sell_after_a_rally() -> None:
     closes = [50 + index for index in range(20)]
-    result = evaluate(frame(closes), {"length": 14, "oversold": 30, "overbought": 70})
+    result = evaluate(frame(closes), {"mode": "co_ban", "length": 14, "oversold": 30, "overbought": 70})
     assert result.signal_type == "ban"
 
 

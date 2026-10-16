@@ -1,4 +1,4 @@
-"""Nến bọc analysis.candles, không tự tính lại thân và bóng."""
+"""Nến bọc analysis.candles (mode co_ban), không tự tính lại thân và bóng."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ def test_bullish_engulfing_is_a_buy() -> None:
         {"open": 10, "high": 10.2, "low": 7.8, "close": 8},
         {"open": 7, "high": 11.2, "low": 6.8, "close": 11},
     )
-    result = evaluate(bars)
+    result = evaluate(bars, {"mode": "co_ban"})
     assert result.matched is True
     assert result.signal_type == "mua"
     assert result.details["pattern"] == "Engulfing tăng"
@@ -27,7 +27,7 @@ def test_hammer_is_a_buy() -> None:
         {"open": 9, "high": 10.2, "low": 8.8, "close": 10},
         {"open": 10, "high": 11.2, "low": 8, "close": 11},
     )
-    result = evaluate(bars)
+    result = evaluate(bars, {"mode": "co_ban"})
     assert result.signal_type == "mua"
     assert result.details["pattern"] == "Hammer"
 
