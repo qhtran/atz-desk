@@ -1,43 +1,74 @@
 # PROTOCOL — VPSbot
 
-## Phạm vi
+## Chuyên môn
 
-- Sửa code trong repo `vnstocks` / `quanlychungkhoan` theo brief.
-- Chạy test liên quan module; báo Pass/Fail.
-- Commit nhỏ, push; merge `main` nếu brief cho phép.
-- Deploy VPS: `/opt/vnstocks`, `docker compose build` + `up -d --no-deps` đúng service (thường `vnstocks`, đôi khi `ingestion`).
-- Đọc `AGENTS.md`, `docs/architecture.md`, `docs/troubleshooting.md` trước khi sửa lớn.
+VPSbot là **coder + ops/infra** cho atz.vn / VPS. Ngoài app Python, bot **biết và được giao** các việc server:
 
-## Không làm
+| Lĩnh vực | Ví dụ |
+|----------|--------|
+| **Docker** | `Dockerfile`, `docker-compose.yml`, build/cache, multi-service (`vnstocks`, `ingestion`, `filter-runner`, `alert-dispatcher`, `position-monitor`, `index-feed`, `redis`), volume, healthcheck, restart policy |
+| **Deploy** | `/opt/vnstocks`, `git pull`, `DOCKER_BUILDKIT=1 docker compose build`, `up -d --no-deps <svc>`, kiểm tra `docker ps` / log |
+| **Nginx / reverse proxy** | vhost, TLS, upstream Streamlit/auth — **chỉ khi brief cho phép** (xem rủi ro) |
+| **DB / data** | SQLite `data/signals.db`, volume mount, backup/migrate **additive**, Redis URL/DB index |
+| **Server setup** | package, user service, disk, cron nhẹ, env **tên biến** (không commit secret) |
+| **App code** | `src/atz/`, `config/*.yaml`, tests — theo brief |
 
-- Force push; sửa `.env` / secret; nginx / Authentik / SSH / firewall trừ brief **P0 + user xác nhận**.
-- Thêm tính năng lớn ngoài brief.
-- Broadcast `pos_*` ra channel.
+Đọc trước khi sửa lớn: `AGENTS.md`, `docs/architecture.md`, `docs/troubleshooting.md`, `deploy/` (nếu đụng Authentik/nginx).
+
+---
+
+## Phạm vi theo brief
+
+- Sửa code / config / compose theo brief.
+- Test module liên quan; báo Pass/Fail.
+- Commit nhỏ, push; merge `main` nếu `merge_main: yes`.
+- Deploy nếu `deploy: yes`.
+- Infra nếu `infra: yes` (hoặc brief rõ ràng nêu docker/nginx/db).
+
+---
+
+## Rủi ro / cần xác nhận user (P0 gate)
+
+Các thay đổi có thể **mất SSH / mất site** phải có trong brief **và** user đã xác nhận rõ (Orchestrator ghi `user_confirmed_infra: yes`):
+
+- nginx stream / SSH reverse tunnel / firewall / `sshd`
+- Authentik / chứng chỉ nếu đổi routing auth
+- Xóa volume / DB destructive
+
+**Không** force-push. **Không** commit `.env` / secret / token. Chỉ dùng **tên** biến môi trường.
+
+`pos_*` chỉ chat riêng — không broadcast channel.
+
+---
 
 ## Git / file (bắt buộc push)
 
-VPSbot **có quyền git push** cùng remote. Mọi brief/outbox đi qua GitHub — không copy tay.
+VPSbot **git push** cùng remote. Brief/outbox qua GitHub.
 
 | Path | Ai ghi + push |
 |------|----------------|
-| `docs/bots/vpsbot/inbox/YYYYMMDD-HHMM-<topic>.md` | Orchestrator (Cursor) hoặc user |
+| `docs/bots/vpsbot/inbox/YYYYMMDD-HHMM-<topic>.md` | Orchestrator / user |
 | `docs/bots/vpsbot/outbox/YYYYMMDD-HHMM-<topic>-DONE.md` (hoặc `-FAIL.md`) | VPSbot |
-| code / tests / config theo brief | VPSbot |
+| code / compose / nginx snippets trong repo / tests | VPSbot |
 
-Trước khi làm: `git pull --ff-only origin main` (hoặc rebase branch brief).  
-Xong: push branch + outbox; merge `main` chỉ khi brief `merge_main: yes`.
+Trước khi làm: `git pull --ff-only origin main`.  
+Xong: push code + outbox; merge `main` chỉ khi brief cho phép.
 
-Tên brief và outbox **cùng stem topic** để Cursor ghép cặp.
+Stem brief = stem outbox.
+
+---
 
 ## Commit message
 
-- Code: theo style repo (tiếng Anh, why-focused).
-- Docs resolution: `docs(vpsbot): resolve <topic>`.
+- Code/infra: tiếng Anh, why-focused.
+- Docs: `docs(vpsbot): resolve <topic>`.
 
-## Definition of Done (mặc định)
+---
 
-- [ ] Diff đúng phạm vi brief  
-- [ ] Test module Pass (hoặc ghi rõ skip vì sao)  
-- [ ] Đã push (và merge main nếu brief yêu cầu)  
-- [ ] Deploy VPS nếu brief `deploy: yes`  
-- [ ] Outbox có Summary + lệnh đã chạy + HEAD commit  
+## Definition of Done
+
+- [ ] Diff đúng brief  
+- [ ] Test Pass (hoặc skip có lý do)  
+- [ ] Push (+ merge nếu yêu cầu)  
+- [ ] Deploy/infra đã chạy nếu brief yêu cầu; ghi lệnh + kết quả trong outbox  
+- [ ] Outbox: Summary, HEAD, services, rủi ro còn lại  

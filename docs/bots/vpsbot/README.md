@@ -1,7 +1,13 @@
-# VPSbot — coder / deploy qua repo
+# VPSbot
 
-VPSbot nhận **brief Markdown** trong `inbox/`, làm code/test/commit/deploy, ghi kết quả vào `outbox/`.
+Coder + **ops/infra** cho atz.vn: app code, **Docker/Compose**, deploy VPS, Redis/SQLite, nginx/server setup theo brief.
 
-Cursor (Orchestrator) **không** thay VPSbot code trừ khi user chọn Cursor tự làm hoặc brief khẩn.
+| File | Mục đích |
+|------|----------|
+| `PROTOCOL.md` | Phạm vi, Docker/nginx/db, rủi ro P0, DoD |
+| `PROMPT_FOR_VPSBOT.md` | Prompt khởi động phiên |
+| `TASK_TEMPLATE.md` | Mẫu brief inbox |
+| `inbox/` | Brief từ Orchestrator (push GitHub) |
+| `outbox/` | DONE/FAIL sau khi VPSbot push |
 
-Xem tổng quan: [`../ORCHESTRATION.md`](../ORCHESTRATION.md).
+Orchestrator: Cursor — xem `docs/bots/ORCHESTRATION.md`.

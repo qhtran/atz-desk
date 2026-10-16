@@ -6,7 +6,7 @@
 |--------|-----|------|------|
 | **Orchestrator** | Cursor (Composer) trong chat này | Hiểu mục tiêu user → chia việc → đọc kết quả → chốt ưu tiên `1a/1b…` → (tuỳ chọn) review diff | Chat Cursor + git |
 | **Auditor** | AuditorBot (Grok + computer use) | Survey **atz.vn** / **fireant.vn**, báo cáo lệch UI/UX | `docs/auditorbot/inbox/` |
-| **Coder / Ops** | VPSbot | Sửa code, test, commit, deploy VPS theo brief | `docs/bots/vpsbot/inbox/` → `outbox/` |
+| **Coder / Ops / Infra** | VPSbot | Code, test, commit; **Docker/Compose**, deploy `/opt/vnstocks`, Redis/SQLite, nginx & server setup theo brief (+ `user_confirmed_infra` nếu rủi ro) | `docs/bots/vpsbot/inbox/` → `outbox/` |
 | **Chủ repo** | Bạn | Quyết định lớn, auth bot lần đầu, chuyển prompt khởi động | Chat + GitHub |
 
 **Giả định nền (đã chốt):** **mọi bot đều `git pull` / `git push` được** cùng remote GitHub. Không copy tay file giữa máy trừ khi git lỗi.
@@ -44,7 +44,7 @@ Cursor đọc → tóm tắt user → Resolution / brief tiếp
 - Sửa rất nhỏ / nóng (1 file, bug chặn production) mà VPSbot chưa sẵn.
 - Verify 1 màn sau deploy (browser Cursor **ngắn**).
 - Viết/chỉnh protocol, brief, template.
-- Rủi ro: secret, nginx, SSH, firewall → **dừng, hỏi user**.
+- Rủi ro: secret, nginx, SSH, firewall → **dừng, hỏi user**; nếu giao VPSbot thì brief phải có `user_confirmed_infra: yes`.
 
 ---
 
