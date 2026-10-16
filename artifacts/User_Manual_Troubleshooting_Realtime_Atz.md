@@ -122,6 +122,7 @@ Log nên chứa các trường tối thiểu:
 | ERR-UI-004       | Bảng giá chạy chế độ dự phòng      | Redis không phản hồi (kèm ERR-SYS-001) hoặc chưa có quote. Bảng hiện Top 20 đã lưu (SQLite `top20_snapshot`) kèm banner. Kiểm tra `atz-redis`, `atz-ingestion` |
 | ERR-UI-005       | Tham số lọc lịch sử tín hiệu sai   | (Module 6) Số ngày ngoài 1..365, số dòng ngoài 1..500, mã không phải 3–10 ký tự chữ/số, chiều khác MUA/BÁN. Hiện lỗi ngay trên mục Tín hiệu, không truy vấn DB |
 | ERR-UI-006       | Bản ghi tín hiệu hỏng `details`    | (Module 6) `signal_history.details` không phải JSON. Dòng vẫn hiện nhưng thiếu lý do/signal_id. Kiểm tra bản ghi theo `history_id` trong log; nguồn ghi là Module 3 (`alert_dispatcher/store.py`) |
+| ERR-UI-007       | Thẻ chỉ số không đọc được Redis    | Đầu mục Bảng giá hiện "Không đọc được chỉ số (Redis đang lỗi)". Bảng giá bên dưới vẫn chạy (có dự phòng riêng ERR-UI-004). Kiểm tra `atz-redis`, sau đó `atz-index` |
 
 **UI Realtime - hành vi (Module 5)**: trang **Realtime** trong thanh chọn trang của atz.vn (container `vnstocks`, config `config/ui_realtime.yaml`, code `ui_realtime/` + `ui/realtime_page.py`). Container `vnstocks` join mạng `realtime` để đọc Redis.
 - **Bảng giá**: đọc `quote:{symbol}` bằng 1 MGET; danh sách mã SCAN `quote:*` tối đa 1 lần/60s. Chỉ bảng chạy lại (`st.fragment(run_every)`): **3s** trong giờ giao dịch (T2–T6 09:00–11:30, 13:00–15:00 giờ VN), **30s** ngoài giờ. Khoảng refresh chốt khi tải/đổi mục trang; qua mốc giờ giao dịch thì bấm sang mục khác hoặc tải lại để đổi nhịp. Cột "Trạng thái" = `⚠️ cũ` khi quote > 120s hoặc ingestion gắn cờ stale; dòng "Cập nhật lúc HH:MM:SS" + giờ quote mới nhất. Giá VND.
@@ -142,6 +143,23 @@ Log nên chứa các trường tối thiểu:
 - **Chưa làm**: deep-link app sàn (tuỳ chọn trong thiết kế). Mục không tự refresh: đổi bộ lọc hoặc mở lại mục để tải mới.
 - Log: `docker logs vnstocks 2>&1 | grep -- '-UI-OAH-'`. Nhãn: `UI-OAH-HISTORY` (số dòng + bộ lọc, ERR-UI-005), `UI-OAH-DETAILS` (ERR-UI-006). Lỗi SQLite -> ERR-SYS-002.
 - Test: `docker run --rm --network vnstocks_realtime -v /opt/vnstocks:/src:ro --tmpfs /src/data -w /src vnstocks-vnstocks python -m pytest -q -p no:cacheprovider tests/test_order_helper.py`.
+
+### Index Feed / Thẻ chỉ số (atz-index)
+Container `atz-index` (`python -m ingestion.index`, config `config/index.yaml`) lấy VNINDEX, HNXINDEX, UPCOMINDEX, VN30, VN30F1M, VN30F2M. Nó **tách khỏi** `atz-ingestion` nên không tính vào giới hạn vnstock 350 rpm. Provider theo thứ tự: SSI FastConnect (chỉ bật khi `.env` có `SSI_CONSUMER_ID` và `SSI_CONSUMER_SECRET`), rồi Entrade, rồi Vietcap. Mã nào provider trước không trả thì hỏi provider sau. Mỗi provider có limiter riêng (Vietcap 45 rpm, Entrade 30 rpm) và circuit breaker riêng. Poll mỗi 3s trong 08:45–11:30 và 13:00–15:00, mỗi 30s ngoài giờ. Khi khởi động, nó nạp lại nến 1 phút của phiên gần nhất.
+
+| Error Code       | Ý nghĩa                              | Hành động / Kiểm tra |
+|------------------|--------------------------------------|----------------------|
+| ERR-IDX-001      | Circuit một provider OPEN            | Provider lỗi liên tiếp (Entrade 3 lần, Vietcap 5 lần trong 60s). Bỏ qua provider đó trong `recovery_seconds` (Entrade 300s, Vietcap 45s) rồi thử lại 1 request. Xem `docker logs atz-index 2>&1 \| grep IDX-CB` |
+| ERR-IDX-002      | Không provider nào trả được một mã   | Giữ giá trị cũ trong Redis. Sau 120s thẻ hiện "⚠️ cũ". Kiểm tra mạng ra ngoài của VPS và mục Health → `index` |
+| ERR-IDX-003      | Response sai định dạng               | Nguồn đổi API (Vietcap/Entrade là API web không chính thức). Lỗi được tính là failure của provider. Cần sửa hàm `parse_*` trong `ingestion/index/providers.py` |
+| ERR-IDX-004      | Ghi Redis lỗi                        | Kèm tên exception. Kiểm tra `atz-redis`. Feed vẫn chạy và tự ghi lại ở chu kỳ sau |
+| ERR-IDX-005      | Không xác định được hợp đồng phái sinh | Lỗi `getByGroup FU_INDEX` hoặc `symbols/getList` (Vietcap). Hệ thống tra lại mỗi giờ và ngay sau ngày đáo hạn |
+
+- Redis: `idx:quote:{SYM}` gồm value, ref, change, pct, ts (lần lấy thành công gần nhất, dùng để xét stale), data_time, source, contract. TTL 4 ngày. `spark:{SYM}` là `{day, contract, points:[[epoch_phút, giá]]}`, tối đa 300 điểm, TTL tới phiên kế tiếp + 1h. `idx:health` là heartbeat.
+- Log: `docker logs atz-index 2>&1 | grep -- '-IDX-'`. Các nhãn: `INGEST-IDX-FETCH` (log mỗi 20 chu kỳ, kèm giá và nguồn), `IDX-BACKFILL`, `IDX-FUTURES`, `IDX-ROLLOVER` (đổi hợp đồng thì xoá chuỗi cũ và nạp lại), `IDX-CB`, `IDX-REDIS`. Ở UI: `UI-INDEX` (ERR-UI-007).
+- Kiểm tra nhanh: `docker exec atz-index python -m ingestion.index.health` (exit 0 nếu heartbeat < 120s); `docker exec atz-redis redis-cli get idx:quote:VNINDEX`.
+- Ghi chú 2026-10-16: từ VPS không kết nối được `services.entrade.com.vn` (bị connect timeout), nên circuit Entrade sẽ OPEN và Vietcap phục vụ toàn bộ. Đây là hành vi đúng thiết kế.
+- Bật SSI: thêm `SSI_CONSUMER_ID` và `SSI_CONSUMER_SECRET` vào `.env`, rồi chạy `docker compose up -d --no-deps index-feed`. Phần SSI REST (AccessToken, DailyIndex, IntradayOhlc) chưa chạy thử với key thật. Kênh streaming MI là bước tiếp theo.
 
 ### Chung
 | Error Code       | Mô tả                              | Cách xử lý                                      |

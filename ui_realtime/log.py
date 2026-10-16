@@ -17,6 +17,7 @@ ERR_UI_INPUT = "ERR-UI-001"      # dữ liệu nhập vị thế không hợp l�
 ERR_UI_FORBIDDEN = "ERR-UI-002"  # thao tác vị thế không thuộc user đăng nhập
 ERR_UI_SETTINGS = "ERR-UI-003"   # cài đặt thông báo không hợp lệ
 ERR_UI_FALLBACK = "ERR-UI-004"   # bảng giá chạy chế độ dự phòng (Redis down / không có quote)
+ERR_UI_INDEX = "ERR-UI-007"      # thẻ chỉ số không đọc được Redis (idx:quote / spark)
 
 if not LOGGER.handlers:
     _h = logging.StreamHandler(sys.stdout)

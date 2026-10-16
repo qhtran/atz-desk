@@ -1,0 +1,282 @@
+"""Provider chỉ số theo thứ tự ưu tiên: SSI FastConnect (khi có key) -> Entrade -> Vietcap.
+
+Mỗi provider: quotes(symbols) -> {sym: IdxQuote} (có thể thiếu mã), bars(symbols, since_epoch) -> {sym: [(epoch, close)]}.
+Lỗi mạng/HTTP/định dạng -> ProviderDown. Parse tách thành hàm thuần (parse_*) để test bằng response mẫu.
+"""
+from __future__ import annotations
+
+import time
+from datetime import datetime
+
+import requests
+
+from ingestion.index.common import ERR_IDX_PARSE, FUTURES, IdxQuote, ProviderDown, log
+
+
+class Provider:
+    name = "BASE"
+
+    def __init__(self, settings, session=None):
+        self.s = settings
+        ps = settings.provider_settings.get(self.name, {})
+        self.timeout = float(ps.get("timeout", 5))
+        self.http = session or requests.Session()
+        self.http.headers.update({"User-Agent": settings.user_agent, "Accept": "application/json, text/plain, */*",
+                                  "Accept-Language": "vi-VN,vi;q=0.9,en;q=0.8"})
+
+    @property
+    def enabled(self) -> bool:
+        return True
+
+    def cost(self, symbols) -> int:
+        return 1
+
+    def _json(self, method: str, url: str, **kw):
+        try:
+            r = self.http.request(method, url, timeout=self.timeout, **kw)
+            r.raise_for_status()
+            return r.json()
+        except (requests.RequestException, ValueError) as e:
+            raise ProviderDown(f"{self.name} {type(e).__name__}: {str(e)[:160]}") from None
+
+    def quotes(self, symbols) -> dict:
+        raise NotImplementedError
+
+    def bars(self, symbols, since: int) -> dict:
+        raise NotImplementedError
+
+
+def _parse_guard(name, fn, *a):
+    try:
+        return fn(*a)
+    except (KeyError, TypeError, ValueError, IndexError, AttributeError) as e:
+        log("PARSE", f"{name} bad payload: {type(e).__name__}: {e}", error_code=ERR_IDX_PARSE, source=name)
+        raise ProviderDown(f"{name} parse error") from None
+
+
+# ------------------------------------------------------------------ Vietcap (trading.vietcap.com.vn)
+VCI_INDEX = {"VNINDEX": "VNINDEX", "HNXINDEX": "HNXIndex", "UPCOMINDEX": "HNXUpcomIndex", "VN30": "VN30"}
+VCI_BASE = "https://trading.vietcap.com.vn/api"
+
+
+def parse_vci_market_index(payload) -> dict:
+    rev = {v: k for k, v in VCI_INDEX.items()}
+    out = {}
+    for row in payload:
+        sym = rev.get(row.get("symbol"))
+        if sym and row.get("price") and row.get("refPrice"):
+            out[sym] = IdxQuote(sym, float(row["price"]), float(row["refPrice"]), "VIETCAP", row.get("time"))
+    return out
+
+
+def parse_vci_futures(payload) -> tuple[dict, dict]:
+    """symbols/getList -> ({VN30F1M: quote}, {VN30F1M: {'code': 41I1GB000, 'maturity': '2026-11-20'}})."""
+    quotes, contracts = {}, {}
+    for row in payload:
+        li, mp = row.get("listingInfo") or {}, row.get("matchPrice") or {}
+        alias = li.get("mappingSymbol")
+        if alias not in FUTURES:
+            continue
+        mat = li.get("maturityDate")
+        contracts[alias] = {"code": li["symbol"],
+                            "maturity": datetime.strptime(mat, "%d/%m/%Y").date().isoformat() if mat else None}
+        ref = mp.get("referencePrice") or li.get("refPrice")
+        price = mp.get("matchPrice") or ref
+        if price and ref:
+            quotes[alias] = IdxQuote(alias, float(price), float(ref), "VIETCAP", mp.get("time"), li["symbol"])
+    return quotes, contracts
+
+
+def parse_vci_bars(payload, code_to_sym: dict) -> dict:
+    out = {}
+    for row in payload:
+        sym = code_to_sym.get(row.get("symbol"))
+        if sym:
+            out[sym] = [(int(t), float(c)) for t, c in zip(row["t"], row["c"])]
+    return out
+
+
+class Vietcap(Provider):
+    name = "VIETCAP"
+
+    def __init__(self, settings, session=None):
+        super().__init__(settings, session)
+        self.http.headers.update({"Referer": "https://trading.vietcap.com.vn/", "Origin": "https://trading.vietcap.com.vn"})
+        self.contracts: dict = {}   # VN30F1M -> {code, maturity}
+
+    def cost(self, symbols) -> int:
+        return int(any(s in VCI_INDEX for s in symbols)) + int(any(s in FUTURES for s in symbols))
+
+    def resolve_futures(self) -> dict:
+        group = self._json("GET", f"{VCI_BASE}/price/symbols/getByGroup", params={"group": "FU_INDEX"})
+        codes = [g["symbol"] for g in group if str(g.get("symbol", "")).startswith("41I1")]
+        if not codes:
+            raise ProviderDown("VIETCAP no futures codes")
+        _, contracts = _parse_guard(self.name, parse_vci_futures,
+                                    self._json("POST", f"{VCI_BASE}/price/symbols/getList", json={"symbols": codes}))
+        self.contracts = contracts
+        return contracts
+
+    def resolve_futures_wrapped(self, _symbols) -> dict:
+        return self.resolve_futures()
+
+    def quotes(self, symbols) -> dict:
+        out = {}
+        idx = [VCI_INDEX[s] for s in symbols if s in VCI_INDEX]
+        if idx:
+            out.update(_parse_guard(self.name, parse_vci_market_index,
+                                    self._json("POST", f"{VCI_BASE}/price/marketIndex/getList", json={"symbols": idx})))
+        futs = [s for s in symbols if s in FUTURES]
+        if futs:
+            if not all(f in self.contracts for f in futs):
+                self.resolve_futures()
+            codes = [self.contracts[f]["code"] for f in futs if f in self.contracts]
+            q, c = _parse_guard(self.name, parse_vci_futures,
+                                self._json("POST", f"{VCI_BASE}/price/symbols/getList", json={"symbols": codes}))
+            out.update({k: v for k, v in q.items() if k in futs})
+            self.contracts.update(c)
+        return {k: v for k, v in out.items() if k in symbols}
+
+    def bars(self, symbols, since: int) -> dict:
+        code_to_sym = {VCI_INDEX[s]: s for s in symbols if s in VCI_INDEX}
+        for f in symbols:
+            if f in FUTURES:
+                if f not in self.contracts:
+                    self.resolve_futures()
+                if f in self.contracts:
+                    code_to_sym[self.contracts[f]["code"]] = f
+        payload = self._json("POST", f"{VCI_BASE}/chart/OHLCChart/gap",
+                             json={"timeFrame": "ONE_MINUTE", "symbols": list(code_to_sym), "from": since, "to": int(time.time())})
+        return _parse_guard(self.name, parse_vci_bars, payload, code_to_sym)
+
+
+# ------------------------------------------------------------------ Entrade (DNSE chart API)
+ENT_BASE = "https://services.entrade.com.vn/chart-api/v2/ohlcs"
+ENT_INDEX = {"VNINDEX": "VNINDEX", "HNXINDEX": "HNX", "UPCOMINDEX": "UPCOM", "VN30": "VN30"}
+
+
+def parse_ent_bars(payload) -> list[tuple[int, float]]:
+    return [(int(t), float(c)) for t, c in zip(payload["t"], payload["c"])]
+
+
+def ent_ref_from_daily(payload, today_epoch_start: int) -> float | None:
+    """Giá tham chiếu = close của phiên ngày gần nhất trước hôm nay."""
+    prev = [(int(t), float(c)) for t, c in zip(payload["t"], payload["c"]) if int(t) < today_epoch_start]
+    return prev[-1][1] if prev else None
+
+
+class Entrade(Provider):
+    name = "ENTRADE"
+
+    def __init__(self, settings, session=None, clock=time.time):
+        super().__init__(settings, session)
+        self.http.headers.update({"Referer": "https://banggia.dnse.com.vn/", "Origin": "https://banggia.dnse.com.vn"})
+        self.clock = clock
+        self.refs: dict = {}   # (sym, date) -> ref
+
+    def cost(self, symbols) -> int:
+        return len(symbols) + sum(1 for s in symbols if not any(k[0] == s for k in self.refs))
+
+    def _url(self, sym):
+        return (f"{ENT_BASE}/derivative", sym) if sym in FUTURES else (f"{ENT_BASE}/index", ENT_INDEX[sym])
+
+    def _get(self, sym, resolution, since):
+        url, code = self._url(sym)
+        return self._json("GET", url, params={"symbol": code, "resolution": resolution, "from": since, "to": int(self.clock())})
+
+    def bars(self, symbols, since: int) -> dict:
+        return {s: _parse_guard(self.name, parse_ent_bars, self._get(s, "1", since)) for s in symbols}
+
+    def quotes(self, symbols) -> dict:
+        from ingestion.index.series import session_start_epoch
+        now = self.clock()
+        out = {}
+        for s in symbols:
+            bars = _parse_guard(self.name, parse_ent_bars, self._get(s, "1", int(now) - 86400 * self.s.lookback_days))
+            if not bars:
+                continue
+            last_t = bars[-1][0]
+            day = session_start_epoch(last_t, self.s.timezone)
+            key = (s, day)
+            if key not in self.refs:
+                daily = self._get(s, "1D", int(now) - 86400 * 15)
+                self.refs[key] = _parse_guard(self.name, ent_ref_from_daily, daily, day)
+            if self.refs[key]:
+                out[s] = IdxQuote(s, bars[-1][1], self.refs[key], "ENTRADE",
+                                  datetime.fromtimestamp(last_t).astimezone().isoformat())
+        return out
+
+
+# ------------------------------------------------------------------ SSI FastConnect Data (chờ key)
+SSI_BASE = "https://fc-data.ssi.com.vn/api/v2/Market"
+SSI_INDEX = {"VNINDEX": "VNINDEX", "HNXINDEX": "HNXIndex", "UPCOMINDEX": "HNXUpcomIndex", "VN30": "VN30"}
+
+
+class SSI(Provider):
+    """REST FastConnect Data (AccessToken + IntradayOhlc + DailyIndex). Tắt khi thiếu SSI_CONSUMER_ID/SECRET.
+
+    Chưa chạy thử với key thật (chưa có tài khoản). Kênh streaming MI (SignalR) là bước sau khi có key."""
+    name = "SSI"
+
+    def __init__(self, settings, session=None):
+        super().__init__(settings, session)
+        self.token, self.token_exp = None, 0.0
+
+    @property
+    def enabled(self) -> bool:
+        return bool(self.s.env.get("SSI_CONSUMER_ID") and self.s.env.get("SSI_CONSUMER_SECRET"))
+
+    def cost(self, symbols) -> int:
+        return len(symbols) + 1
+
+    def _auth(self):
+        if self.token and time.time() < self.token_exp:
+            return
+        j = self._json("POST", f"{SSI_BASE}/AccessToken",
+                       json={"consumerID": self.s.env["SSI_CONSUMER_ID"], "consumerSecret": self.s.env["SSI_CONSUMER_SECRET"]})
+        tok = (j.get("data") or {}).get("accessToken")
+        if not tok:
+            raise ProviderDown(f"SSI auth failed status={j.get('status')}")
+        self.token, self.token_exp = tok, time.time() + 6 * 3600
+        self.http.headers["Authorization"] = f"Bearer {tok}"
+
+    def _today(self):
+        return datetime.now().strftime("%d/%m/%Y")
+
+    def quotes(self, symbols) -> dict:
+        if not self.enabled:
+            raise ProviderDown("SSI disabled (no credentials)")
+        self._auth()
+        out = {}
+        for s in symbols:
+            if s not in SSI_INDEX:
+                continue   # phái sinh qua SSI cần kênh X/streaming; để provider sau xử lý
+            j = self._json("GET", f"{SSI_BASE}/DailyIndex", params={"indexId": SSI_INDEX[s], "fromDate": self._today(),
+                                                                    "toDate": self._today(), "pageIndex": 1, "pageSize": 10})
+            rows = j.get("data") or []
+            if rows:
+                row = rows[-1]
+                val, chg = float(row["IndexValue"]), float(row.get("Change") or 0)
+                out[s] = IdxQuote(s, val, round(val - chg, 2), "SSI", row.get("Time"))
+        return out
+
+    def bars(self, symbols, since: int) -> dict:
+        if not self.enabled:
+            raise ProviderDown("SSI disabled (no credentials)")
+        self._auth()
+        out = {}
+        for s in symbols:
+            if s not in SSI_INDEX:
+                continue
+            j = self._json("GET", f"{SSI_BASE}/IntradayOhlc", params={"symbol": SSI_INDEX[s], "fromDate": self._today(),
+                                                                      "toDate": self._today(), "pageIndex": 1, "pageSize": 1000,
+                                                                      "resollution": 1})
+            pts = []
+            for row in j.get("data") or []:
+                t = datetime.strptime(f"{row['TradingDate']} {row['Time']}", "%d/%m/%Y %H:%M:%S").timestamp()
+                pts.append((int(t), float(row["Close"])))
+            out[s] = pts
+        return out
+
+
+REGISTRY = {"SSI": SSI, "ENTRADE": Entrade, "VIETCAP": Vietcap}

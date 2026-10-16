@@ -20,7 +20,7 @@ ui_realtime:
   admin_users: ["akadmin"]
   health:
     max_age_seconds: 120
-    keys: {ingestion: "ingest:health", filter: "filter:health", alert: "alert:health", position: "pos:health"}
+    keys: {ingestion: "ingest:health", filter: "filter:health", alert: "alert:health", position: "pos:health", index: "idx:health"}
 redis:
   url: redis://redis:6379/0
 sqlite:

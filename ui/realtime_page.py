@@ -14,6 +14,7 @@ import streamlit as st
 from engine.identity import current_username
 from ui.components import render_data_table
 from ui_realtime import data
+from ui_realtime import index_cards
 from order_helper import core as oah
 from ui_realtime.log import ERR_SYS_SQLITE, ERR_UI_FALLBACK, TZ, log
 
@@ -74,8 +75,18 @@ def _fallback_board(reason: str, user_id: int) -> None:
     render_data_table(board[cols] if cols else board, key="rt_board_fb")
 
 
+def _index_cards(user_id: int) -> None:
+    """Thẻ chỉ số kiểu FireAnt (VNINDEX, HNX, UPCOM, VN30, VN30F1M/F2M) ở đầu bảng giá, cùng fragment."""
+    try:
+        st.markdown(index_cards.render_html(data.reader(), float(_cfg()["ui_realtime"]["quote_stale_seconds"]), user_id),
+                    unsafe_allow_html=True)
+    except Exception as e:  # noqa: BLE001 - thẻ chỉ số lỗi không được làm hỏng bảng giá
+        log("INDEX", f"render failed: {type(e).__name__}: {e}", error_code=index_cards.ERR_UI_INDEX, user_id=user_id)
+
+
 def _board(user_id: int, interval) -> None:
     _tick("board", user_id, interval)
+    _index_cards(user_id)
     r = data.reader()
     quotes = r.quotes()
     if quotes is None:

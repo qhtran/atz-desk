@@ -1,0 +1,24 @@
+# Index sparkline feed (atz-index): VNINDEX/HNXINDEX/UPCOMINDEX/VN30/VN30F1M/VN30F2M.
+# Tách hẳn khỏi đường quote vnstock 350 rpm (config/ingestion.yaml): limiter + circuit breaker riêng cho từng provider.
+index:
+  symbols: [VNINDEX, HNXINDEX, UPCOMINDEX, VN30, VN30F1M, VN30F2M]
+  providers: [SSI, ENTRADE, VIETCAP]        # thứ tự ưu tiên; SSI tự tắt khi thiếu SSI_CONSUMER_ID/SSI_CONSUMER_SECRET
+  poll_seconds_trading: 3
+  poll_seconds_off: 30
+  trading_sessions: [["08:45", "11:30"], ["13:00", "15:00"]]   # phái sinh mở 08:45; điểm spark chỉ thêm trong khung này
+  timezone: "Asia/Ho_Chi_Minh"
+  spark_max_points: 300
+  futures_resolve_seconds: 3600             # tra lại hợp đồng hiện hành mỗi giờ (và khi đáo hạn)
+  backfill_lookback_days: 5                 # lấy phiên gần nhất có dữ liệu (cuối tuần vẫn có đồ thị)
+  user_agent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Safari/537.36"
+  provider_settings:
+    SSI:     {rpm: 60, timeout: 5, failure_threshold: 3, recovery_seconds: 120}
+    ENTRADE: {rpm: 30, burst: 12, timeout: 3, failure_threshold: 3, recovery_seconds: 300}   # 6-12 req/lần (1 req/mã) -> burst 12
+    VIETCAP: {rpm: 45, timeout: 6, failure_threshold: 5, recovery_seconds: 45}
+redis:
+  url: redis://redis:6379/0
+  quote_key: "idx:quote:{symbol}"
+  spark_key: "spark:{symbol}"
+  health_key: "idx:health"
+  quote_ttl_seconds: 345600                 # 4 ngày (qua cuối tuần)
+  health_max_age_seconds: 120

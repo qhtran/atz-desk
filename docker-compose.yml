@@ -108,6 +108,28 @@ services:
       start_period: 60s
       retries: 3
 
+  # --- Thẻ chỉ số kiểu FireAnt: VNINDEX/HNX/UPCOM/VN30/VN30F1M/F2M -> idx:quote:*, spark:* (config/index.yaml) ---
+  index-feed:
+    image: vnstocks-vnstocks   # cùng image với app; tách khỏi atz-ingestion để không đụng đường quote vnstock 350 rpm
+    container_name: atz-index
+    restart: unless-stopped
+    command: ["python", "-m", "ingestion.index"]
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes: ["./logs:/app/logs"]
+    environment:
+      IDX_CONFIG: /app/config/index.yaml
+      INGEST_LOG_DIR: /app/logs/index
+    env_file: [".env"]            # SSI_CONSUMER_ID / SSI_CONSUMER_SECRET (nếu có) bật provider SSI
+    networks: [default, realtime]  # default: ra Internet tới Vietcap/Entrade/SSI; realtime: Redis
+    healthcheck:
+      test: ["CMD", "python", "-m", "ingestion.index.health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 3
+
 secrets:
   vnstock_index:
     file: ./.pip_index

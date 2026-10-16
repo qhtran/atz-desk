@@ -201,8 +201,12 @@ class RedisReader:
             extra = {"ingestion": lambda b: f"mode {b.get('mode')}, rpm {b.get('current_rpm')}, {b.get('breakers')}",
                      "filter": lambda b: f"{b.get('signals_per_minute')} signal/phút, disabled {b.get('disabled_filters')}",
                      "alert": lambda b: ", ".join(f"{k}:{v.get('circuit')}" for k, v in (b.get("channels") or {}).items()),
-                     "position": lambda b: f"{b.get('open_positions')} vị thế mở, stale {b.get('stale_positions')}"}
-            ok = age <= float(h["max_age_seconds"]) and not (name == "ingestion" and beat.get("mode") == "degraded")
+                     "position": lambda b: f"{b.get('open_positions')} vị thế mở, stale {b.get('stale_positions')}",
+                     "index": lambda b: f"{b.get('fresh')}/{b.get('symbols')} mã mới, nguồn "
+                                        + ", ".join(f"{k}:{v.get('circuit') if v.get('enabled') else 'off'}"
+                                                    for k, v in (b.get("providers") or {}).items())}
+            ok = age <= float(h["max_age_seconds"]) and not (name == "ingestion" and beat.get("mode") == "degraded") \
+                and not (name == "index" and beat.get("fresh", 0) < beat.get("symbols", 0))
             out[name] = {"ok": ok, "detail": f"heartbeat {age:.0f}s; " + extra.get(name, lambda b: "")(beat)}
         return out
 
