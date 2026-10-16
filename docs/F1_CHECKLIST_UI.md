@@ -3,7 +3,7 @@
 - **Nguồn:** `MoTaCongViecThucHienCapNhatSite_RevF1.docx` (iCloud StockRnD / ideas_from_Hien)
 - **Bản chữ + ảnh local:** cùng thư mục, file `*_text.md` và `*_media/word/media/`
 - **Ngày ghi checklist:** 2026-10-17
-- **Trạng thái:** Đang làm từng mục (1, 3, 4, 6 xong; 2 MVP; còn 5, 7 + realtime giá sidebar)
+- **Trạng thái:** Đang làm từng mục (1–6 xong/MVP; còn 7 + realtime giá sidebar)
 
 ---
 
@@ -69,13 +69,13 @@ Thay khối hiện tại (trạng thái phiên + tổng vốn + mức rủi ro %
 
 ## 5. Top mã khối lượng tích cực trong phiên
 
-- [ ] Lọc / hiển thị **20 mã** có khối lượng giao dịch tăng mạnh nhất so với **TB 10 phiên**
-- [ ] Điều kiện: TB 10 phiên **≥ 500.000** (500k)
-- [ ] Phân biệt với Top 20 ROE/thanh khoản hiện có (nếu giữ cả hai thì đặt tên rõ)
+- [x] Lọc / hiển thị **20 mã** có KL phiên / TB 10 phiên trước cao nhất
+- [x] Điều kiện: TB 10 phiên **≥ 500.000** (500k)
+- [x] Tách tên với Top 20 ROE/thanh khoản (expander riêng trên Tổng quan)
 
-**Ảnh tham chiếu:** `image8.png` (bảng Top hiện tại — cần đổi logic/nhãn cho đúng yêu cầu KL phiên)
-
-**Độ lớn:** lớn (logic lọc mới + có thể nguồn dữ liệu mới)
+**Ảnh tham chiếu:** `image8.png`  
+**Code:** `analysis/volume_leaders.py` + `overview_page.show_volume_leaders` — 2026-10-17  
+**Nguồn:** OHLCV local (sau Quét); chưa tick realtime phiên
 
 ---
 

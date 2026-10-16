@@ -76,6 +76,10 @@ MFI_HOT = 80
 MFI_COLD = 20
 VOLUME_AVG = 20
 VOLUME_SPIKE = 1.5       # KL phiên cuối / TB20 để ghi chú "đột biến"
+# Top KL phiên (F1 mục 5): so với TB 10 phiên trước, sàn thanh khoản
+VOLUME_LEADERS_AVG = 10
+VOLUME_LEADERS_MIN_AVG = 500_000
+VOLUME_LEADERS_TOP_N = 20
 
 # --- Hỗ trợ / đáy trung tâm ---
 SUPPORT_DAYS = 183
