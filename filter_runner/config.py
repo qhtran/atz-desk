@@ -6,7 +6,9 @@ from pathlib import Path
 
 import yaml
 
-DEFAULT_PATH = Path(__file__).resolve().parent.parent / "config" / "filter_runner.yaml"
+from storage.paths import repo_root
+
+DEFAULT_PATH = repo_root() / "config" / "filter_runner.yaml"
 ENV = {  # env -> (đường dẫn trong yaml, kiểu)
     "REDIS_URL": (("redis", "url"), str),
     "FILTER_SQLITE_PATH": (("sqlite", "path"), str),

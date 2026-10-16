@@ -7,7 +7,9 @@ from pathlib import Path
 
 import yaml
 
-DEFAULT_PATH = Path(__file__).resolve().parent.parent / "config" / "ingestion.yaml"
+from storage.paths import repo_root
+
+DEFAULT_PATH = repo_root() / "config" / "ingestion.yaml"
 
 
 @dataclass(frozen=True)

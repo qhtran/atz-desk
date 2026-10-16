@@ -10,8 +10,9 @@ from pathlib import Path
 import yaml
 
 from ingestion.log import log as _log
+from storage.paths import repo_root
 
-DEFAULT_PATH = Path(__file__).resolve().parents[2] / "config" / "index.yaml"
+DEFAULT_PATH = repo_root() / "config" / "index.yaml"
 
 ERR_IDX_PROVIDER_OPEN = "ERR-IDX-001"   # circuit một provider OPEN
 ERR_IDX_ALL_DOWN = "ERR-IDX-002"        # không provider nào trả được một mã
