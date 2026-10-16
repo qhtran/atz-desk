@@ -12,7 +12,8 @@
 **Giả định nền (đã chốt):** **mọi bot đều `git pull` / `git push` được** cùng remote GitHub. Không copy tay file giữa máy trừ khi git lỗi.
 
 **Hướng dẫn chủ repo:** [`HOW_TO_BAN.md`](HOW_TO_BAN.md)  
-**Phân vai Wave hiện tại:** [`ROLES_ARCHITECT.md`](ROLES_ARCHITECT.md) — Cursor = kiến trúc sư; VPSbot = code; AuditorBot = test/survey.
+**Phân vai:** [`ROLES_ARCHITECT.md`](ROLES_ARCHITECT.md)  
+**Hàng đợi / quyết định khóa:** [`OVERNIGHT_QUEUE.md`](OVERNIGHT_QUEUE.md) · [`ACCEPTANCE_TESTS.md`](ACCEPTANCE_TESTS.md)
 
 **Nguyên tắc tiết kiệm token Cursor:** survey dài + code/deploy lặp → giao bot. Cursor: brief ngắn → push hộp việc → sau đó `pull` đọc kết quả → hỏi user.
 
