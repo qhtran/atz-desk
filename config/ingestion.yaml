@@ -5,7 +5,7 @@ ingestion:
   fallback_source: VCI
   poll_interval_seconds: 3                # đo 2026-10-16 (User Manual 6.1): 1 req/chu kỳ = 20 rpm
   batch_size: 50
-  safety_max_rpm: 168                     # floor(0.7*240): KBS+VCI chưa chạm limit ở trần thử 240 rpm
+  safety_max_rpm: 350                     # 70% x 500 rpm (vnstock Golden, mức thấp của 500-600/phút; 36K/giờ, 150K/ngày). Probe 2026-10-16: KBS+VCI ok tới 240 rpm
   request_timeout_seconds: 8
   circuit_breaker:
     failure_threshold: 5
