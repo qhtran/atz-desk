@@ -119,6 +119,8 @@ Log nên chứa các trường tối thiểu:
 | ERR-UI-002       | Vị thế không thuộc user đăng nhập  | Thao tác sửa/đóng vị thế của user khác (hoặc ID không tồn tại) bị chặn. Lặp nhiều lần từ một user -> kiểm tra phiên đăng nhập/header Authentik |
 | ERR-UI-003       | Cài đặt thông báo không hợp lệ     | chat_id không phải số, email sai, bật email mà trống email, giờ yên lặng thiếu/ sai dạng HH:MM |
 | ERR-UI-004       | Bảng giá chạy chế độ dự phòng      | Redis không phản hồi (kèm ERR-SYS-001) hoặc chưa có quote. Bảng hiện Top 20 đã lưu (top20_cache.csv) kèm banner. Kiểm tra `atz-redis`, `atz-ingestion` |
+| ERR-UI-005       | Tham số lọc lịch sử tín hiệu sai   | (Module 6) Số ngày ngoài 1..365, số dòng ngoài 1..500, mã không phải 3–10 ký tự chữ/số, chiều khác MUA/BÁN. Hiện lỗi ngay trên mục Tín hiệu, không truy vấn DB |
+| ERR-UI-006       | Bản ghi tín hiệu hỏng `details`    | (Module 6) `signal_history.details` không phải JSON. Dòng vẫn hiện nhưng thiếu lý do/signal_id. Kiểm tra bản ghi theo `history_id` trong log; nguồn ghi là Module 3 (`alert_dispatcher/store.py`) |
 
 **UI Realtime - hành vi (Module 5)**: trang **Realtime** trong thanh chọn trang của atz.vn (container `vnstocks`, config `config/ui_realtime.yaml`, code `ui_realtime/` + `ui/realtime_page.py`). Container `vnstocks` join mạng `realtime` để đọc Redis.
 - **Bảng giá**: đọc `quote:{symbol}` bằng 1 MGET; danh sách mã SCAN `quote:*` tối đa 1 lần/60s. Chỉ bảng chạy lại (`st.fragment(run_every)`): **3s** trong giờ giao dịch (T2–T6 09:00–11:30, 13:00–15:00 giờ VN), **30s** ngoài giờ. Khoảng refresh chốt khi tải/đổi mục trang; qua mốc giờ giao dịch thì bấm sang mục khác hoặc tải lại để đổi nhịp. Cột "Trạng thái" = `⚠️ cũ` khi quote > 120s hoặc ingestion gắn cờ stale; dòng "Cập nhật lúc HH:MM:SS" + giờ quote mới nhất. Giá VND.
@@ -129,6 +131,14 @@ Log nên chứa các trường tối thiểu:
 - **Health** (chỉ `akadmin`, danh sách `admin_users`): redis ping+memory, heartbeat `ingest:health`, `filter:health`, `alert:health`, `pos:health` (> 120s hoặc ingestion degraded = ❌).
 - Log: `docker logs vnstocks 2>&1 | grep -- '-UI-'`. Nhãn: `UI-PAGE`, `UI-FRAGMENT` (rerun #1 rồi mỗi 20 lần/session, kèm redis_calls/cache_hits), `UI-BOARD`, `UI-REDIS`, `UI-POS-ADD/SET/CLOSE/OWN`, `UI-SETTINGS`, `UI-ALERTS-READ`.
 - Deploy: code nằm trong image -> `docker compose up -d --build vnstocks` (web gián đoạn ~10–30s). Các container realtime dùng chung image nhưng không bị restart.
+
+**Order Action Helper - hành vi (Module 6)**: mục **Tín hiệu** trong trang Realtime (code `order_helper/core.py` + `_signals` trong `ui/realtime_page.py`). Chỉ đọc, **không đặt lệnh, không gửi tin**.
+- **Nguồn**: bảng `signal_history` lọc **luôn theo `user_id` của người đăng nhập**. Tín hiệu vị thế `pos_*` (Module 4) chỉ chủ vị thế thấy, gắn nhãn `🔒 riêng`; Telegram vẫn chỉ gửi chat riêng (Module 3 `private_filter_prefixes`).
+- **Format chuẩn**: `MUA VHM @ 59,800 | rsi | RSI 28.9 dưới 30.0 | 16/10/2026 13:07` (giờ VN). 10 tín hiệu mới nhất hiện trong khung có nút copy; bảng đầy đủ có cột **Copy** = `VHM MUA 59800`; nút **Tải CSV**.
+- **Lọc**: số ngày (mặc định 7), mã, chiều MUA/BÁN, số dòng (mặc định 50). Trùng `signal_id` chỉ hiện 1 dòng.
+- **Chưa làm**: deep-link app sàn (tuỳ chọn trong thiết kế). Mục không tự refresh: đổi bộ lọc hoặc mở lại mục để tải mới.
+- Log: `docker logs vnstocks 2>&1 | grep -- '-UI-OAH-'`. Nhãn: `UI-OAH-HISTORY` (số dòng + bộ lọc, ERR-UI-005), `UI-OAH-DETAILS` (ERR-UI-006). Lỗi SQLite -> ERR-SYS-002.
+- Test: `docker run --rm --network vnstocks_realtime -v /opt/vnstocks:/src:ro --tmpfs /src/data -w /src vnstocks-vnstocks python -m pytest -q -p no:cacheprovider tests/test_order_helper.py`.
 
 ### Chung
 | Error Code       | Mô tả                              | Cách xử lý                                      |

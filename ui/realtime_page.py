@@ -13,6 +13,7 @@ import streamlit as st
 from engine.identity import current_username
 from ui.components import render_data_table
 from ui_realtime import data
+from order_helper import core as oah
 from ui_realtime.log import ERR_SYS_SQLITE, ERR_UI_FALLBACK, TZ, log
 
 BOT_URL = "https://t.me/atz_alert_bot"
@@ -252,6 +253,38 @@ def _health(user_id: int, interval) -> None:
 
 
 # ------------------------------------------------------------------ trang
+
+# ------------------------------------------------------------------ Module 6: Order Action Helper
+def _signals(user_id: int) -> None:
+    """Lịch sử tín hiệu của chính user + chuỗi copy (st.code có nút copy). Không đặt lệnh."""
+    c = st.columns([1, 1, 1, 1])
+    days = c[0].number_input("Số ngày", 1, oah.MAX_DAYS, 7, key="oah_days")
+    symbol = c[1].text_input("Mã (trống = tất cả)", key="oah_sym")
+    side = c[2].selectbox("Chiều", ["Tất cả", "MUA", "BÁN"], key="oah_side")
+    limit = c[3].number_input("Số dòng", 1, oah.MAX_LIMIT, 50, key="oah_limit")
+    try:
+        with _db() as conn:
+            items = oah.history(conn, user_id, days=days, limit=limit, symbol=symbol,
+                                side=None if side == "Tất cả" else side)
+    except oah.FilterError as e:
+        st.error(f"{e} ({e.code})")
+        return
+    except Exception as e:  # noqa: BLE001
+        log("OAH-HISTORY", f"sqlite failed: {e}", error_code=ERR_SYS_SQLITE, user_id=user_id)
+        st.error("Không đọc được lịch sử tín hiệu (ERR-SYS-002).")
+        return
+    if not items:
+        st.info("Chưa có tín hiệu trong khoảng này.")
+        return
+    st.caption("Bấm biểu tượng copy ở góc khung để chép. Đây chỉ là thông tin hỗ trợ, tự đặt lệnh trên app sàn.")
+    for s in items[:10]:
+        st.code(s["text"] + ("  🔒 riêng" if s["private"] else ""), language=None)
+    frame = pd.DataFrame([{"Lúc": s["time_text"], "Mã": s["symbol"], "Chiều": s["direction"], "Giá": s["price"],
+                           "Bộ lọc": s["filter_name"], "Lý do": s["reason"], "Copy": s["copy"]} for s in items])
+    render_data_table(frame.style.format({"Giá": "{:,.0f}"}, na_rep="-"), pin=("Mã",), key="oah_table")
+    st.download_button("Tải CSV", oah.to_csv(items), file_name="tin_hieu.csv", mime="text/csv", key="oah_csv")
+
+
 def show_realtime() -> None:
     try:
         cfg = _cfg()
@@ -266,7 +299,7 @@ def show_realtime() -> None:
         log("PAGE", f"open realtime page interval={interval}", user_id=user_id, username=username)
     items = data.reader().inapp(user_id) or []
     unread = _unread(user_id, items) if items else 0
-    sections = ["Bảng giá", "Vị thế", f"Thông báo ({unread})" if unread else "Thông báo", "Cài đặt"]
+    sections = ["Bảng giá", "Vị thế", f"Thông báo ({unread})" if unread else "Thông báo", "Tín hiệu", "Cài đặt"]
     if username in cfg["ui_realtime"]["admin_users"]:
         sections.append("Health")
     section = st.segmented_control("Realtime", sections, default="Bảng giá", key="rt_section")
@@ -280,6 +313,8 @@ def show_realtime() -> None:
         _position_forms(user_id)
     elif section == "Thông báo":
         st.fragment(run_every=interval)(_alerts)(user_id, interval)
+    elif section == "Tín hiệu":
+        _signals(user_id)
     elif section == "Cài đặt":
         _settings(user_id)
     elif section == "Health" and username in cfg["ui_realtime"]["admin_users"]:
