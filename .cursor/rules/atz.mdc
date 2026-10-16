@@ -1,0 +1,18 @@
+---
+description: Quy tắc dự án atz.vn / vnstocks
+alwaysApply: true
+---
+
+# atz.vn / vnstocks
+
+- Đọc `AGENTS.md`, `artifacts/Kien_Truc_He_Thong_Realtime_Atz.md`, `artifacts/User_Manual_Troubleshooting_Realtime_Atz.md` trước khi sửa.
+- Luôn đưa kế hoạch ngắn và chờ xác nhận trước khi sửa code. Không thêm tính năng lớn khi chưa được yêu cầu.
+- `git pull` trước; commit nhỏ, push thường; **KHÔNG force push**.
+- Một module mỗi lần; viết/cập nhật test trong `tests/test_<module>.py`; báo Pass/Fail.
+- Config để trong `config/*.yaml`, không hardcode. Package mới phải thêm `COPY` vào Dockerfile.
+- Log JSON, nhãn `DBG-YYYYMMDD-HHMM-<TOPIC>`, mã lỗi `ERR-<MODULE>-NNN`; mã mới phải thêm vào User Manual mục 3.
+- Redis cho dữ liệu nóng/tạm; SQLite `data/signals.db` cho dữ liệu bền.
+- Tín hiệu `pos_*` chỉ gửi chat riêng, không broadcast channel.
+- Không đọc/in/commit secret (`.env*`, `.pip_index`, token, key). Chỉ dùng tên biến.
+- Không sửa nginx/Authentik/SSH/firewall nếu không được yêu cầu rõ; rủi ro mất SSH → dừng và hỏi.
+- Trả lời tiếng Việt, ngắn gọn; lựa chọn đánh số `1a`/`1b` kèm tên + tác dụng.
