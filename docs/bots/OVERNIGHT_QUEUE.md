@@ -33,9 +33,8 @@ Chi tiết case: `docs/bots/ACCEPTANCE_TESTS.md`.
 | 2 | `20261017-0630-sidebar-quote-tests.md` | Siết unit test / edge stale/missing |
 | 3 | `20261017-0700-filter-f1-core.md` | Siết logic filter F1: nến đảo chiều / RSI đáy / MACD (mục 7.1–3) — không Bollinger/Ichimoku |
 
-## Orchestrator (Cursor) đêm nay
+## Orchestrator (Cursor)
 
-- Push brief/test định nghĩa (file này).
-- Loop `git pull` ~30 phút; đọc outbox/inbox báo cáo.
-- Có kết quả → Resolution ngắn + brief tiếp nếu P0.
-- Không SSH VPS; không xóa phá; không đụng ngoài project.
+- Chỉ brief ngắn + push; **không** loop poll; **không** code thay VPSbot (tiết kiệm token).
+- Khi có outbox/báo cáo → pull đọc + tóm tắt / brief tiếp nếu P0.
+
