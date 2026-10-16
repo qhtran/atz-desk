@@ -87,6 +87,26 @@ services:
       start_period: 60s
       retries: 3
 
+  position-monitor:
+    image: vnstocks-vnstocks   # cùng image với app (Module 4)
+    container_name: atz-position
+    restart: unless-stopped
+    command: ["python", "-m", "position_monitor"]
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes: ["./data:/app/data", "./logs:/app/logs"]
+    environment:
+      POS_CONFIG: /app/config/position_monitor.yaml
+      POS_LOG_DIR: /app/logs
+    networks: [realtime]   # chỉ cần Redis + SQLite, không ra Internet
+    healthcheck:
+      test: ["CMD", "python", "-m", "position_monitor.health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 3
+
 secrets:
   vnstock_index:
     file: ./.pip_index

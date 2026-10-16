@@ -98,8 +98,18 @@ Log nên chứa các trường tối thiểu:
 ### Position Monitor
 | Error Code       | Mô tả                              | Cách xử lý                                      |
 |------------------|------------------------------------|-------------------------------------------------|
-| ERR-POS-001      | Price stale                        | Dữ liệu giá quá cũ                              |
-| ERR-POS-002      | P&L calculation error              | Kiểm tra dữ liệu vị thế                         |
+| ERR-POS-001      | Price stale                        | Quote > 120s, quote.stale=true, ingestion degraded hoặc mất heartbeat. Vị thế bị đánh dấu stale, KHÔNG cảnh báo SL/TP/biến động (log tối đa 1 lần/user+mã/5 phút). Kiểm tra `atz-ingestion` |
+| ERR-POS-002      | P&L calculation error              | entry_price/quantity <= 0 hoặc giá không phải số. Kiểm tra dòng trong bảng `positions` |
+
+**Position Monitor - hành vi (Module 4)**: container `atz-position`, config `config/position_monitor.yaml`, không cần secret (chỉ mạng `realtime`).
+- Vị thế: bảng SQLite `positions` (data/signals.db, migration chỉ CREATE IF NOT EXISTS). Giá theo **VND** (cùng quote); chỉ LONG. Tab Danh mục cũ (`data/positions.csv`, nghìn đồng) không liên quan.
+- Giá: consumer group `position-monitor` trên `stream:quotes` + sweep 15s đọc `quote:{symbol}` (timeout 2s). P&L = (giá - giá vốn) x KL; ghi Redis hash `pos:live:{user_id}` (field = position id) cho UI.
+- Cảnh báo -> `stream:signals` theo Signal contract, nên đi qua Module 3 như signal thường (rate limit, quiet hours, channel `atz_alert` + chat riêng):
+  - `pos_stop_loss` (SELL) khi giá <= stop_loss; `pos_take_profit` (SELL) khi giá >= take_profit. Mỗi mức bắn **1 lần** / vị thế (cột `sl_hit_at`/`tp_hit_at`, bền qua restart). Bật lại: `cli rearm ID` hoặc đổi mức bằng `cli set`.
+  - `pos_volatility` (BUY nếu tăng, SELL nếu giảm) khi |biến động| >= 3% trong 300s; dedup 30 phút / vị thế / chiều (Redis `pos:vdedup:*`).
+  - Lưu ý Module 3: `signal_history` unique theo user+mã+filter+ngày nên cảnh báo lặp cùng ngày vẫn gửi nhưng dùng chung 1 dòng history.
+- Lệnh: `docker exec atz-position python -m position_monitor.health`; `docker logs atz-position --tail 100`.
+- Nhập vị thế (chưa có UI, Module 5): `docker exec atz-position python -m position_monitor.cli add --user akadmin --symbol FPT --qty 100 --entry 58600 --sl 55000 --tp 65000` (`--unit k` để nhập nghìn đồng); `cli list`, `cli live --user akadmin`, `cli set ID --sl X`, `cli rearm ID`, `cli close ID`.
 
 ### Chung
 | Error Code       | Mô tả                              | Cách xử lý                                      |
