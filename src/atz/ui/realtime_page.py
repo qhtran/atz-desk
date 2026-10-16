@@ -85,7 +85,68 @@ def _index_cards(user_id: int) -> None:
         log("INDEX", f"render failed: {type(e).__name__}: {e}", error_code=index_cards.ERR_UI_INDEX, user_id=user_id)
 
 
-def _board(user_id: int, interval) -> None:
+def _board_controls(user_id: int) -> tuple[str, str]:
+    """Search + chọn mã (ngoài fragment — gõ không bị reset mỗi chu kỳ)."""
+    cols = st.columns([2, 2])
+    query = cols[0].text_input(
+        "Tìm mã nhanh",
+        key="rt_symbol_filter",
+        placeholder="Gõ VIC, FPT… (lọc bảng bên dưới)",
+        help="Thay keyboard jump kiểu Fireant trên Streamlit.",
+    )
+    quotes: list = []
+    symbols: list[str] = []
+    try:
+        raw = data.reader().quotes()
+        quotes = raw if isinstance(raw, list) else []
+        symbols = sorted(
+            {str(q.get("symbol") or "").upper() for q in quotes if q.get("symbol")}
+        )
+    except Exception:  # noqa: BLE001
+        quotes, symbols = [], []
+    options = ["—"] + symbols
+    current = st.session_state.get("rt_detail_pick") or "—"
+    if current not in options:
+        current = "—"
+    picked = cols[1].selectbox(
+        "Chi tiết mã (Time & Sales / cảnh báo)",
+        options,
+        index=options.index(current),
+        key="rt_detail_pick",
+    )
+    symbol = "" if picked in (None, "—") else str(picked).upper()
+    _time_sales_panel(user_id, symbol, quotes)
+    return str(query or ""), symbol
+
+
+def _time_sales_panel(user_id: int, symbol: str, quotes: list) -> None:
+    """MVP: panel theo click/select — chưa có feed khớp lệnh."""
+    from ui_realtime.board_view import pick_quote_row
+
+    label = f"Khớp lệnh / cảnh báo — {symbol}" if symbol else "Khớp lệnh / cảnh báo"
+    with st.expander(label, expanded=bool(symbol)):
+        if not symbol:
+            st.caption("Chọn mã ở ô bên phải để xem nhanh. Hover từng dòng chưa hỗ trợ trên Streamlit dataframe.")
+            return
+        rows = data.quote_rows(quotes, float(_cfg()["ui_realtime"]["quote_stale_seconds"])) if quotes else []
+        row = pick_quote_row(rows, symbol)
+        if row:
+            c = st.columns(4)
+            c[0].metric("Giá", f"{row.get('Giá') or 0:,.0f}")
+            c[1].metric("+/-", f"{row.get('+/-') or 0:+,.0f}")
+            c[2].metric("%", f"{row.get('%') or 0:+.2f}")
+            c[3].metric("TC", f"{row.get('TC') or 0:,.0f}")
+        st.info(
+            "Time & Sales realtime chưa nối feed. Dùng bảng điện tử HSX làm tham chiếu; "
+            "cảnh báo giá cá nhân sẽ gắn sau (alert dispatcher)."
+        )
+        st.link_button("Mở rtboard.hsx.vn", "https://rtboard.hsx.vn/", width="stretch")
+        if st.button("Nhắc tạo cảnh báo giá (stub)", key=f"rt_alert_stub_{symbol}"):
+            log("BOARD", f"alert stub clicked symbol={symbol}", user_id=user_id)
+            st.success(f"Đã ghi nhận yêu cầu cảnh báo cho {symbol} (chưa lưu rule).")
+
+
+def _board(user_id: int, interval, query: str = "") -> None:
     _tick("board", user_id, interval)
     _index_cards(user_id)
     r = data.reader()
@@ -105,12 +166,15 @@ def _board(user_id: int, interval) -> None:
     from ui.sparkline import spark_image_uri, trend_image_column
     from ui.stock_item import realtime_board_frame
     from ui.theme_tokens import FIREANT_CSS, css_flash, css_for_price_state
+    from ui_realtime import board_view as bv
 
     st.markdown(FIREANT_CSS, unsafe_allow_html=True)
     frame = realtime_board_frame(rows)
     frame = frame.copy()
+    # Lọc theo ô tìm (session) — ưu tiên tham số, fallback key
+    needle = query or str(st.session_state.get("rt_symbol_filter") or "")
+    frame = bv.filter_by_symbol(frame, needle)
 
-    # Trạng thái trần/sàn/tăng/giảm theo TC + biên độ sàn
     state_by: dict[str, str] = {}
     for _, row in frame.iterrows():
         code = str(row.get("Mã") or "")
@@ -122,7 +186,6 @@ def _board(user_id: int, interval) -> None:
             exchange=str(row.get("Sàn") or ""),
         )
 
-    # Flash khi giá đổi so với lần fragment trước
     prev_prices: dict = st.session_state.get("rt_prev_prices") or {}
     flashed: dict[str, bool] = {}
     next_prices: dict[str, float] = {}
@@ -139,17 +202,37 @@ def _board(user_id: int, interval) -> None:
             next_prices[code] = price
     st.session_state["rt_prev_prices"] = next_prices
 
-    frame["Xu hướng"] = [
-        spark_image_uri(
-            spark or [],
-            pct,
-            str(code or "x"),
-            state=state_by.get(str(code or ""), None),
+    spark_cache: dict = st.session_state.setdefault("rt_spark_uri", {})
+    uris = []
+    for spark, pct, code, price in zip(
+        frame["Xu hướng"], frame["%"], frame["Mã"], frame["Giá"]
+    ):
+        code_s = str(code or "x")
+        state = state_by.get(code_s)
+        try:
+            px = float(price) if price is not None else None
+        except (TypeError, ValueError):
+            px = None
+        series = list(spark) if isinstance(spark, list) else []
+        uris.append(
+            bv.cached_spark_uri(
+                spark_cache,
+                code=code_s,
+                spark=series,
+                change=pct,
+                state=state,
+                price=px,
+                builder=lambda s=series, p=pct, c=code_s, stt=state: spark_image_uri(
+                    s, p, c, state=stt
+                ),
+            )
         )
-        for spark, pct, code in zip(frame["Xu hướng"], frame["%"], frame["Mã"])
-    ]
+    frame["Xu hướng"] = uris
     if stale:
         st.warning(f"⚠️ {stale}/{len(rows)} mã có giá cũ (> {_cfg()['ui_realtime']['quote_stale_seconds']}s hoặc nguồn gắn cờ stale).")
+    if needle.strip() and frame.empty:
+        st.info(f"Không có mã khớp «{needle.strip()}».")
+        return
 
     paint = {"Giá", "+/-", "%"}
 
@@ -172,7 +255,6 @@ def _board(user_id: int, interval) -> None:
         subset=[c for c in frame.columns if c not in ("Xu hướng", "Sàn")],
         na_rep="-",
     ).apply(_rt_row_colors, axis=1)
-    # Ẩn cột Sàn (chỉ dùng suy biên độ) — tránh rối bảng
     if "Sàn" in frame.columns:
         styled = styled.hide(axis="columns", subset=["Sàn"])
     render_data_table(
@@ -186,8 +268,8 @@ def _board(user_id: int, interval) -> None:
     n_ceil = sum(1 for s in state_by.values() if s == "ceiling")
     n_floor = sum(1 for s in state_by.values() if s == "floor")
     st.caption(
-        f"{_stamp(interval)} · quote mới nhất {tick} · giá VND · {len(rows)} mã · "
-        f"trần {n_ceil} · sàn {n_floor} · flash khi giá đổi · "
+        f"{_stamp(interval)} · quote mới nhất {tick} · hiện {len(frame)}/{len(rows)} mã · "
+        f"trần {n_ceil} · sàn {n_floor} · spark cache {len(spark_cache)} · "
         "tím=trần · xanh dương=sàn · xanh/đỏ/vàng=Δ"
     )
 
@@ -399,7 +481,8 @@ def show_realtime() -> None:
     status = "Trong giờ giao dịch" if data.in_trading(cfg) else "Ngoài giờ giao dịch"
     st.caption(f"{status} · user {username}")
     if section == "Bảng giá":
-        st.fragment(run_every=interval)(_board)(user_id, interval)
+        query, _detail = _board_controls(user_id)
+        st.fragment(run_every=interval)(_board)(user_id, interval, query)
     elif section == "Vị thế":
         st.fragment(run_every=interval)(_positions_live)(user_id, interval)
         _position_forms(user_id)
