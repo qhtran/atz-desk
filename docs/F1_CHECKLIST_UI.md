@@ -41,21 +41,22 @@ Thay khối hiện tại (trạng thái phiên + tổng vốn + mức rủi ro %
 
 ## 3. Bảng “Chỉ số Việt Nam” — cột mũi tên phiên
 
-- [ ] **Xóa chữ** tiêu đề cột 「Mũi tên」(giữ chỗ hiển thị hình)
-- [ ] Thay icon tam giác hiện tại bằng **mũi tên phiên**:
+- [x] **Xóa chữ** tiêu đề cột 「Mũi tên」(giữ chỗ hiển thị hình)
+- [x] Thay icon tam giác hiện tại bằng **mũi tên phiên** (SVG):
   - Đường ngang **vàng** = tham chiếu
   - Đường nối từ cao → thấp, đầu mũi tên ở **giá đóng cửa**
-  - **Xanh** nếu tăng, **đỏ** nếu giảm
-- [ ] Thu hẹp độ rộng cột; chữ header 2–3 hàng nếu cần để vừa nhiều cột
+  - **Xanh** nếu tăng, **đỏ** nếu giảm (token FireAnt)
+- [x] Thu hẹp độ rộng cột; chữ header ngắn / 2 hàng
 
-**Ảnh tham chiếu:** `image4.png`, `image5.png` (mẫu mũi tên), `image6.png` (khoanh xóa/sửa)
+**Ảnh tham chiếu:** `image4.png`, `image5.png` (mẫu mũi tên), `image6.png` (khoanh xóa/sửa)  
+**Code:** `src/atz/ui/session_arrow.py` + `overview_page.py` — 2026-10-17
 
 ---
 
 ## 4. Thu hẹp cột khối lượng / bảng chỉ số
 
-- [ ] Làm hẹp cột kiểu 「Tổng KL khớp (triệu CP)」và các cột liên quan để nhìn được nhiều dữ liệu hơn trong một khung
-- [ ] (Theo chú thích UI) làm rõ nguồn: giá/KL vs giá trị khớp / thỏa thuận
+- [x] Làm hẹp cột KL/GT (nhãn ngắn + `width="small"`)
+- [x] Caption nguồn dữ liệu giữ nguyên / bổ sung chú thích mũi tên
 
 **Ảnh tham chiếu:** `image7.png`  
 **Tham khảo ngoài (mentor):** https://www.hsx.vn/ · https://fireant.vn/dashboard/ · https://vietstock.vn/

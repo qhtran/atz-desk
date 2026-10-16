@@ -17,6 +17,7 @@ import pandas as pd
 import streamlit as st
 
 from ui.components import render_data_table
+from ui.session_arrow import session_arrow_or_dash
 from ui.theme_tokens import css_signed_text
 
 from config import BARS_DIR
@@ -78,21 +79,44 @@ _FLOW_NET = ("net_val",)
 _FLOW_BUY = ("buy_val",)
 _FLOW_SELL = ("sell_val",)
 _CACHE_TTL = 10 * 60
-_PAINTED = ("Tăng/giảm (điểm/%)", "Mũi tên", "GT dòng NN", "GT tự doanh")
+_PAINTED = ("Tăng/giảm (điểm/%)", "GT dòng NN", "GT tự doanh")
+
+# Nhãn cột ngắn + hẹp (F1 mentor: chữ 2 hàng / độ rộng nhỏ)
+_VN_COLUMN_LABELS = {
+    "Mũi tên": " ",  # ẩn chữ tiêu đề, giữ cột hình
+    "Tổng KL khớp (triệu CP)": "KL khớp\n(triệu)",
+    "KL thỏa thuận (triệu CP)": "KL TƯ\n(triệu)",
+    "Tổng GT khớp (tỷ)": "GT khớp\n(tỷ)",
+    "GT thỏa thuận (tỷ)": "GT TƯ\n(tỷ)",
+    "Tăng/giảm (điểm/%)": "Tăng/giảm\n(điểm/%)",
+    "KL TB 10 phiên": "KL TB\n10 phiên",
+    "GT TB 10 phiên": "GT TB\n10 phiên",
+}
 
 
 def _blank(columns: tuple[str, ...]) -> dict[str, str]:
-    return {name: "—" for name in columns}
+    row = {name: "—" for name in columns}
+    if "Mũi tên" in row:
+        row["Mũi tên"] = session_arrow_or_dash(None, None, None, None)
+    return row
 
 
-def _arrow(change: float | None) -> str:
-    if change is None:
-        return "—"
-    if change > 0:
-        return "▲"
-    if change < 0:
-        return "▼"
-    return "●"
+def _index_column_config(columns: list[str]) -> dict:
+    """ImageColumn mũi tên (không chữ header) + cột số liệu hẹp."""
+    import streamlit as st
+
+    config: dict = {}
+    if "Mũi tên" in columns:
+        config["Mũi tên"] = st.column_config.ImageColumn(
+            " ",
+            width=80,
+            help="Mũi tên phiên: vạch vàng = tham chiếu; xanh = tăng, đỏ = giảm",
+        )
+    for name, label in _VN_COLUMN_LABELS.items():
+        if name == "Mũi tên" or name not in columns:
+            continue
+        config[name] = st.column_config.TextColumn(label, width="small")
+    return config
 
 
 def _bars_from_frame(frame: pd.DataFrame | None) -> pd.DataFrame | None:
@@ -308,17 +332,25 @@ def _row_from_bars(name: str, frame: pd.DataFrame | None) -> dict[str, str]:
     row = _blank(VN_COLUMNS)
     row["Chỉ số"] = name
     if frame is None:
+        row["Mũi tên"] = session_arrow_or_dash(None, None, None, None)
         return row
     last = float(frame["close"].iloc[-1])
     reference = float(frame["close"].iloc[-2])
     if reference == 0:
+        row["Mũi tên"] = session_arrow_or_dash(None, None, None, None)
         return row
     points = last - reference
     percent = points / reference * 100
+    high = float(pd.to_numeric(frame["high"], errors="coerce").iloc[-1]) if "high" in frame.columns else max(last, reference)
+    low = float(pd.to_numeric(frame["low"], errors="coerce").iloc[-1]) if "low" in frame.columns else min(last, reference)
+    if pd.isna(high):
+        high = max(last, reference)
+    if pd.isna(low):
+        low = min(last, reference)
     row["Tham chiếu"] = f"{reference:,.2f}"
     row["Đóng cửa"] = f"{last:,.2f}"
     row["Tăng/giảm (điểm/%)"] = f"{points:+,.2f} / {percent:+.2f}%"
-    row["Mũi tên"] = _arrow(points)
+    row["Mũi tên"] = session_arrow_or_dash(reference, high, low, last)
     _apply_volume(row, frame)
     return row
 
@@ -393,12 +425,15 @@ def _world_quote(region: str, label: str, ticker: str) -> dict[str, str]:
         return row
     last, reference = found
     if reference == 0:
+        row["Mũi tên"] = session_arrow_or_dash(None, None, None, None)
         return row
     points = last - reference
     percent = points / reference * 100
     row["Đóng cửa"] = f"{last:,.2f}"
     row["Tăng/giảm (điểm/%)"] = f"{points:+,.2f} / {percent:+.2f}%"
-    row["Mũi tên"] = _arrow(points)
+    row["Mũi tên"] = session_arrow_or_dash(
+        reference, max(last, reference), min(last, reference), last
+    )
     return row
 
 
@@ -469,22 +504,27 @@ def show_overview() -> None:
                 ],
                 columns=list(WORLD_COLUMNS),
             )
+    vn_paint = [c for c in _PAINTED if c in vietnam.columns]
     render_data_table(
-        vietnam.style.map(_paint, subset=list(_PAINTED)),
+        vietnam.style.map(_paint, subset=vn_paint) if vn_paint else vietnam,
         pin="Chỉ số",
         key_cols=[c for c in ("Đóng cửa", "Tăng/giảm (điểm/%)") if c in vietnam.columns],
         key="ov_vietnam",
+        column_config=_index_column_config(list(vietnam.columns)),
         alt="Chỉ số Việt Nam: tham chiếu, đóng cửa, biến động, khối lượng và giá trị",
     )
     st.caption(
         "Giá và khối lượng lấy từ vnstock. Giá trị khớp và thỏa thuận lấy từ VCI, không có thì KBS. "
-        "Khối ngoại và tự doanh nguồn VCI, đơn vị tỷ đồng. Thiếu số thì «—»."
+        "Khối ngoại và tự doanh nguồn VCI, đơn vị tỷ đồng. Thiếu số thì «—». "
+        "Cột hình: vạch vàng = tham chiếu; mũi tên xanh = tăng, đỏ = giảm (đóng cửa vs tham chiếu)."
     )
     st.subheader("Chỉ số quốc tế")
+    world_paint = [c for c in ("Tăng/giảm (điểm/%)",) if c in world.columns]
     render_data_table(
-        world.style.map(_paint, subset=["Tăng/giảm (điểm/%)", "Mũi tên"]),
+        world.style.map(_paint, subset=world_paint) if world_paint else world,
         pin="Chỉ số",
         key="ov_world",
+        column_config=_index_column_config(list(world.columns)),
         alt="Chỉ số Mỹ, châu Âu và châu Á với mũi tên tăng giảm",
     )
     st.caption("Chỉ số quốc tế lấy từ Yahoo Finance. Không lấy được thì để «—».")
