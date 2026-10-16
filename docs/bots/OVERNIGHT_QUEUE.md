@@ -35,6 +35,6 @@ Chi tiết case: `docs/bots/ACCEPTANCE_TESTS.md`.
 
 ## Orchestrator (Cursor)
 
-- Chỉ brief ngắn + push; **không** loop poll; **không** code thay VPSbot (tiết kiệm token).
-- Khi có outbox/báo cáo → pull đọc + tóm tắt / brief tiếp nếu P0.
+- Giữ liên lạc: tự `git pull`/`push`, brief ngắn, đọc outbox khi cần — không nhờ user gõ cmd.
+- Việc nặng → bot (tiết kiệm token). **Cấm** đụng file ngoài project.
 

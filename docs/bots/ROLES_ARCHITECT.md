@@ -2,15 +2,16 @@
 
 | Vai | Ai | Làm | Không làm |
 |-----|-----|-----|-----------|
-| **Orchestrator** | Cursor | Brief ngắn, `git push` hộp việc, `pull` đọc outbox khi user/bot báo xong, chốt `1a/1b` | **Không** code feature; **không** survey web; **không** SSH; **không** loop poll đốt token |
+| **Orchestrator** | Cursor | Giữ liên lạc (brief, `git pull`/`push`, đọc outbox khi cần); tự chạy lệnh **trong repo**; chốt hướng | Code/survey/deploy nặng (giao bot); **tuyệt đối không** đụng file ngoài project |
 | **Coder / Ops** | VPSbot | Code, test, commit, deploy SSH:443 | Đổi kiến trúc ngoài brief |
-| **Tester** | AuditorBot | Survey/regression web, báo cáo inbox | Sửa code production |
+| **Tester** | AuditorBot | Survey/regression web → inbox | Sửa code production |
 
-**Tiết kiệm token Cursor:** việc nặng → 2 bot. Cursor chỉ vài đoạn brief + tóm tắt kết quả.
+**Token:** việc nặng → 2 bot. Cursor vẫn **giữ nhịp**: tự pull/kiểm tra kết quả, brief tiếp — không nhờ user gõ cmd.
 
-Luồng: brief ngắn → push → bot poll → user/báo xong → Cursor pull đọc → brief tiếp (nếu cần).
+## Ranh giới bắt buộc
 
-## Lệnh trong repo
-
-Được: git trong project, brief/docs.  
-Không: xóa phá, force push, file ngoài project, secret, nginx/SSH trên VPS.
+| Được (trong `/Users/…/vnstocks` hoặc clone repo) | Cấm |
+|--------------------------------------------------|-----|
+| git, brief/docs, đọc inbox/outbox, test local | Mọi path **ngoài** project (home secrets, `/etc`, `.ssh` private, máy khác…) |
+| Commit + push docs/brief | Force push, xóa phá repo, commit `.env`/secret |
+| | nginx/SSH/firewall trên VPS (VPSbot + gate) |
