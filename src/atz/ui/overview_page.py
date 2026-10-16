@@ -479,8 +479,25 @@ def _paint(value: object) -> str:
     return css_signed_text(value)
 
 
+def _volume_leaders_view(board: pd.DataFrame) -> pd.DataFrame:
+    """Sparkline → ảnh SVG một màu theo Δ; giữ số để Styler tô màu."""
+    from ui.sparkline import spark_image_uri
+
+    view = board.copy()
+    images = []
+    for _, row in view.iterrows():
+        series = row.get("Xu hướng") or []
+        if not isinstance(series, list):
+            series = []
+        images.append(
+            spark_image_uri(series, row.get("Biến động giá (%)"), str(row.get("Mã") or "x"))
+        )
+    view["Xu hướng"] = images
+    return view
+
+
 def _style_volume_leaders(board: pd.DataFrame):
-    """FireAnt: giá + % tăng xanh / giảm đỏ / 0 vàng. Giữ cột Xu hướng (list)."""
+    """FireAnt: giá + % tăng xanh / giảm đỏ / 0 vàng."""
     from ui.theme_tokens import css_signed_number
 
     paint_cols = [c for c in ("Giá", "Biến động giá (%)") if c in board.columns]
@@ -508,8 +525,10 @@ def show_volume_leaders() -> None:
     """Top 20 đột biến KL so với TB 10 phiên (F1 #5). Tách biệt Top ROE."""
     from analysis.volume_leaders import rank_volume_leaders
     from config import VOLUME_LEADERS_MIN_AVG, VOLUME_LEADERS_TOP_N
-    from ui.sparkline import line_chart_column
+    from ui.sparkline import trend_image_column
+    from ui.theme_tokens import FIREANT_CSS
 
+    st.markdown(FIREANT_CSS, unsafe_allow_html=True)
     st.subheader(f"Top {VOLUME_LEADERS_TOP_N} khối lượng phiên")
     board = rank_volume_leaders()
     if board.empty:
@@ -518,18 +537,19 @@ def show_volume_leaders() -> None:
             "Bấm «Quét và làm mới dữ liệu» để cập nhật OHLCV."
         )
         return
+    view = _volume_leaders_view(board)
     st.dataframe(
-        _style_volume_leaders(board),
+        _style_volume_leaders(view),
         hide_index=True,
         width="stretch",
         alt="Top mã khối lượng tăng mạnh so với trung bình 10 phiên, kèm sparkline",
         column_config={
-            "Xu hướng": line_chart_column("Xu hướng", width="small"),
+            "Xu hướng": trend_image_column("Xu hướng", width="small"),
         },
     )
     st.caption(
         f"Xếp theo KL phiên / TB 10 phiên trước. Lọc TB ≥ {VOLUME_LEADERS_MIN_AVG:,.0f}. "
-        "Giá/%: xanh tăng · đỏ giảm (FireAnt). Xu hướng = sparkline OHLCV."
+        "Giá/%/sparkline: xanh tăng · đỏ giảm · vàng đứng (FireAnt)."
     )
 
 

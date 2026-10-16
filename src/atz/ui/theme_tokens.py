@@ -1,6 +1,6 @@
-"""Màu UI kiểu FireAnt / chuẩn chứng khoán (tăng–giảm–tham chiếu).
+"""Màu UI chuẩn FireAnt / chứng khoán VN (tăng–giảm–tham chiếu–trần–sàn).
 
-Dùng chung cho bảng vị thế, Tổng quan, Realtime, thẻ chỉ số.
+Nguồn hex: phân tích FireAnt (scan UI) + token app.
 Không hardcode hex ở từng trang — import từ đây.
 """
 from __future__ import annotations
@@ -9,16 +9,17 @@ from __future__ import annotations
 BG_PRIMARY = "#121418"
 BG_CARD = "#1E232A"
 
-# --- Trạng thái số liệu ---
-UP = "#00C087"  # tăng / lãi / tích cực
-DOWN = "#E53935"  # giảm / lỗ / tiêu cực
-REF = "#FFC107"  # tham chiếu / không đổi / highlight giá mua
-CEILING = "#9C27B0"  # giá trần (tím) — dự phòng
-FLOOR = "#00BCD4"  # giá sàn / khối ngoại (cyan) — dự phòng
+# --- Price action (FireAnt) ---
+UP = "#00C853"  # tăng / lãi / sparkline tăng
+DOWN = "#FF3D00"  # giảm / lỗ / sparkline giảm
+REF = "#FFC107"  # tham chiếu / đứng giá / nền cột giá mua
+CEILING = "#AB47BC"  # giá trần (tím VN)
+FLOOR = "#29B6F6"  # giá sàn (xanh dương VN)
 
 # --- Chữ ---
-TEXT_PRIMARY = "#E0E0E0"
-TEXT_MUTED = "#848E9C"
+TEXT_PRIMARY = "#FFFFFF"
+TEXT_MUTED = "#9E9E9E"
+TEXT_DARK = "#212121"  # chữ trên nền sáng / nền vàng giá mua
 
 
 def css_up() -> str:
@@ -35,7 +36,7 @@ def css_ref() -> str:
 
 def css_buy_column() -> str:
     """Cột Giá mua: nền vàng tham chiếu, chữ tối dễ đọc."""
-    return f"background-color: {REF}; color: #1a1a1a; font-weight: 600"
+    return f"background-color: {REF}; color: {TEXT_DARK}; font-weight: 600"
 
 
 def css_support() -> str:
@@ -47,7 +48,7 @@ def css_resist() -> str:
 
 
 def css_signed_number(value: object) -> str:
-    """Tô màu theo dấu số (Realtime / Top 20). 0 = vàng tham chiếu."""
+    """Tô màu theo dấu số. 0 = vàng tham chiếu."""
     try:
         if value is None or (isinstance(value, float) and value != value):
             return ""
@@ -69,3 +70,28 @@ def css_signed_text(value: object) -> str:
     if text.startswith("-") or text in {"▼", "Giảm"}:
         return css_down()
     return ""
+
+
+def color_for_change(change: float | None) -> str:
+    """Màu sparkline / chữ theo biến động phiên."""
+    if change is None:
+        return TEXT_MUTED
+    try:
+        number = float(change)
+    except (TypeError, ValueError):
+        return TEXT_MUTED
+    if number > 0:
+        return UP
+    if number < 0:
+        return DOWN
+    return REF
+
+
+FIREANT_CSS = f"""
+<style>
+.text-green {{ color: {UP} !important; }}
+.text-red {{ color: {DOWN} !important; }}
+.text-ref {{ color: {REF} !important; }}
+.text-muted {{ color: {TEXT_MUTED} !important; }}
+</style>
+"""

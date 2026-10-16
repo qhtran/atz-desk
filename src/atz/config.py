@@ -137,8 +137,8 @@ CHART = {
     "BG": "#0e1117",
     "FONT": "#f0f2f6",
     # Đồng bộ ui.theme_tokens (FireAnt-style)
-    "UP": "#00C087",
-    "DOWN": "#E53935",
+    "UP": "#00C853",
+    "DOWN": "#FF3D00",
     "MA20": "#f4a261",
     "MA50": "#e9c46a",
     "BB": "#4cc9f0",

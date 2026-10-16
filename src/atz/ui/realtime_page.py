@@ -101,33 +101,49 @@ def _board(user_id: int, interval) -> None:
     rows = data.quote_rows(quotes, float(_cfg()["ui_realtime"]["quote_stale_seconds"]))
     stale = sum(1 for x in rows if x["_stale"])
     newest = max((x["_ts"] for x in rows if x["_ts"]), default=None)
-    from ui.sparkline import line_chart_column
+    from ui.sparkline import spark_image_uri, trend_image_column
     from ui.stock_item import realtime_board_frame
+    from ui.theme_tokens import FIREANT_CSS, css_signed_number
 
+    st.markdown(FIREANT_CSS, unsafe_allow_html=True)
     frame = realtime_board_frame(rows)
+    frame = frame.copy()
+    frame["Xu hướng"] = [
+        spark_image_uri(spark or [], pct, str(code or "x"))
+        for spark, pct, code in zip(frame["Xu hướng"], frame["%"], frame["Mã"])
+    ]
     if stale:
         st.warning(f"⚠️ {stale}/{len(rows)} mã có giá cũ (> {_cfg()['ui_realtime']['quote_stale_seconds']}s hoặc nguồn gắn cờ stale).")
-    # LineChartColumn cần ô list — không dùng Styler (mất cấu hình cột chart).
+
+    def _rt_row_colors(row: pd.Series) -> list[str]:
+        tone = css_signed_number(row.get("%"))
+        paint = {"Giá", "+/-", "%"}
+        return [tone if name in paint else "" for name in row.index]
+
+    styled = frame.style.format(
+        {
+            "Giá": "{:,.0f}",
+            "+/-": "{:+,.0f}",
+            "%": "{:+.2f}",
+            "Mở": "{:,.0f}",
+            "Cao": "{:,.0f}",
+            "Thấp": "{:,.0f}",
+            "TC": "{:,.0f}",
+        },
+        subset=[c for c in frame.columns if c != "Xu hướng"],
+        na_rep="-",
+    ).apply(_rt_row_colors, axis=1)
     render_data_table(
-        frame,
+        styled,
         key_cols=["Giá", "%", "Xu hướng", "Trạng thái"],
         key="rt_board",
-        column_config={
-            "Giá": st.column_config.NumberColumn(format="%,.0f"),
-            "+/-": st.column_config.NumberColumn(format="%+,.0f"),
-            "%": st.column_config.NumberColumn(format="%+.2f"),
-            "Mở": st.column_config.NumberColumn(format="%,.0f"),
-            "Cao": st.column_config.NumberColumn(format="%,.0f"),
-            "Thấp": st.column_config.NumberColumn(format="%,.0f"),
-            "TC": st.column_config.NumberColumn(format="%,.0f"),
-            "Xu hướng": line_chart_column("Xu hướng", width="small"),
-        },
-        alt="Bảng giá realtime kèm sparkline xu hướng",
+        column_config={"Xu hướng": trend_image_column("Xu hướng", width="small")},
+        alt="Bảng giá realtime kèm sparkline xu hướng màu FireAnt",
     )
     tick = newest.astimezone(TZ).strftime("%H:%M:%S") if newest else "?"
     st.caption(
         f"{_stamp(interval)} · quote mới nhất {tick} · giá VND · {len(rows)} mã · "
-        "Xu hướng = close OHLCV (nghìn đồng) + điểm giá live"
+        "Giá/Δ/%/sparkline theo màu FireAnt (xanh tăng · đỏ giảm · vàng đứng)"
     )
 
 

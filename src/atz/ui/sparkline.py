@@ -1,13 +1,14 @@
-"""Sparkline dùng chung: SVG (thẻ chỉ số) + cột LineChart (bảng mã)."""
+"""Sparkline dùng chung: SVG chỉ số (clip TC) + SVG bảng mã (một màu theo Δ)."""
 
 from __future__ import annotations
 
+import base64
 import html
 from typing import Sequence
 
 import streamlit as st
 
-from ui.theme_tokens import DOWN, REF, TEXT_MUTED, UP
+from ui.theme_tokens import DOWN, REF, TEXT_MUTED, UP, color_for_change
 
 GREEN, RED, YELLOW, GREY = UP, DOWN, REF, TEXT_MUTED
 
@@ -19,7 +20,7 @@ def sparkline_svg(
     w: int = 120,
     h: int = 40,
 ) -> str:
-    """SVG: polyline clip trên/dưới vạch tham chiếu vàng; chấm điểm cuối."""
+    """SVG chỉ số: clip trên/dưới vạch tham chiếu vàng (thẻ index)."""
     if not values:
         return (
             f'<svg width="{w}" height="{h}" viewBox="0 0 {w} {h}">'
@@ -51,8 +52,54 @@ def sparkline_svg(
     )
 
 
+def sparkline_trend_svg(
+    values: Sequence[float],
+    change: float | None,
+    uid: str,
+    w: int = 100,
+    h: int = 28,
+) -> str:
+    """Sparkline bảng mã kiểu FireAnt: cả đường một màu theo dấu Δ phiên."""
+    color = color_for_change(change)
+    if not values:
+        return (
+            f'<svg width="{w}" height="{h}" viewBox="0 0 {w} {h}" xmlns="http://www.w3.org/2000/svg">'
+            f'<line x1="0" y1="{h / 2}" x2="{w}" y2="{h / 2}" stroke="{GREY}" stroke-dasharray="2 3"/></svg>'
+        )
+    vals = list(values) if len(values) > 1 else list(values) * 2
+    lo, hi = min(vals), max(vals)
+    span = (hi - lo) or 1.0
+    pad = 2
+
+    def y(v: float) -> float:
+        return round(pad + (hi - v) / span * (h - 2 * pad), 2)
+
+    step = (w - 2 * pad) / (len(vals) - 1)
+    pts = " ".join(f"{round(pad + i * step, 2)},{y(v)}" for i, v in enumerate(vals))
+    lx, ly = round(pad + (len(vals) - 1) * step, 2), y(vals[-1])
+    _ = uid  # giữ chữ ký ổn định nếu sau này cần clip id
+    return (
+        f'<svg width="{w}" height="{h}" viewBox="0 0 {w} {h}" xmlns="http://www.w3.org/2000/svg">'
+        f'<polyline points="{pts}" fill="none" stroke="{color}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>'
+        f'<circle cx="{lx}" cy="{ly}" r="2.2" fill="{color}"/></svg>'
+    )
+
+
+def svg_data_uri(svg: str) -> str:
+    payload = base64.b64encode(svg.encode("utf-8")).decode("ascii")
+    return f"data:image/svg+xml;base64,{payload}"
+
+
+def spark_image_uri(values: Sequence[float], change: float | None, uid: str) -> str:
+    return svg_data_uri(sparkline_trend_svg(values, change, uid))
+
+
+def trend_image_column(label: str = "Xu hướng", *, width: str = "small"):
+    return st.column_config.ImageColumn(label, width=width, help="Sparkline theo màu tăng/giảm FireAnt")
+
+
 def line_chart_column(label: str = "Xu hướng", *, width: str = "small", color: str | None = None):
-    """column_config cho st.dataframe — ô chứa list[float]."""
+    """Giữ API cũ; bảng mã nên dùng trend_image_column + spark_image_uri."""
     kwargs = {"label": label, "width": width, "help": "Chuỗi giá gần đây (sparkline)"}
     if color:
         kwargs["color"] = color
@@ -60,6 +107,4 @@ def line_chart_column(label: str = "Xu hướng", *, width: str = "small", color
 
 
 def chart_color_for_change(change: float | None) -> str:
-    if change is None or change == 0:
-        return YELLOW
-    return GREEN if change > 0 else RED
+    return color_for_change(change)
