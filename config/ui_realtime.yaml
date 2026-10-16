@@ -3,7 +3,7 @@
 ui_realtime:
   timezone: "Asia/Ho_Chi_Minh"
   trading_sessions: [["09:00", "11:30"], ["13:00", "15:00"]]   # thứ 2 - thứ 6
-  refresh_seconds_trading: 3        # st.fragment(run_every) trong giờ giao dịch
+  refresh_seconds_trading: 5        # st.fragment: 5s giảm giật khi rebuild spark/HTML (Gemini)
   refresh_seconds_off: 30           # ngoài giờ (0 = tắt tự refresh)
   cache_ttl_seconds: 1.5            # cache đọc Redis trong process (dùng chung mọi session)
   symbols_cache_seconds: 60         # SCAN quote:* tối đa 1 lần / 60s
