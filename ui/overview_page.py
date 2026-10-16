@@ -481,10 +481,8 @@ def show_overview() -> None:
         alt="Chỉ số Việt Nam: tham chiếu, đóng cửa, biến động, khối lượng và giá trị",
     )
     st.caption(
-        "Giá và khối lượng khớp lấy từ nến đã lưu hoặc vnstock. "
-        "Giá trị khớp và thỏa thuận lấy từ trade_history (VCI, không có thì KBS). "
-        "Dòng nước ngoài và tự doanh lấy từ foreign_flow và proprietary_flow, nguồn VCI, đơn vị tỷ đồng. "
-        "Cột không có số giữ «—»."
+        "Giá và khối lượng lấy từ vnstock. Giá trị khớp và thỏa thuận lấy từ VCI, không có thì KBS. "
+        "Khối ngoại và tự doanh nguồn VCI, đơn vị tỷ đồng. Thiếu số thì «—»."
     )
     st.subheader("Chỉ số quốc tế")
     render_data_table(

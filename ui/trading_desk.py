@@ -276,7 +276,7 @@ def _blank_number(value: float | None) -> float:
 def show_trading_desk(capital: float) -> None:
     st.subheader("Quản trị vị thế")
     st.caption(
-        "Giá hiện tại, xu hướng MA20, hỗ trợ và kháng cự lấy từ nến trong data/ohlcv khi có. "
+        "Giá hiện tại, xu hướng MA20, hỗ trợ và kháng cự lấy từ nến đã lưu khi có. "
         "Mức 1/4, 1/2 và full NAV là gợi ý theo vốn trên sidebar nếu ô đó để trống. "
         "Margin chưa có hệ số, để «—» cho đến khi tự điền. Lãi/lỗ là % so với giá mua."
     )

@@ -17,8 +17,7 @@ def main() -> None:
     inject_mobile_css()
     st.title("Quét thị trường")
     st.caption(
-        "Bảng Top 20 đọc từ top20_cache.csv. "
-        "Lần quét lấy giá (KBS) và ROE quý mới nhất song song, rồi lọc ROE và thanh khoản."
+        "Top 20 mã lọc theo ROE quý gần nhất và thanh khoản. Bấm «Quét và làm mới dữ liệu» để cập nhật."
     )
     open_page()
 

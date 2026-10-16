@@ -72,7 +72,6 @@ def _fallback_board(reason: str, user_id: int) -> None:
         return
     cols = [c for c in ("Mã", "Giá", "RS 3 tháng (%)", "ROE (%)", "KLGD TB 20 phiên") if c in board.columns]
     render_data_table(board[cols] if cols else board, key="rt_board_fb")
-    st.caption("Giá dự phòng theo nghìn đồng (định dạng bảng Top 20).")
 
 
 def _board(user_id: int, interval) -> None:
@@ -132,7 +131,7 @@ def _positions_live(user_id: int, interval) -> None:
                                  "Cắt lỗ": "{:,.0f}", "Chốt lời": "{:,.0f}"}, na_rep="-").map(
         lambda v: "" if pd.isna(v) else ("color: #3ddc97" if v > 0 else "color: #ff6b6b" if v < 0 else ""), subset=["Lãi/lỗ", "%"])
     render_data_table(styled, key_cols=["Giá", "Lãi/lỗ", "%"], key="rt_pos")
-    st.caption(f"{_stamp(interval)} · P&L do Position Monitor tính (sweep ≤15s, có event giá thì ngay)")
+    st.caption(f"{_stamp(interval)} · Lãi/lỗ cập nhật khi có giá mới, chậm nhất khoảng 15 giây.")
 
 
 def _position_forms(user_id: int) -> None:

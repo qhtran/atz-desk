@@ -7,7 +7,7 @@ import json
 import pandas as pd
 import streamlit as st
 
-from config import SIGNALS_DB, UNIVERSE
+from config import UNIVERSE
 from engine.exchange import export_user, import_user
 from engine.identity import current_username
 from engine.notify import BrevoSender, maybe_notify
@@ -79,7 +79,7 @@ def show_filters() -> None:
 
         show_industry_top()
         return
-    st.caption(f"User {current_username()}. Cấu hình lưu tại {SIGNALS_DB.name}.")
+    st.caption(f"User {current_username()}. Cấu hình được lưu theo tài khoản.")
     registry = load_registry()
     labels = {name: module.FILTER.label for name, module in registry.items()}
     conn = open_signals()
@@ -192,7 +192,7 @@ def show_filters() -> None:
                     board["KQKD quý cùng kỳ"] = [
                         filled.get(str(symbol).upper(), ("—", "—"))[1] for symbol in board["Mã"]
                     ]
-                    st.caption("KQKD = LNST quý hiện tại / cùng kỳ (cache data/kqkd). Thiếu dữ liệu thì «—».")
+                    st.caption("KQKD = LNST quý hiện tại / cùng kỳ. Thiếu dữ liệu thì «—».")
                     render_data_table(
                         board,
                         pin="Mã",

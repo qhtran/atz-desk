@@ -23,7 +23,7 @@ def show_news_section() -> None:
     st.subheader("Tin tức")
     st.caption(
         "Nguồn mặc định: RSS CafeF · Thị trường chứng khoán. "
-        f"Cache 30 phút trong data/news_cache.json. {NEWS_PAGE_SIZE} tin mỗi trang."
+        f"Tự làm mới mỗi 30 phút. {NEWS_PAGE_SIZE} tin mỗi trang."
     )
     if st.button("Làm mới tin", key="news_refresh"):
         from config import NEWS_CACHE_PATH
@@ -109,8 +109,7 @@ def show_member_posts() -> None:
     st.subheader("Bài viết của thành viên")
     username = current_username()
     st.caption(
-        f"Đăng với tên «{username}». Chỉ tác giả mới sửa/xóa bài của mình. "
-        "Lưu tại data/member_posts.json."
+        f"Đăng với tên «{username}». Chỉ tác giả mới sửa/xóa bài của mình."
     )
 
     with st.form("member_post_form"):

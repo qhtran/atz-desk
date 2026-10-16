@@ -15,11 +15,11 @@ warnings.filterwarnings("ignore", category=UserWarning, module=r"vnstock(\.|$)")
 def main() -> None:
     st.set_page_config(page_title="Tổng quan", layout="wide")
     st.title("Tổng quan")
-    st.caption("Trạng thái phiên HOSE và Top 20 đã lọc. Biểu đồ từng mã nằm ở app.py.")
+    st.caption("Trạng thái phiên HOSE và Top 20 đã lọc. Biểu đồ từng mã nằm ở trang Quét thị trường.")
     try:
         board = read_cache()
     except Exception as error:
-        st.error(f"Không đọc được cache: {error}")
+        st.error(f"Không đọc được Top 20 đã lưu: {error}")
         return
     show_dashboard(board)
 

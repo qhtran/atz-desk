@@ -46,7 +46,7 @@ def _positions_view(positions: pd.DataFrame) -> pd.DataFrame:
 def show_portfolio() -> None:
     st.subheader("Vị thế đang nắm")
     st.caption(
-        f"Giá nghìn đồng. Lãi/lỗ nhân {1000:,} ra đồng, lấy giá đóng cửa trong data/ohlcv nếu đã có. "
+        f"Giá nghìn đồng. Lãi/lỗ nhân {1000:,} ra đồng, lấy giá đóng cửa đã lưu nếu có. "
         f"Mỗi mã giải ngân tối đa {CAPITAL_TRANCHES} phần."
     )
     positions = list_positions()

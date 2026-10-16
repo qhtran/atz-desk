@@ -62,8 +62,8 @@ def _sector_section() -> None:
     industries = load_industry_map()
     if not industries:
         st.info(
-            "Chưa có dữ liệu ngành (thiếu data/industry_l3.csv). "
-            "Danh mục mặc định theo ngành sẽ hiện khi file có sẵn. "
+            "Chưa có dữ liệu ngành. "
+            "Danh mục mặc định theo ngành sẽ hiện khi có dữ liệu. "
             "Bạn vẫn tạo được danh mục riêng bên dưới."
         )
         return
@@ -77,7 +77,7 @@ def _sector_section() -> None:
         return
     st.caption(
         "Mỗi ngành lấy tối đa 8 mã trong danh sách quét, ưu tiên KL trung bình 10 phiên cao. "
-        "Chỉ đọc nến đã cache, không gọi mạng."
+        "Chỉ đọc nến đã lưu, không gọi mạng."
     )
     names = [item["name"] for item in sectors]
     chosen = st.selectbox("Ngành", names, key="wl_sector_pick")
@@ -92,7 +92,7 @@ def _sector_section() -> None:
 
 def _custom_section(username: str) -> None:
     st.subheader("Danh mục của tôi")
-    st.caption(f"User «{username}». Lưu tại data/watchlists/.")
+    st.caption(f"User «{username}». Danh sách được lưu theo tài khoản.")
     lists = load_user_watchlists(username)
 
     with st.form("wl_create"):

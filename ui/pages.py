@@ -18,7 +18,7 @@ from analysis.support import support_scan
 from analysis.technical import enrich, money_flow_summary
 from analysis.valuation import valuation_board
 from config import (
-    CACHE_PATH, CAPITAL_STEP, CAPITAL_TRANCHES, CHART_DAYS, DEFAULT_CAPITAL, MFI_COLD, MFI_HOT,
+    CAPITAL_STEP, CAPITAL_TRANCHES, CHART_DAYS, DEFAULT_CAPITAL, MFI_COLD, MFI_HOT,
     MFI_LENGTH, MIN_AVG_VOLUME, MIN_BARS, MIN_ROE, RISK_DEFAULT, RISK_MAX, RISK_MIN, RS_FILTER_OFF,
     RSI_LENGTH, RSI_OVERBOUGHT, RSI_OVERSOLD, THOUSAND_VND, TOP_N, UNIVERSE, VOLUME_SPIKE,
 )
@@ -101,10 +101,6 @@ def render_sidebar() -> tuple[float, float]:
         st.header("Dữ liệu")
         refresh = st.button("Quét và làm mới dữ liệu", width="stretch")
         st.link_button("Tài khoản", "https://auth.atz.vn/if/user/", width="stretch")
-        if CACHE_PATH.exists():
-            st.caption(f"Đã lưu: data/{CACHE_PATH.name}")
-        else:
-            st.caption("Chưa có file cache.")
     if refresh:
         from analysis.screening import scan_top20
 
@@ -117,9 +113,10 @@ def render_sidebar() -> tuple[float, float]:
         if board.empty:
             st.session_state["scan_note"] = "Quét xong nhưng không có mã qua lọc ROE và thanh khoản."
         else:
-            CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
-            board.to_csv(CACHE_PATH, index=False)
-            st.session_state["scan_note"] = f"Đã ghi {len(board)} mã vào {CACHE_PATH.name}."
+            from datasource.top20_store import save_snapshot
+
+            save_snapshot(board)
+            st.session_state["scan_note"] = f"Đã cập nhật Top 20: {len(board)} mã."
         st.rerun()
     note = st.session_state.get("scan_note")
     if note:
@@ -147,7 +144,7 @@ def show_dashboard(board: pd.DataFrame, note: str | None = None) -> None:
     else:
         st.subheader(f"Top {min(TOP_N, len(board))} dẫn dắt" if not board.empty else "Top 20 dẫn dắt")
     if board.empty:
-        st.info("Chưa có top20_cache.csv. Quét từ app.py bằng nút «Quét và làm mới dữ liệu».")
+        st.info("Chưa có dữ liệu Top 20. Bấm «Quét và làm mới dữ liệu» ở thanh bên.")
         return
     st.dataframe(
         style_board(board),
@@ -212,7 +209,7 @@ def show_patterns(symbol: str, bars: pd.DataFrame) -> None:
         alt=f"Mẫu hình giá nhận diện tự động cho {symbol}",
     )
     st.caption(
-        "Nhận diện bằng quy tắc đơn giản trên nến ngày (ngưỡng trong config.PATTERNS). "
+        "Nhận diện bằng quy tắc đơn giản trên nến ngày. "
         "Chỉ là gợi ý, luôn kiểm tra lại bằng mắt trên đồ thị."
     )
 
@@ -346,9 +343,9 @@ def show_canslim(symbol: str, bars: pd.DataFrame) -> None:
         note = str(row["Ghi chú"]).strip()
         st.caption(detail if not note else f"{detail}. {note}")
     st.caption(
-        "Theo William J. O'Neil. Ngưỡng chỉnh trong config.CANSLIM. "
+        "Theo William J. O'Neil. "
         "I (tổ chức) chưa có nguồn dữ liệu nên để N/A; M cần dữ liệu VNINDEX. "
-        "L so với các mã có cache giá trong data/ohlcv."
+        "L so với các mã đã có dữ liệu giá."
     )
 
 
@@ -447,7 +444,7 @@ def open_page() -> None:
     try:
         board = read_cache()
     except Exception as error:
-        st.error(f"Không đọc được cache: {error}")
+        st.error(f"Không đọc được Top 20 đã lưu: {error}")
         return
     capital, risk_pct, filters = render_sidebar()
     universe = read_universe()

@@ -265,7 +265,7 @@ def show_industry_top() -> None:
     st.caption(
         "Mỗi ngành lấy tối đa 5 mã trong danh sách quét. "
         "Điểm = 70% thứ hạng sức mạnh giá 20 phiên + 30% thứ hạng khối lượng trung bình 10 phiên, so trong ngành. "
-        "Nến đọc từ data/ohlcv. KQKD = lợi nhuận sau thuế (LNST) quý hiện tại và cùng kỳ năm trước, cache trong data/kqkd. Thiếu dữ liệu thì «—»."
+        "Nến lấy từ dữ liệu đã lưu. KQKD = lợi nhuận sau thuế (LNST) quý hiện tại và cùng kỳ năm trước. Thiếu dữ liệu thì «—»."
     )
     try:
         board = build_industry_top()

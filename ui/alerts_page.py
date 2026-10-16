@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import streamlit as st
 
-from config import BULLETIN_PATH
 from datasource.alerts import ALERT_KINDS, PRICE_KINDS, add_alert, check_alerts, delete_alert, list_alerts, read_bulletin
 
 
@@ -32,11 +31,7 @@ def show_alerts() -> None:
     st.subheader("Bản tin")
     bulletin = read_bulletin()
     if bulletin is None:
-        st.info(
-            "Chưa có bản tin. Tạo file data/ban_tin.md với vài dòng chữ. "
-            "Bản tin hằng ngày có thể ghi vào đúng file này."
-        )
-        st.caption(str(BULLETIN_PATH))
+        st.info("Chưa có bản tin hôm nay.")
     else:
         excerpt = bulletin_excerpt(bulletin)
         if excerpt == bulletin:
@@ -47,7 +42,7 @@ def show_alerts() -> None:
                 st.markdown(bulletin)
 
     st.subheader("Cảnh báo")
-    st.caption("Kiểm tra trên cache sẵn có khi mở tab hoặc bấm nút. Không gọi API và không chạy nền.")
+    st.caption("Kiểm tra trên dữ liệu đã lưu khi mở tab hoặc bấm nút. Không gọi API và không chạy nền.")
     if st.button("Kiểm tra lại"):
         st.rerun()
     report = check_alerts()

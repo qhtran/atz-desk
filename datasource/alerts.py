@@ -6,7 +6,7 @@ from uuid import uuid4
 
 import pandas as pd
 
-from config import ALERTS_PATH, BULLETIN_PATH, CACHE_PATH
+from config import ALERTS_PATH, BULLETIN_PATH
 from datasource.cache import read_cache, read_universe
 from datasource.portfolio import last_close
 
@@ -53,8 +53,6 @@ def delete_alert(item_id: str) -> None:
 
 
 def _top_symbols() -> set[str] | None:
-    if not CACHE_PATH.exists():
-        return None
     try:
         board = read_cache()
     except Exception:
@@ -92,7 +90,7 @@ def evaluate(row: pd.Series) -> tuple[bool, str]:
     if kind in {"Giá ≥", "Giá ≤"}:
         price = last_close(symbol)
         if price is None:
-            return False, "Chưa có giá trong data/ohlcv."
+            return False, "Chưa có giá đóng cửa đã lưu."
         if pd.isna(level):
             return False, "Thiếu ngưỡng."
         hit = price >= float(level) if kind == "Giá ≥" else price <= float(level)
@@ -103,12 +101,12 @@ def evaluate(row: pd.Series) -> tuple[bool, str]:
             return False, "Chưa có Top 20 đã lưu."
         inside = symbol in names
         if kind == "Vào Top 20":
-            return inside, "Đang có trong top20_cache.csv." if inside else "Chưa có trong Top 20 đã lưu."
+            return inside, "Đang có trong Top 20 đã lưu." if inside else "Chưa có trong Top 20 đã lưu."
         return (not inside), "Không còn trong Top 20 đã lưu." if not inside else "Vẫn nằm trong Top 20 đã lưu."
     if kind == "ROE ≥":
         roe = _roe_pct(symbol)
         if roe is None:
-            return False, "Chưa có ROE trong cache quét."
+            return False, "Chưa có ROE từ lần quét gần nhất."
         if pd.isna(level):
             return False, "Thiếu ngưỡng."
         hit = roe >= float(level)
