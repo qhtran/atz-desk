@@ -54,7 +54,8 @@ _VIEW_COLUMNS = (
 # Màu F1 mentor (khớp realtime_page)
 _COLOR_UP = "color: #3ddc97"
 _COLOR_DOWN = "color: #ff6b6b"
-_COLOR_BUY = "color: #f5c842; font-weight: 600"
+# Nền vàng cả cột Giá mua (F1 mentor) — chữ tối để dễ đọc trên nền tối của app
+_COLOR_BUY = "background-color: #f5c842; color: #1a1a1a; font-weight: 600"
 _COLOR_SUPPORT = "color: #ff6b6b"
 _COLOR_RESIST = "color: #3ddc97"
 
