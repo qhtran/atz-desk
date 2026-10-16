@@ -5,7 +5,7 @@ alwaysApply: true
 
 # atz.vn / vnstocks
 
-- Đọc `AGENTS.md`, `artifacts/Kien_Truc_He_Thong_Realtime_Atz.md`, `artifacts/User_Manual_Troubleshooting_Realtime_Atz.md` trước khi sửa.
+- Đọc `AGENTS.md`, `docs/architecture.md`, `docs/troubleshooting.md` trước khi sửa.
 - Luôn đưa kế hoạch ngắn và chờ xác nhận trước khi sửa code. Không thêm tính năng lớn khi chưa được yêu cầu.
 - `git pull` trước; commit nhỏ, push thường; **KHÔNG force push**.
 - Một module mỗi lần; viết/cập nhật test trong `tests/test_<module>.py`; báo Pass/Fail.

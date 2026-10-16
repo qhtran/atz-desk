@@ -1,4 +1,4 @@
-# Module 1 - Ingestion Service. Khóa theo tài liệu artifacts/Kien_Truc_He_Thong_Realtime_Atz.md (mục 2).
+# Module 1 - Ingestion Service. Khóa theo tài liệu docs/architecture.md (mục 2).
 # Mọi giá trị có thể ghi đè bằng biến môi trường INGEST_* (xem ingestion/config.py).
 ingestion:
   primary_source: KBS

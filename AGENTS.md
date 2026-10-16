@@ -1,5 +1,9 @@
 # Quy tắc làm việc (Bot + GPC)
 
+## 0. Tài liệu
+- Kiến trúc / vận hành: `docs/architecture.md`, `docs/troubleshooting.md`
+- Target layout (chưa bắt buộc refactor): `docs/adr/0001-target-folder-layout.md`
+
 ## 1. Karpathy rules
 - Code rõ ràng, modular, dễ đọc.
 - Ưu tiên đơn giản và explicit.

@@ -1,4 +1,4 @@
-"""Structured log theo User_Manual_Troubleshooting_Realtime_Atz.md mục 2.
+"""Structured log theo docs/troubleshooting.md mục 2.
 
 Mỗi dòng: `[DBG-YYYYMMDD-HHMM-INGEST-ACTION] [ERR-...] {json}`; giờ theo +07:00.
 JSON luôn có: debug_label, error_code, module, symbol, user_id, latency_ms, message (+ batch_id, source, circuit_state khi liên quan).

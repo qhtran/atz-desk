@@ -253,7 +253,7 @@ Probe `[DBG-20261016-0624..0629-INGEST-RATEPROBE]`, trong phiên, ingestion tạ
 
 ## 8. Liên hệ & Tài liệu liên quan
 
-- Thiết kế chi tiết: `Kien_Truc_He_Thong_Realtime_Atz.md`
+- Thiết kế chi tiết: `docs/architecture.md`
 - Log location: volume `./logs` hoặc `docker logs`
 - Redis: container `atz-redis`
 
