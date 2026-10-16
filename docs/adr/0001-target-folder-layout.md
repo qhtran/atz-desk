@@ -1,6 +1,6 @@
 # ADR 0001: Target folder layout (scale team nhỏ)
 
-- **Status:** Accepted (implement **deferred**)
+- **Status:** Partially done — see ADR 0002 (`src/atz` + PYTHONPATH). Domain/adapters rename vẫn deferred.
 - **Date:** 2026-10-17
 - **Context:** Repo có hai lớp chồng nhau — realtime (ingestion → filter → alert → position → UI) và app Streamlit cũ (`analysis/`, `datasource/`, `ui/`). Root còn file hướng dẫn lẻ; không có `docs/` chuẩn.
 
