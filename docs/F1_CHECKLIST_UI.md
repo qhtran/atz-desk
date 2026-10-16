@@ -3,7 +3,7 @@
 - **Nguồn:** `MoTaCongViecThucHienCapNhatSite_RevF1.docx` (iCloud StockRnD / ideas_from_Hien)
 - **Bản chữ + ảnh local:** cùng thư mục, file `*_text.md` và `*_media/word/media/`
 - **Ngày ghi checklist:** 2026-10-17
-- **Trạng thái:** Chưa triển khai code (chỉ ghi nhận yêu cầu)
+- **Trạng thái:** Đang làm từng mục (1, 3, 4, 6 xong; 2 MVP; còn 5, 7 + realtime giá sidebar)
 
 ---
 
@@ -22,21 +22,22 @@
 
 Thay khối hiện tại (trạng thái phiên + tổng vốn + mức rủi ro %) bằng tổng quan tài khoản / vị thế:
 
-- [ ] Vốn rót lần đầu
-- [ ] Vốn bổ sung
-- [ ] Vốn đã rút ra
-- [ ] Tổng vốn hiện tại
-- [ ] Giá trị chứng khoán
-- [ ] Tiền mặt
-- [ ] Tài sản ròng
-- [ ] Vị thế hiện tại — từng **thương vụ**: mã / giá mua / giá hiện tại / cảnh báo
-- [ ] Giá hiện tại realtime (tham chiếu sàn UBCK: https://rtboard.hsx.vn/)
-- [ ] Cảnh báo theo ưu tiên: hỗ trợ 1–2, kháng cự 1–2, và/hoặc mốc ±5% / ±8% / ±10%
-- [ ] Biểu đồ cột lãi/lỗ trên tổng NAV (phía dưới)
+- [x] Vốn rót lần đầu
+- [x] Vốn bổ sung
+- [x] Vốn đã rút ra
+- [x] Tổng vốn hiện tại
+- [x] Giá trị chứng khoán (ước lượng theo vốn phân bổ desk)
+- [x] Tiền mặt
+- [x] Tài sản ròng
+- [x] Vị thế hiện tại — mã / giá mua / giá hiện tại / cảnh báo (từ Trạm Trading)
+- [ ] Giá hiện tại realtime tick HSX (MVP dùng cache OHLCV; link rtboard.hsx.vn)
+- [x] Cảnh báo: gần hỗ trợ/kháng cự + mốc ±5/8/10%
+- [x] Biểu đồ cột lãi/lỗ ước lượng trên NAV phân bổ
 
 **Ảnh tham chiếu:** `image3.png` (hiện trạng) + mô tả cột “Đề xuất sửa” trong doc
 
-**Độ lớn:** lớn (UI + lưu dữ liệu user)
+**Độ lớn:** lớn (UI + lưu dữ liệu user)  
+**Code:** `datasource/capital_ledger.py` + `ui/sidebar_portfolio.py` — 2026-10-17 (MVP)
 
 ---
 

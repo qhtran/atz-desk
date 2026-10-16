@@ -12,6 +12,7 @@ APP_DIR = repo_root()
 DATA_DIR = APP_DIR / "data"
 SCAN_UNIVERSE_PATH = DATA_DIR / "scan_universe.csv"
 POSITIONS_PATH = DATA_DIR / "positions.csv"
+CAPITAL_LEDGER_PATH = DATA_DIR / "capital_ledger.csv"
 JOURNAL_PATH = DATA_DIR / "journal.csv"
 ALERTS_PATH = DATA_DIR / "alerts.csv"
 BULLETIN_PATH = DATA_DIR / "ban_tin.md"
