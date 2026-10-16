@@ -37,7 +37,7 @@ _NUMBER_COLUMNS = (
 )
 _VIEW_COLUMNS = (
     "Mã",
-    "Xu hướng",
+    "Xu hướng ngày",
     "Giá mua",
     "Vùng hỗ trợ",
     "Vùng kháng cự",
@@ -50,6 +50,13 @@ _VIEW_COLUMNS = (
     "Đúng 4 margin",
     "Lãi/lỗ thương vụ",
 )
+
+# Màu F1 mentor (khớp realtime_page)
+_COLOR_UP = "color: #3ddc97"
+_COLOR_DOWN = "color: #ff6b6b"
+_COLOR_BUY = "color: #f5c842; font-weight: 600"
+_COLOR_SUPPORT = "color: #ff6b6b"
+_COLOR_RESIST = "color: #3ddc97"
 
 
 def _empty_store() -> pd.DataFrame:
@@ -197,7 +204,7 @@ def view_board(store: pd.DataFrame, capital: float) -> pd.DataFrame:
             stop = _price(auto_support)
         row = {
             "Mã": symbol,
-            "Xu hướng": _trend(frame, price),
+            "Xu hướng ngày": _trend(frame, price),
             "Giá mua": _price(buy),
             "Vùng hỗ trợ": _price(support if support is not None else auto_support),
             "Vùng kháng cự": _price(resistance if resistance is not None else auto_resistance),
@@ -273,21 +280,80 @@ def _blank_number(value: float | None) -> float:
     return 0.0 if value is None or pd.isna(value) else float(value)
 
 
+def _parse_display_number(value: object) -> float | None:
+    """Đọc số từ ô đã format (vd. '11.80', '+1.27%', '25,000,000')."""
+    text = str(value).strip().replace(",", "").replace("%", "")
+    if not text or text in {"—", "-", "nan", "None"}:
+        return None
+    try:
+        return float(text)
+    except ValueError:
+        return None
+
+
+def style_desk_board(board: pd.DataFrame):
+    """Tô màu theo checklist F1 mục 6 (mentor)."""
+    if board.empty:
+        return board
+
+    def paint_pnl(value: object) -> str:
+        text = str(value).strip()
+        if text.startswith("+"):
+            return _COLOR_UP
+        if text.startswith("-"):
+            return _COLOR_DOWN
+        return ""
+
+    def paint_trend(value: object) -> str:
+        text = str(value).strip()
+        if text == "Tăng":
+            return _COLOR_UP
+        if text == "Giảm":
+            return _COLOR_DOWN
+        return ""
+
+    buy_nums = [_parse_display_number(v) for v in board["Giá mua"]]
+    cur_nums = [_parse_display_number(v) for v in board["Giá hiện tại"]]
+
+    def paint_current(_: object) -> list[str]:
+        styles: list[str] = []
+        for buy, cur in zip(buy_nums, cur_nums, strict=True):
+            if buy is None or cur is None:
+                styles.append("")
+            elif cur > buy:
+                styles.append(_COLOR_UP)
+            elif cur < buy:
+                styles.append(_COLOR_DOWN)
+            else:
+                styles.append("")
+        return styles
+
+    styled = board.style.map(paint_pnl, subset=["Lãi/lỗ thương vụ"])
+    styled = styled.map(paint_trend, subset=["Xu hướng ngày"])
+    styled = styled.map(lambda _: _COLOR_BUY, subset=["Giá mua"])
+    styled = styled.map(lambda _: _COLOR_SUPPORT, subset=["Vùng hỗ trợ"])
+    styled = styled.map(lambda _: _COLOR_RESIST, subset=["Vùng kháng cự"])
+    styled = styled.apply(paint_current, subset=["Giá hiện tại"], axis=0)
+    return styled
+
+
 def show_trading_desk(capital: float) -> None:
     st.subheader("Quản trị vị thế")
     st.caption(
-        "Giá hiện tại, xu hướng MA20, hỗ trợ và kháng cự lấy từ nến đã lưu khi có. "
+        "Giá hiện tại, xu hướng ngày (MA20), hỗ trợ và kháng cự lấy từ nến đã lưu khi có. "
         "Mức 1/4, 1/2 và full NAV là gợi ý theo vốn trên sidebar nếu ô đó để trống. "
-        "Margin chưa có hệ số, để «—» cho đến khi tự điền. Lãi/lỗ là % so với giá mua."
+        "Margin chưa có hệ số, để «—» cho đến khi tự điền. Lãi/lỗ là % so với giá mua. "
+        "Màu: lãi/tăng/giá trên giá mua = xanh; lỗ/giảm/giá dưới giá mua = đỏ; "
+        "giá mua = vàng; hỗ trợ = đỏ; kháng cự = xanh."
     )
     store = load_desk()
     board = view_board(store, capital)
     render_data_table(
-        board,
+        style_desk_board(board),
         pin="Mã",
-        key_cols=["Xu hướng", "Giá mua", "Giá hiện tại", "Lãi/lỗ thương vụ"],
+        key_cols=["Xu hướng ngày", "Giá mua", "Giá hiện tại", "Lãi/lỗ thương vụ"],
         key="desk_board",
-        alt="Bảng quản trị vị thế Trạm Trading",
+        alt="Bảng quản trị vị thế Trạm Trading, đã tô màu lãi lỗ và xu hướng",
     )
     if not store.empty:
         for _, item in store.iterrows():
