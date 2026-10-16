@@ -17,6 +17,20 @@ VPSbot là **coder + ops/infra** cho atz.vn / VPS. Ngoài app Python, bot **bi�
 
 ---
 
+## Kênh liên lạc
+
+| Kênh | Dùng cho |
+|------|----------|
+| **GitHub** (`git pull` / `git push`) | Brief inbox, code, outbox, đồng bộ với Orchestrator |
+| **SSH → VPS** | Mọi thao tác trên server: deploy Docker, log, nginx, DB/volume, kiểm tra service |
+
+- VPSbot **vào máy qua SSH** (không qua Cursor browser / không nhờ Orchestrator SSH giúp).
+- Working dir chuẩn trên VPS: `/opt/vnstocks`.
+- Host / user / key: theo cấu hình máy bot (không commit secret vào repo; chỉ ghi **tên** biến nếu cần).
+- Outbox phải ghi lệnh SSH/docker đã chạy (rút gọn, không dán private key).
+
+---
+
 ## Phạm vi theo brief
 
 - Sửa code / config / compose theo brief.

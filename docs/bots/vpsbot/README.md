@@ -2,6 +2,8 @@
 
 Coder + **ops/infra** cho atz.vn: app code, **Docker/Compose**, deploy VPS, Redis/SQLite, nginx/server setup theo brief.
 
+**Kênh:** GitHub (brief/code/outbox) + **SSH** (mọi lệnh trên VPS).
+
 | File | Mục đích |
 |------|----------|
 | `PROTOCOL.md` | Phạm vi, Docker/nginx/db, rủi ro P0, DoD |

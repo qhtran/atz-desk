@@ -39,7 +39,8 @@
 - Auditor report (nếu có): `docs/auditorbot/…`
 - Issue / chat: …
 
-## Ghi chú VPS
+## Ghi chú VPS (SSH)
 
+- Liên lạc server: **SSH** (VPSbot tự SSH; không nhờ Cursor)
 - Host path: `/opt/vnstocks`
 - Services restart: `vnstocks` / `ingestion` / …
