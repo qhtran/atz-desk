@@ -14,12 +14,18 @@
 - Thêm tính năng lớn ngoài brief.
 - Broadcast `pos_*` ra channel.
 
-## Git / file
+## Git / file (bắt buộc push)
 
-| Path | Ai ghi |
-|------|--------|
+VPSbot **có quyền git push** cùng remote. Mọi brief/outbox đi qua GitHub — không copy tay.
+
+| Path | Ai ghi + push |
+|------|----------------|
 | `docs/bots/vpsbot/inbox/YYYYMMDD-HHMM-<topic>.md` | Orchestrator (Cursor) hoặc user |
 | `docs/bots/vpsbot/outbox/YYYYMMDD-HHMM-<topic>-DONE.md` (hoặc `-FAIL.md`) | VPSbot |
+| code / tests / config theo brief | VPSbot |
+
+Trước khi làm: `git pull --ff-only origin main` (hoặc rebase branch brief).  
+Xong: push branch + outbox; merge `main` chỉ khi brief `merge_main: yes`.
 
 Tên brief và outbox **cùng stem topic** để Cursor ghép cặp.
 

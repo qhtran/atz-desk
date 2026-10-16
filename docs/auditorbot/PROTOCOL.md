@@ -13,9 +13,12 @@
 - Mỗi file = **một chủ đề** (colors, realtime board, news RSS, sidebar…). Không nhồi cả site vào một file khổng lồ nếu có thể tách.
 - Ảnh: nếu computer use chụp được, lưu mô tả đường dẫn / URL ảnh **công khai** hoặc mô tả rõ «ảnh đính kèm không có trong repo». Không commit binary lớn trừ khi chủ repo đồng ý.
 
-## 3. Git
+## 3. Git (bắt buộc push)
 
-- Branch gợi ý: `auditor/YYYYMMDD-<topic>` hoặc commit thẳng `main` nếu quy trình team cho phép (ưu tiên PR nhỏ).
+AuditorBot **git push được** cùng remote. Báo cáo chỉ tính khi đã lên GitHub.
+
+- Branch gợi ý: `auditor/YYYYMMDD-<topic>` hoặc commit thẳng `main` nếu team cho phép (ưu tiên PR nhỏ).
+- Trước khi ghi: `git pull --ff-only origin main`.
 - Path ghi: `docs/auditorbot/inbox/<filename>.md` thôi.
 - Message gợi ý: `docs(auditor): <topic> vs FireAnt`.
 - **Không** force push. **Không** đụng `.env`, secret, `deploy/` nginx/SSH.
