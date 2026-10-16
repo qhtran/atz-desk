@@ -101,24 +101,63 @@ def _board(user_id: int, interval) -> None:
     rows = data.quote_rows(quotes, float(_cfg()["ui_realtime"]["quote_stale_seconds"]))
     stale = sum(1 for x in rows if x["_stale"])
     newest = max((x["_ts"] for x in rows if x["_ts"]), default=None)
+    from ui.price_action import price_state
     from ui.sparkline import spark_image_uri, trend_image_column
     from ui.stock_item import realtime_board_frame
-    from ui.theme_tokens import FIREANT_CSS, css_signed_number
+    from ui.theme_tokens import FIREANT_CSS, css_flash, css_for_price_state
 
     st.markdown(FIREANT_CSS, unsafe_allow_html=True)
     frame = realtime_board_frame(rows)
     frame = frame.copy()
+
+    # Trạng thái trần/sàn/tăng/giảm theo TC + biên độ sàn
+    state_by: dict[str, str] = {}
+    for _, row in frame.iterrows():
+        code = str(row.get("Mã") or "")
+        if not code:
+            continue
+        state_by[code] = price_state(
+            row.get("Giá"),
+            row.get("TC"),
+            exchange=str(row.get("Sàn") or ""),
+        )
+
+    # Flash khi giá đổi so với lần fragment trước
+    prev_prices: dict = st.session_state.get("rt_prev_prices") or {}
+    flashed: dict[str, bool] = {}
+    next_prices: dict[str, float] = {}
+    for _, row in frame.iterrows():
+        code = str(row.get("Mã") or "")
+        try:
+            price = float(row["Giá"]) if row.get("Giá") is not None else None
+        except (TypeError, ValueError):
+            price = None
+        if code and price is not None:
+            old = prev_prices.get(code)
+            if old is not None and abs(float(old) - price) >= 1.0:
+                flashed[code] = price > float(old)
+            next_prices[code] = price
+    st.session_state["rt_prev_prices"] = next_prices
+
     frame["Xu hướng"] = [
-        spark_image_uri(spark or [], pct, str(code or "x"))
+        spark_image_uri(
+            spark or [],
+            pct,
+            str(code or "x"),
+            state=state_by.get(str(code or ""), None),
+        )
         for spark, pct, code in zip(frame["Xu hướng"], frame["%"], frame["Mã"])
     ]
     if stale:
         st.warning(f"⚠️ {stale}/{len(rows)} mã có giá cũ (> {_cfg()['ui_realtime']['quote_stale_seconds']}s hoặc nguồn gắn cờ stale).")
 
+    paint = {"Giá", "+/-", "%"}
+
     def _rt_row_colors(row: pd.Series) -> list[str]:
-        tone = css_signed_number(row.get("%"))
-        paint = {"Giá", "+/-", "%"}
-        return [tone if name in paint else "" for name in row.index]
+        code = str(row.get("Mã") or "")
+        tone = css_for_price_state(state_by.get(code, ""))
+        flash = f"; {css_flash(flashed[code])}" if code in flashed else ""
+        return [tone + flash if name in paint else "" for name in row.index]
 
     styled = frame.style.format(
         {
@@ -130,20 +169,26 @@ def _board(user_id: int, interval) -> None:
             "Thấp": "{:,.0f}",
             "TC": "{:,.0f}",
         },
-        subset=[c for c in frame.columns if c != "Xu hướng"],
+        subset=[c for c in frame.columns if c not in ("Xu hướng", "Sàn")],
         na_rep="-",
     ).apply(_rt_row_colors, axis=1)
+    # Ẩn cột Sàn (chỉ dùng suy biên độ) — tránh rối bảng
+    if "Sàn" in frame.columns:
+        styled = styled.hide(axis="columns", subset=["Sàn"])
     render_data_table(
         styled,
         key_cols=["Giá", "%", "Xu hướng", "Trạng thái"],
         key="rt_board",
         column_config={"Xu hướng": trend_image_column("Xu hướng", width="small")},
-        alt="Bảng giá realtime kèm sparkline xu hướng màu FireAnt",
+        alt="Bảng giá realtime kèm sparkline, trần/sàn và flash khi giá đổi",
     )
     tick = newest.astimezone(TZ).strftime("%H:%M:%S") if newest else "?"
+    n_ceil = sum(1 for s in state_by.values() if s == "ceiling")
+    n_floor = sum(1 for s in state_by.values() if s == "floor")
     st.caption(
         f"{_stamp(interval)} · quote mới nhất {tick} · giá VND · {len(rows)} mã · "
-        "Giá/Δ/%/sparkline theo màu FireAnt (xanh tăng · đỏ giảm · vàng đứng)"
+        f"trần {n_ceil} · sàn {n_floor} · flash khi giá đổi · "
+        "tím=trần · xanh dương=sàn · xanh/đỏ/vàng=Δ"
     )
 
 

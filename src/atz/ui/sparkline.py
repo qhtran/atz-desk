@@ -8,9 +8,17 @@ from typing import Sequence
 
 import streamlit as st
 
-from ui.theme_tokens import DOWN, REF, TEXT_MUTED, UP, color_for_change
+from ui.theme_tokens import CEILING, DOWN, FLOOR, REF, TEXT_MUTED, UP, color_for_change
 
 GREEN, RED, YELLOW, GREY = UP, DOWN, REF, TEXT_MUTED
+
+
+def color_for_price_state(state: str, change: float | None = None) -> str:
+    if state == "ceiling":
+        return CEILING
+    if state == "floor":
+        return FLOOR
+    return color_for_change(change)
 
 
 def sparkline_svg(
@@ -58,9 +66,11 @@ def sparkline_trend_svg(
     uid: str,
     w: int = 100,
     h: int = 28,
+    *,
+    state: str | None = None,
 ) -> str:
-    """Sparkline bảng mã kiểu FireAnt: cả đường một màu theo dấu Δ phiên."""
-    color = color_for_change(change)
+    """Sparkline bảng mã kiểu FireAnt: cả đường một màu theo Δ / trần / sàn."""
+    color = color_for_price_state(state or "", change) if state else color_for_change(change)
     if not values:
         return (
             f'<svg width="{w}" height="{h}" viewBox="0 0 {w} {h}" xmlns="http://www.w3.org/2000/svg">'
@@ -90,8 +100,14 @@ def svg_data_uri(svg: str) -> str:
     return f"data:image/svg+xml;base64,{payload}"
 
 
-def spark_image_uri(values: Sequence[float], change: float | None, uid: str) -> str:
-    return svg_data_uri(sparkline_trend_svg(values, change, uid))
+def spark_image_uri(
+    values: Sequence[float],
+    change: float | None,
+    uid: str,
+    *,
+    state: str | None = None,
+) -> str:
+    return svg_data_uri(sparkline_trend_svg(values, change, uid, state=state))
 
 
 def trend_image_column(label: str = "Xu hướng", *, width: str = "small"):

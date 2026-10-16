@@ -81,6 +81,10 @@ VOLUME_LEADERS_AVG = 10
 VOLUME_LEADERS_MIN_AVG = 500_000
 VOLUME_LEADERS_TOP_N = 20
 SPARKLINE_BARS = 20  # số phiên close trong cột Xu hướng (StockItem)
+# Biên độ giá phiên (ước lượng trần/sàn khi nguồn chưa gửi ceiling/floor)
+BAND_HOSE = 0.07
+BAND_HNX = 0.10
+BAND_UPCOM = 0.15
 
 # --- Hỗ trợ / đáy trung tâm ---
 SUPPORT_DAYS = 183

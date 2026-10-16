@@ -34,6 +34,29 @@ def css_ref() -> str:
     return f"color: {REF}"
 
 
+def css_ceiling() -> str:
+    return f"color: {CEILING}; font-weight: 700"
+
+
+def css_floor() -> str:
+    return f"color: {FLOOR}; font-weight: 700"
+
+
+def css_for_price_state(state: str) -> str:
+    """Map price_action.price_state → CSS chữ."""
+    if state == "ceiling":
+        return css_ceiling()
+    if state == "floor":
+        return css_floor()
+    if state == "up":
+        return css_up()
+    if state == "down":
+        return css_down()
+    if state == "flat":
+        return css_ref()
+    return ""
+
+
 def css_buy_column() -> str:
     """Cột Giá mua: nền vàng tham chiếu, chữ tối dễ đọc."""
     return f"background-color: {REF}; color: {TEXT_DARK}; font-weight: 600"
@@ -92,6 +115,22 @@ FIREANT_CSS = f"""
 .text-green {{ color: {UP} !important; }}
 .text-red {{ color: {DOWN} !important; }}
 .text-ref {{ color: {REF} !important; }}
+.text-ceiling {{ color: {CEILING} !important; }}
+.text-floor {{ color: {FLOOR} !important; }}
 .text-muted {{ color: {TEXT_MUTED} !important; }}
+@keyframes fa-flash-up {{
+  0% {{ background-color: {UP}66; }}
+  100% {{ background-color: transparent; }}
+}}
+@keyframes fa-flash-dn {{
+  0% {{ background-color: {DOWN}66; }}
+  100% {{ background-color: transparent; }}
+}}
 </style>
 """
+
+
+def css_flash(up: bool) -> str:
+    """Nháy nền ô giá khi vừa đổi (Realtime fragment)."""
+    name = "fa-flash-up" if up else "fa-flash-dn"
+    return f"animation: {name} 0.85s ease-out"
