@@ -7,6 +7,8 @@ import signal
 import sys
 import time
 
+import redis
+
 from position_monitor import config
 from position_monitor.log import ERR_SYS_CONFIG, ERR_SYS_REDIS, log, setup
 
@@ -38,7 +40,8 @@ def main() -> None:
         try:
             runner.step()
         except Exception as error:  # noqa: BLE001 - vòng lặp không được chết
-            log("CONSUME", f"step error: {type(error).__name__}: {error}", logging.ERROR)
+            code = ERR_SYS_REDIS if isinstance(error, (redis.exceptions.RedisError, TimeoutError)) else None
+            log("CONSUME", f"step error: {type(error).__name__}: {error}", logging.ERROR, error_code=code)
             time.sleep(2)
         now = time.monotonic()
         if now - last_beat >= HEALTH_EVERY:

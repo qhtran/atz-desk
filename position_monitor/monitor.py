@@ -27,8 +27,11 @@ class Monitor:
         tmo = float(self.pm["price_read_timeout_seconds"])
         self.r = r or redis.Redis.from_url(cfg["redis"]["url"], decode_responses=True, socket_timeout=tmo,
                                            socket_connect_timeout=tmo)
-        self.db = db or store.open_db(cfg["sqlite"]["path"])
         c = self.pm["consumer"]
+        # client riêng cho XREADGROUP BLOCK: socket_timeout phải > block_ms, còn đọc giá giữ timeout ngắn
+        self.rs = r or redis.Redis.from_url(cfg["redis"]["url"], decode_responses=True,
+                                            socket_timeout=c["block_ms"] / 1000 + 5, socket_connect_timeout=tmo)
+        self.db = db or store.open_db(cfg["sqlite"]["path"])
         self.stream, self.group, self.name = c["stream"], c["group"], c["consumer_name"]
         self._ensure_group()
         self.positions: list[dict] = []
@@ -59,7 +62,7 @@ class Monitor:
                 if claimed:
                     log("CONSUME", f"recovered pending messages={len(claimed)}")
                     return claimed
-            resp = self.r.xreadgroup(self.group, self.name, {self.stream: ">"}, count=c["read_count"], block=c["block_ms"])
+            resp = self.rs.xreadgroup(self.group, self.name, {self.stream: ">"}, count=c["read_count"], block=c["block_ms"])
         except redis.exceptions.ResponseError as e:
             if "NOGROUP" in str(e):
                 self._ensure_group()
