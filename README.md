@@ -19,6 +19,13 @@
 
 Secret chỉ nằm trong `.env*` / `.pip_index` trên máy chạy — không commit.
 
+## Cấu trúc code
+
+- Code Python: `src/atz/` (packages giữ tên cũ: `ingestion`, `filter_runner`, …)
+- Config YAML: `config/`
+- Docs: `docs/`
+- `PYTHONPATH` trỏ `src/atz` (Dockerfile + pytest)
+
 ## Quy tắc agent
 
 Xem `.cursor/rules/` và `AGENTS.md`: kế hoạch → xác nhận → mới sửa; không force push; tín hiệu `pos_*` chỉ chat riêng.
