@@ -57,20 +57,25 @@ Các thay đổi có thể **mất SSH / mất site** phải có trong brief **v
 
 ---
 
-## Git / file (bắt buộc push)
+## Git / file + poll (bắt buộc push)
 
 VPSbot **git push** cùng remote. Brief/outbox qua GitHub.
 
 | Path | Ai ghi + push |
 |------|----------------|
-| `docs/bots/vpsbot/inbox/YYYYMMDD-HHMM-<topic>.md` | Orchestrator / user |
+| `docs/bots/vpsbot/inbox/YYYYMMDD-HHMM-<topic>.md` | Orchestrator / user (**hộp việc**) |
 | `docs/bots/vpsbot/outbox/YYYYMMDD-HHMM-<topic>-DONE.md` (hoặc `-FAIL.md`) | VPSbot |
 | code / compose / nginx snippets trong repo / tests | VPSbot |
 
-Trước khi làm: `git pull --ff-only origin main`.  
-Xong: push code + outbox; merge `main` chỉ khi brief cho phép.
+### Vòng poll (~5 phút)
 
-Stem brief = stem outbox.
+1. `git pull --ff-only origin main`
+2. Chọn **1** file inbox chưa có outbox cùng stem (`*-DONE` / `*-FAIL`)
+3. Làm brief → push code + outbox
+4. Không có việc → chờ ~5 phút rồi lặp (giữ phiên mở)
+5. Hướng dẫn chủ repo: `docs/bots/HOW_TO_BAN.md`
+
+Stem brief = stem outbox. Merge `main` chỉ khi brief cho phép.
 
 ---
 

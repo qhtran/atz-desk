@@ -13,15 +13,24 @@
 - Mỗi file = **một chủ đề** (colors, realtime board, news RSS, sidebar…). Không nhồi cả site vào một file khổng lồ nếu có thể tách.
 - Ảnh: nếu computer use chụp được, lưu mô tả đường dẫn / URL ảnh **công khai** hoặc mô tả rõ «ảnh đính kèm không có trong repo». Không commit binary lớn trừ khi chủ repo đồng ý.
 
-## 3. Git (bắt buộc push)
+## 3. Git + poll (bắt buộc)
 
 AuditorBot **git push được** cùng remote. Báo cáo chỉ tính khi đã lên GitHub.
 
-- Branch gợi ý: `auditor/YYYYMMDD-<topic>` hoặc commit thẳng `main` nếu team cho phép (ưu tiên PR nhỏ).
-- Trước khi ghi: `git pull --ff-only origin main`.
-- Path ghi: `docs/auditorbot/inbox/<filename>.md` thôi.
-- Message gợi ý: `docs(auditor): <topic> vs FireAnt`.
-- **Không** force push. **Không** đụng `.env`, secret, `deploy/` nginx/SSH.
+**Hộp việc:** `docs/auditorbot/tasks/*.md` (Orchestrator / user push).  
+**Kết quả:** `docs/auditorbot/inbox/<filename>.md`.
+
+### Vòng poll (~5 phút)
+
+1. `git pull --ff-only origin main`
+2. Chọn **1** file trong `tasks/` chưa có báo cáo tương ứng trong `inbox/` (cùng topic / ngày gần nhất)
+3. Survey → ghi inbox → commit + push
+4. Không có task → chờ ~5 phút rồi lặp (giữ phiên mở)
+5. Hướng dẫn chủ repo: `docs/bots/HOW_TO_BAN.md`
+
+- Branch gợi ý: `auditor/YYYYMMDD-<topic>` hoặc commit thẳng `main` nếu team cho phép.
+- Message: `docs(auditor): <topic> vs FireAnt`.
+- **Không** force push. **Không** đụng `.env`, secret, nginx/SSH.
 
 ## 4. Mức độ ưu tiên (dùng trong báo cáo)
 

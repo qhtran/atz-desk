@@ -11,7 +11,26 @@
 
 **Giả định nền (đã chốt):** **mọi bot đều `git pull` / `git push` được** cùng remote GitHub. Không copy tay file giữa máy trừ khi git lỗi.
 
-**Nguyên tắc tiết kiệm token Cursor:** survey dài + code/deploy lặp → giao bot. Cursor: brief ngắn → push inbox → sau đó `pull` đọc outbox/inbox → hỏi user.
+**Hướng dẫn chủ repo (tiếng Việt, từng bước):** [`HOW_TO_BAN.md`](HOW_TO_BAN.md) — không dùng GitHub Actions để đánh thức bot.
+
+**Nguyên tắc tiết kiệm token Cursor:** survey dài + code/deploy lặp → giao bot. Cursor: brief ngắn → push hộp việc → sau đó `pull` đọc kết quả → hỏi user.
+
+---
+
+## Hộp việc (bot poll chỗ này)
+
+| Bot | Việc mới nằm ở | Kết quả bot push vào |
+|-----|----------------|----------------------|
+| AuditorBot | `docs/auditorbot/tasks/` | `docs/auditorbot/inbox/` (báo cáo) |
+| VPSbot | `docs/bots/vpsbot/inbox/` | `docs/bots/vpsbot/outbox/` (+ code) |
+
+### Rule poll (cả hai bot — ghi trong PROTOCOL + PROMPT)
+
+1. Mỗi **~5 phút** (và ngay khi xong 1 việc): `git pull --ff-only origin main`.
+2. Tìm **1** file việc chưa làm xong (chưa có kết quả cùng stem).
+3. Làm đúng file đó → push kết quả.
+4. Không có việc → ngủ đến chu kỳ sau. **Không tắt** vòng poll khi phiên còn mở.
+5. Lỗi git/SSH → ghi FAIL (nếu được) + báo user 1 câu.
 
 ---
 
@@ -21,21 +40,21 @@
 User yêu cầu
     ↓
 Cursor [DBG] plan + lựa chọn số
-    ↓  git commit+push brief
+    ↓  git commit+push vào tasks/ hoặc vpsbot/inbox/
 ┌─────────────────┬──────────────────┐
 │ AuditorBot      │ VPSbot           │
-│ pull → survey   │ pull → code      │
+│ poll → survey   │ poll → code/SSH  │
 │ push inbox/     │ push code+outbox │
 └────────┬────────┴────────┬─────────┘
          ↓  git pull
 Cursor đọc → tóm tắt user → Resolution / brief tiếp
 ```
 
-1. Cursor (hoặc user) **commit + push** brief vào inbox đúng bot.
-2. User bảo bot ngoài: *«pull main, đọc inbox mới nhất»* (hoặc bot tự poll nếu có).
-3. Bot **push** kết quả (báo cáo / code / outbox).
+1. Cursor (hoặc user) **commit + push** file việc vào đúng hộp (bảng trên).
+2. Bot đang chạy PROMPT **tự poll** — không cần gõ «đi làm» mỗi lần.
+3. Bot **push** kết quả.
 4. User bảo Cursor: *«pull, đọc auditor inbox / vps outbox»*.
-5. Cursor cập nhật Resolution; move `inbox/` → `reports/` khi xong (commit+push).
+5. Cursor cập nhật Resolution; chuyển báo cáo auditor `inbox/` → `reports/` khi xong.
 
 ---
 
@@ -51,16 +70,16 @@ Cursor đọc → tóm tắt user → Resolution / brief tiếp
 ## Thư mục
 
 ```
-docs/auditorbot/     # xem README riêng
+docs/auditorbot/
+  tasks/             # hộp việc survey (Orchestrator push)
+  inbox/             # báo cáo AuditorBot
+  reports/
 docs/bots/
-  ORCHESTRATION.md   # file này
+  HOW_TO_BAN.md      # hướng dẫn chủ repo
+  ORCHESTRATION.md
   vpsbot/
-    README.md
-    PROTOCOL.md
-    TASK_TEMPLATE.md
-    PROMPT_FOR_VPSBOT.md
-    inbox/           # brief từ Orchestrator / user
-    outbox/          # VPSbot báo cáo DONE / FAIL
+    inbox/           # hộp việc code/deploy
+    outbox/          # DONE / FAIL
 ```
 
 ---
