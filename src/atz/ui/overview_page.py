@@ -479,6 +479,31 @@ def _paint(value: object) -> str:
     return css_signed_text(value)
 
 
+def _style_volume_leaders(board: pd.DataFrame):
+    """FireAnt: giá + % tăng xanh / giảm đỏ / 0 vàng. Giữ cột Xu hướng (list)."""
+    from ui.theme_tokens import css_signed_number
+
+    paint_cols = [c for c in ("Giá", "Biến động giá (%)") if c in board.columns]
+
+    def _row_colors(row: pd.Series) -> list[str]:
+        tone = css_signed_number(row.get("Biến động giá (%)"))
+        return [tone if name in paint_cols else "" for name in row.index]
+
+    styled = board.style.format(
+        {
+            "Giá": "{:.2f}",
+            "KL phiên": "{:,.0f}",
+            "KL TB 10 phiên": "{:,.0f}",
+            "KL / TB10": "{:.2f}×",
+            "Biến động giá (%)": "{:+.2f}",
+        },
+        subset=[c for c in board.columns if c != "Xu hướng"],
+    )
+    if paint_cols:
+        styled = styled.apply(_row_colors, axis=1)
+    return styled
+
+
 def show_volume_leaders() -> None:
     """Top 20 đột biến KL so với TB 10 phiên (F1 #5). Tách biệt Top ROE."""
     from analysis.volume_leaders import rank_volume_leaders
@@ -494,22 +519,17 @@ def show_volume_leaders() -> None:
         )
         return
     st.dataframe(
-        board,
+        _style_volume_leaders(board),
         hide_index=True,
         width="stretch",
         alt="Top mã khối lượng tăng mạnh so với trung bình 10 phiên, kèm sparkline",
         column_config={
-            "Giá": st.column_config.NumberColumn(format="%.2f"),
-            "KL phiên": st.column_config.NumberColumn(format="%,.0f"),
-            "KL TB 10 phiên": st.column_config.NumberColumn(format="%,.0f"),
-            "KL / TB10": st.column_config.NumberColumn(format="%.2f×"),
-            "Biến động giá (%)": st.column_config.NumberColumn(format="%+.2f"),
             "Xu hướng": line_chart_column("Xu hướng", width="small"),
         },
     )
     st.caption(
         f"Xếp theo KL phiên / TB 10 phiên trước. Lọc TB ≥ {VOLUME_LEADERS_MIN_AVG:,.0f}. "
-        "Xu hướng = sparkline close OHLCV. Khác bảng Top ROE/thanh khoản."
+        "Giá/%: xanh tăng · đỏ giảm (FireAnt). Xu hướng = sparkline OHLCV."
     )
 
 
