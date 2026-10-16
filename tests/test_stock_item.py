@@ -39,3 +39,13 @@ def test_realtime_board_frame_inserts_trend(tmp_path):
 def test_sparkline_svg_nonempty():
     svg = sparkline_svg([1.0, 2.0, 1.5], ref=1.2, uid="t1")
     assert "polyline" in svg and "clipPath" in svg
+
+
+def test_trend_sparkline_follows_change_color():
+    from ui.sparkline import sparkline_trend_svg, spark_image_uri
+    from ui.theme_tokens import DOWN, UP
+
+    up = sparkline_trend_svg([1.0, 2.0, 2.2], 1.5, "A")
+    down = sparkline_trend_svg([2.0, 1.5, 1.2], -1.5, "B")
+    assert UP in up and DOWN in down
+    assert spark_image_uri([1.0, 1.1], 0.5, "C").startswith("data:image/svg+xml;base64,")
