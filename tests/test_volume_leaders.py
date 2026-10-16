@@ -36,3 +36,4 @@ def test_rank_filters_min_avg_and_sorts(tmp_path):
     )
     assert board["Mã"].tolist() == ["AAA", "BBB"]
     assert board.iloc[0]["KL / TB10"] > board.iloc[1]["KL / TB10"]
+    assert isinstance(board.iloc[0]["Xu hướng"], list) and len(board.iloc[0]["Xu hướng"]) >= 2

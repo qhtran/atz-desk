@@ -479,24 +479,11 @@ def _paint(value: object) -> str:
     return css_signed_text(value)
 
 
-def _style_volume_leaders(board: pd.DataFrame):
-    from ui.theme_tokens import css_signed_number
-
-    return board.style.format(
-        {
-            "Giá": "{:.2f}",
-            "KL phiên": "{:,.0f}",
-            "KL TB 10 phiên": "{:,.0f}",
-            "KL / TB10": "{:.2f}×",
-            "Biến động giá (%)": "{:+.2f}",
-        }
-    ).map(css_signed_number, subset=["Biến động giá (%)"])
-
-
 def show_volume_leaders() -> None:
     """Top 20 đột biến KL so với TB 10 phiên (F1 #5). Tách biệt Top ROE."""
     from analysis.volume_leaders import rank_volume_leaders
     from config import VOLUME_LEADERS_MIN_AVG, VOLUME_LEADERS_TOP_N
+    from ui.sparkline import line_chart_column
 
     st.subheader(f"Top {VOLUME_LEADERS_TOP_N} khối lượng phiên")
     board = rank_volume_leaders()
@@ -507,14 +494,22 @@ def show_volume_leaders() -> None:
         )
         return
     st.dataframe(
-        _style_volume_leaders(board),
+        board,
         hide_index=True,
         width="stretch",
-        alt="Top mã khối lượng tăng mạnh so với trung bình 10 phiên",
+        alt="Top mã khối lượng tăng mạnh so với trung bình 10 phiên, kèm sparkline",
+        column_config={
+            "Giá": st.column_config.NumberColumn(format="%.2f"),
+            "KL phiên": st.column_config.NumberColumn(format="%,.0f"),
+            "KL TB 10 phiên": st.column_config.NumberColumn(format="%,.0f"),
+            "KL / TB10": st.column_config.NumberColumn(format="%.2f×"),
+            "Biến động giá (%)": st.column_config.NumberColumn(format="%+.2f"),
+            "Xu hướng": line_chart_column("Xu hướng", width="small"),
+        },
     )
     st.caption(
         f"Xếp theo KL phiên / TB 10 phiên trước. Lọc TB ≥ {VOLUME_LEADERS_MIN_AVG:,.0f}. "
-        "Dữ liệu từ cache OHLCV local — khác bảng Top ROE/thanh khoản."
+        "Xu hướng = sparkline close OHLCV. Khác bảng Top ROE/thanh khoản."
     )
 
 

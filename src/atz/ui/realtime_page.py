@@ -101,15 +101,34 @@ def _board(user_id: int, interval) -> None:
     rows = data.quote_rows(quotes, float(_cfg()["ui_realtime"]["quote_stale_seconds"]))
     stale = sum(1 for x in rows if x["_stale"])
     newest = max((x["_ts"] for x in rows if x["_ts"]), default=None)
-    frame = pd.DataFrame([{k: v for k, v in x.items() if not k.startswith("_")} for x in rows])
+    from ui.sparkline import line_chart_column
+    from ui.stock_item import realtime_board_frame
+
+    frame = realtime_board_frame(rows)
     if stale:
         st.warning(f"⚠️ {stale}/{len(rows)} mã có giá cũ (> {_cfg()['ui_realtime']['quote_stale_seconds']}s hoặc nguồn gắn cờ stale).")
-    styled = frame.style.format({"Giá": "{:,.0f}", "+/-": "{:+,.0f}", "%": "{:+.2f}", "Mở": "{:,.0f}", "Cao": "{:,.0f}",
-                                 "Thấp": "{:,.0f}", "TC": "{:,.0f}"}, na_rep="-").map(
-        css_signed_number, subset=["+/-", "%"])
-    render_data_table(styled, key_cols=["Giá", "%", "Trạng thái"], key="rt_board")
+    # LineChartColumn cần ô list — không dùng Styler (mất cấu hình cột chart).
+    render_data_table(
+        frame,
+        key_cols=["Giá", "%", "Xu hướng", "Trạng thái"],
+        key="rt_board",
+        column_config={
+            "Giá": st.column_config.NumberColumn(format="%,.0f"),
+            "+/-": st.column_config.NumberColumn(format="%+,.0f"),
+            "%": st.column_config.NumberColumn(format="%+.2f"),
+            "Mở": st.column_config.NumberColumn(format="%,.0f"),
+            "Cao": st.column_config.NumberColumn(format="%,.0f"),
+            "Thấp": st.column_config.NumberColumn(format="%,.0f"),
+            "TC": st.column_config.NumberColumn(format="%,.0f"),
+            "Xu hướng": line_chart_column("Xu hướng", width="small"),
+        },
+        alt="Bảng giá realtime kèm sparkline xu hướng",
+    )
     tick = newest.astimezone(TZ).strftime("%H:%M:%S") if newest else "?"
-    st.caption(f"{_stamp(interval)} · quote mới nhất {tick} · giá VND · {len(rows)} mã")
+    st.caption(
+        f"{_stamp(interval)} · quote mới nhất {tick} · giá VND · {len(rows)} mã · "
+        "Xu hướng = close OHLCV (nghìn đồng) + điểm giá live"
+    )
 
 
 # ------------------------------------------------------------------ vị thế
