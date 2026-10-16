@@ -27,7 +27,7 @@ class RedisStore:
 
     def load(self, symbols) -> list[Quote]:
         values = self.r.mget([self.key(s) for s in symbols]) if symbols else []
-        return [Quote(**json.loads(v)) for v in values if v]
+        return [Quote.from_dict(json.loads(v)) for v in values if v]
 
     def publish(self, quotes: list[Quote]) -> int:
         pipe = self.r.pipeline()

@@ -1,7 +1,7 @@
-"""Trạng thái giá phiên VN: tăng/giảm/đứng + trần/sàn (ước lượng biên độ sàn).
+"""Trạng thái giá phiên VN: tăng/giảm/đứng + trần/sàn.
 
-Quote hiện chưa có ceiling/floor từ nguồn → suy từ TC:
-HOSE ±7%, HNX ±10%, UPCOM ±15% (cấu hình trong config).
+Ưu tiên ceiling/floor thật từ quote (price_board). Thiếu thì ước lượng từ TC:
+HOSE ±7%, HNX ±10%, UPCOM ±15% (config BAND_*).
 """
 
 from __future__ import annotations

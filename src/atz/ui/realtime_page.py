@@ -184,6 +184,8 @@ def _board(user_id: int, interval, query: str = "") -> None:
             row.get("Giá"),
             row.get("TC"),
             exchange=str(row.get("Sàn") or ""),
+            ceiling=row.get("Trần"),
+            floor=row.get("Sàn giá"),
         )
 
     prev_prices: dict = st.session_state.get("rt_prev_prices") or {}
@@ -252,11 +254,12 @@ def _board(user_id: int, interval, query: str = "") -> None:
             "Thấp": "{:,.0f}",
             "TC": "{:,.0f}",
         },
-        subset=[c for c in frame.columns if c not in ("Xu hướng", "Sàn")],
+        subset=[c for c in frame.columns if c not in ("Xu hướng", "Sàn", "Trần", "Sàn giá")],
         na_rep="-",
     ).apply(_rt_row_colors, axis=1)
-    if "Sàn" in frame.columns:
-        styled = styled.hide(axis="columns", subset=["Sàn"])
+    hide_cols = [c for c in ("Sàn", "Trần", "Sàn giá") if c in frame.columns]
+    if hide_cols:
+        styled = styled.hide(axis="columns", subset=hide_cols)
     render_data_table(
         styled,
         key_cols=["Giá", "%", "Xu hướng", "Trạng thái"],
@@ -267,9 +270,10 @@ def _board(user_id: int, interval, query: str = "") -> None:
     tick = newest.astimezone(TZ).strftime("%H:%M:%S") if newest else "?"
     n_ceil = sum(1 for s in state_by.values() if s == "ceiling")
     n_floor = sum(1 for s in state_by.values() if s == "floor")
+    n_api = sum(1 for _, row in frame.iterrows() if row.get("Trần") is not None and row.get("Sàn giá") is not None)
     st.caption(
         f"{_stamp(interval)} · quote mới nhất {tick} · hiện {len(frame)}/{len(rows)} mã · "
-        f"trần {n_ceil} · sàn {n_floor} · spark cache {len(spark_cache)} · "
+        f"trần {n_ceil} · sàn {n_floor} · limit API {n_api}/{len(frame)} · spark cache {len(spark_cache)} · "
         "tím=trần · xanh dương=sàn · xanh/đỏ/vàng=Δ"
     )
 
