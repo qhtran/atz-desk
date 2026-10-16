@@ -5,8 +5,10 @@ from __future__ import annotations
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+from storage.paths import repo_root
+
 # --- Đường dẫn (mọi thứ cần giữ qua rebuild nằm trong data/, là volume đã mount) ---
-APP_DIR = Path(__file__).resolve().parent
+APP_DIR = repo_root()
 DATA_DIR = APP_DIR / "data"
 SCAN_UNIVERSE_PATH = DATA_DIR / "scan_universe.csv"
 POSITIONS_PATH = DATA_DIR / "positions.csv"

@@ -6,7 +6,9 @@ from pathlib import Path
 
 import yaml
 
-DEFAULT_PATH = Path(__file__).resolve().parent.parent / "config" / "ui_realtime.yaml"
+from storage.paths import repo_root
+
+DEFAULT_PATH = repo_root() / "config" / "ui_realtime.yaml"
 
 
 def load(path=None) -> dict:

@@ -6,7 +6,9 @@ from pathlib import Path
 
 import yaml
 
-DEFAULT_PATH = Path(__file__).resolve().parent.parent / "config" / "alert_dispatcher.yaml"
+from storage.paths import repo_root
+
+DEFAULT_PATH = repo_root() / "config" / "alert_dispatcher.yaml"
 SECTIONS = ("consumer", "channels", "routing", "circuit", "rate_limit", "quiet_hours", "dedup", "health")
 
 

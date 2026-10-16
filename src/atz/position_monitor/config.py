@@ -6,7 +6,9 @@ from pathlib import Path
 
 import yaml
 
-DEFAULT_PATH = Path(__file__).resolve().parent.parent / "config" / "position_monitor.yaml"
+from storage.paths import repo_root
+
+DEFAULT_PATH = repo_root() / "config" / "position_monitor.yaml"
 ENV = {
     "REDIS_URL": (("redis", "url"), str),
     "POS_SQLITE_PATH": (("sqlite", "path"), str),

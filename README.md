@@ -8,14 +8,22 @@
 |------|----------|
 | [docs/architecture.md](docs/architecture.md) | Kiến trúc 6 module + index feed |
 | [docs/troubleshooting.md](docs/troubleshooting.md) | Debug label, error code, health, sự cố |
-| [docs/adr/0001-target-folder-layout.md](docs/adr/0001-target-folder-layout.md) | Target tổ chức thư mục (deferred) |
+| [docs/adr/0001-target-folder-layout.md](docs/adr/0001-target-folder-layout.md) | Target tổ chức thư mục (deferred rename sâu) |
+| [docs/adr/0002-src-atz-layout-safe.md](docs/adr/0002-src-atz-layout-safe.md) | Layout `src/atz` + PYTHONPATH (đã làm) |
 | [AGENTS.md](AGENTS.md) | Quy tắc làm việc Bot / GPC |
+
+## Cấu trúc code
+
+- Code Python: `src/atz/` (packages giữ tên cũ: `ingestion`, `filter_runner`, …)
+- Config YAML: `config/`
+- Docs: `docs/`
+- `PYTHONPATH` trỏ `src/atz` (Dockerfile + pytest)
 
 ## Chạy nhanh (tóm tắt)
 
-- **Local:** dùng venv + Streamlit (`app.py`); Redis hostname `redis` cần Docker network như trên VPS.
+- **Local:** venv + `PYTHONPATH=src/atz` + Streamlit `src/atz/app.py`; Redis hostname `redis` cần Docker network như trên VPS.
 - **VPS:** code `/opt/vnstocks`, `docker compose` (image chung `vnstocks-vnstocks`), services `vnstocks`, `atz-ingestion`, `atz-filter-runner`, `atz-alert`, `atz-position`, `atz-index`, `atz-redis`.
-- **Test:** `pytest` (`pythonpath=.`, `testpaths=tests`). Trên VPS xem lệnh trong troubleshooting / handoff.
+- **Test:** `pytest` (`pythonpath=src/atz`, `testpaths=tests`).
 
 Secret chỉ nằm trong `.env*` / `.pip_index` trên máy chạy — không commit.
 

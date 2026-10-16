@@ -25,3 +25,10 @@
 ## 4. Nguyên tắc chung
 - Không tự ý thêm tính năng lớn hoặc thay đổi cấu trúc khi chưa được yêu cầu.
 - Ưu tiên giữ app luôn chạy được sau mỗi thay đổi.
+
+## 5. Debug tags (mọi chat)
+- Mọi phản hồi agent bắt đầu bằng:
+  `[DBG] intent=<...> | modules=<...> | files=<...> | conf=<low|med|high>`
+- `intent`: understand | plan | ask | code | verify | git | blocked
+- Khi hỏi user: luôn đưa lựa chọn sẵn (`1a`, `1b`, `2c`…) — user chỉ cần trả lời số, không phải gõ tag.
+- Chi tiết: `.cursor/rules/debug-tags.mdc`
