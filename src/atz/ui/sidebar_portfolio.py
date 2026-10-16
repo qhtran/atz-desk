@@ -1,0 +1,196 @@
+"""Sidebar «Tổng quan vị thế của bạn» (F1 mục 2 MVP).
+
+Giá từ cache OHLCV (nghìn đồng). GTCK ước lượng theo vốn phân bổ trên desk
+khi chưa có khối lượng — không phải tick HSX realtime.
+"""
+
+from __future__ import annotations
+
+import pandas as pd
+import streamlit as st
+
+from analysis.session import market_session
+from config import (
+    CAPITAL_STEP,
+    CAPITAL_TRANCHES,
+    RISK_DEFAULT,
+    RISK_MAX,
+    RISK_MIN,
+)
+from datasource.capital_ledger import CapitalLedger, load_ledger, nav_breakdown, save_ledger
+from ui.trading_desk import _bars, _last_close, _optional, load_desk
+
+ALERT_BANDS = (5.0, 8.0, 10.0)
+NEAR_ZONE_PCT = 2.0
+
+
+def position_alert(
+    buy: float | None,
+    current: float | None,
+    support: float | None = None,
+    resistance: float | None = None,
+) -> str:
+    """Ưu tiên hỗ trợ/kháng cự gần, rồi mốc ±5/8/10% so với giá mua."""
+    if current is None:
+        return "Chưa có giá"
+    notes: list[str] = []
+    if support is not None and support > 0:
+        gap = (current - support) / support * 100
+        if abs(gap) <= NEAR_ZONE_PCT:
+            notes.append("Gần hỗ trợ")
+        elif current < support:
+            notes.append("Dưới hỗ trợ")
+    if resistance is not None and resistance > 0:
+        gap = (resistance - current) / resistance * 100
+        if abs(gap) <= NEAR_ZONE_PCT:
+            notes.append("Gần kháng cự")
+        elif current > resistance:
+            notes.append("Vượt kháng cự")
+    if buy is not None and buy > 0:
+        change = (current - buy) / buy * 100
+        hit = None
+        for band in ALERT_BANDS:
+            if abs(change) + 0.05 >= band:
+                hit = band
+        if hit is not None:
+            sign = "+" if change >= 0 else "−"
+            notes.append(f"{sign}{hit:.0f}%")
+    return " · ".join(notes) if notes else "—"
+
+
+def desk_position_rows(store: pd.DataFrame, capital: float) -> list[dict]:
+    """Mỗi mã desk → giá / cảnh báo / vốn phân bổ ước lượng."""
+    quarter = capital / CAPITAL_TRANCHES if capital > 0 else 0.0
+    rows: list[dict] = []
+    for _, item in store.iterrows():
+        symbol = str(item["Mã"]).strip().upper()
+        if not symbol or symbol == "NAN":
+            continue
+        frame = _bars(symbol)
+        current = _last_close(frame)
+        buy = _optional(item["Giá mua"])
+        support = _optional(item["Vùng hỗ trợ"])
+        resistance = _optional(item["Vùng kháng cự"])
+        allocated = _optional(item["Thăm dò 1/4 NAV"]) if "Thăm dò 1/4 NAV" in item.index else None
+        if allocated is None:
+            allocated = quarter
+        cost = float(allocated) if allocated and allocated > 0 else 0.0
+        if buy is not None and buy > 0 and current is not None and cost > 0:
+            mkt = cost * (current / buy)
+            pnl = mkt - cost
+            pnl_pct = (current - buy) / buy * 100
+        else:
+            mkt = cost
+            pnl = 0.0
+            pnl_pct = 0.0 if buy is None or current is None or not buy else (current - buy) / buy * 100
+        rows.append(
+            {
+                "Mã": symbol,
+                "Giá mua": buy,
+                "Giá hiện tại": current,
+                "Cảnh báo": position_alert(buy, current, support, resistance),
+                "cost": cost,
+                "mkt": mkt,
+                "pnl": pnl,
+                "pnl_pct": pnl_pct,
+            }
+        )
+    return rows
+
+
+def _money(value: float) -> str:
+    return f"{value:,.0f}"
+
+
+def render_portfolio_overview() -> tuple[float, float]:
+    """Vẽ khối tổng quan vị thế. Trả (capital/NAV dùng sizing, risk_pct)."""
+    st.header("Tổng quan vị thế của bạn")
+    status, clock = market_session()
+    st.caption(f"{status} · Giờ HN {clock}")
+
+    saved = load_ledger()
+    with st.expander("Sổ vốn (nạp / rút)", expanded=False):
+        initial = st.number_input(
+            "Vốn rót lần đầu (VND)",
+            min_value=0.0,
+            value=float(saved.initial),
+            step=float(CAPITAL_STEP),
+            key="cap_initial",
+        )
+        additional = st.number_input(
+            "Vốn bổ sung (VND)",
+            min_value=0.0,
+            value=float(saved.additional),
+            step=float(CAPITAL_STEP),
+            key="cap_additional",
+        )
+        withdrawn = st.number_input(
+            "Vốn đã rút ra (VND)",
+            min_value=0.0,
+            value=float(saved.withdrawn),
+            step=float(CAPITAL_STEP),
+            key="cap_withdrawn",
+        )
+        if st.button("Lưu sổ vốn", width="stretch", key="cap_save"):
+            save_ledger(CapitalLedger(initial=initial, additional=additional, withdrawn=withdrawn))
+            st.success("Đã lưu sổ vốn.")
+            st.rerun()
+        ledger = CapitalLedger(initial=initial, additional=additional, withdrawn=withdrawn)
+
+    store = load_desk()
+    positions = desk_position_rows(store, ledger.total)
+    cost = sum(float(row["cost"]) for row in positions)
+    mkt = sum(float(row["mkt"]) for row in positions)
+    snap = nav_breakdown(ledger, cost, mkt)
+
+    st.metric("Tổng vốn hiện tại", _money(snap["total_capital"]))
+    st.metric("Giá trị chứng khoán", _money(snap["securities_mkt"]))
+    st.metric("Tiền mặt", _money(snap["cash"]))
+    st.metric("Tài sản ròng (NAV)", _money(snap["nav"]), delta=int(round(snap["pnl"])))
+
+    st.subheader("Vị thế hiện tại")
+    if not positions:
+        st.caption("Chưa có mã trên Trạm Trading.")
+    else:
+        view = pd.DataFrame(
+            [
+                {
+                    "Mã": row["Mã"],
+                    "Giá mua": row["Giá mua"],
+                    "Giá HT": row["Giá hiện tại"],
+                    "Cảnh báo": row["Cảnh báo"],
+                }
+                for row in positions
+            ]
+        )
+        st.dataframe(
+            view,
+            hide_index=True,
+            width="stretch",
+            alt="Vị thế sidebar: mã, giá mua, giá hiện tại, cảnh báo",
+            column_config={
+                "Giá mua": st.column_config.NumberColumn(format="%.2f"),
+                "Giá HT": st.column_config.NumberColumn(format="%.2f"),
+            },
+        )
+        st.caption("Giá từ cache OHLCV (nghìn đồng). Tham chiếu sàn: https://rtboard.hsx.vn/")
+
+        chart = pd.DataFrame(
+            {"Mã": [row["Mã"] for row in positions], "Lãi/lỗ (VND)": [row["pnl"] for row in positions]}
+        ).set_index("Mã")
+        st.bar_chart(chart, alt="Lãi lỗ ước lượng từng mã trên NAV phân bổ")
+        st.caption("Lãi/lỗ ước lượng theo vốn phân bổ (1/4 NAV hoặc ô Thăm dò trên desk).")
+
+    with st.expander("Phiên và mức rủi ro (sizing)", expanded=False):
+        st.caption(f"Sáng 9:00–11:30, chiều 13:00–14:45. NAV sizing: {_money(snap['nav'])} VND.")
+        risk_pct = st.slider(
+            "Mức rủi ro tối đa trên tổng vốn (%)",
+            RISK_MIN,
+            RISK_MAX,
+            RISK_DEFAULT,
+            key="sidebar_risk",
+        )
+        probe = snap["nav"] / CAPITAL_TRANCHES if snap["nav"] > 0 else 0.0
+        st.markdown(f"Lệnh 1 dò đường (1/{CAPITAL_TRANCHES} NAV): {_money(probe)} VND")
+
+    return float(snap["nav"]), float(risk_pct)

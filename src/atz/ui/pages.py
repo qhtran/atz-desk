@@ -18,8 +18,8 @@ from analysis.support import support_scan
 from analysis.technical import enrich, money_flow_summary
 from analysis.valuation import valuation_board
 from config import (
-    CAPITAL_STEP, CAPITAL_TRANCHES, CHART_DAYS, DEFAULT_CAPITAL, MFI_COLD, MFI_HOT,
-    MFI_LENGTH, MIN_AVG_VOLUME, MIN_BARS, MIN_ROE, RISK_DEFAULT, RISK_MAX, RISK_MIN, RS_FILTER_OFF,
+    CAPITAL_TRANCHES, CHART_DAYS, MFI_COLD, MFI_HOT,
+    MFI_LENGTH, MIN_AVG_VOLUME, MIN_BARS, MIN_ROE, RS_FILTER_OFF,
     RSI_LENGTH, RSI_OVERBOUGHT, RSI_OVERSOLD, THOUSAND_VND, TOP_N, UNIVERSE, VOLUME_SPIKE,
 )
 from datasource.cache import read_cache, read_universe
@@ -43,29 +43,11 @@ def style_board(board: pd.DataFrame):
     ).map(css_signed_number, subset=["RS 3 tháng (%)", "ROE (%)"])
 
 
-def render_sidebar() -> tuple[float, float]:
+def render_sidebar() -> tuple[float, float, dict]:
     with st.sidebar:
-        st.header("Phiên và vốn")
-        status, clock = market_session()
-        st.metric("Trạng thái", status)
-        st.caption(f"Giờ Hà Nội {clock}. Sáng 9:00–11:30, chiều 13:00–14:45.")
-        capital = st.number_input(
-            "Tổng số vốn dự định đầu tư (VND)",
-            value=DEFAULT_CAPITAL,
-            min_value=0,
-            step=CAPITAL_STEP,
-        )
-        risk_pct = st.slider(
-            "Mức rủi ro tối đa chấp nhận trên tổng vốn (%)",
-            RISK_MIN,
-            RISK_MAX,
-            RISK_DEFAULT,
-        )
-        probe = float(capital) / CAPITAL_TRANCHES
-        st.markdown(f"Số tiền cho Lệnh 1 dò đường (1/{CAPITAL_TRANCHES} vốn): {probe:,.0f} VND")
-        st.caption(
-            f"Lệnh 2, 3 và 4 mỗi lệnh {probe:,.0f} VND. Ba phần sau chờ giá vượt đáy trung tâm."
-        )
+        from ui.sidebar_portfolio import render_portfolio_overview
+
+        capital, risk_pct = render_portfolio_overview()
         st.header("Bộ lọc")
         min_roe_pct = st.number_input(
             "ROE tối thiểu (%)",
