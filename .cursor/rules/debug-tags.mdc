@@ -1,0 +1,51 @@
+---
+description: Debug tags bắt buộc cho mọi tin nhắn agent (chat in/out)
+alwaysApply: true
+---
+
+# Debug tags (mọi chat)
+
+Mọi phản hồi của agent **bắt đầu** bằng một dòng tag để dễ chỉ rõ khi thảo luận.
+
+## Format bắt buộc (dòng đầu)
+
+```
+[DBG] intent=<...> | modules=<...> | files=<...> | conf=<low|med|high>
+```
+
+### Giá trị `intent`
+- `understand` — giải thích / nắm yêu cầu
+- `plan` — kế hoạch, chưa sửa code
+- `ask` — hỏi xác nhận
+- `code` — đang / vừa sửa code (chỉ sau khi được đồng ý)
+- `verify` — hướng dẫn kiểm tra
+- `git` — commit / branch / push
+- `blocked` — chờ user / thiếu thông tin
+
+### `modules` / `files`
+- Tên module ngắn: `ui`, `ui_realtime`, `ingestion`, `filter_runner`, `alert_dispatcher`, `position_monitor`, `datasource`, `analysis`, `config`, `tests`, `docker`, `ide`
+- `files`: path ngắn cách nhau bởi dấu phẩy, hoặc `none`
+
+## Khi hỏi user (bắt buộc)
+- User **không** phải gõ tag chi tiết.
+- Mọi câu hỏi đưa **lựa chọn đánh số sẵn**, ví dụ:
+
+```
+Chọn hướng:
+1a) Chỉ sửa UI realtime
+1b) Sửa ingestion + UI
+1c) Chưa sửa — giải thích thêm
+```
+
+- User chỉ cần trả lời ngắn: `1a`, `2b`, `ok 1c`, …
+- Agent map lựa chọn → `modules` / `files` / hành động, rồi ghi rõ trong `[DBG]` của câu tiếp theo.
+
+## Khi user chỉ phạm vi (tuỳ chọn)
+- Có thể gõ `re: modules=ingestion` nếu muốn — không bắt buộc.
+- Ưu tiên giao tiếp bằng số lựa chọn.
+
+## Không làm
+- Không bỏ dòng `[DBG]` ở đầu phản hồi.
+- Không hỏi mở mà không có lựa chọn đánh số (trừ khi thật sự không thể liệt kê).
+- Không nhồi tag dài > 1 dòng đầu (chi tiết để trong thân bài).
+- Không bắt user gõ format `[DBG] ...`.

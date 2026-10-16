@@ -1,0 +1,28 @@
+---
+description: Karpathy + quy trình sửa code / git cho mọi chat vnstocks
+alwaysApply: true
+---
+
+# Karpathy + workflow (mọi chat)
+
+## Karpathy
+- Code rõ ràng, modular, dễ đọc.
+- Ưu tiên đơn giản và explicit.
+- Tách config ra khỏi logic.
+- Mỗi module một trách nhiệm.
+
+## Trước khi sửa code
+1. Kế hoạch ngắn: làm gì, sửa file nào, vì sao.
+2. Giải thích cách làm.
+3. Hỏi xác nhận — chỉ sửa sau khi được đồng ý.
+4. Không tự thêm tính năng lớn / đổi cấu trúc khi chưa yêu cầu.
+5. Giữ app chạy được sau mỗi thay đổi nhỏ.
+
+## Git
+- Pull trước khi sửa.
+- Commit + push sau mỗi phần nhỏ (khi user yêu cầu commit/push).
+- Không force push.
+- Tránh conflict Bot vs GPC (làm phần nhỏ, rõ phạm vi).
+
+## Tham chiếu
+- Chi tiết gốc: `AGENTS.md`
