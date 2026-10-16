@@ -116,15 +116,19 @@ def show_dashboard(board: pd.DataFrame, note: str | None = None) -> None:
         st.caption(note)
         st.subheader(f"Kết quả lọc ({len(board)} mã)" if not board.empty else "Kết quả lọc")
     else:
-        st.subheader(f"Top {min(TOP_N, len(board))} dẫn dắt" if not board.empty else "Top 20 dẫn dắt")
+        st.subheader(
+            f"Top {min(TOP_N, len(board))} ROE / thanh khoản"
+            if not board.empty
+            else "Top 20 ROE / thanh khoản"
+        )
     if board.empty:
-        st.info("Chưa có dữ liệu Top 20. Bấm «Quét và làm mới dữ liệu» ở thanh bên.")
+        st.info("Chưa có dữ liệu Top 20 ROE. Bấm «Quét và làm mới dữ liệu» ở thanh bên.")
         return
     st.dataframe(
         style_board(board),
         hide_index=True,
         width="stretch",
-        alt="Top cổ phiếu theo sức mạnh giá 3 tháng sau lọc thanh khoản và ROE",
+        alt="Top cổ phiếu theo ROE và thanh khoản, xếp RS 3 tháng",
     )
 
 
@@ -460,7 +464,7 @@ def open_page() -> None:
         from ui.overview_page import show_overview
 
         show_overview()
-        with st.expander("Top dẫn dắt đã lưu", expanded=False):
+        with st.expander("Top 20 ROE / thanh khoản (đã lưu)", expanded=False):
             show_dashboard(shown, filter_note)
         return
     if page == "Realtime":
