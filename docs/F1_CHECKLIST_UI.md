@@ -80,7 +80,7 @@ Thay khối hiện tại (trạng thái phiên + tổng vốn + mức rủi ro %
 
 - [x] Cột **Lãi/lỗ**: lãi chữ xanh, lỗ chữ đỏ
 - [x] Cột xu hướng → **xu hướng ngày**: tăng xanh / giảm đỏ
-- [x] Cột **Giá mua**: chữ **vàng** cả cột
+- [x] Cột **Giá mua**: **nền vàng** cả cột (chữ tối cho dễ đọc)
 - [x] Cột **Giá hiện tại**: cao hơn giá mua = xanh; thấp hơn = đỏ
 - [x] **Vùng hỗ trợ**: số màu đỏ
 - [x] **Vùng kháng cự**: số màu xanh
