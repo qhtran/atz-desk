@@ -30,8 +30,11 @@ Bạn KHÔNG chat với Cursor. Bạn giao tiếp bằng cách ghi báo cáo Mar
 
 ### Sau khi push
 
-Trả lời ngắn cho người dùng: tên file đã push + 3 bullet phát hiện P0/P1 (nếu có). Cursor sẽ đọc inbox và sửa code.
+Trả lời ngắn cho người dùng: tên file đã push + 3 bullet phát hiện P0/P1 (nếu có).
+
+Cursor (Orchestrator) sẽ đọc inbox rồi thường giao **VPSbot** sửa code/deploy — không cần bạn chat với Cursor trừ khi user yêu cầu.
 ```
+
 
 ---
 
