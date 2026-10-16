@@ -7,32 +7,35 @@
 | **Orchestrator** | Cursor (Composer) trong chat này | Hiểu mục tiêu user → chia việc → đọc kết quả → chốt ưu tiên `1a/1b…` → (tuỳ chọn) review diff | Chat Cursor + git |
 | **Auditor** | AuditorBot (Grok + computer use) | Survey **atz.vn** / **fireant.vn**, báo cáo lệch UI/UX | `docs/auditorbot/inbox/` |
 | **Coder / Ops** | VPSbot | Sửa code, test, commit, deploy VPS theo brief | `docs/bots/vpsbot/inbox/` → `outbox/` |
-| **Chủ repo** | Bạn | Pull/push, auth, quyết định lớn, chuyển prompt cho bot ngoài Cursor | GitHub + chat |
+| **Chủ repo** | Bạn | Quyết định lớn, auth bot lần đầu, chuyển prompt khởi động | Chat + GitHub |
 
-**Nguyên tắc tiết kiệm token Cursor:** việc duyệt web dài, code/deploy lặp → giao bot. Cursor chỉ brief ngắn + đọc báo cáo/outbox + hỏi user khi cần.
+**Giả định nền (đã chốt):** **mọi bot đều `git pull` / `git push` được** cùng remote GitHub. Không copy tay file giữa máy trừ khi git lỗi.
+
+**Nguyên tắc tiết kiệm token Cursor:** survey dài + code/deploy lặp → giao bot. Cursor: brief ngắn → push inbox → sau đó `pull` đọc outbox/inbox → hỏi user.
 
 ---
 
-## Luồng chuẩn
+## Luồng chuẩn (toàn bộ qua git)
 
 ```
 User yêu cầu
     ↓
 Cursor [DBG] plan + lựa chọn số
-    ↓
+    ↓  git commit+push brief
 ┌─────────────────┬──────────────────┐
 │ AuditorBot      │ VPSbot           │
-│ survey → inbox  │ code/deploy      │
-│                 │ → outbox         │
+│ pull → survey   │ pull → code      │
+│ push inbox/     │ push code+outbox │
 └────────┬────────┴────────┬─────────┘
-         ↓                 ↓
-Cursor đọc inbox/outbox → tóm tắt user → Resolution / việc tiếp
+         ↓  git pull
+Cursor đọc → tóm tắt user → Resolution / brief tiếp
 ```
 
-1. Cursor ghi **brief** (Markdown) vào đúng inbox bot (hoặc đưa user copy prompt).
-2. Bot làm việc → push kết quả.
-3. User: `git pull` hoặc bảo Cursor *«đọc inbox auditor / outbox vps»*.
-4. Cursor cập nhật Resolution, chuyển file đã xong sang `reports/` hoặc `outbox/archive/`.
+1. Cursor (hoặc user) **commit + push** brief vào inbox đúng bot.
+2. User bảo bot ngoài: *«pull main, đọc inbox mới nhất»* (hoặc bot tự poll nếu có).
+3. Bot **push** kết quả (báo cáo / code / outbox).
+4. User bảo Cursor: *«pull, đọc auditor inbox / vps outbox»*.
+5. Cursor cập nhật Resolution; move `inbox/` → `reports/` khi xong (commit+push).
 
 ---
 
