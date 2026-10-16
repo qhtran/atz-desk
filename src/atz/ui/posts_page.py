@@ -90,9 +90,17 @@ def show_news_section() -> None:
             st.markdown(f"**[{title}]({link})**")
         else:
             st.markdown(f"**{title}**")
+        summary_html = (item.get("summary_html") or "").strip()
         summary = (item.get("summary") or "").strip()
-        if summary:
-            st.caption(summary)
+        if not summary_html and summary and "<" in summary:
+            from datasource.rss_html import sanitize_rss_html
+
+            summary_html = sanitize_rss_html(summary)
+        if summary_html:
+            # HTML đã sanitize (a/img/br/…); st.html render đúng, không lộ thẻ thô.
+            st.html(f'<div class="news-summary" style="font-size:0.9rem;opacity:0.92">{summary_html}</div>')
+        elif summary:
+            st.markdown(summary)
         meta = " · ".join(
             part
             for part in (
