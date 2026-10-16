@@ -1,5 +1,5 @@
-# Module 2 - Streaming Filter Runner. Theo artifacts/Kien_Truc_He_Thong_Realtime_Atz.md mục 3
-# và artifacts/User_Manual_Troubleshooting_Realtime_Atz.md. Ghi đè bằng env FILTER_* (xem filter_runner/config.py).
+# Module 2 - Streaming Filter Runner. Theo docs/architecture.md mục 3
+# và docs/troubleshooting.md. Ghi đè bằng env FILTER_* (xem filter_runner/config.py).
 filter_runner:
   consumer:
     stream: "stream:quotes"

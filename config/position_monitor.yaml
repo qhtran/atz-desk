@@ -1,5 +1,5 @@
-# Module 4 - Live Position Monitor. Theo artifacts/Kien_Truc_He_Thong_Realtime_Atz.md mục 5
-# và artifacts/User_Manual_Troubleshooting_Realtime_Atz.md. Ghi đè bằng env POS_* (xem position_monitor/config.py).
+# Module 4 - Live Position Monitor. Theo docs/architecture.md mục 5
+# và docs/troubleshooting.md. Ghi đè bằng env POS_* (xem position_monitor/config.py).
 position_monitor:
   consumer:                          # Price Subscriber: event giá từ stream:quotes
     stream: "stream:quotes"

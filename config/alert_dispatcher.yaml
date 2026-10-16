@@ -1,5 +1,5 @@
-# Module 3 - Alert Dispatcher. Theo artifacts/Kien_Truc_He_Thong_Realtime_Atz.md mục 4
-# và artifacts/User_Manual_Troubleshooting_Realtime_Atz.md. Secret (token, Brevo key) chỉ nằm trong .env.alert / .env.
+# Module 3 - Alert Dispatcher. Theo docs/architecture.md mục 4
+# và docs/troubleshooting.md. Secret (token, Brevo key) chỉ nằm trong .env.alert / .env.
 alert_dispatcher:
   consumer:
     stream: "stream:signals"

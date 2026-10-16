@@ -1,5 +1,5 @@
-# Module 5 - UI Realtime. Theo artifacts/Kien_Truc_He_Thong_Realtime_Atz.md mục 6
-# và artifacts/User_Manual_Troubleshooting_Realtime_Atz.md. Ghi đè: env UI_REDIS_URL, UI_SQLITE_PATH.
+# Module 5 - UI Realtime. Theo docs/architecture.md mục 6
+# và docs/troubleshooting.md. Ghi đè: env UI_REDIS_URL, UI_SQLITE_PATH.
 ui_realtime:
   timezone: "Asia/Ho_Chi_Minh"
   trading_sessions: [["09:00", "11:30"], ["13:00", "15:00"]]   # thứ 2 - thứ 6
