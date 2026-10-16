@@ -9,6 +9,7 @@ from typing import Any
 import pandas as pd
 
 from analysis.technical import enrich
+from config import THOUSAND_VND
 from engine.composite import evaluate_composite
 from filters import load_registry
 from filters.base import SignalResult
@@ -89,7 +90,8 @@ def run_frames(
     reports: list[dict[str, Any]] = []
     for symbol, bars in frames.items():
         date = bar_date(bars)
-        price = float(bars["close"].iloc[-1])
+        # Nến data/ohlcv theo nghìn đồng -> lưu/gửi giá VND (thống nhất với filter_runner realtime).
+        price = round(float(bars["close"].iloc[-1]) * THOUSAND_VND, 2)
         _cache_bar(conn, symbol, bars, date)
         jobs: list[tuple[str, SignalResult]] = []
         for row in configs:

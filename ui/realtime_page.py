@@ -5,6 +5,7 @@ không chạy lại cả trang. Dữ liệu đọc qua ui_realtime.data (cache t
 """
 from __future__ import annotations
 
+from contextlib import closing
 from datetime import datetime
 
 import pandas as pd
@@ -263,7 +264,7 @@ def _signals(user_id: int) -> None:
     side = c[2].selectbox("Chiều", ["Tất cả", "MUA", "BÁN"], key="oah_side")
     limit = c[3].number_input("Số dòng", 1, oah.MAX_LIMIT, 50, key="oah_limit")
     try:
-        with _db() as conn:
+        with closing(_db()) as conn:
             items = oah.history(conn, user_id, days=days, limit=limit, symbol=symbol,
                                 side=None if side == "Tất cả" else side)
     except oah.FilterError as e:

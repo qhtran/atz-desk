@@ -228,11 +228,25 @@ def quote_rows(quotes: list[dict], stale_seconds: float, now: datetime | None = 
 
 
 # ---------------------------------------------------------------- SQLite
+_MIGRATED: set[str] = set()
+_MIGRATE_LOCK = threading.Lock()
+
+
 def open_db(cfg: dict) -> sqlite3.Connection:
-    """Dùng chung migration của Module 4 (positions) + Module 3 (users.telegram_chat_id). Chỉ additive."""
-    from alert_dispatcher.store import migrate_alert
-    conn = pos_store.open_db(cfg["sqlite"]["path"])
-    migrate_alert(conn)
+    """Dùng chung migration của Module 4 (positions) + Module 3 (users.telegram_chat_id). Chỉ additive.
+
+    Migration chạy 1 lần/process/đường dẫn DB; các lần sau chỉ mở kết nối. Caller phải close()
+    (dùng contextlib.closing; `with conn:` của sqlite3 chỉ commit, không đóng)."""
+    path = str(cfg["sqlite"]["path"])
+    with _MIGRATE_LOCK:
+        if path not in _MIGRATED:
+            from alert_dispatcher.store import migrate_alert
+            conn = pos_store.open_db(path)
+            migrate_alert(conn)
+            _MIGRATED.add(path)
+            return conn
+    conn = pos_store.connect(Path(path))
+    conn.execute("PRAGMA busy_timeout = 5000")
     return conn
 
 

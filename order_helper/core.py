@@ -16,6 +16,8 @@ ERR_OAH_DETAILS = "ERR-UI-006"  # bản ghi signal_history hỏng details (JSON)
 DIR = {"buy": "MUA", "mua": "MUA", "sell": "BÁN", "ban": "BÁN", "bán": "BÁN"}
 SYMBOL_RE = re.compile(r"^[A-Z0-9]{3,10}$")
 MAX_DAYS, MAX_LIMIT = 365, 500
+# Giá trị signal_type (thường) theo chiều; SQLite lower() không hạ chữ có dấu nên liệt kê cả "BÁN".
+SIDE_SQL = {"MUA": ("mua", "buy"), "BÁN": ("ban", "bán", "BÁN", "sell")}
 
 
 class FilterError(ValueError):
@@ -96,6 +98,10 @@ def history(conn, user_id: int, days=7, limit=100, symbol: str | None = None, si
     if symbol:
         sql += " AND symbol = ?"
         args.append(symbol)
+    if side:
+        vals = SIDE_SQL[side]
+        sql += f" AND lower(trim(signal_type)) IN ({','.join('?' * len(vals))})"
+        args.extend(vals)
     sql += " ORDER BY detected_at DESC, id DESC LIMIT ?"
     args.append(limit * 2)
     cur = conn.execute(sql, args)
