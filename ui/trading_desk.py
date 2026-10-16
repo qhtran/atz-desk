@@ -8,7 +8,7 @@ import streamlit as st
 from analysis.technical import sma
 from config import BARS_DIR, CAPITAL_TRANCHES, DATA_DIR
 from engine.runner import load_symbol_csv
-from ui.mobile import pinned
+from ui.components import render_data_table
 
 DESK_PATH = DATA_DIR / "trading_desk.csv"
 _STORE_COLUMNS = (
@@ -282,7 +282,13 @@ def show_trading_desk(capital: float) -> None:
     )
     store = load_desk()
     board = view_board(store, capital)
-    st.dataframe(board, hide_index=True, width="stretch", column_config=pinned("Mã"), alt="Bảng quản trị vị thế Trạm Trading")
+    render_data_table(
+        board,
+        pin="Mã",
+        key_cols=["Xu hướng", "Giá mua", "Giá hiện tại", "Lãi/lỗ thương vụ"],
+        key="desk_board",
+        alt="Bảng quản trị vị thế Trạm Trading",
+    )
     if not store.empty:
         for _, item in store.iterrows():
             symbol = str(item["Mã"]).strip().upper()

@@ -27,6 +27,7 @@ from datasource.client import call, load_bars, load_index_bars
 from datasource.fundamentals import eps_growth, latest_roe, ratio_quarterly, stored_roe
 import config
 import ui.charts as charts
+from ui.components import render_chart
 
 
 def style_board(board: pd.DataFrame):
@@ -159,16 +160,15 @@ def show_dashboard(board: pd.DataFrame, note: str | None = None) -> None:
 def show_charts(symbol: str, bars: pd.DataFrame, neckline: float | None) -> None:
     """Nến chính luôn hiện. RSI, MACD, khối lượng và MFI nằm trong expander."""
     work = enrich(bars)
-    st.plotly_chart(
+    render_chart(
         charts.candle_chart(symbol, work, neckline),
-        width="stretch",
-        theme=None,
+        height=450,
         alt=f"Nến ngày, MA20/MA50, Bollinger và đáy trung tâm của {symbol}",
     )
     with st.expander("Chỉ báo: khối lượng, RSI, MACD, MFI", expanded=False):
         for tab, (name, builder) in zip(st.tabs(list(charts.INDICATOR_CHARTS)), charts.INDICATOR_CHARTS.items()):
             with tab:
-                st.plotly_chart(builder(symbol, work), width="stretch", theme=None, alt=f"{name} của {symbol}")
+                render_chart(builder(symbol, work), height=400, alt=f"{name} của {symbol}")
         show_money_flow(symbol, work)
 
 

@@ -68,7 +68,13 @@ def render_chart(fig: Any, height: int = CHART_DEFAULT_HEIGHT, **kwargs: Any) ->
     height = max(CHART_MIN_HEIGHT, min(CHART_MAX_HEIGHT, int(height)))
     module = type(fig).__module__
     if module.startswith("plotly"):
-        fig.update_layout(height=height, autosize=True)
+        fig.update_layout(
+            height=height,
+            autosize=True,
+            # Chú thích nằm ngang phía dưới để vùng vẽ không bị ép hẹp trên điện thoại.
+            legend=dict(orientation="h", yanchor="top", y=-0.3, xanchor="left", x=0),
+            margin=dict(l=40, r=10, t=60, b=110),
+        )
         kwargs.setdefault("theme", None)
         st.plotly_chart(fig, width="stretch", config={"responsive": True, "displaylogo": False}, **kwargs)
         return
