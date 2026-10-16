@@ -78,16 +78,17 @@ Thay khối hiện tại (trạng thái phiên + tổng vốn + mức rủi ro %
 
 ## 6. Tô màu bảng “Quản trị vị thế”
 
-- [ ] Cột **Lãi/lỗ**: lãi chữ xanh, lỗ chữ đỏ
-- [ ] Cột xu hướng → **xu hướng ngày**: tăng xanh / giảm đỏ
-- [ ] Cột **Giá mua** (và giá trị liên quan nếu mentor yêu cầu): nền/chữ **vàng** cả cột
-- [ ] Cột **Giá hiện tại**: cao hơn giá mua = xanh; thấp hơn = đỏ
-- [ ] **Vùng hỗ trợ**: số bên dưới màu đỏ
-- [ ] **Vùng kháng cự**: số bên dưới màu xanh
+- [x] Cột **Lãi/lỗ**: lãi chữ xanh, lỗ chữ đỏ
+- [x] Cột xu hướng → **xu hướng ngày**: tăng xanh / giảm đỏ
+- [x] Cột **Giá mua**: chữ **vàng** cả cột
+- [x] Cột **Giá hiện tại**: cao hơn giá mua = xanh; thấp hơn = đỏ
+- [x] **Vùng hỗ trợ**: số màu đỏ
+- [x] **Vùng kháng cự**: số màu xanh
 
 **Ảnh tham chiếu:** `image9.png`, `image10.png` (đủ cột hỗ trợ / kháng cự / 1/4 NAV / cắt lỗ…)
 
-**Độ lớn:** nhỏ–vừa (chủ yếu trình bày)
+**Độ lớn:** nhỏ–vừa (chủ yếu trình bày)  
+**Code:** `src/atz/ui/trading_desk.py` (`style_desk_board`) — 2026-10-17
 
 ---
 
