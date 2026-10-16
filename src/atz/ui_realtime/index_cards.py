@@ -8,11 +8,12 @@ import html
 import json
 import time
 
+from ui.theme_tokens import BG_CARD, DOWN, REF, TEXT_MUTED, UP
 from ui_realtime.log import ERR_UI_INDEX, log
 SYMBOLS = ["VNINDEX", "HNXINDEX", "UPCOMINDEX", "VN30", "VN30F1M", "VN30F2M"]
 NAMES = {"VNINDEX": "Chỉ số VNINDEX", "HNXINDEX": "Chỉ số HNXINDEX", "UPCOMINDEX": "Chỉ số UPCOMINDEX",
          "VN30": "Chỉ số VN30", "VN30F1M": "Hợp đồng tương lai VN30F1M", "VN30F2M": "Hợp đồng tương lai VN30F2M"}
-GREEN, RED, YELLOW, GREY = "#22c55e", "#ef4444", "#eab308", "#9ca3af"
+GREEN, RED, YELLOW, GREY = UP, DOWN, REF, TEXT_MUTED
 QUOTE_KEY, SPARK_KEY = "idx:quote:{symbol}", "spark:{symbol}"
 
 
@@ -63,10 +64,10 @@ def sparkline_svg(values: list[float], ref: float | None, uid: str, w: int = 120
 
 CSS = """<style>
 .idx-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:6px;margin-bottom:8px}
-.idx-card{display:flex;align-items:center;gap:10px;background:#111418;border:1px solid #1f2937;border-radius:8px;padding:6px 10px;color:#e5e7eb;font-family:inherit}
-.idx-l{flex:1 1 auto;min-width:0}.idx-code{font-weight:700;font-size:0.95rem}.idx-name{font-size:0.72rem;color:#9ca3af;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.idx-card{display:flex;align-items:center;gap:10px;background:""" + BG_CARD + """;border:1px solid #1f2937;border-radius:8px;padding:6px 10px;color:#e5e7eb;font-family:inherit}
+.idx-l{flex:1 1 auto;min-width:0}.idx-code{font-weight:700;font-size:0.95rem}.idx-name{font-size:0.72rem;color:""" + TEXT_MUTED + """;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .idx-r{text-align:right;min-width:92px}.idx-v{font-weight:700;font-size:0.95rem}.idx-c{font-size:0.75rem}
-.idx-stale{font-size:0.68rem;color:#eab308}
+.idx-stale{font-size:0.68rem;color:""" + REF + """}
 </style>"""
 
 

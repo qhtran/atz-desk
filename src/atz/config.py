@@ -130,8 +130,9 @@ CHART = {
     "SUB_HEIGHT": 260,
     "BG": "#0e1117",
     "FONT": "#f0f2f6",
-    "UP": "#3ddc97",
-    "DOWN": "#ff6b6b",
+    # Đồng bộ ui.theme_tokens (FireAnt-style)
+    "UP": "#00C087",
+    "DOWN": "#E53935",
     "MA20": "#f4a261",
     "MA50": "#e9c46a",
     "BB": "#4cc9f0",

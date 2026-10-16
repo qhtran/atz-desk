@@ -88,7 +88,8 @@ Thay khối hiện tại (trạng thái phiên + tổng vốn + mức rủi ro %
 **Ảnh tham chiếu:** `image9.png`, `image10.png` (đủ cột hỗ trợ / kháng cự / 1/4 NAV / cắt lỗ…)
 
 **Độ lớn:** nhỏ–vừa (chủ yếu trình bày)  
-**Code:** `src/atz/ui/trading_desk.py` (`style_desk_board`) — 2026-10-17
+**Code:** `src/atz/ui/trading_desk.py` (`style_desk_board`) — 2026-10-17  
+**Màu chuẩn:** `src/atz/ui/theme_tokens.py` + `docs/COLOR_TOKENS.md` (FireAnt-style, áp cả Tổng quan / Realtime)
 
 ---
 

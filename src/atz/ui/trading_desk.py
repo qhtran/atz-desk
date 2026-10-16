@@ -9,6 +9,7 @@ from analysis.technical import sma
 from config import BARS_DIR, CAPITAL_TRANCHES, DATA_DIR
 from engine.runner import load_symbol_csv
 from ui.components import render_data_table
+from ui.theme_tokens import css_buy_column, css_down, css_resist, css_signed_text, css_support, css_up
 
 DESK_PATH = DATA_DIR / "trading_desk.csv"
 _STORE_COLUMNS = (
@@ -50,15 +51,6 @@ _VIEW_COLUMNS = (
     "Đúng 4 margin",
     "Lãi/lỗ thương vụ",
 )
-
-# Màu F1 mentor (khớp realtime_page)
-_COLOR_UP = "color: #3ddc97"
-_COLOR_DOWN = "color: #ff6b6b"
-# Nền vàng cả cột Giá mua (F1 mentor) — chữ tối để dễ đọc trên nền tối của app
-_COLOR_BUY = "background-color: #f5c842; color: #1a1a1a; font-weight: 600"
-_COLOR_SUPPORT = "color: #ff6b6b"
-_COLOR_RESIST = "color: #3ddc97"
-
 
 def _empty_store() -> pd.DataFrame:
     return pd.DataFrame(columns=list(_STORE_COLUMNS))
@@ -297,22 +289,6 @@ def style_desk_board(board: pd.DataFrame):
     if board.empty:
         return board
 
-    def paint_pnl(value: object) -> str:
-        text = str(value).strip()
-        if text.startswith("+"):
-            return _COLOR_UP
-        if text.startswith("-"):
-            return _COLOR_DOWN
-        return ""
-
-    def paint_trend(value: object) -> str:
-        text = str(value).strip()
-        if text == "Tăng":
-            return _COLOR_UP
-        if text == "Giảm":
-            return _COLOR_DOWN
-        return ""
-
     buy_nums = [_parse_display_number(v) for v in board["Giá mua"]]
     cur_nums = [_parse_display_number(v) for v in board["Giá hiện tại"]]
 
@@ -322,18 +298,18 @@ def style_desk_board(board: pd.DataFrame):
             if buy is None or cur is None:
                 styles.append("")
             elif cur > buy:
-                styles.append(_COLOR_UP)
+                styles.append(css_up())
             elif cur < buy:
-                styles.append(_COLOR_DOWN)
+                styles.append(css_down())
             else:
                 styles.append("")
         return styles
 
-    styled = board.style.map(paint_pnl, subset=["Lãi/lỗ thương vụ"])
-    styled = styled.map(paint_trend, subset=["Xu hướng ngày"])
-    styled = styled.map(lambda _: _COLOR_BUY, subset=["Giá mua"])
-    styled = styled.map(lambda _: _COLOR_SUPPORT, subset=["Vùng hỗ trợ"])
-    styled = styled.map(lambda _: _COLOR_RESIST, subset=["Vùng kháng cự"])
+    styled = board.style.map(css_signed_text, subset=["Lãi/lỗ thương vụ"])
+    styled = styled.map(css_signed_text, subset=["Xu hướng ngày"])
+    styled = styled.map(lambda _: css_buy_column(), subset=["Giá mua"])
+    styled = styled.map(lambda _: css_support(), subset=["Vùng hỗ trợ"])
+    styled = styled.map(lambda _: css_resist(), subset=["Vùng kháng cự"])
     styled = styled.apply(paint_current, subset=["Giá hiện tại"], axis=0)
     return styled
 

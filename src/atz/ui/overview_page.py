@@ -17,6 +17,7 @@ import pandas as pd
 import streamlit as st
 
 from ui.components import render_data_table
+from ui.theme_tokens import css_signed_text
 
 from config import BARS_DIR
 
@@ -440,12 +441,7 @@ def world_board() -> pd.DataFrame:
 
 
 def _paint(value: object) -> str:
-    text = str(value)
-    if text.startswith("+") or text == "▲":
-        return "color: #3ddc97"
-    if text.startswith("-") or text == "▼":
-        return "color: #ff6b6b"
-    return ""
+    return css_signed_text(value)
 
 
 def show_overview() -> None:
