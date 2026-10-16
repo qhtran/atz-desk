@@ -80,6 +80,7 @@ VOLUME_SPIKE = 1.5       # KL phiên cuối / TB20 để ghi chú "đột biến
 VOLUME_LEADERS_AVG = 10
 VOLUME_LEADERS_MIN_AVG = 500_000
 VOLUME_LEADERS_TOP_N = 20
+SPARKLINE_BARS = 20  # số phiên close trong cột Xu hướng (StockItem)
 
 # --- Hỗ trợ / đáy trung tâm ---
 SUPPORT_DAYS = 183

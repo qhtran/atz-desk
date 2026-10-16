@@ -10,7 +10,8 @@ from pathlib import Path
 
 import pandas as pd
 
-from config import BARS_DIR, VOLUME_LEADERS_AVG, VOLUME_LEADERS_MIN_AVG, VOLUME_LEADERS_TOP_N
+from config import BARS_DIR, SPARKLINE_BARS, VOLUME_LEADERS_AVG, VOLUME_LEADERS_MIN_AVG, VOLUME_LEADERS_TOP_N
+from datasource.spark_series import closes_sparkline
 from engine.runner import load_symbol_csv
 
 COLUMNS = (
@@ -20,6 +21,7 @@ COLUMNS = (
     "KL TB 10 phiên",
     "KL / TB10",
     "Biến động giá (%)",
+    "Xu hướng",
 )
 
 
@@ -88,6 +90,7 @@ def rank_volume_leaders(
                 "KL TB 10 phiên": round(stats["avg_volume"], 0),
                 "KL / TB10": round(stats["ratio"], 2),
                 "Biến động giá (%)": round(stats["change_pct"], 2),
+                "Xu hướng": closes_sparkline(frame, n=SPARKLINE_BARS),
             }
         )
     if not rows:

@@ -8,8 +8,12 @@ import html
 import json
 import time
 
+from ui.sparkline import sparkline_svg  # re-export: tests + callers cũ
 from ui.theme_tokens import BG_CARD, DOWN, REF, TEXT_MUTED, UP
 from ui_realtime.log import ERR_UI_INDEX, log
+
+__all__ = ["sparkline_svg", "read", "cards_html", "render_html", "ERR_UI_INDEX", "SYMBOLS"]
+
 SYMBOLS = ["VNINDEX", "HNXINDEX", "UPCOMINDEX", "VN30", "VN30F1M", "VN30F2M"]
 NAMES = {"VNINDEX": "Chỉ số VNINDEX", "HNXINDEX": "Chỉ số HNXINDEX", "UPCOMINDEX": "Chỉ số UPCOMINDEX",
          "VN30": "Chỉ số VN30", "VN30F1M": "Hợp đồng tương lai VN30F1M", "VN30F2M": "Hợp đồng tương lai VN30F2M"}
@@ -32,34 +36,6 @@ def read(reader, symbols=SYMBOLS) -> dict | None:
             q, sp = None, {}
         out[s] = {"quote": q, "spark": [p[1] for p in sp.get("points", [])]}
     return out
-
-
-def sparkline_svg(values: list[float], ref: float | None, uid: str, w: int = 120, h: int = 40) -> str:
-    """SVG: polyline vẽ 2 lần, clip phần trên vạch ref (xanh) và dưới (đỏ); vạch ref vàng; chấm ở điểm cuối."""
-    if not values:
-        return f'<svg width="{w}" height="{h}" viewBox="0 0 {w} {h}"><line x1="0" y1="{h/2}" x2="{w}" y2="{h/2}" stroke="{GREY}" stroke-dasharray="2 3"/></svg>'
-    vals = values if len(values) > 1 else values * 2
-    ref = vals[0] if ref is None else ref
-    lo, hi = min(min(vals), ref), max(max(vals), ref)
-    span = (hi - lo) or 1.0
-    pad = 3
-
-    def y(v):
-        return round(pad + (hi - v) / span * (h - 2 * pad), 2)
-
-    step = (w - 2 * pad) / (len(vals) - 1)
-    pts = " ".join(f"{round(pad + i * step, 2)},{y(v)}" for i, v in enumerate(vals))
-    ry = y(ref)
-    lx, ly = round(pad + (len(vals) - 1) * step, 2), y(vals[-1])
-    dot = GREEN if vals[-1] > ref else RED if vals[-1] < ref else YELLOW
-    u = html.escape(uid)
-    return (f'<svg width="{w}" height="{h}" viewBox="0 0 {w} {h}" xmlns="http://www.w3.org/2000/svg">'
-            f'<defs><clipPath id="up-{u}"><rect x="0" y="0" width="{w}" height="{ry}"/></clipPath>'
-            f'<clipPath id="dn-{u}"><rect x="0" y="{ry}" width="{w}" height="{h - ry}"/></clipPath></defs>'
-            f'<line x1="0" y1="{ry}" x2="{w}" y2="{ry}" stroke="{YELLOW}" stroke-width="1"/>'
-            f'<polyline points="{pts}" fill="none" stroke="{GREEN}" stroke-width="1.5" clip-path="url(#up-{u})"/>'
-            f'<polyline points="{pts}" fill="none" stroke="{RED}" stroke-width="1.5" clip-path="url(#dn-{u})"/>'
-            f'<circle cx="{lx}" cy="{ly}" r="2.5" fill="{dot}"/></svg>')
 
 
 CSS = """<style>
