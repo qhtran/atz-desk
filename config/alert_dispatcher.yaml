@@ -14,7 +14,8 @@ alert_dispatcher:
       enabled: true
       timeout_seconds: 10
       retries: 2                       # tổng 3 lần thử
-      broadcast_chat_ids: [-1003736327598]   # channel atz_alert: nhận mọi signal
+      broadcast_chat_ids: [-1003736327598]   # channel atz_alert: nhận signal chung
+      private_filter_prefixes: ["pos_"]      # filter_name bắt đầu bằng -> chỉ chat riêng user (+ email fallback, in-app), KHÔNG broadcast
     email:
       enabled: true                    # Brevo HTTP API, key BREVO_API_KEY trong .env.alert
       timeout_seconds: 15

@@ -50,6 +50,8 @@ class Dispatcher:
         self.limiter = RateLimiter(self.r, ad["rate_limit"]["windows"], clock=clock)
         self.broadcast = [str(x) for x in ch["telegram"].get("broadcast_chat_ids") or []] if self.enabled["telegram"] else []
         self.default_quiet = ad["quiet_hours"].get("default")
+        # signal riêng tư (vd vị thế Module 4: pos_*) -> KHÔNG gửi channel broadcast
+        self.private_prefixes = tuple(ch["telegram"].get("private_filter_prefixes", ["pos_"]) or [])
         self.consumer = SignalConsumer(self.r, ad["consumer"]["stream"], ad["consumer"]["group"], ad["consumer"]["consumer_name"],
                                        ad["consumer"]["read_count"], ad["consumer"]["block_ms"],
                                        ad["consumer"]["claim_min_idle_ms"], ad["consumer"]["claim_every_seconds"])
@@ -133,6 +135,9 @@ class Dispatcher:
     def _broadcast(self, sig, hist_id, now) -> list[str]:
         if not self.broadcast:
             return []
+        if self.private_prefixes and str(sig["filter_name"]).startswith(self.private_prefixes):
+            log("ROUTE", "private signal, broadcast skipped", symbol=sig["symbol"], user_id=sig["user_id"], signal_id=sig["signal_id"])
+            return ["private"]
         key = f"alert:bdedup:{sig['symbol']}:{sig['filter_name']}:{sig['direction']}"
         if not self.r.set(key, 1, nx=True, ex=600):   # cùng mã+filter+chiều từ nhiều user -> 1 tin channel / 10 phút
             return ["dup"]

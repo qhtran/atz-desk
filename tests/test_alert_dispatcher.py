@@ -134,6 +134,21 @@ def test_t1_route_telegram_history_delivery_inapp(tmp_path, r, caplog):
     print("\n".join(l for *_x, l in entries(caplog)[:4]))
 
 
+def test_t1b_private_pos_signal_never_broadcast(tmp_path, r, caplog):
+    d, db = build(tmp_path, r)
+    make_user(db)
+    tg = d.adapters["telegram"]
+    for name in ("pos_stop_loss", "pos_take_profit", "pos_volatility"):
+        s = sig()
+        s["filter_name"] = name
+        res = d.handle(s)
+        assert res["broadcast"] == ["private"] and res["user"] == ["sent"]
+    assert [c for c, _ in tg.sent] == ["555", "555", "555"]          # 0 lần gửi channel
+    assert d.handle(sig(7))["broadcast"] == ["sent"]                 # filter thường vẫn broadcast
+    assert "-100999" in [c for c, _ in tg.sent]
+    print("\n".join(l for a, dd, l in entries(caplog) if "private" in dd["message"])[:600])
+
+
 def test_t2_telegram_fail_circuit_fallback_email(tmp_path, r, caplog):
     mail = FakeMail()
     d, db = build(tmp_path, r, tg=FakeTG(fail=True), mail=mail, broadcast=())
