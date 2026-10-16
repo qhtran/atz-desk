@@ -16,7 +16,7 @@ from urllib.parse import quote
 import pandas as pd
 import streamlit as st
 
-from ui.mobile import pinned
+from ui.components import render_data_table
 
 from config import BARS_DIR
 
@@ -473,11 +473,11 @@ def show_overview() -> None:
                 ],
                 columns=list(WORLD_COLUMNS),
             )
-    st.dataframe(
+    render_data_table(
         vietnam.style.map(_paint, subset=list(_PAINTED)),
-        hide_index=True,
-        width="stretch",
-        column_config=pinned("Chỉ số"),
+        pin="Chỉ số",
+        key_cols=[c for c in ("Đóng cửa", "Tăng/giảm (điểm/%)") if c in vietnam.columns],
+        key="ov_vietnam",
         alt="Chỉ số Việt Nam: tham chiếu, đóng cửa, biến động, khối lượng và giá trị",
     )
     st.caption(
@@ -487,11 +487,10 @@ def show_overview() -> None:
         "Cột không có số giữ «—»."
     )
     st.subheader("Chỉ số quốc tế")
-    st.dataframe(
+    render_data_table(
         world.style.map(_paint, subset=["Tăng/giảm (điểm/%)", "Mũi tên"]),
-        hide_index=True,
-        width="stretch",
-        column_config=pinned("Chỉ số"),
+        pin="Chỉ số",
+        key="ov_world",
         alt="Chỉ số Mỹ, châu Âu và châu Á với mũi tên tăng giảm",
     )
     st.caption("Chỉ số quốc tế lấy từ Yahoo Finance. Không lấy được thì để «—».")
