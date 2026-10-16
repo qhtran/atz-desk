@@ -54,7 +54,8 @@ def show_news_section() -> None:
         value = int(st.session_state.get("news_page", 1)) + delta
         st.session_state["news_page"] = min(max(value, 1), pages)
 
-    controls = st.columns([1, 2, 1, 2])
+    pager = st.container(key="news_pager")
+    controls = pager.columns([1, 2, 1, 2])
     controls[0].button(
         "← Trước",
         key="news_prev",

@@ -61,6 +61,10 @@ _MOBILE_CSS = """
   [data-testid="stMetricValue"] { font-size: var(--ds-font-lg) !important; }
   [data-testid="stButtonGroup"] { overflow-x: auto; flex-wrap: nowrap; }
   [data-testid="stExpander"] details summary { min-height: var(--ds-touch); }
+  /* Danh mục / Tin tức: bài viết và form gọn hơn */
+  .stTextArea textarea { min-height: 90px !important; }
+  [data-testid="stMarkdownContainer"] h3 { margin-top: var(--ds-space-2) !important; }
+  hr { margin: var(--ds-space-2) 0 !important; }
 }
 @media (max-width: 480px) {
   [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {
@@ -74,11 +78,25 @@ _MOBILE_CSS = """
 @media (orientation: landscape) and (max-height: 500px) {
   :root { --ds-chart-h: 340px; --ds-touch: 40px; }
   .stMainBlockContainer, .block-container {
-    padding-top: 1.5rem !important;
+    padding-top: 3.25rem !important;
     padding-left: var(--ds-space-3, 0.75rem) !important;
     padding-right: var(--ds-space-3, 0.75rem) !important;
   }
   h1 { font-size: 1.25rem !important; margin-bottom: 0 !important; }
+  h2, h3 { font-size: 1.05rem !important; }
+  [data-testid="stForm"] { padding: 0.5rem 0.75rem !important; }
+  [data-testid="stVerticalBlock"] { gap: 0.5rem !important; }
+  [data-testid="stCaptionContainer"] { font-size: 0.7rem !important; }
+  .stTextArea textarea { min-height: 70px !important; }
+  /* Sidebar hẹp lại khi xoay ngang để nội dung chính đủ rộng */
+  section[data-testid="stSidebar"] {
+    width: 220px !important; min-width: 220px !important; max-width: 220px !important;
+  }
+  section[data-testid="stSidebar"] [data-testid="stMetricValue"] { font-size: 1.1rem !important; }
+  /* Thanh phân trang tin: 4 nút một hàng khi xoay ngang */
+  .st-key-news_pager [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {
+    min-width: 0 !important; flex: 1 1 0 !important;
+  }
   [data-testid="stHorizontalBlock"] { flex-wrap: wrap !important; }
   [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {
     min-width: calc(33% - 0.5rem) !important; flex: 1 1 calc(33% - 0.5rem) !important;

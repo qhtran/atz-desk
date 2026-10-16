@@ -15,6 +15,7 @@ from datasource.watchlists import (
     remove_symbol,
 )
 from engine.identity import current_username
+from ui.components import render_data_table
 
 
 def _send_to_filter(symbols: list[str], label: str) -> None:
@@ -53,7 +54,7 @@ def _show_symbol_table(symbols: list[str], volumes: dict[str, float] | None = No
         if volumes and symbol in volumes:
             row["KL TB 10 phiên"] = volumes[symbol]
         rows.append(row)
-    st.dataframe(rows, hide_index=True, width="stretch", alt="Danh sách mã trong watchlist")
+    render_data_table(rows, pin="Mã", alt="Danh sách mã trong watchlist")
 
 
 def _sector_section() -> None:

@@ -7,6 +7,7 @@ from datetime import date
 import pandas as pd
 import streamlit as st
 
+from ui.components import render_data_table
 from ui.mobile import pinned
 
 from config import CAPITAL_TRANCHES
@@ -65,12 +66,12 @@ def show_portfolio() -> None:
             ),
             hide_index=True,
             width="stretch",
-            column_config=pinned("Mã"),
+            column_config=pinned("Mã") or None,
             alt="Danh sách vị thế và lãi lỗ",
         )
         usage = tranche_usage(positions)
         st.markdown("**Giải ngân theo mã**")
-        st.dataframe(usage, hide_index=True, width="stretch", alt="Số phần đã giải ngân theo mã")
+        render_data_table(usage, pin="Mã", alt="Số phần đã giải ngân theo mã")
         over = usage.loc[usage["Phần đã giải ngân"] > CAPITAL_TRANCHES, "Mã"]
         if not over.empty:
             st.warning(f"Vượt {CAPITAL_TRANCHES} phần: {', '.join(over.astype(str))}.")
@@ -108,10 +109,9 @@ def show_portfolio() -> None:
     if shown_notes.empty:
         st.info("Chưa có ghi chú khớp bộ lọc.")
     else:
-        st.dataframe(
+        render_data_table(
             shown_notes.drop(columns=["id"]),
-            hide_index=True,
-            width="stretch",
+            pin="Mã",
             alt="Nhật ký mua bán theo thời gian",
         )
     with st.form("add_journal"):
