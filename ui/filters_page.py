@@ -13,6 +13,7 @@ from engine.identity import current_username
 from engine.notify import BrevoSender, maybe_notify
 from engine.runner import load_frames_for_run, run_frames
 from filters import load_registry
+from ui.mobile import pinned
 from filters.base import ParamSpec
 from storage.db import open_signals
 from storage.repository import (
@@ -185,7 +186,7 @@ def show_filters() -> None:
                         filled.get(str(symbol).upper(), ("—", "—"))[1] for symbol in board["Mã"]
                     ]
                     st.caption("KQKD = LNST quý hiện tại / cùng kỳ (cache data/kqkd). Thiếu dữ liệu thì «—».")
-                    st.dataframe(board, hide_index=True, width="stretch")
+                    st.dataframe(board, hide_index=True, width="stretch", column_config=pinned("Mã"))
                     from ui.trading_desk import offer_to_desk
 
                     st.caption("Mỗi mã có thể đưa sang Trạm Trading. Mã đã có trong bảng vị thế thì không ghi đè.")

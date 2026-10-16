@@ -12,6 +12,7 @@ from analysis.technical import bollinger, ichimoku, macd, mcdx, rsi, sma
 from config import BARS_DIR, INDUSTRY_PATH, UNIVERSE
 from datasource.kqkd import kqkd_cells
 from engine.runner import load_symbol_csv
+from ui.mobile import pinned
 
 TOP_PER_INDUSTRY = 5
 _RETURN_BARS = 20
@@ -277,7 +278,7 @@ def show_industry_top() -> None:
     for industry, part in board.groupby("Ngành", sort=True):
         st.markdown(f"**{industry}** · {len(part)} mã")
         shown = part.drop(columns=["Ngành"])
-        st.dataframe(shown, hide_index=True, width="stretch", alt=f"Top mã ngành {industry}")
+        st.dataframe(shown, hide_index=True, width="stretch", column_config=pinned("Mã"), alt=f"Top mã ngành {industry}")
         from ui.trading_desk import offer_to_desk
 
         for _, item in part.iterrows():

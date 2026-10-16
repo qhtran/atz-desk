@@ -7,6 +7,8 @@ from datetime import date
 import pandas as pd
 import streamlit as st
 
+from ui.mobile import pinned
+
 from config import CAPITAL_TRANCHES
 from datasource.portfolio import (
     add_journal,
@@ -63,6 +65,7 @@ def show_portfolio() -> None:
             ),
             hide_index=True,
             width="stretch",
+            column_config=pinned("Mã"),
             alt="Danh sách vị thế và lãi lỗ",
         )
         usage = tranche_usage(positions)

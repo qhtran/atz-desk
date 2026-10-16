@@ -16,6 +16,8 @@ from urllib.parse import quote
 import pandas as pd
 import streamlit as st
 
+from ui.mobile import pinned
+
 from config import BARS_DIR
 
 VN_INDEXES = ("VNIndex", "HNXIndex", "UPIndex", "VN30", "VN30F1M", "VN30F2M")
@@ -475,6 +477,7 @@ def show_overview() -> None:
         vietnam.style.map(_paint, subset=list(_PAINTED)),
         hide_index=True,
         width="stretch",
+        column_config=pinned("Chỉ số"),
         alt="Chỉ số Việt Nam: tham chiếu, đóng cửa, biến động, khối lượng và giá trị",
     )
     st.caption(
@@ -488,6 +491,7 @@ def show_overview() -> None:
         world.style.map(_paint, subset=["Tăng/giảm (điểm/%)", "Mũi tên"]),
         hide_index=True,
         width="stretch",
+        column_config=pinned("Chỉ số"),
         alt="Chỉ số Mỹ, châu Âu và châu Á với mũi tên tăng giảm",
     )
     st.caption("Chỉ số quốc tế lấy từ Yahoo Finance. Không lấy được thì để «—».")
