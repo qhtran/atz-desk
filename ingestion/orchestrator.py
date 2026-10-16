@@ -8,7 +8,9 @@ from zoneinfo import ZoneInfo
 
 from ingestion.change_detector import ChangeDetector
 from ingestion.circuit_breaker import CircuitBreaker
-from ingestion.log import log
+import redis
+
+from ingestion.log import CIRCUIT_OPEN_CODES, ERR_BOTH_DOWN, ERR_REDIS_WRITE, ERR_SYS_REDIS, log
 from ingestion.normalizer import Quote, normalize_frame
 from ingestion.rate_limiter import TokenBucket
 from ingestion.sources import SourceAdapter, SourceDown, vnstock_fetch
@@ -41,12 +43,15 @@ class Orchestrator:
     def fetch_batch(self, symbols, batch_id) -> list[Quote]:
         for adapter in self.sources:
             if not adapter.breaker.allow():
-                log("CB", f"skip source={adapter.name} state={adapter.breaker.state}")
+                nxt = "switching to next source" if adapter is not self.sources[-1] else "no source left"
+                log("FETCH", f"Circuit Open for {adapter.name}, {nxt}", error_code=CIRCUIT_OPEN_CODES.get(adapter.name),
+                    source=adapter.name, circuit_state=adapter.breaker.state, batch_id=batch_id)
                 continue
             try:
                 frame, latency = adapter.fetch(symbols)
             except SourceDown as error:
-                log("FETCH", f"fallback after {error}")
+                log("FETCH", f"fallback after {error}", source=adapter.name, circuit_state=adapter.breaker.state,
+                    batch_id=batch_id)
                 continue
             self.metrics["last_source"] = adapter.name
             return normalize_frame(frame, adapter.name, batch_id, latency, self.now())
@@ -64,30 +69,43 @@ class Orchestrator:
                 failed.extend(chunk)
         self.metrics["cycles"] += 1
         if fresh:
-            self.store.save(fresh)
-            changed = [q for q in fresh if self.detector.changed(q)]
-            self.metrics["published"] += self.store.publish(changed)
             self.metrics["quotes"] += len(fresh)
             self.metrics["last_ok"] = self.now().isoformat(timespec="seconds")
-            log("FETCH", f"cycle batch_id={batch_id} quotes={len(fresh)} changed={len(changed)} failed_symbols={len(failed)}")
+            self.persist(fresh, batch_id)
+            log("FETCH", f"cycle quotes={len(fresh)} failed_symbols={len(failed)}", batch_id=batch_id,
+                source=self.metrics["last_source"])
         stale = self.degrade(failed) if failed else []
         if not failed and self.degraded:
             self.degraded = False
             log("DEGRADE", "recovered: live data again, normal interval")
         return fresh + stale
 
+    def persist(self, fresh: list[Quote], batch_id: str) -> None:
+        """Ghi cache + publish phần thay đổi. Lỗi Redis: log mã lỗi, không crash."""
+        try:
+            self.store.save(fresh)
+            changed = [q for q in fresh if self.detector.changed(q)]
+            self.metrics["published"] += self.store.publish(changed)
+        except Exception as error:  # noqa: BLE001
+            code = ERR_SYS_REDIS if isinstance(error, redis.exceptions.ConnectionError) else ERR_REDIS_WRITE
+            log("REDIS", f"redis write failed ({ERR_REDIS_WRITE}): {type(error).__name__}: {error}",
+                error_code=code, batch_id=batch_id)
+            self.detector.last.clear()  # publish lại đầy đủ khi Redis hồi
+
     def degrade(self, symbols) -> list[Quote]:
         """Cả hai nguồn lỗi: chỉ phục vụ cache, gắn stale=True, tăng interval."""
         if not self.degraded:
-            log("DEGRADE", f"entering degraded mode: all sources down for {len(symbols)} symbols")
+            log("DEGRADE", f"entering degraded mode: all sources down for {len(symbols)} symbols", error_code=ERR_BOTH_DOWN,
+                circuit_state={a.name: a.breaker.state for a in self.sources})
         self.degraded = True
         self.metrics["degraded_cycles"] += 1
         try:
             cached = [replace(q, stale=True) for q in self.store.load(symbols)]
         except Exception as error:  # noqa: BLE001 - không crash khi Redis cũng lỗi
-            log("DEGRADE", f"cache read failed: {error}")
+            log("DEGRADE", f"cache read failed: {error}", error_code=ERR_SYS_REDIS)
             cached = []
-        log("DEGRADE", f"serving cache-only quotes={len(cached)}/{len(symbols)} stale=True next_interval={self.interval():.0f}s")
+        log("DEGRADE", f"serving cache-only quotes={len(cached)}/{len(symbols)} stale=True next_interval={self.interval():.0f}s",
+            error_code=ERR_BOTH_DOWN, circuit_state={a.name: a.breaker.state for a in self.sources})
         return cached
 
     def in_trading_hours(self) -> bool:
@@ -103,11 +121,14 @@ class Orchestrator:
         return base
 
     def health(self) -> dict:
+        """ingestion_health: circuit KBS/VCI, last successful fetch, rpm hiện tại (tài liệu mục 5)."""
         return {
             "ts": self.now().isoformat(timespec="seconds"),
             "epoch": time.time(),
             "mode": "degraded" if self.degraded else "live",
             "breakers": {a.name: a.breaker.state for a in self.sources},
+            "last_successful_fetch": self.metrics["last_ok"],
+            "current_rpm": self.limiter.current_rpm(),
             "limiter": {"granted": self.limiter.granted, "throttled": self.limiter.throttled,
                         "max_rpm": self.s.safety_max_rpm},
             "symbols": len(self.s.symbols),

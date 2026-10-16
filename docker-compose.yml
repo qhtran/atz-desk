@@ -12,7 +12,7 @@ services:
   # --- Module 1: realtime ingestion (artifacts/Kien_Truc_He_Thong_Realtime_Atz.md mục 2) ---
   redis:
     image: redis:7-alpine
-    container_name: vnstocks-redis
+    container_name: atz-redis
     restart: unless-stopped
     command: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec",
               "--maxmemory", "256mb", "--maxmemory-policy", "volatile-lru"]
@@ -26,13 +26,16 @@ services:
 
   ingestion:
     image: vnstocks-vnstocks   # cùng image với app (build bởi service vnstocks)
-    container_name: vnstocks-ingestion
+    container_name: atz-ingestion
     restart: unless-stopped
     command: ["python", "-m", "ingestion"]
     depends_on:
       redis:
         condition: service_healthy
-    volumes: ["./vnstock_home:/root/.vnstock"]
+    volumes: ["./vnstock_home:/root/.vnstock", "./logs:/app/logs"]
+    environment:
+      INGEST_CONFIG: /app/config/ingestion.yaml
+      INGEST_LOG_DIR: /app/logs
     env_file: [".env", ".env.ingestion"]
     networks: [default, realtime]   # default: ra Internet tới KBS/VCI; realtime: tới Redis
     healthcheck:

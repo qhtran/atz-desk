@@ -8,7 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeout
 
 from ingestion.circuit_breaker import CircuitBreaker
-from ingestion.log import log
+from ingestion.log import ERR_TIMEOUT, log
 from ingestion.rate_limiter import TokenBucket
 
 
@@ -59,11 +59,15 @@ class SourceAdapter:
                     raise ValueError("empty response")
                 latency = int((time.monotonic() - started) * 1000)
                 self.breaker.success()
-                log("FETCH", f"source={self.name} ok symbols={len(symbols)} rows={len(frame)} latency_ms={latency} attempt={attempt + 1}")
+                log("FETCH", f"source={self.name} ok symbols={len(symbols)} rows={len(frame)} attempt={attempt + 1}",
+                    latency_ms=latency, source=self.name, circuit_state=self.breaker.state)
                 return frame, latency
             except Exception as error:  # noqa: BLE001 - mọi lỗi nguồn đều tính
                 last_error = error
-                log("FETCH", f"source={self.name} error attempt={attempt + 1}/{self.retries + 1}: {type(error).__name__}: {str(error)[:160]}")
+                log("FETCH", f"source={self.name} error attempt={attempt + 1}/{self.retries + 1}: {type(error).__name__}: {str(error)[:160]}",
+                    error_code=ERR_TIMEOUT if isinstance(error, TimeoutError) else None,
+                    latency_ms=int((time.monotonic() - started) * 1000), source=self.name,
+                    circuit_state=self.breaker.state)
                 if attempt < self.retries:
                     self.sleep(self.backoff * (2 ** attempt) + random.uniform(0, self.jitter))
         self.breaker.failure()

@@ -9,6 +9,7 @@ import dataclasses
 import json
 import logging
 import os
+import re
 from datetime import datetime
 
 import pandas as pd
@@ -61,6 +62,31 @@ def _logs(caplog):
     caplog.set_level(logging.INFO, logger="ingestion")
 
 
+LABEL = re.compile(r"^\[DBG-\d{8}-\d{4}-INGEST-([A-Z]+)\]( (ERR-[A-Z]+-\d{3}))? (\{.*\})$")
+
+
+def entries(caplog):
+    """Parse mọi dòng log: kiểm format label + JSON structured fields."""
+    out = []
+    for rec in caplog.records:
+        if rec.name != "ingestion":
+            continue
+        line = rec.getMessage()
+        m = LABEL.match(line)
+        assert m, f"log thiếu debug label đúng format: {line}"
+        data = json.loads(m.group(4))
+        for key in ("debug_label", "error_code", "module", "symbol", "user_id", "latency_ms", "message"):
+            assert key in data, (key, line)
+        assert data["module"] == "INGEST" and data["error_code"] == m.group(3)
+        out.append((m.group(1), data, line))
+    return out
+
+
+def find(caplog, action, text="", code=None):
+    return [line for act, data, line in entries(caplog)
+            if act == action and text in data["message"] and (code is None or data["error_code"] == code)]
+
+
 def board(symbols, price=10000.0):
     return pd.DataFrame([{"symbol": s, "exchange": "HOSE", "reference_price": price, "open_price": price,
                           "high_price": price * 1.02, "low_price": price * 0.98,
@@ -88,9 +114,10 @@ def test_t1_real_kbs_batch_normalized_and_cached(settings, store, caplog):
         assert cached["price"] == q.price and 0 < store.r.ttl(f"quote:{q.symbol}") <= settings.quote_ttl_seconds
     assert store.r.xlen(settings.stream) == len(SYMBOLS)
     # change detector: chạy lại cùng dữ liệu nếu giá đứng yên thì không publish thêm (không assert cứng vì giá live).
-    assert "[DBG-INGEST-FETCH] source=KBS ok" in caplog.text
-    assert "[DBG-INGEST-PUBLISH]" in caplog.text
-    print("\n".join(r.getMessage() for r in caplog.records if "DBG-INGEST" in r.getMessage()))
+    ok = find(caplog, "FETCH", "source=KBS ok")
+    assert ok and json.loads(ok[0].split(" ", 1)[1])["latency_ms"] >= 0
+    assert find(caplog, "REDIS", "published stream=stream:quotes")
+    print("\n".join(line for _, _, line in entries(caplog)))
     print("sample:", json.dumps(quotes[0].to_dict(), ensure_ascii=False))
 
 
@@ -111,12 +138,12 @@ def test_t2_kbs_fails_5_times_circuit_opens_switch_to_vci(settings, store, caplo
     orch.sources[0].fetch_fn = lambda s: board(s)  # KBS hồi phục -> thử lại -> CLOSED
     assert all(q.source == "kbs" for q in orch.run_cycle(SYMBOLS))
     assert kbs.breaker.state == "CLOSED"
-    text = caplog.text
-    assert "[DBG-INGEST-CB] source=KBS failure 5/5" in text
-    assert "[DBG-INGEST-CB] source=KBS CLOSED->OPEN" in text
-    assert "[DBG-INGEST-CB] source=KBS OPEN->HALF_OPEN" in text
-    assert "[DBG-INGEST-CB] skip source=KBS state=OPEN" in text
-    print("\n".join(r.getMessage() for r in caplog.records if "DBG-INGEST-CB" in r.getMessage()))
+    assert find(caplog, "CB", "source=KBS failure 5/5")
+    assert find(caplog, "CB", "source=KBS CLOSED->OPEN", code="ERR-INGEST-002")
+    assert find(caplog, "CB", "source=KBS OPEN->HALF_OPEN")
+    switch = find(caplog, "FETCH", "Circuit Open for KBS, switching to next source", code="ERR-INGEST-002")
+    assert switch and '"circuit_state": "OPEN"' in switch[0]
+    print("\n".join(line for act, _, line in entries(caplog) if act == "CB" or "ERR-INGEST-002" in line))
 
 
 def test_t3_rate_limiter_at_most_380_per_minute(caplog):
@@ -136,8 +163,11 @@ def test_t3_rate_limiter_at_most_380_per_minute(caplog):
     first_minute = sum(1 for t in stamps if t < start + 60)
     print(f"first_minute={first_minute} worst_60s_window={worst} throttled={bucket.throttled}")
     assert worst <= 380 and first_minute <= 380
-    assert "[DBG-INGEST-RATE] near-limit" in caplog.text
-    assert "[DBG-INGEST-RATE] throttle" in caplog.text
+    assert find(caplog, "RATE", "near-limit")
+    assert find(caplog, "RATE", "throttle", code="ERR-INGEST-001")
+    assert bucket.current_rpm() <= 380
+    lines = [l for _, _, l in entries(caplog)]
+    print(next(l for l in lines if "near-limit" in l)); print(next(l for l in lines if "throttle" in l))
 
 
 def test_t4_both_down_degraded_serves_stale_cache(settings, store, caplog):
@@ -159,9 +189,30 @@ def test_t4_both_down_degraded_serves_stale_cache(settings, store, caplog):
     # Redis cũng lỗi -> vẫn không crash
     orch.store = RedisStore(dataclasses.replace(settings, redis_url="redis://127.0.0.1:1/0"))
     assert orch.run_cycle(SYMBOLS) == []
-    assert "[DBG-INGEST-DEGRADE] entering degraded mode" in caplog.text
-    assert "stale=True" in caplog.text
-    print("\n".join(r.getMessage() for r in caplog.records if "DEGRADE" in r.getMessage())[:1500])
+    assert find(caplog, "DEGRADE", "entering degraded mode", code="ERR-INGEST-004")
+    assert find(caplog, "DEGRADE", "stale=True", code="ERR-INGEST-004")
+    assert find(caplog, "FETCH", "Circuit Open for VCI", code="ERR-INGEST-003")
+    assert find(caplog, "DEGRADE", "cache read failed", code="ERR-SYS-001")
+    lines = [l for act, _, l in entries(caplog) if act == "DEGRADE" or "ERR-INGEST-003" in l]
+    print("\n".join(lines[:3] + lines[-3:]))
+
+
+def test_normalize_and_redis_write_error_codes(settings, store, caplog):
+    orch = Orchestrator(settings, store, fetchers={"KBS": lambda s: pd.concat([board(s), pd.DataFrame([{"symbol": "BAD"}])]),
+                                                   "VCI": lambda s: board(s)})
+    assert len(orch.run_cycle(SYMBOLS)) == 10
+    assert find(caplog, "NORMALIZE", "normalize failed", code="ERR-INGEST-005")
+    orch.store = RedisStore(dataclasses.replace(settings, redis_url="redis://127.0.0.1:1/0"))
+    orch.run_cycle(SYMBOLS)                        # Redis chết khi ghi -> không crash
+    assert find(caplog, "REDIS", "redis write failed (ERR-INGEST-006)", code="ERR-SYS-001")
+
+
+def test_timeout_error_code(settings, store, caplog):
+    import time as _t
+    slow = dataclasses.replace(settings, request_timeout_seconds=0.2, retries=0)
+    orch = Orchestrator(slow, store, fetchers={"KBS": lambda s: _t.sleep(1), "VCI": lambda s: board(s)})
+    assert all(q.source == "vci" for q in orch.run_cycle(SYMBOLS[:2]))
+    assert find(caplog, "FETCH", "TimeoutError", code="ERR-INGEST-007")
 
 
 def test_health_check_ok(settings, store, caplog):
@@ -169,6 +220,10 @@ def test_health_check_ok(settings, store, caplog):
     orch.run_cycle(SYMBOLS)
     store.write_health(orch.health())
     ok, info = check(settings, store)
-    assert ok and info["mode"] == "live" and info["breakers"] == {"KBS": "CLOSED", "VCI": "CLOSED"}
+    ing = info["ingestion_health"]
+    assert ok and ing["mode"] == "live" and ing["breakers"] == {"KBS": "CLOSED", "VCI": "CLOSED"}
+    assert ing["last_successful_fetch"] and ing["current_rpm"] >= 1
+    assert info["redis_health"]["ping"] == "PONG" and info["redis_health"]["used_memory_human"]
+    print(json.dumps(info, ensure_ascii=False)[:600])
     store.r.delete(settings.health_key)
     assert check(settings, store)[0] is False

@@ -4,7 +4,7 @@ from __future__ import annotations
 import time
 from collections import deque
 
-from ingestion.log import log
+from ingestion.log import CIRCUIT_OPEN_CODES, log
 
 CLOSED, OPEN, HALF_OPEN = "CLOSED", "OPEN", "HALF_OPEN"
 
@@ -29,7 +29,9 @@ class CircuitBreaker:
 
     def _set(self, state: str, why: str) -> None:
         if state != self._state:
-            log("CB", f"source={self.name} {self._state}->{state} ({why})")
+            code = CIRCUIT_OPEN_CODES.get(self.name) if state == OPEN else None
+            log("CB", f"source={self.name} {self._state}->{state} ({why})", error_code=code,
+                source=self.name, circuit_state=state)
             self._state = state
 
     def allow(self) -> bool:
@@ -48,7 +50,8 @@ class CircuitBreaker:
         self.failures.append(now)
         while self.failures and now - self.failures[0] > self.window:
             self.failures.popleft()
-        log("CB", f"source={self.name} failure {len(self.failures)}/{self.threshold} in {self.window:.0f}s state={self._state}")
+        log("CB", f"source={self.name} failure {len(self.failures)}/{self.threshold} in {self.window:.0f}s state={self._state}",
+            source=self.name, circuit_state=self._state)
         if len(self.failures) >= self.threshold:
             self.opened_at = now
             self.failures.clear()

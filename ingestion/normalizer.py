@@ -5,6 +5,8 @@ import math
 from dataclasses import asdict, dataclass
 from datetime import datetime
 
+from ingestion.log import ERR_NORMALIZE, log
+
 
 @dataclass
 class Quote:
@@ -68,4 +70,17 @@ def normalize_row(row: dict, source: str, batch_id: str, latency_ms: int, now: d
 
 def normalize_frame(frame, source: str, batch_id: str, latency_ms: int, now: datetime) -> list[Quote]:
     rows = frame.to_dict("records") if hasattr(frame, "to_dict") else list(frame)
-    return [q for q in (normalize_row(r, source, batch_id, latency_ms, now) for r in rows) if q]
+    quotes = []
+    for row in rows:
+        try:
+            quote = normalize_row(row, source, batch_id, latency_ms, now)
+        except Exception as error:  # noqa: BLE001
+            quote, why = None, f"{type(error).__name__}: {error}"
+        else:
+            why = "missing symbol or price"
+        if quote:
+            quotes.append(quote)
+        else:
+            log("NORMALIZE", f"normalize failed: {why}", error_code=ERR_NORMALIZE,
+                symbol=str(row.get("symbol") or "") or None, batch_id=batch_id, source=source.lower())
+    return quotes

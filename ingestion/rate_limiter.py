@@ -3,8 +3,9 @@ from __future__ import annotations
 
 import threading
 import time
+from collections import deque
 
-from ingestion.log import log
+from ingestion.log import ERR_RATE_LIMIT, log
 
 
 class TokenBucket:
@@ -21,6 +22,7 @@ class TokenBucket:
         self.updated = clock()
         self.granted = 0
         self.throttled = 0
+        self.recent: deque[float] = deque()  # thời điểm cấp token trong 60s gần nhất
         self._lock = threading.Lock()
 
     def _refill(self) -> None:
@@ -34,10 +36,24 @@ class TokenBucket:
             if self.tokens < 1:
                 wait = (1 - self.tokens) / self.rate
                 self.throttled += 1
-                log("RATE", f"throttle source={source} wait={wait:.3f}s max_rpm={self.max_rpm}")
+                log("RATE", f"throttle source={source} wait={wait:.3f}s max_rpm={self.max_rpm}",
+                    error_code=ERR_RATE_LIMIT, source=source, rpm=len(self.recent))
                 self.sleep(wait)
                 self._refill()
             elif self.tokens <= self.warn_at:
-                log("RATE", f"near-limit source={source} tokens={self.tokens:.2f}/{self.capacity:.0f}")
+                log("RATE", f"near-limit source={source} tokens={self.tokens:.2f}/{self.capacity:.0f}",
+                    source=source, rpm=len(self.recent))
             self.tokens -= 1
             self.granted += 1
+            now = self.clock()
+            self.recent.append(now)
+            self._trim(now)
+
+    def _trim(self, now: float) -> None:
+        while self.recent and now - self.recent[0] >= 60:
+            self.recent.popleft()
+
+    def current_rpm(self) -> int:
+        with self._lock:
+            self._trim(self.clock())
+            return len(self.recent)

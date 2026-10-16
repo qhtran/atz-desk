@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import time
 
 import redis
 
@@ -35,11 +36,20 @@ class RedisStore:
             pipe.xadd(self.s.stream, fields, maxlen=self.s.stream_maxlen, approximate=True)
         pipe.execute()
         if quotes:
-            log("PUBLISH", f"stream={self.s.stream} events={len(quotes)}")
+            log("REDIS", f"published stream={self.s.stream} events={len(quotes)}", batch_id=quotes[0].batch_id)
         return len(quotes)
 
     def write_health(self, payload: dict) -> None:
         self.r.set(self.s.health_key, json.dumps(payload), ex=int(self.s.health_max_age_seconds * 5))
+
+    def redis_health(self) -> dict:
+        """redis_health: ping + memory (tài liệu mục 5)."""
+        started = time.monotonic()
+        self.r.ping()
+        mem = self.r.info("memory")
+        return {"ping": "PONG", "ping_ms": round((time.monotonic() - started) * 1000, 1),
+                "used_memory_human": mem.get("used_memory_human"), "maxmemory_human": mem.get("maxmemory_human"),
+                "maxmemory_policy": mem.get("maxmemory_policy")}
 
     def read_health(self) -> dict | None:
         raw = self.r.get(self.s.health_key)
