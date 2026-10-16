@@ -9,6 +9,7 @@ from email.utils import parsedate_to_datetime
 from urllib.request import Request, urlopen
 
 import config
+from datasource.rss_html import html_to_text, sanitize_rss_html
 
 # CafeF tin mới — RSS công khai, không cần API key.
 _RSS_URL = "https://cafef.vn/thi-truong-chung-khoan.rss"
@@ -43,13 +44,11 @@ def _parse_rss(raw: bytes) -> list[dict]:
         if not title:
             continue
         link = (node.findtext("link") or "").strip()
-        summary = (node.findtext("description") or "").strip()
-        # strip simple HTML tags from description
-        if "<" in summary:
-            try:
-                summary = "".join(ET.fromstring(f"<div>{summary}</div>").itertext())
-            except ET.ParseError:
-                summary = summary.replace("<br>", " ").replace("<br/>", " ")
+        raw_summary = (node.findtext("description") or "").strip()
+        summary_html = sanitize_rss_html(raw_summary)
+        summary = html_to_text(raw_summary)
+        if len(summary) > 500:
+            summary = summary[:500].rstrip() + "…"
         published_raw = (node.findtext("pubDate") or "").strip()
         published = published_raw
         if published_raw:
@@ -60,7 +59,8 @@ def _parse_rss(raw: bytes) -> list[dict]:
         items.append(
             {
                 "title": title,
-                "summary": summary[:400],
+                "summary": summary,
+                "summary_html": summary_html,
                 "link": link,
                 "published": published,
                 "source": "cafef.rss",
