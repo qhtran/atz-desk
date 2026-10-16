@@ -66,8 +66,25 @@ def _save(conn, user_id: int, names: list[str], chosen: dict[str, dict]) -> None
         save_filter_config(conn, user_id, name, chosen[name], True, index)
 
 
+def _show_criteria_catalog() -> None:
+    from ui.filter_criteria import criteria_board
+
+    with st.expander("Tiêu chí lọc (catalog F1)", expanded=False):
+        st.dataframe(
+            criteria_board(),
+            hide_index=True,
+            width="stretch",
+            alt="Bảng tiêu chí lọc kỹ thuật và mẫu hình theo checklist F1",
+        )
+        st.caption(
+            "Catalog theo mentor F1. Chọn bộ lọc tương ứng bên dưới để chạy. "
+            "Bollinger / Ichimoku / phần II chờ mô tả bổ sung."
+        )
+
+
 def show_filters() -> None:
     st.subheader("Bộ lọc tín hiệu")
+    _show_criteria_catalog()
     mode = st.segmented_control(
         "Chế độ",
         ["Lọc tự do", "Top 5 mỗi ngành"],

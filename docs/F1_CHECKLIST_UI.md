@@ -3,7 +3,7 @@
 - **Nguồn:** `MoTaCongViecThucHienCapNhatSite_RevF1.docx` (iCloud StockRnD / ideas_from_Hien)
 - **Bản chữ + ảnh local:** cùng thư mục, file `*_text.md` và `*_media/word/media/`
 - **Ngày ghi checklist:** 2026-10-17
-- **Trạng thái:** Đang làm từng mục (1–6 xong/MVP; còn 7 + realtime giá sidebar)
+- **Trạng thái:** F1 UI gần xong (1–7 catalog/MVP); còn siết logic filter F1 + realtime giá sidebar
 
 ---
 
@@ -98,8 +98,10 @@ Thay khối hiện tại (trạng thái phiên + tổng vốn + mức rủi ro %
 
 ## 7. “Bộ lọc tín hiệu” — thêm Tiêu chí lọc
 
-- [ ] Giữ / làm rõ tab **Bộ lọc tín hiệu**
-- [ ] Bổ sung mục **Tiêu chí lọc** (bảng):
+- [x] Giữ / làm rõ tab **Bộ lọc tín hiệu**
+- [x] Bổ sung mục **Tiêu chí lọc** (catalog UI, map sang filter hiện có)
+- [ ] Siết logic filter đúng mô tả F1 (nến đảo chiều / RSI đáy / MACD hist…)
+- [ ] Bollinger / Ichimoku / phần II — chờ mentor bổ sung doc
 
 | TT | Tên tiêu chí | Ghi chú trong doc F1 |
 |----|--------------|----------------------|
@@ -112,7 +114,8 @@ Thay khối hiện tại (trạng thái phiên + tổng vốn + mức rủi ro %
 | 6 | Mây Ichimoku | *(chưa mô tả)* |
 | II | Chỉ báo mẫu hình | *(doc bị cắt — cần mentor bổ sung)* |
 
-**Ảnh tham chiếu:** `image11.png` (tab)
+**Ảnh tham chiếu:** `image11.png` (tab)  
+**Code:** `ui/filter_criteria.py` + expander trên `filters_page` — 2026-10-17
 
 **Độ lớn:** lớn; **thiếu nội dung** mục 5–6 và phần II
 
