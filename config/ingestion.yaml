@@ -1,0 +1,34 @@
+# Module 1 - Ingestion Service. Khóa theo tài liệu artifacts/Kien_Truc_He_Thong_Realtime_Atz.md (mục 2).
+# Mọi giá trị có thể ghi đè bằng biến môi trường INGEST_* (xem ingestion/config.py).
+ingestion:
+  primary_source: KBS
+  fallback_source: VCI
+  poll_interval_seconds: 8
+  batch_size: 50
+  safety_max_rpm: 380
+  request_timeout_seconds: 8
+  circuit_breaker:
+    failure_threshold: 5
+    recovery_timeout_seconds: 45
+  # --- bổ sung (không có trong tài liệu, xem báo cáo "Deviations") ---
+  circuit_breaker_window_seconds: 60      # "5 lỗi / 60s"
+  retries: 2                               # "retry 2 lần + jitter"
+  retry_backoff_seconds: 0.5
+  retry_jitter_seconds: 0.5
+  limiter_burst: 10                        # dung lượng bucket; refill = (max_rpm - burst)/phút => mọi cửa sổ 60s <= max_rpm
+  throttle_warn_ratio: 0.2                 # log DBG-INGEST-RATE khi token còn <= 20% burst
+  degraded_interval_multiplier: 4          # cả hai nguồn lỗi -> interval x4
+  degraded_max_interval_seconds: 60
+  off_hours_poll_interval_seconds: 60      # ngoài giờ giao dịch HOSE: poll thưa để lịch sự với API
+  trading_hours: "09:00-15:00"
+  timezone: "Asia/Ho_Chi_Minh"
+redis:
+  url: redis://redis:6379/0
+  quote_key: "quote:{symbol}"
+  quote_ttl_seconds: 86400
+  stream: "stream:quotes"
+  stream_maxlen: 100000
+  health_key: "ingest:health"
+  health_max_age_seconds: 120
+symbols: [ACB, BCM, BID, BVH, CTG, FPT, GAS, GVR, HDB, HPG, LPB, MBB, MSN, MWG, PLX,
+          SAB, SHB, SSB, SSI, STB, TCB, TPB, VCB, VHM, VIB, VIC, VJC, VNM, VPB, VRE]

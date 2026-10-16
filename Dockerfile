@@ -13,5 +13,7 @@ COPY ui ./ui
 COPY engine ./engine
 COPY filters ./filters
 COPY storage ./storage
+COPY ingestion ./ingestion
+COPY config ./config
 EXPOSE 8501
 CMD ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0", "--server.headless=true"]

@@ -9,6 +9,43 @@ services:
     ports: ["127.0.0.1:8501:8501"]
     volumes: ["./data:/app/data", "./vnstock_home:/root/.vnstock"]
     env_file: [".env"]
+  # --- Module 1: realtime ingestion (artifacts/Kien_Truc_He_Thong_Realtime_Atz.md mục 2) ---
+  redis:
+    image: redis:7-alpine
+    container_name: vnstocks-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec",
+              "--maxmemory", "256mb", "--maxmemory-policy", "volatile-lru"]
+    volumes: ["./redis_data:/data"]
+    networks: [realtime]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  ingestion:
+    image: vnstocks-vnstocks   # cùng image với app (build bởi service vnstocks)
+    container_name: vnstocks-ingestion
+    restart: unless-stopped
+    command: ["python", "-m", "ingestion"]
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes: ["./vnstock_home:/root/.vnstock"]
+    env_file: [".env", ".env.ingestion"]
+    networks: [default, realtime]   # default: ra Internet tới KBS/VCI; realtime: tới Redis
+    healthcheck:
+      test: ["CMD", "python", "-m", "ingestion.health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 3
+
 secrets:
   vnstock_index:
     file: ./.pip_index
+
+networks:
+  realtime:
+    internal: true
