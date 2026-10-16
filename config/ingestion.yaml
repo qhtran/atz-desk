@@ -3,9 +3,9 @@
 ingestion:
   primary_source: KBS
   fallback_source: VCI
-  poll_interval_seconds: 8
+  poll_interval_seconds: 3                # đo 2026-10-16 (User Manual 6.1): 1 req/chu kỳ = 20 rpm
   batch_size: 50
-  safety_max_rpm: 380
+  safety_max_rpm: 168                     # floor(0.7*240): KBS+VCI chưa chạm limit ở trần thử 240 rpm
   request_timeout_seconds: 8
   circuit_breaker:
     failure_threshold: 5

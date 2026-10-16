@@ -175,6 +175,19 @@ Thay đổi config → restart service tương ứng.
 
 ---
 
+### 6.1 Rate limit nguồn dữ liệu (đo thực tế 2026-10-16, từ VPS 112.213.88.230)
+Probe `[DBG-20261016-0624..0629-INGEST-RATEPROBE]`, trong phiên, ingestion tạm dừng; mỗi nguồn riêng, cùng shape production (`price_board` 30 mã/1 request), bậc 10→240 rpm, 30s/bậc.
+
+| Nguồn | 10 | 20 | 30 | 45 | 60 | 90 | 120 | 180 | 240 rpm | Lỗi |
+|---|---|---|---|---|---|---|---|---|---|---|
+| KBS p50/p95 ms | 110/307 | 101/191 | 103/169 | 96/118 | 101/131 | 102/129 | 102/130 | 99/129 | 102/146 | 0 |
+| VCI p50/p95 ms | 598/1413 | 602/642 | 609/673 | 615/673 | 598/647 | 601/708 | 602/679 | 592/681 | 590/669 | 0 |
+
+- Kết luận: **chưa chạm limit ở trần thử 240 rpm** cho cả KBS và VCI (không 429/403, không lỗi kết nối, latency phẳng). Limit dùng để tính = 240 (giới hạn dưới, không phải limit thật).
+- Header rate-limit (X-RateLimit-*, Retry-After): **không quan sát được** — vnstock 5.0.1 gọi HTTP qua native engine, không đi qua `requests`/`http.client` của Python.
+- Cấu hình: `safety_max_rpm = floor(0.7 × 240) = 168` (một bucket dùng chung cho mọi nguồn). `poll_interval_seconds = 3` (mức tối thiểu): 30 mã/batch 50 = 1 request/chu kỳ = 20 rpm bình thường; xấu nhất (KBS 3 lần thử + VCI 3 lần thử) = 120 rpm ≤ 168.
+- Nếu thấy `ERR-INGEST` 429/403 sau khi đổi: tăng `poll_interval_seconds` về 5–8 rồi đo lại. Thêm mã (>50) sẽ tăng request/chu kỳ — tính lại `ceil(n/batch) × 60/interval ≤ safety_max_rpm`.
+
 ## 7. Quy trình xử lý sự cố chuẩn
 
 1. Xác định module bị ảnh hưởng (từ Error Code hoặc triệu chứng).
