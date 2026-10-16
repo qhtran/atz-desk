@@ -254,3 +254,16 @@ def test_t4_all_down_and_redis_down_no_exception(settings, caplog):
     feed.write_health()
     text = caplog.text
     assert "ERR-IDX-002" in text and "ERR-IDX-004" in text
+
+
+def test_t1_provider_disabled_by_config_is_skipped(settings):
+    import copy
+    s = copy.deepcopy(settings)
+    s.provider_settings.setdefault("ENTRADE", {})["enabled"] = False
+    feed = IndexFeed(s, FakeRedis())
+    assert "ENTRADE" not in [e["p"].name for e in feed.providers]
+
+
+def test_t1_repo_config_disables_entrade():
+    s = common.load()
+    assert s.provider_settings["ENTRADE"]["enabled"] is False

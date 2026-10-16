@@ -17,7 +17,8 @@ from ingestion.index.series import Spark, in_session, seconds_to_next_session
 class IndexFeed:
     def __init__(self, settings, redis_client, providers=None, clock=time.time, mono=time.monotonic):
         self.s, self.r, self.clock = settings, redis_client, clock
-        provs = providers if providers is not None else [REGISTRY[n](settings) for n in settings.providers]
+        provs = providers if providers is not None else [REGISTRY[n](settings) for n in settings.providers
+                                                           if settings.provider_settings.get(n, {}).get("enabled", True)]
         self.providers = []
         for p in provs:
             ps = settings.provider_settings.get(p.name, {})
