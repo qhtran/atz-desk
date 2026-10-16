@@ -6,6 +6,7 @@ import warnings
 
 import streamlit as st
 
+from ui.brand import BRAND_EXPAND, BRAND_NAME, PAGE_TITLE, SLOGAN
 from ui.mobile import inject_mobile_css
 from ui.pages import open_page
 
@@ -13,11 +14,13 @@ warnings.filterwarnings("ignore", category=UserWarning, module=r"vnstock(\.|$)")
 
 
 def main() -> None:
-    st.set_page_config(page_title="Quét thị trường", layout="wide")
+    st.set_page_config(page_title=PAGE_TITLE, layout="wide")
     inject_mobile_css()
-    st.title("Quét thị trường")
+    st.title(BRAND_NAME)
+    st.caption(f"{BRAND_EXPAND} · *{SLOGAN}*")
     st.caption(
-        "Top 20 mã lọc theo ROE quý gần nhất và thanh khoản. Bấm «Quét và làm mới dữ liệu» để cập nhật."
+        "Quét thị trường: Top 20 mã lọc theo ROE quý gần nhất và thanh khoản. "
+        "Bấm «Quét và làm mới dữ liệu» để cập nhật."
     )
     open_page()
 

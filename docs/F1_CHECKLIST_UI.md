@@ -9,11 +9,12 @@
 
 ## 1. Đặt tên thương hiệu
 
-- [ ] Chọn / áp dụng tên (gợi ý mentor: **VANTIQ** = Vietnam + Analytics + IQ)
-- [ ] Slogan gợi ý: *Think in Data. Trade with Discipline.*
-- [ ] Cập nhật chỗ hiện tên trên UI (title, header…); hiện đang kiểu “Quét thị trường” / atz
+- [x] Chọn / áp dụng tên: **VANTIQ** = Vietnam + Analytics + IQ
+- [x] Slogan: *Think in Data. Trade with Discipline.*
+- [x] Cập nhật title/header app (`ui/brand.py` + `app.py`); domain/auth vẫn atz.vn
 
-**Ảnh tham chiếu:** `image1.png`
+**Ảnh tham chiếu:** `image1.png`  
+**Code:** 2026-10-17 — chưa kèm logo SVG (chỉ chữ)
 
 ---
 
