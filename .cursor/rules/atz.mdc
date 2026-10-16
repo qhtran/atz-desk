@@ -6,7 +6,8 @@ alwaysApply: true
 # atz.vn / vnstocks
 
 - Đọc `AGENTS.md`, `docs/architecture.md`, `docs/troubleshooting.md` trước khi sửa.
-- Luôn đưa kế hoạch ngắn và chờ xác nhận trước khi sửa code. Không thêm tính năng lớn khi chưa được yêu cầu.
+- Orchestrator (Cursor): **tự chạy lệnh** trong repo (git pull/push, đọc outbox, brief) — không hỏi user gõ cmd. Không xóa phá dự án; không đụng file ngoài project.
+- Feature app lớn → giao VPSbot qua brief. Sửa code nóng nhỏ: kế hoạch ngắn; không thêm tính năng lớn khi chưa được yêu cầu.
 - `git pull` trước; commit nhỏ, push thường; **KHÔNG force push**.
 - Một module mỗi lần; viết/cập nhật test trong `tests/test_<module>.py`; báo Pass/Fail.
 - Config để trong `config/*.yaml`, không hardcode. Package mới phải thêm `COPY` vào Dockerfile.

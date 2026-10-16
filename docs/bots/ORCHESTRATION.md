@@ -88,5 +88,6 @@ docs/bots/
 ## Quy tắc giao tiếp Cursor (giữ nguyên)
 
 - Mọi phản hồi bắt đầu `[DBG] intent=… | modules=… | files=… | conf=…`
-- Hỏi user bằng lựa chọn đánh số `1a` / `1b`…
-- Karpathy: kế hoạch ngắn trước khi sửa code lớn; không force-push.
+- Hỏi user bằng lựa chọn đánh số `1a` / `1b`… (quyết định sản phẩm) — **không** hỏi user chạy cmd trong repo
+- Orchestrator **tự** git pull/push / thao tác file trong project (xem `ROLES_ARCHITECT.md`)
+- Karpathy: kế hoạch ngắn trước khi sửa code lớn; không force-push; không xóa phá dự án; không đụng file ngoài project
