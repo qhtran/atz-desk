@@ -104,6 +104,7 @@ Log nên chứa các trường tối thiểu:
 
 **Position Monitor - hành vi (Module 4)**: container `atz-position`, config `config/position_monitor.yaml`, không cần secret (chỉ mạng `realtime`).
 - Vị thế: bảng SQLite `positions` (data/signals.db, migration chỉ CREATE IF NOT EXISTS). Giá theo **VND** (cùng quote); chỉ LONG. Tab Danh mục cũ (`data/positions.csv`, nghìn đồng) không liên quan.
+- Top 20: bảng SQLite `top20_snapshot` (data/signals.db). Mỗi lần bấm «Quét và làm mới dữ liệu» ghi một snapshot (`scan_id`, `scanned_at` UTC, `rank`, `symbol`, `price_k`, `rs_3m_pct`, `roe_pct`, `avg_volume_20`, `source`), giữ 10 lần quét gần nhất; app đọc snapshot mới nhất. **Giá Top 20 theo nghìn đồng** (như trước). Migration chạy 1 lần/process; lần đầu nếu bảng trống thì import `data/top20_cache.csv` (source=`csv_import`). App không ghi CSV nữa; CSV chỉ được đọc dự phòng khi bảng trống (giữ 1 release). `data/scan_universe.csv` (toàn bộ mã quét) vẫn là CSV.
 - Giá: consumer group `position-monitor` trên `stream:quotes` + sweep 15s đọc `quote:{symbol}` (timeout 2s). P&L = (giá - giá vốn) x KL; ghi Redis hash `pos:live:{user_id}` (field = position id) cho UI.
 - Cảnh báo -> `stream:signals` theo Signal contract, nên đi qua Module 3 như signal thường (rate limit, quiet hours, channel `atz_alert` + chat riêng):
   - `pos_stop_loss` (SELL) khi giá <= stop_loss; `pos_take_profit` (SELL) khi giá >= take_profit. Mỗi mức bắn **1 lần** / vị thế (cột `sl_hit_at`/`tp_hit_at`, bền qua restart). Bật lại: `cli rearm ID` hoặc đổi mức bằng `cli set`.
@@ -118,7 +119,7 @@ Log nên chứa các trường tối thiểu:
 | ERR-UI-001       | Dữ liệu nhập vị thế không hợp lệ   | Mã sai, KL/giá vốn <= 0, cắt lỗ >= giá vốn hoặc chốt lời <= giá vốn (LONG). Cùng validation `position_monitor.cli add`. Hiện lỗi ngay trên form |
 | ERR-UI-002       | Vị thế không thuộc user đăng nhập  | Thao tác sửa/đóng vị thế của user khác (hoặc ID không tồn tại) bị chặn. Lặp nhiều lần từ một user -> kiểm tra phiên đăng nhập/header Authentik |
 | ERR-UI-003       | Cài đặt thông báo không hợp lệ     | chat_id không phải số, email sai, bật email mà trống email, giờ yên lặng thiếu/ sai dạng HH:MM |
-| ERR-UI-004       | Bảng giá chạy chế độ dự phòng      | Redis không phản hồi (kèm ERR-SYS-001) hoặc chưa có quote. Bảng hiện Top 20 đã lưu (top20_cache.csv) kèm banner. Kiểm tra `atz-redis`, `atz-ingestion` |
+| ERR-UI-004       | Bảng giá chạy chế độ dự phòng      | Redis không phản hồi (kèm ERR-SYS-001) hoặc chưa có quote. Bảng hiện Top 20 đã lưu (SQLite `top20_snapshot`) kèm banner. Kiểm tra `atz-redis`, `atz-ingestion` |
 | ERR-UI-005       | Tham số lọc lịch sử tín hiệu sai   | (Module 6) Số ngày ngoài 1..365, số dòng ngoài 1..500, mã không phải 3–10 ký tự chữ/số, chiều khác MUA/BÁN. Hiện lỗi ngay trên mục Tín hiệu, không truy vấn DB |
 | ERR-UI-006       | Bản ghi tín hiệu hỏng `details`    | (Module 6) `signal_history.details` không phải JSON. Dòng vẫn hiện nhưng thiếu lý do/signal_id. Kiểm tra bản ghi theo `history_id` trong log; nguồn ghi là Module 3 (`alert_dispatcher/store.py`) |
 
