@@ -8,6 +8,26 @@ from config import BULLETIN_PATH
 from datasource.alerts import ALERT_KINDS, PRICE_KINDS, add_alert, check_alerts, delete_alert, list_alerts, read_bulletin
 
 
+def bulletin_excerpt(text: str, max_lines: int = 6, max_chars: int = 700) -> str:
+    """Đoạn đầu bản tin: tiêu đề + vài dòng đầu, dừng trước bảng hoặc mục thứ hai."""
+    lines = text.strip().splitlines()
+    picked: list[str] = []
+    sections = 0
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith("|"):
+            break
+        if stripped.startswith("## "):
+            sections += 1
+            if sections > 1:
+                break
+        picked.append(line)
+        if sum(1 for item in picked if item.strip()) >= max_lines or len("\n".join(picked)) >= max_chars:
+            break
+    excerpt = "\n".join(picked).strip()
+    return text.strip() if len(excerpt) >= 0.85 * len(text.strip()) else excerpt
+
+
 def show_alerts() -> None:
     st.subheader("Bản tin")
     bulletin = read_bulletin()
@@ -18,7 +38,13 @@ def show_alerts() -> None:
         )
         st.caption(str(BULLETIN_PATH))
     else:
-        st.markdown(bulletin)
+        excerpt = bulletin_excerpt(bulletin)
+        if excerpt == bulletin:
+            st.markdown(bulletin)
+        else:
+            st.markdown(excerpt)
+            with st.expander("Xem toàn bộ bản tin", expanded=False):
+                st.markdown(bulletin)
 
     st.subheader("Cảnh báo")
     st.caption("Kiểm tra trên cache sẵn có khi mở tab hoặc bấm nút. Không gọi API và không chạy nền.")

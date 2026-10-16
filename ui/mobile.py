@@ -21,6 +21,29 @@ _MOBILE_CSS = """
     --ds-touch: 44px;
     --ds-chart-h: 420px;
   }
+  /* --- Chống tràn ngang / lệch trái-phải --- */
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { overflow-x: hidden !important; max-width: 100%; }
+  [data-testid="stApp"], [data-testid="stAppViewContainer"], [data-testid="stMain"],
+  [data-testid="stAppScrollToBottomContainer"] { overflow-x: clip !important; max-width: 100%; }
+  .stMainBlockContainer, .block-container, [data-testid="stVerticalBlock"],
+  [data-testid="stElementContainer"], [data-testid="stPlotlyChart"], .js-plotly-plot,
+  [data-testid="stMarkdownContainer"], img, iframe, video, canvas, svg { max-width: 100% !important; }
+  [data-testid="stHorizontalBlock"], [data-testid="stVerticalBlock"] { min-width: 0 !important; }
+  /* iOS tự zoom khi input < 16px rồi giữ zoom: đây là nguyên nhân "lệch phải, mất mép trái" */
+  input, textarea, select, [data-baseweb="select"] input, [data-baseweb="select"] div,
+  .stTextInput input, .stNumberInput input, .stTextArea textarea, .stDateInput input,
+  [data-testid="stMultiSelect"] input { font-size: 16px !important; }
+  /* Thanh chọn trang: một hàng, vuốt ngang */
+  [data-testid="stButtonGroup"], [data-testid="stButtonGroup"] > div,
+  [data-testid="stButtonGroup"] div:has(> button) {
+    flex-wrap: nowrap !important; overflow-x: auto !important; overflow-y: hidden;
+    max-width: 100%; scrollbar-width: none; -webkit-overflow-scrolling: touch;
+  }
+  [data-testid="stButtonGroup"] button {
+    flex: 0 0 auto !important; white-space: nowrap !important;
+    padding: 0 0.6rem !important; font-size: var(--ds-font-sm) !important;
+  }
   .stMainBlockContainer, .block-container {
     padding-left: var(--ds-space-2) !important;
     padding-right: var(--ds-space-2) !important;
@@ -55,11 +78,10 @@ _MOBILE_CSS = """
   /* Cột wrap 2 cột/hàng */
   [data-testid="stHorizontalBlock"] { flex-wrap: wrap !important; gap: var(--ds-space-2) !important; }
   [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {
-    min-width: calc(50% - var(--ds-space-2)) !important;
+    min-width: 0 !important;
     flex: 1 1 calc(50% - var(--ds-space-2)) !important;
   }
   [data-testid="stMetricValue"] { font-size: var(--ds-font-lg) !important; }
-  [data-testid="stButtonGroup"] { overflow-x: auto; flex-wrap: nowrap; }
   [data-testid="stExpander"] details summary { min-height: var(--ds-touch); }
   /* Danh mục / Tin tức: bài viết và form gọn hơn */
   .stTextArea textarea { min-height: 90px !important; }
@@ -68,7 +90,7 @@ _MOBILE_CSS = """
 }
 @media (max-width: 480px) {
   [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {
-    min-width: 100% !important; flex: 1 1 100% !important;
+    min-width: 0 !important; flex: 1 1 100% !important;
   }
   .ds-keep-row [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {
     min-width: 0 !important; flex: 1 1 0 !important;
@@ -77,6 +99,10 @@ _MOBILE_CSS = """
 /* Ngang trên điện thoại: chiều cao thấp, tận dụng bề ngang */
 @media (orientation: landscape) and (max-height: 500px) {
   :root { --ds-chart-h: 340px; --ds-touch: 40px; }
+  html, body { overflow-x: hidden !important; max-width: 100%; }
+  [data-testid="stApp"], [data-testid="stAppViewContainer"], [data-testid="stMain"] { overflow-x: clip !important; }
+  input, textarea, select, [data-baseweb="select"] input, .stTextInput input, .stNumberInput input,
+  .stTextArea textarea, .stDateInput input, [data-testid="stMultiSelect"] input { font-size: 16px !important; }
   .stMainBlockContainer, .block-container {
     padding-top: 3.25rem !important;
     padding-left: var(--ds-space-3, 0.75rem) !important;
@@ -99,8 +125,15 @@ _MOBILE_CSS = """
   }
   [data-testid="stHorizontalBlock"] { flex-wrap: wrap !important; }
   [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {
-    min-width: calc(33% - 0.5rem) !important; flex: 1 1 calc(33% - 0.5rem) !important;
+    min-width: 0 !important; flex: 1 1 calc(33% - 0.5rem) !important;
   }
+}
+/* Biểu đồ: bản mobile (420px, chú thích dưới) cho màn hẹp hoặc xoay ngang thấp; bản desktop giữ nguyên */
+@media (max-width: 768px), (orientation: landscape) and (max-height: 500px) {
+  [class*="st-key-dschart-d-"] { display: none !important; }
+}
+@media (min-width: 769px) and (min-height: 501px) {
+  [class*="st-key-dschart-m-"] { display: none !important; }
 }
 </style>
 """

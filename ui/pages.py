@@ -162,13 +162,12 @@ def show_charts(symbol: str, bars: pd.DataFrame, neckline: float | None) -> None
     work = enrich(bars)
     render_chart(
         charts.candle_chart(symbol, work, neckline),
-        height=450,
         alt=f"Nến ngày, MA20/MA50, Bollinger và đáy trung tâm của {symbol}",
     )
     with st.expander("Chỉ báo: khối lượng, RSI, MACD, MFI", expanded=False):
         for tab, (name, builder) in zip(st.tabs(list(charts.INDICATOR_CHARTS)), charts.INDICATOR_CHARTS.items()):
             with tab:
-                render_chart(builder(symbol, work), height=400, alt=f"{name} của {symbol}")
+                render_chart(builder(symbol, work), alt=f"{name} của {symbol}")
         show_money_flow(symbol, work)
 
 
