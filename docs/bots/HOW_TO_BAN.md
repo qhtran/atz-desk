@@ -14,9 +14,11 @@ Bạn bảo Cursor: “pull, đọc kết quả”
 
 ## Làm một lần (khởi động bot)
 
-1. Mở **AuditorBot** → copy nguyên `docs/auditorbot/PROMPT_FOR_AUDITORBOT.md` (khối trong \`\`\`).
-2. Mở **VPSbot** → copy nguyên `docs/bots/vpsbot/PROMPT_FOR_VPSBOT.md` (khối trong \`\`\`).
-3. Để hai phiên **mở / chạy** (đừng tắt). Chúng sẽ tự `git pull` và tìm việc.
+Chỉ cần khi phiên bot chưa mở. Orchestrator đã push việc lên GitHub.
+
+1. Mở **AuditorBot** → paste khối trong `docs/auditorbot/PROMPT_FOR_AUDITORBOT.md`.
+2. Mở **VPSbot** → paste khối trong `docs/bots/vpsbot/PROMPT_FOR_VPSBOT.md`.
+3. Giữ hai phiên mở — chúng tự `git pull` và lấy việc.
 
 ## Mỗi khi có việc mới
 
