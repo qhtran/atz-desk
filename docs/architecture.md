@@ -78,6 +78,8 @@ Nhận dữ liệu near-realtime từ KBS (ưu tiên) và VCI (dự phòng), chu
   "high": 63000.0,
   "low": 61800.0,
   "ref_price": 62000.0,
+  "ceiling_price": 66300.0,
+  "floor_price": 57700.0,
   "source": "kbs",
   "batch_id": "b_20261016_100700",
   "latency_ms": 420

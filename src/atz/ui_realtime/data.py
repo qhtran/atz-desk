@@ -225,6 +225,7 @@ def quote_rows(quotes: list[dict], stale_seconds: float, now: datetime | None = 
         stale = flagged or age is None or age > stale_seconds
         rows.append({"Mã": q.get("symbol"), "Giá": q.get("price"), "+/-": q.get("change"), "%": q.get("change_pct"),
                      "Mở": q.get("open"), "Cao": q.get("high"), "Thấp": q.get("low"), "TC": q.get("ref_price"),
+                     "Trần": q.get("ceiling_price"), "Sàn giá": q.get("floor_price"),
                      "Sàn": str(q.get("exchange") or ""),
                      "Nguồn": str(q.get("source") or "").upper(), "Lúc": ts.astimezone(TZ).strftime("%H:%M:%S") if ts else "?",
                      "Trạng thái": "⚠️ cũ" if stale else "live", "_stale": stale, "_ts": ts})

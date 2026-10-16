@@ -21,6 +21,8 @@ class Quote:
     high: float | None
     low: float | None
     ref_price: float | None
+    ceiling_price: float | None  # từ price_board (ceiling_price)
+    floor_price: float | None    # từ price_board (floor_price)
     source: str             # "kbs" | "vci"
     batch_id: str
     latency_ms: int
@@ -28,6 +30,15 @@ class Quote:
 
     def to_dict(self) -> dict:
         return asdict(self)
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "Quote":
+        """Tương thích cache Redis cũ (thiếu ceiling/floor)."""
+        payload = dict(data)
+        payload.setdefault("ceiling_price", None)
+        payload.setdefault("floor_price", None)
+        payload.setdefault("stale", False)
+        return cls(**payload)
 
 
 VOLUME_COLUMNS = ("total_volume", "volume", "accumulated_volume", "match_volume_total", "total_vol")
@@ -62,6 +73,8 @@ def normalize_row(row: dict, source: str, batch_id: str, latency_ms: int, now: d
         high=_num(row.get("high_price")),
         low=_num(row.get("low_price")),
         ref_price=ref,
+        ceiling_price=_num(row.get("ceiling_price")),
+        floor_price=_num(row.get("floor_price")),
         source=source.lower(),
         batch_id=batch_id,
         latency_ms=int(latency_ms),

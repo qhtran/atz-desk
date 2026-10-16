@@ -25,7 +25,7 @@ from ingestion.store import RedisStore
 
 SYMBOLS = ["VNM", "VCB", "HPG", "FPT", "MWG", "TCB", "SSI", "VHM", "MBB", "ACB"]
 FIELDS = ["symbol", "exchange", "timestamp", "price", "change", "change_pct", "volume", "open",
-          "high", "low", "ref_price", "source", "batch_id", "latency_ms"]
+          "high", "low", "ref_price", "ceiling_price", "floor_price", "source", "batch_id", "latency_ms"]
 
 
 class FakeClock:
@@ -88,7 +88,9 @@ def find(caplog, action, text="", code=None):
 
 
 def board(symbols, price=10000.0):
-    return pd.DataFrame([{"symbol": s, "exchange": "HOSE", "reference_price": price, "open_price": price,
+    return pd.DataFrame([{"symbol": s, "exchange": "HOSE", "reference_price": price,
+                          "ceiling_price": price * 1.07, "floor_price": price * 0.93,
+                          "open_price": price,
                           "high_price": price * 1.02, "low_price": price * 0.98,
                           "close_price": price * 1.01} for s in symbols])
 
@@ -108,6 +110,7 @@ def test_t1_real_kbs_batch_normalized_and_cached(settings, store, caplog):
         d = q.to_dict()
         assert list(d)[: len(FIELDS)] == FIELDS
         assert q.source == "kbs" and not q.stale and q.price > 0
+        assert q.ceiling_price and q.floor_price and q.ceiling_price > q.ref_price > q.floor_price
         assert datetime.fromisoformat(q.timestamp).utcoffset().total_seconds() == 7 * 3600
         assert q.batch_id.startswith("b_") and q.latency_ms >= 0
         cached = json.loads(store.r.get(f"quote:{q.symbol}"))
@@ -174,6 +177,7 @@ def test_t4_both_down_degraded_serves_stale_cache(settings, store, caplog):
     clock, calls = FakeClock(), {}
     old = [Quote(symbol=s, exchange="HOSE", timestamp="2026-10-16T10:07:00+07:00", price=50000.0, change=0.0,
                  change_pct=0.0, volume=None, open=50000.0, high=50000.0, low=50000.0, ref_price=50000.0,
+                 ceiling_price=53500.0, floor_price=46500.0,
                  source="kbs", batch_id="b_old", latency_ms=1) for s in SYMBOLS]
     store.save(old)
     orch = Orchestrator(settings, store, fetchers={"KBS": failing(calls, "KBS"), "VCI": failing(calls, "VCI")},
