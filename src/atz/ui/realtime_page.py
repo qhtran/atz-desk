@@ -13,6 +13,7 @@ import streamlit as st
 
 from engine.identity import current_username
 from ui.components import render_data_table
+from ui.theme_tokens import css_signed_number
 from ui_realtime import data
 from ui_realtime import index_cards
 from order_helper import core as oah
@@ -105,7 +106,7 @@ def _board(user_id: int, interval) -> None:
         st.warning(f"⚠️ {stale}/{len(rows)} mã có giá cũ (> {_cfg()['ui_realtime']['quote_stale_seconds']}s hoặc nguồn gắn cờ stale).")
     styled = frame.style.format({"Giá": "{:,.0f}", "+/-": "{:+,.0f}", "%": "{:+.2f}", "Mở": "{:,.0f}", "Cao": "{:,.0f}",
                                  "Thấp": "{:,.0f}", "TC": "{:,.0f}"}, na_rep="-").map(
-        lambda v: "" if pd.isna(v) else ("color: #3ddc97" if v > 0 else "color: #ff6b6b" if v < 0 else ""), subset=["+/-", "%"])
+        css_signed_number, subset=["+/-", "%"])
     render_data_table(styled, key_cols=["Giá", "%", "Trạng thái"], key="rt_board")
     tick = newest.astimezone(TZ).strftime("%H:%M:%S") if newest else "?"
     st.caption(f"{_stamp(interval)} · quote mới nhất {tick} · giá VND · {len(rows)} mã")
@@ -140,7 +141,7 @@ def _positions_live(user_id: int, interval) -> None:
     st.metric("Tổng lãi/lỗ (VND)", f"{total:+,.0f}")
     styled = frame.style.format({"KL": "{:,.0f}", "Giá vốn": "{:,.0f}", "Giá": "{:,.0f}", "Lãi/lỗ": "{:+,.0f}", "%": "{:+.2f}",
                                  "Cắt lỗ": "{:,.0f}", "Chốt lời": "{:,.0f}"}, na_rep="-").map(
-        lambda v: "" if pd.isna(v) else ("color: #3ddc97" if v > 0 else "color: #ff6b6b" if v < 0 else ""), subset=["Lãi/lỗ", "%"])
+        css_signed_number, subset=["Lãi/lỗ", "%"])
     render_data_table(styled, key_cols=["Giá", "Lãi/lỗ", "%"], key="rt_pos")
     st.caption(f"{_stamp(interval)} · Lãi/lỗ cập nhật khi có giá mới, chậm nhất khoảng 15 giây.")
 

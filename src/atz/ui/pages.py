@@ -31,15 +31,7 @@ from ui.components import render_chart
 
 
 def style_board(board: pd.DataFrame):
-    def paint(value: object) -> str:
-        if pd.isna(value):
-            return ""
-        number = float(value)
-        if number > 0:
-            return "color: #3ddc97"
-        if number < 0:
-            return "color: #ff6b6b"
-        return ""
+    from ui.theme_tokens import css_signed_number
 
     return board.style.format(
         {
@@ -48,7 +40,7 @@ def style_board(board: pd.DataFrame):
             "ROE (%)": "{:.2f}",
             "KLGD TB 20 phiên": "{:,.0f}",
         }
-    ).map(paint, subset=["RS 3 tháng (%)", "ROE (%)"])
+    ).map(css_signed_number, subset=["RS 3 tháng (%)", "ROE (%)"])
 
 
 def render_sidebar() -> tuple[float, float]:
