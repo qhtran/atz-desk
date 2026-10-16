@@ -41,6 +41,6 @@
 
 ## Ghi chú VPS (SSH)
 
-- Liên lạc server: **SSH** (VPSbot tự SSH; không nhờ Cursor)
+- Liên lạc server: **SSH qua cổng 443** (VPSbot tự SSH; không nhờ Cursor)
 - Host path: `/opt/vnstocks`
 - Services restart: `vnstocks` / `ingestion` / …

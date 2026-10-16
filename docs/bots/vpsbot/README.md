@@ -2,7 +2,7 @@
 
 Coder + **ops/infra** cho atz.vn: app code, **Docker/Compose**, deploy VPS, Redis/SQLite, nginx/server setup theo brief.
 
-**Kênh:** GitHub (brief/code/outbox) + **SSH** (mọi lệnh trên VPS).
+**Kênh:** GitHub (brief/code/outbox) + **SSH qua cổng 443** (mọi lệnh trên VPS).
 
 | File | Mục đích |
 |------|----------|

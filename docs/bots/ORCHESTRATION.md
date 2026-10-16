@@ -6,7 +6,7 @@
 |--------|-----|------|------|
 | **Orchestrator** | Cursor (Composer) trong chat này | Hiểu mục tiêu user → chia việc → đọc kết quả → chốt ưu tiên `1a/1b…` → (tuỳ chọn) review diff | Chat Cursor + git |
 | **Auditor** | AuditorBot (Grok + computer use) | Survey **atz.vn** / **fireant.vn**, báo cáo lệch UI/UX | `docs/auditorbot/inbox/` |
-| **Coder / Ops / Infra** | VPSbot | Code, test, commit; **Docker/Compose**, deploy `/opt/vnstocks`, Redis/SQLite, nginx & server setup (+ `user_confirmed_infra` nếu rủi ro) | GitHub inbox/outbox + **SSH → VPS** |
+| **Coder / Ops / Infra** | VPSbot | Code, test, commit; **Docker/Compose**, deploy `/opt/vnstocks`, Redis/SQLite, nginx & server setup (+ `user_confirmed_infra` nếu rủi ro) | GitHub inbox/outbox + **SSH:443 → VPS** |
 | **Chủ repo** | Bạn | Quyết định lớn, auth bot lần đầu, chuyển prompt khởi động | Chat + GitHub |
 
 **Giả định nền (đã chốt):** **mọi bot đều `git pull` / `git push` được** cùng remote GitHub. Không copy tay file giữa máy trừ khi git lỗi.
