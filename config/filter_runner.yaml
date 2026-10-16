@@ -1,0 +1,48 @@
+# Module 2 - Streaming Filter Runner. Theo artifacts/Kien_Truc_He_Thong_Realtime_Atz.md mục 3
+# và artifacts/User_Manual_Troubleshooting_Realtime_Atz.md. Ghi đè bằng env FILTER_* (xem filter_runner/config.py).
+filter_runner:
+  consumer:
+    stream: "stream:quotes"
+    group: "filter-runner"
+    consumer_name: "runner-1"
+    read_count: 100
+    block_ms: 2000
+    claim_min_idle_ms: 60000         # pending quá 60s (consumer chết) -> XAUTOCLAIM lấy lại
+    claim_every_seconds: 30
+  evaluator:
+    timeout_seconds: 2               # "timeout 2s / filter"
+    max_workers: 4
+  filter_circuit:
+    failure_threshold: 5             # "lỗi liên tục -> tạm disable"
+    window_seconds: 300
+    disable_seconds: 600
+  dedup:
+    window_seconds: 600              # "Dedup window (mặc định 600s)"
+    key: "dedup:{user_id}:{symbol}:{filter_name}:{direction}"
+    fail_open: false                 # Redis lỗi khi dedup -> ERR-FILTER-004, KHÔNG publish (tránh spam)
+  publisher:
+    stream: "stream:signals"
+    maxlen: 100000
+  backpressure:
+    lag_threshold: 500               # pending+chưa đọc > ngưỡng -> chỉ xử lý quote mới nhất mỗi mã
+    max_signal_stream_len: 100000
+  history:
+    days: 400                        # = config.CHART_DAYS của app
+    cache_ttl_seconds: 1800
+    remote_fetch: true               # dùng loader của app (đọc data/ohlcv, thiếu/cũ thì gọi vnstock 1 lần rồi ghi lại)
+    quote_price_scale: 0.001         # quote (VND) -> đơn vị nến data/ohlcv (nghìn đồng)
+  resolver:
+    cache_ttl_seconds: 60
+    default_user_id: "default"       # khi DB không có user nào
+    # user không có config -> chạy bộ mặc định này
+    default_filters:
+      - {filter: rsi, params: {}}
+      - {filter: macd, params: {}}
+      - {filter: ma, params: {}}
+  health:
+    key: "filter:health"
+    max_age_seconds: 120
+redis:
+  url: redis://redis:6379/0
+sqlite:
+  path: /app/data/signals.db
