@@ -1,0 +1,44 @@
+# Module 3 - Alert Dispatcher. Theo artifacts/Kien_Truc_He_Thong_Realtime_Atz.md mục 4
+# và artifacts/User_Manual_Troubleshooting_Realtime_Atz.md. Secret (token, Brevo key) chỉ nằm trong .env.alert / .env.
+alert_dispatcher:
+  consumer:
+    stream: "stream:signals"
+    group: "alert-dispatcher"
+    consumer_name: "alert-1"
+    read_count: 50
+    block_ms: 2000
+    claim_min_idle_ms: 60000
+    claim_every_seconds: 30
+  channels:
+    telegram:
+      enabled: true
+      timeout_seconds: 10
+      retries: 2                       # tổng 3 lần thử
+      broadcast_chat_ids: [-1003736327598]   # channel atz_alert: nhận mọi signal
+    email:
+      enabled: false                   # chưa có Brevo key trên VPS -> tắt, không mở circuit, không log lỗi
+      timeout_seconds: 30
+      retries: 1
+    inapp:
+      enabled: true
+      max_per_user: 200                # Redis list inapp:{user_id}
+  routing:
+    primary: telegram
+    fallback: [email]                  # telegram lỗi/circuit mở -> email (nếu bật); in-app luôn ghi
+  circuit:
+    failure_threshold: 5
+    window_seconds: 300
+    open_seconds: 300
+  rate_limit:
+    windows: [{seconds: 300, max: 10}, {seconds: 3600, max: 30}]   # 10/5min, 30/hour
+  quiet_hours:
+    default: null                      # vd {start: "22:00", end: "07:00"}; user ghi đè trong cai_dat_chung.quiet_hours
+  dedup:
+    window_seconds: 86400              # theo signal_id
+  health:
+    key: "alert:health"
+    max_age_seconds: 120
+redis:
+  url: redis://redis:6379/0
+sqlite:
+  path: /app/data/signals.db

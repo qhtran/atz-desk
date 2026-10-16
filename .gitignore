@@ -20,3 +20,4 @@ venv/
 .env.ingestion
 redis_data/
 logs/
+.env.alert

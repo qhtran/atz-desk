@@ -66,6 +66,27 @@ services:
       start_period: 60s
       retries: 3
 
+  alert-dispatcher:
+    image: vnstocks-vnstocks   # cùng image với app (Module 3)
+    container_name: atz-alert
+    restart: unless-stopped
+    command: ["python", "-m", "alert_dispatcher"]
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes: ["./data:/app/data", "./logs:/app/logs"]
+    environment:
+      ALERT_CONFIG: /app/config/alert_dispatcher.yaml
+      ALERT_LOG_DIR: /app/logs
+    env_file: [".env", ".env.alert"]
+    networks: [default, realtime]   # default: ra Internet tới Telegram/Brevo; realtime: Redis
+    healthcheck:
+      test: ["CMD", "python", "-m", "alert_dispatcher.health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 3
+
 secrets:
   vnstock_index:
     file: ./.pip_index
