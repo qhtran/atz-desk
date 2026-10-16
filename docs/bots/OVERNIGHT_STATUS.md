@@ -1,6 +1,7 @@
-# Status
+# Status (tự quyết — chủ repo ngủ)
 
-- Queue + sidebar code đã trên `main` (`9abfdb7` / `bd79724`).
-- Cursor: **không** tự code / không poll loop — chờ 2 bot.
-- VPSbot: inbox `0622` → `0630` → `0700`
-- Auditor: tasks trong `docs/auditorbot/tasks/`
+- **Mode:** autonomous — không hỏi user; quyết định theo OVERNIGHT_QUEUE + ROLES
+- **Liên lạc:** poll git ~30 phút → `vpsbot/outbox` + `auditorbot/inbox`
+- **HEAD docs liaison:** `76aa3ae`
+- **Chờ bot:** chưa có outbox/báo cáo mới (lúc ghi)
+- **Cấm:** file ngoài project · force push · SSH thay VPSbot
