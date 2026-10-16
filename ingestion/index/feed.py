@@ -24,7 +24,7 @@ class IndexFeed:
             self.providers.append({
                 "p": p, "bucket": Bucket(float(ps.get("rpm", 30)), clock=mono, burst=ps.get("burst")),
                 "cb": CircuitBreaker(p.name, int(ps.get("failure_threshold", 3)), float(ps.get("recovery_seconds", 60)),
-                                     60.0, clock=mono),
+                                     float(ps.get("window_seconds", 60)), clock=mono),
                 "errors": 0, "last_ok": None, "skipped": 0,
             })
         self.sparks = {s: Spark(s, settings.timezone, settings.spark_max) for s in settings.symbols}

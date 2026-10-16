@@ -236,6 +236,17 @@ def test_t4_provider_down_circuit_breaker_no_exception(settings):
     assert feed.health()["providers"]["ENTRADE"]["circuit"] == OPEN
 
 
+def test_t4_sparse_failures_still_open_with_long_window(settings):
+    ent = Fake("ENTRADE", fail=True)
+    t = [0.0]
+    feed = IndexFeed(settings, FakeRedis(), providers=[ent, Fake("VIETCAP", {s: (2.0, 1.0) for s in SYMS})],
+                     mono=lambda: t[0])
+    for _ in range(3):   # 1 lỗi / 30s (limiter thưa) vẫn phải mở circuit nhờ window 600s
+        feed.cycle()
+        t[0] += 30
+    assert feed.providers[0]["cb"].state == OPEN
+
+
 def test_t4_all_down_and_redis_down_no_exception(settings, caplog):
     feed = IndexFeed(settings, FakeRedis(fail=True), providers=[Fake("VIETCAP", fail=True)])
     assert feed.cycle() == {}
