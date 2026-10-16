@@ -16,4 +16,6 @@ Nguồn code: `src/atz/ui/theme_tokens.py`
 
 **Quy tắc:** số Δ / % / giá theo dấu phiên; sparkline bảng mã = **một màu** theo dấu Δ (không clip TC). Thẻ chỉ số vẫn dùng sparkline clip vàng TC.
 
+**Realtime:** trần `#AB47BC` / sàn `#29B6F6` suy từ TC × biên độ (`BAND_HOSE/HNX/UPCOM` trong config); flash nền khi giá đổi giữa 2 lần fragment.
+
 Đã áp: desk, Tổng quan, Realtime, Top KL, thẻ chỉ số, `config.CHART`.
