@@ -13,7 +13,7 @@ from engine.identity import current_username
 from engine.notify import BrevoSender, maybe_notify
 from engine.runner import load_frames_for_run, run_frames
 from filters import load_registry
-from ui.mobile import pinned
+from ui.components import render_data_table
 from filters.base import ParamSpec
 from storage.db import open_signals
 from storage.repository import (
@@ -88,6 +88,20 @@ def show_filters() -> None:
         user = get_user(conn, user_id)
         saved = {row["filter_name"]: row for row in list_filter_configs(conn, user_id)}
         default_names = [name for name in saved if name in registry and saved[name]["enabled"]]
+        # Ô chọn mã đặt đầu trang, full width: luôn thấy trên điện thoại.
+        preset = [
+            str(item).strip().upper()
+            for item in st.session_state.get("filter_symbols", [])
+            if str(item).strip()
+        ]
+        preset = [item for item in preset if item in UNIVERSE]
+        symbols = st.multiselect(
+            "Mã cần lọc",
+            options=list(UNIVERSE),
+            default=preset,
+            placeholder="Chọn mã hoặc gửi từ Danh mục",
+        )
+        st.caption(f"Đã chọn {len(symbols)} mã.")
         names = st.multiselect(
             "Bộ lọc đang dùng",
             options=sorted(registry),
@@ -112,13 +126,6 @@ def show_filters() -> None:
                 ["mua", "ban", "giu", "cho"],
                 default=list(settings.get("loai_nhan") or ["mua", "ban"]),
             )
-        preset = [
-            str(item).strip().upper()
-            for item in st.session_state.get("filter_symbols", [])
-            if str(item).strip()
-        ]
-        preset = [item for item in preset if item in UNIVERSE]
-        symbols = st.multiselect("Mã cần lọc", options=list(UNIVERSE), default=preset)
         columns = st.columns(3)
         save_clicked = columns[0].button("Lưu cấu hình", width="stretch")
         run_clicked = columns[1].button("Chạy lọc", width="stretch")
@@ -186,7 +193,12 @@ def show_filters() -> None:
                         filled.get(str(symbol).upper(), ("—", "—"))[1] for symbol in board["Mã"]
                     ]
                     st.caption("KQKD = LNST quý hiện tại / cùng kỳ (cache data/kqkd). Thiếu dữ liệu thì «—».")
-                    st.dataframe(board, hide_index=True, width="stretch", column_config=pinned("Mã"))
+                    render_data_table(
+                        board,
+                        pin="Mã",
+                        key_cols=["Tín hiệu", "Giá", "KQKD quý hiện tại"],
+                        key="free_filter_board",
+                    )
                     from ui.trading_desk import offer_to_desk
 
                     st.caption("Mỗi mã có thể đưa sang Trạm Trading. Mã đã có trong bảng vị thế thì không ghi đè.")
