@@ -21,3 +21,8 @@ venv/
 redis_data/
 logs/
 .env.alert
+# IDE / local agent (không commit)
+.idea/
+.agents/
+# Scratch copy giữa Cursor / PyCharm / Bot VPS
+agent-reply.md
