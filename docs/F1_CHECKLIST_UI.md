@@ -30,7 +30,7 @@ Thay khối hiện tại (trạng thái phiên + tổng vốn + mức rủi ro %
 - [x] Tiền mặt
 - [x] Tài sản ròng
 - [x] Vị thế hiện tại — mã / giá mua / giá hiện tại / cảnh báo (từ Trạm Trading)
-- [ ] Giá hiện tại realtime tick HSX (MVP dùng cache OHLCV; link rtboard.hsx.vn)
+- [x] Giá hiện tại realtime tick HSX (Redis `quote:{symbol}` → nghìn đồng; fallback OHLCV; link rtboard.hsx.vn) — 2026-10-17
 - [x] Cảnh báo: gần hỗ trợ/kháng cự + mốc ±5/8/10%
 - [x] Biểu đồ cột lãi/lỗ ước lượng trên NAV phân bổ
 

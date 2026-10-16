@@ -12,29 +12,26 @@
 
 ## Mục tiêu
 
-F1 mục 2 còn mở: **giá hiện tại** trên sidebar «Tổng quan vị thế» dùng quote nóng (Redis `quote:{symbol}` / pipeline hiện có), không chỉ cache OHLCV đóng cửa. Cập nhật P&L / màu theo token FireAnt nếu đã có helper.
+**Architect đã ship code trên main** (`datasource/live_quotes.py` + sidebar Redis→OHLCV fallback + `tests/test_live_quotes.py`).
+
+VPSbot đêm nay: **verify pytest + merge nếu thiếu + deploy `vnstocks`**. Nếu code chưa đủ / fail test → sửa nhỏ rồi deploy.
 
 ## Phạm vi file / module
 
-- `src/atz/ui/sidebar_portfolio.py` (và helper datasource/redis quote nếu thiếu)
-- Có thể đụng nhẹ: `datasource/*` quote reader, `theme_tokens` / style số
-- Test: `tests/test_sidebar_portfolio.py` hoặc `tests/test_<module>.py` mới nếu chưa có
-- Config: chỉ `config/*.yaml` nếu cần TTL/key — **không** hardcode secret
+- Verify: `src/atz/datasource/live_quotes.py`, `src/atz/ui/sidebar_portfolio.py`, `tests/test_live_quotes.py`
+- Chỉ sửa nếu test Fail hoặc bug đơn vị giá (VND vs nghìn đồng)
 
 ## Không đụng
 
 - nginx / SSH / firewall / Authentik / `.env`
-- Viết lại toàn bộ capital ledger
-- Broadcast `pos_*` ra channel
-- Scope filter F1 (nến/RSI/MACD) — wave sau, chờ báo cáo Auditor nếu cần
+- Filter F1 (brief `0700`)
 
 ## Done khi
 
-1. Sidebar đọc giá live từ Redis (fallback OHLCV nếu thiếu key — ghi rõ trong outbox)
-2. Test module Pass
-3. Merge `main` + deploy service `vnstocks` (SSH:443, `/opt/vnstocks`)
-4. Outbox `docs/bots/vpsbot/outbox/20261017-0622-sidebar-live-quote-DONE.md` (hoặc `-FAIL.md`)
-5. Cập nhật checkbox F1 mục 2 trong `docs/F1_CHECKLIST_UI.md` nếu xong
+1. `pytest tests/test_live_quotes.py tests/test_capital_ledger.py` Pass
+2. Deploy `vnstocks` (SSH:443, `/opt/vnstocks`)
+3. Outbox `…-0622-sidebar-live-quote-DONE.md` (HEAD + lệnh deploy)
+4. F1 mục 2 checkbox đã tick (nếu chưa)
 
 ## Tham chiếu
 

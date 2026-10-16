@@ -1,6 +1,7 @@
 # Hàng đợi đêm (Orchestrator tự quyết)
 
 **Trạng thái:** active — chủ repo ngủ; Cursor = kiến trúc sư; 2 bot tự poll.  
+**Architect fallback:** đã code sidebar live quote trên repo (chờ VPSbot deploy).  
 **HEAD lúc mở queue:** xem `git log -1` trên `main`.
 
 ## Quyết định đã khóa (bot không hỏi lại)

@@ -1,7 +1,7 @@
 """Sidebar «Tổng quan vị thế của bạn» (F1 mục 2 MVP).
 
-Giá từ cache OHLCV (nghìn đồng). GTCK ước lượng theo vốn phân bổ trên desk
-khi chưa có khối lượng — không phải tick HSX realtime.
+Giá ưu tiên Redis quote:{symbol} (đổi sang nghìn đồng); thiếu thì OHLCV đóng cửa.
+GTCK ước lượng theo vốn phân bổ trên desk khi chưa có KL.
 """
 
 from __future__ import annotations
@@ -18,6 +18,7 @@ from config import (
     RISK_MIN,
 )
 from datasource.capital_ledger import CapitalLedger, load_ledger, nav_breakdown, save_ledger
+from datasource.live_quotes import load_live_prices_thousands
 from ui.trading_desk import _bars, _last_close, _optional, load_desk
 
 ALERT_BANDS = (5.0, 8.0, 10.0)
@@ -58,16 +59,36 @@ def position_alert(
     return " · ".join(notes) if notes else "—"
 
 
-def desk_position_rows(store: pd.DataFrame, capital: float) -> list[dict]:
-    """Mỗi mã desk → giá / cảnh báo / vốn phân bổ ước lượng."""
+def desk_position_rows(
+    store: pd.DataFrame,
+    capital: float,
+    live_prices: dict[str, float] | None = None,
+) -> list[dict]:
+    """Mỗi mã desk → giá / cảnh báo / vốn phân bổ ước lượng.
+
+    live_prices: SYMBOL → nghìn đồng (từ Redis). None → tự MGET; {} → chỉ OHLCV.
+    """
     quarter = capital / CAPITAL_TRANCHES if capital > 0 else 0.0
+    symbols: list[str] = []
+    for _, item in store.iterrows():
+        symbol = str(item["Mã"]).strip().upper()
+        if symbol and symbol != "NAN":
+            symbols.append(symbol)
+    if live_prices is None:
+        live_prices = load_live_prices_thousands(symbols)
+
     rows: list[dict] = []
     for _, item in store.iterrows():
         symbol = str(item["Mã"]).strip().upper()
         if not symbol or symbol == "NAN":
             continue
         frame = _bars(symbol)
-        current = _last_close(frame)
+        ohlcv = _last_close(frame)
+        current = live_prices.get(symbol)
+        source = "redis"
+        if current is None:
+            current = ohlcv
+            source = "ohlcv"
         buy = _optional(item["Giá mua"])
         support = _optional(item["Vùng hỗ trợ"])
         resistance = _optional(item["Vùng kháng cự"])
@@ -93,6 +114,7 @@ def desk_position_rows(store: pd.DataFrame, capital: float) -> list[dict]:
                 "mkt": mkt,
                 "pnl": pnl,
                 "pnl_pct": pnl_pct,
+                "price_source": source,
             }
         )
     return rows
@@ -173,7 +195,9 @@ def render_portfolio_overview() -> tuple[float, float]:
                 "Giá HT": st.column_config.NumberColumn(format="%.2f"),
             },
         )
-        st.caption("Giá từ cache OHLCV (nghìn đồng). Tham chiếu sàn: https://rtboard.hsx.vn/")
+        hits = sum(1 for row in positions if row.get("price_source") == "redis")
+        src = f"Redis {hits}/{len(positions)}" if hits else "OHLCV fallback"
+        st.caption(f"Giá HT: {src} (nghìn đồng). Tham chiếu: https://rtboard.hsx.vn/")
 
         chart = pd.DataFrame(
             {"Mã": [row["Mã"] for row in positions], "Lãi/lỗ (VND)": [row["pnl"] for row in positions]}
