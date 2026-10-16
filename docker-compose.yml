@@ -9,6 +9,7 @@ services:
     ports: ["127.0.0.1:8501:8501"]
     volumes: ["./data:/app/data", "./vnstock_home:/root/.vnstock"]
     env_file: [".env"]
+    networks: [default, realtime]   # Module 5: đọc Redis (quote/pos:live/inapp/health) cho UI realtime
   # --- Module 1: realtime ingestion (artifacts/Kien_Truc_He_Thong_Realtime_Atz.md mục 2) ---
   redis:
     image: redis:7-alpine

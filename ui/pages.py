@@ -476,6 +476,7 @@ def open_page() -> None:
         "Trang",
         [
             "Tổng quan",
+            "Realtime",
             "Trạm Trading",
             "Bộ lọc tín hiệu",
             "Danh mục",
@@ -490,6 +491,11 @@ def open_page() -> None:
         show_overview()
         with st.expander("Top dẫn dắt đã lưu", expanded=False):
             show_dashboard(shown, filter_note)
+        return
+    if page == "Realtime":
+        from ui.realtime_page import show_realtime
+
+        show_realtime()
         return
     if page == "Danh mục":
         from ui.portfolio_page import show_portfolio

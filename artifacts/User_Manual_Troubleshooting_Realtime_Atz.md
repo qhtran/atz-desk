@@ -110,7 +110,25 @@ Log nên chứa các trường tối thiểu:
   - `pos_volatility` (BUY nếu tăng, SELL nếu giảm) khi |biến động| >= 3% trong 300s; dedup 30 phút / vị thế / chiều (Redis `pos:vdedup:*`).
   - Lưu ý Module 3: `signal_history` unique theo user+mã+filter+ngày nên cảnh báo lặp cùng ngày vẫn gửi nhưng dùng chung 1 dòng history.
 - Lệnh: `docker exec atz-position python -m position_monitor.health`; `docker logs atz-position --tail 100`.
-- Nhập vị thế (chưa có UI, Module 5): `docker exec atz-position python -m position_monitor.cli add --user akadmin --symbol FPT --qty 100 --entry 58600 --sl 55000 --tp 65000` (`--unit k` để nhập nghìn đồng); `cli list`, `cli live --user akadmin`, `cli set ID --sl X`, `cli rearm ID`, `cli close ID`.
+- Nhập vị thế: dùng trang Realtime > Vị thế (Module 5), hoặc CLI: `docker exec atz-position python -m position_monitor.cli add --user akadmin --symbol FPT --qty 100 --entry 58600 --sl 55000 --tp 65000` (`--unit k` để nhập nghìn đồng); `cli list`, `cli live --user akadmin`, `cli set ID --sl X`, `cli rearm ID`, `cli close ID`.
+
+### UI Realtime (Module 5)
+| Error Code       | Mô tả                              | Cách xử lý                                      |
+|------------------|------------------------------------|-------------------------------------------------|
+| ERR-UI-001       | Dữ liệu nhập vị thế không hợp lệ   | Mã sai, KL/giá vốn <= 0, cắt lỗ >= giá vốn hoặc chốt lời <= giá vốn (LONG). Cùng validation `position_monitor.cli add`. Hiện lỗi ngay trên form |
+| ERR-UI-002       | Vị thế không thuộc user đăng nhập  | Thao tác sửa/đóng vị thế của user khác (hoặc ID không tồn tại) bị chặn. Lặp nhiều lần từ một user -> kiểm tra phiên đăng nhập/header Authentik |
+| ERR-UI-003       | Cài đặt thông báo không hợp lệ     | chat_id không phải số, email sai, bật email mà trống email, giờ yên lặng thiếu/ sai dạng HH:MM |
+| ERR-UI-004       | Bảng giá chạy chế độ dự phòng      | Redis không phản hồi (kèm ERR-SYS-001) hoặc chưa có quote. Bảng hiện Top 20 đã lưu (top20_cache.csv) kèm banner. Kiểm tra `atz-redis`, `atz-ingestion` |
+
+**UI Realtime - hành vi (Module 5)**: trang **Realtime** trong thanh chọn trang của atz.vn (container `vnstocks`, config `config/ui_realtime.yaml`, code `ui_realtime/` + `ui/realtime_page.py`). Container `vnstocks` join mạng `realtime` để đọc Redis.
+- **Bảng giá**: đọc `quote:{symbol}` bằng 1 MGET; danh sách mã SCAN `quote:*` tối đa 1 lần/60s. Chỉ bảng chạy lại (`st.fragment(run_every)`): **3s** trong giờ giao dịch (T2–T6 09:00–11:30, 13:00–15:00 giờ VN), **30s** ngoài giờ. Khoảng refresh chốt khi tải/đổi mục trang; qua mốc giờ giao dịch thì bấm sang mục khác hoặc tải lại để đổi nhịp. Cột "Trạng thái" = `⚠️ cũ` khi quote > 120s hoặc ingestion gắn cờ stale; dòng "Cập nhật lúc HH:MM:SS" + giờ quote mới nhất. Giá VND.
+- **Tải Redis**: cache trong process 1.5s dùng chung mọi session (100 user ≈ 1 MGET / 1.5s). Redis lỗi -> ERR-SYS-001 (log tối đa 1 lần/phút), bỏ qua Redis 10s rồi thử lại, bảng chuyển dự phòng (ERR-UI-004).
+- **Vị thế**: chỉ vị thế của user đăng nhập (header `X-authentik-username` -> `users.id`). P&L đọc `pos:live:{user_id}` (Module 4 tính, sweep ≤15s), tự cập nhật như bảng giá. Form thêm (mua/LONG), sửa cắt lỗ/chốt lời (để 0 = giữ; đổi mức -> bật lại cảnh báo mức đó), đóng vị thế. Nhập theo VND hoặc nghìn đồng. Ghi thẳng bảng `positions` (`position_monitor.store`); Position Monitor nhận trong ≤30s. CLI cũ vẫn dùng được.
+- **Thông báo**: `inapp:{user_id}` (50 tin gần nhất, chỉ tin có `user_id` của chính user). Badge "Thông báo (N)" = số tin mới hơn mốc đã đọc (`inapp:seen:{user_id}`); nút "Đánh dấu đã đọc". Badge trên thanh mục cập nhật khi tải lại trang/đổi mục; số trong mục cập nhật theo fragment.
+- **Cài đặt**: `users.telegram_chat_id`, `users.email_nhan_thong_bao`, `cai_dat_chung.telegram_bat/email_bat/quiet_hours` (giữ nguyên key khác như `loai_nhan`). Module 3 đọc ở signal kế tiếp. Muốn nhận Telegram riêng: nhắn Start + `hi` cho @atz_alert_bot trước.
+- **Health** (chỉ `akadmin`, danh sách `admin_users`): redis ping+memory, heartbeat `ingest:health`, `filter:health`, `alert:health`, `pos:health` (> 120s hoặc ingestion degraded = ❌).
+- Log: `docker logs vnstocks 2>&1 | grep -- '-UI-'`. Nhãn: `UI-PAGE`, `UI-FRAGMENT` (rerun #1 rồi mỗi 20 lần/session, kèm redis_calls/cache_hits), `UI-BOARD`, `UI-REDIS`, `UI-POS-ADD/SET/CLOSE/OWN`, `UI-SETTINGS`, `UI-ALERTS-READ`.
+- Deploy: code nằm trong image -> `docker compose up -d --build vnstocks` (web gián đoạn ~10–30s). Các container realtime dùng chung image nhưng không bị restart.
 
 ### Chung
 | Error Code       | Mô tả                              | Cách xử lý                                      |

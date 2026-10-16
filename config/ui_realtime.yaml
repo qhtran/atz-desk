@@ -1,0 +1,27 @@
+# Module 5 - UI Realtime. Theo artifacts/Kien_Truc_He_Thong_Realtime_Atz.md mục 6
+# và artifacts/User_Manual_Troubleshooting_Realtime_Atz.md. Ghi đè: env UI_REDIS_URL, UI_SQLITE_PATH.
+ui_realtime:
+  timezone: "Asia/Ho_Chi_Minh"
+  trading_sessions: [["09:00", "11:30"], ["13:00", "15:00"]]   # thứ 2 - thứ 6
+  refresh_seconds_trading: 3        # st.fragment(run_every) trong giờ giao dịch
+  refresh_seconds_off: 30           # ngoài giờ (0 = tắt tự refresh)
+  cache_ttl_seconds: 1.5            # cache đọc Redis trong process (dùng chung mọi session)
+  symbols_cache_seconds: 60         # SCAN quote:* tối đa 1 lần / 60s
+  quote_key: "quote:{symbol}"
+  quote_stale_seconds: 120          # quote cũ hơn -> đánh dấu stale
+  live_key: "pos:live:{user_id}"
+  inapp_key: "inapp:{user_id}"
+  inapp_seen_key: "inapp:seen:{user_id}"   # timestamp tin mới nhất đã đọc (badge chưa đọc)
+  inapp_show: 50
+  redis_timeout_seconds: 1.0
+  redis_retry_after_seconds: 10     # Redis lỗi -> bỏ qua Redis 10s (không treo fragment), dùng dữ liệu cũ
+  error_log_every_seconds: 60       # ERR-SYS-001 tối đa 1 lần/phút/process
+  fragment_log_every: 20            # log FRAGMENT mỗi 20 lần rerun / session (bằng chứng rerun, không spam)
+  admin_users: ["akadmin"]
+  health:
+    max_age_seconds: 120
+    keys: {ingestion: "ingest:health", filter: "filter:health", alert: "alert:health", position: "pos:health"}
+redis:
+  url: redis://redis:6379/0
+sqlite:
+  path: /app/data/signals.db
