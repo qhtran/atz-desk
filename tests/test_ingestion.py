@@ -178,6 +178,7 @@ def test_t4_both_down_degraded_serves_stale_cache(settings, store, caplog):
     store.save(old)
     orch = Orchestrator(settings, store, fetchers={"KBS": failing(calls, "KBS"), "VCI": failing(calls, "VCI")},
                         clock=clock, sleep=clock.sleep)
+    orch.in_trading_hours = lambda: True          # cố định trong phiên: ngoài giờ off-hours interval (60s) = trần degraded -> test phụ thuộc giờ chạy
     normal = orch.interval()
     quotes = orch.run_cycle(SYMBOLS)
     assert len(quotes) == 10 and all(q.stale and q.batch_id == "b_old" and q.price == 50000.0 for q in quotes)
