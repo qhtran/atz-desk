@@ -22,8 +22,6 @@ def _board(n=3, base=10.0):
 def paths(tmp_path, monkeypatch):
     db, csv = tmp_path / "signals.db", tmp_path / "top20_cache.csv"
     monkeypatch.setattr(config, "SIGNALS_DB", db)
-    monkeypatch.setattr(config, "CACHE_PATH", csv)
-    monkeypatch.setattr(cache, "CACHE_PATH", csv)
     top20_store._MIGRATED.clear()
     yield db, csv
     top20_store._MIGRATED.clear()
@@ -52,26 +50,10 @@ def test_latest_snapshot_and_retention(paths):
     conn.close()
 
 
-def test_csv_imported_once_and_not_rewritten(paths):
-    db, csv = paths
-    _board(4).to_csv(csv, index=False)
-    board = cache.read_cache()
-    assert len(board) == 4
-    conn = sqlite3.connect(db)
-    assert conn.execute("SELECT source FROM top20_snapshot LIMIT 1").fetchone()[0] == "csv_import"
-    conn.close()
-    before = csv.read_bytes()
-    top20_store.save_snapshot(_board(2))
-    assert csv.read_bytes() == before
-    top20_store._MIGRATED.clear()
-    assert len(cache.read_cache()) == 2  # không import lại khi bảng đã có dữ liệu
-
-
-def test_csv_fallback_when_table_empty(paths, monkeypatch):
+def test_csv_ignored(paths):
     _, csv = paths
     _board(2).to_csv(csv, index=False)
-    monkeypatch.setattr(top20_store, "_import_csv", lambda conn, p: 0)
-    assert len(cache.read_cache()) == 2
+    assert cache.read_cache().empty  # CSV cũ không còn được đọc/import
 
 
 def test_missing_columns_rejected(paths):

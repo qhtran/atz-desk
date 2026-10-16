@@ -8,7 +8,6 @@ from zoneinfo import ZoneInfo
 # --- Đường dẫn (mọi thứ cần giữ qua rebuild nằm trong data/, là volume đã mount) ---
 APP_DIR = Path(__file__).resolve().parent
 DATA_DIR = APP_DIR / "data"
-CACHE_PATH = DATA_DIR / "top20_cache.csv"
 SCAN_UNIVERSE_PATH = DATA_DIR / "scan_universe.csv"
 POSITIONS_PATH = DATA_DIR / "positions.csv"
 JOURNAL_PATH = DATA_DIR / "journal.csv"

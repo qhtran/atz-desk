@@ -1,7 +1,7 @@
 """Top 20 lưu trong SQLite (bảng top20_snapshot). Mỗi lần quét là một snapshot, giữ KEEP_SCANS bản gần nhất.
 
 Đơn vị giữ nguyên như bảng Top 20 trước đây: "Giá" theo nghìn đồng (đầu ra của scan_top20).
-CSV cũ (data/top20_cache.csv) được import một lần khi bảng còn trống; sau đó không ghi CSV nữa.
+Không còn đọc/ghi CSV.
 """
 
 from __future__ import annotations
@@ -54,32 +54,17 @@ def _connect(path: Path) -> sqlite3.Connection:
     return conn
 
 
-def open_db(path: Path | str | None = None, csv_path: Path | str | None = None) -> sqlite3.Connection:
-    """Mở DB; migration + import CSV cũ chạy 1 lần/process/đường dẫn. Caller phải close()."""
+def open_db(path: Path | str | None = None) -> sqlite3.Connection:
+    """Mở DB; migration chạy 1 lần/process/đường dẫn. Caller phải close()."""
     db = _db_path(path)
     conn = _connect(db)
     key = str(db.resolve())
     with _LOCK:
         if key not in _MIGRATED:
             conn.executescript(_SCHEMA)
-            _import_csv(conn, Path(csv_path) if csv_path is not None else Path(config.CACHE_PATH))
             conn.commit()
             _MIGRATED.add(key)
     return conn
-
-
-def _import_csv(conn: sqlite3.Connection, csv_path: Path) -> int:
-    if conn.execute("SELECT 1 FROM top20_snapshot LIMIT 1").fetchone() or not csv_path.exists():
-        return 0
-    try:
-        board = pd.read_csv(csv_path)
-    except Exception:  # noqa: BLE001 - CSV hỏng thì bỏ qua, không chặn app
-        return 0
-    if board.empty or any(c not in board.columns for c in config.COLUMNS):
-        return 0
-    stamp = datetime.fromtimestamp(csv_path.stat().st_mtime, timezone.utc).isoformat(timespec="seconds")
-    _insert(conn, board, stamp, "csv_import")
-    return len(board)
 
 
 def _num(value):
