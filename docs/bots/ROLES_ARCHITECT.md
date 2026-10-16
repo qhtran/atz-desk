@@ -2,16 +2,23 @@
 
 | Vai | Ai | Làm | Không làm |
 |-----|-----|-----|-----------|
-| **Orchestrator** | Cursor | Giữ liên lạc (brief, `git pull`/`push`, đọc outbox khi cần); tự chạy lệnh **trong repo**; chốt hướng | Code/survey/deploy nặng (giao bot); **tuyệt đối không** đụng file ngoài project |
-| **Coder / Ops** | VPSbot | Code, test, commit, deploy SSH:443 | Đổi kiến trúc ngoài brief |
-| **Tester** | AuditorBot | Survey/regression web → inbox | Sửa code production |
+| **Orchestrator** | Cursor | **Liên lạc = poll git** (kéo `main`, xem bot đã gửi báo cáo chưa); brief ngắn; tự chạy lệnh trong repo | Code/survey/deploy nặng; **cấm** file ngoài project |
+| **Coder / Ops** | VPSbot | Code → outbox DONE/FAIL | Ngoài brief |
+| **Tester** | AuditorBot | Survey → `docs/auditorbot/inbox/` | Sửa code production |
 
-**Token:** việc nặng → 2 bot. Cursor vẫn **giữ nhịp**: tự pull/kiểm tra kết quả, brief tiếp — không nhờ user gõ cmd.
+## Liên lạc (định nghĩa)
 
-## Ranh giới bắt buộc
+Poll GitHub định kỳ trong repo:
 
-| Được (trong `/Users/…/vnstocks` hoặc clone repo) | Cấm |
-|--------------------------------------------------|-----|
-| git, brief/docs, đọc inbox/outbox, test local | Mọi path **ngoài** project (home secrets, `/etc`, `.ssh` private, máy khác…) |
-| Commit + push docs/brief | Force push, xóa phá repo, commit `.env`/secret |
-| | nginx/SSH/firewall trên VPS (VPSbot + gate) |
+1. `git pull --ff-only origin main`
+2. Xem mới trong:
+   - `docs/bots/vpsbot/outbox/` (`*-DONE.md` / `*-FAIL.md`)
+   - `docs/auditorbot/inbox/` (báo cáo survey)
+3. Có file mới → tóm tắt ngắn + brief tiếp nếu P0  
+   Không có → ngủ đến chu kỳ sau (không đốt token làm việc khác)
+
+Chu kỳ gợi ý: **~30 phút**. Chỉ thao tác trong project.
+
+## Cấm
+
+Force push · xóa phá · `.env`/secret · path ngoài project · nginx/SSH VPS (thuộc VPSbot).

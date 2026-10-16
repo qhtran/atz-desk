@@ -35,6 +35,6 @@ Chi tiết case: `docs/bots/ACCEPTANCE_TESTS.md`.
 
 ## Orchestrator (Cursor)
 
-- Giữ liên lạc: tự `git pull`/`push`, brief ngắn, đọc outbox khi cần — không nhờ user gõ cmd.
-- Việc nặng → bot (tiết kiệm token). **Cấm** đụng file ngoài project.
+- **Liên lạc = poll git ~30 phút:** `pull` → có báo cáo trong `vpsbot/outbox` / `auditorbot/inbox` thì xử lý; không thì chờ.
+- Việc nặng → bot. **Cấm** file ngoài project.
 
