@@ -5,7 +5,12 @@ from __future__ import annotations
 import sqlite3
 
 from datasource.capital_ledger import CapitalLedger
-from datasource.user_trading import load_user_trading, persist_capital_and_risk
+from datasource.user_trading import (
+    load_pinned_symbols,
+    load_user_trading,
+    persist_capital_and_risk,
+    toggle_pinned_symbol,
+)
 from storage.repository import ensure_user, get_capital_ledger, get_trading_profile
 
 
@@ -43,3 +48,11 @@ def test_default_ledger_when_empty(db: sqlite3.Connection) -> None:
     state = load_user_trading("newbie", conn=db, migrate_csv=False)
     assert state.ledger.total > 0
     assert get_capital_ledger(db, state.user_id) is None  # chưa persist
+
+
+def test_pin_toggle_persists(db: sqlite3.Connection) -> None:
+    assert toggle_pinned_symbol("alice", "fpt", conn=db) == ["FPT"]
+    assert toggle_pinned_symbol("alice", "vic", conn=db) == ["FPT", "VIC"]
+    assert toggle_pinned_symbol("alice", "FPT", conn=db) == ["VIC"]
+    assert load_pinned_symbols("alice", conn=db) == ["VIC"]
+    assert load_pinned_symbols("bob", conn=db) == []

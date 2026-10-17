@@ -121,8 +121,64 @@ def persist_capital_and_risk(
         profile["risk_tolerance_pct"] = _clamp_risk(risk_pct)
         if "custom_filters" not in profile:
             profile["custom_filters"] = {}
+        if "pinned_symbols" not in profile:
+            profile["pinned_symbols"] = []
         set_trading_profile(db, user_id, profile)
         return user_id
     finally:
         if own:
             db.close()
+
+
+def _normalize_pins(symbols: list | None, *, max_pins: int = 40) -> list[str]:
+    out: list[str] = []
+    seen: set[str] = set()
+    for raw in symbols or []:
+        code = str(raw or "").strip().upper()
+        if not code or code in seen:
+            continue
+        seen.add(code)
+        out.append(code)
+        if len(out) >= max_pins:
+            break
+    return out
+
+
+def load_pinned_symbols(username: str, *, conn=None) -> list[str]:
+    own = conn is None
+    db = conn or open_signals()
+    try:
+        user_id = ensure_user(db, username)
+        profile = get_trading_profile(db, user_id)
+        return _normalize_pins(profile.get("pinned_symbols"))
+    finally:
+        if own:
+            db.close()
+
+
+def save_pinned_symbols(username: str, symbols: list[str], *, conn=None) -> list[str]:
+    own = conn is None
+    db = conn or open_signals()
+    try:
+        user_id = ensure_user(db, username)
+        profile = get_trading_profile(db, user_id)
+        pins = _normalize_pins(symbols)
+        profile["pinned_symbols"] = pins
+        set_trading_profile(db, user_id, profile)
+        return pins
+    finally:
+        if own:
+            db.close()
+
+
+def toggle_pinned_symbol(username: str, symbol: str, *, conn=None) -> list[str]:
+    """Thêm mã nếu chưa ghim; bỏ nếu đã ghim. Trả danh sách mới."""
+    code = str(symbol or "").strip().upper()
+    pins = load_pinned_symbols(username, conn=conn)
+    if not code:
+        return pins
+    if code in pins:
+        pins = [p for p in pins if p != code]
+    else:
+        pins = _normalize_pins([*pins, code])
+    return save_pinned_symbols(username, pins, conn=conn)

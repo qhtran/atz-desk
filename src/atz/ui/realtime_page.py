@@ -85,9 +85,11 @@ def _index_cards(user_id: int) -> None:
         log("INDEX", f"render failed: {type(e).__name__}: {e}", error_code=index_cards.ERR_UI_INDEX, user_id=user_id)
 
 
-def _board_controls(user_id: int) -> tuple[str, str]:
-    """Search + chọn mã (ngoài fragment — gõ không bị reset mỗi chu kỳ)."""
-    cols = st.columns([2, 2])
+def _board_controls(user_id: int, username: str) -> tuple[str, str]:
+    """Search + chọn mã + ghim (ngoài fragment — gõ không bị reset mỗi chu kỳ)."""
+    from datasource.user_trading import load_pinned_symbols, toggle_pinned_symbol
+
+    cols = st.columns([2, 2, 1])
     query = cols[0].text_input(
         "Tìm mã nhanh",
         key="rt_symbol_filter",
@@ -115,6 +117,21 @@ def _board_controls(user_id: int) -> tuple[str, str]:
         key="rt_detail_pick",
     )
     symbol = "" if picked in (None, "—") else str(picked).upper()
+    pins = load_pinned_symbols(username)
+    st.session_state["rt_pins"] = pins
+    with cols[2]:
+        st.write("")  # căn nút
+        if symbol:
+            pinned_now = symbol in pins
+            label = f"Bỏ ghim {symbol}" if pinned_now else f"Ghim {symbol}"
+            if st.button(label, width="stretch", key="rt_pin_toggle"):
+                pins = toggle_pinned_symbol(username, symbol)
+                st.session_state["rt_pins"] = pins
+                st.rerun()
+        else:
+            st.caption("Chọn mã để ghim")
+    if pins:
+        st.caption("Ghim (đầu bảng): " + " · ".join(pins))
     _time_sales_panel(user_id, symbol, quotes)
     return str(query or ""), symbol
 
@@ -174,6 +191,18 @@ def _board(user_id: int, interval, query: str = "") -> None:
     # Lọc theo ô tìm (session) — ưu tiên tham số, fallback key
     needle = query or str(st.session_state.get("rt_symbol_filter") or "")
     frame = bv.filter_by_symbol(frame, needle)
+    pins = list(st.session_state.get("rt_pins") or [])
+    if not pins:
+        try:
+            from datasource.user_trading import load_pinned_symbols
+            from engine.identity import current_username as _uname
+
+            pins = load_pinned_symbols(_uname())
+            st.session_state["rt_pins"] = pins
+        except Exception:  # noqa: BLE001
+            pins = []
+    frame = bv.sort_pinned_first(frame, pins)
+    frame = bv.mark_pinned_column(frame, pins)
 
     state_by: dict[str, str] = {}
     for _, row in frame.iterrows():
@@ -254,7 +283,7 @@ def _board(user_id: int, interval, query: str = "") -> None:
             "Thấp": "{:,.0f}",
             "TC": "{:,.0f}",
         },
-        subset=[c for c in frame.columns if c not in ("Xu hướng", "Sàn", "Trần", "Sàn giá")],
+        subset=[c for c in frame.columns if c not in ("Xu hướng", "Ghim", "Sàn", "Trần", "Sàn giá")],
         na_rep="-",
     ).apply(_rt_row_colors, axis=1)
     hide_cols = [c for c in ("Sàn", "Trần", "Sàn giá") if c in frame.columns]
@@ -485,7 +514,7 @@ def show_realtime() -> None:
     status = "Trong giờ giao dịch" if data.in_trading(cfg) else "Ngoài giờ giao dịch"
     st.caption(f"{status} · user {username}")
     if section == "Bảng giá":
-        query, _detail = _board_controls(user_id)
+        query, _detail = _board_controls(user_id, username)
         st.fragment(run_every=interval)(_board)(user_id, interval, query)
     elif section == "Vị thế":
         st.fragment(run_every=interval)(_positions_live)(user_id, interval)

@@ -4,7 +4,15 @@ from __future__ import annotations
 
 import pandas as pd
 
-from ui_realtime.board_view import cached_spark_uri, filter_by_symbol, pick_quote_row, spark_cache_key
+from ui_realtime.board_view import (
+    cached_spark_uri,
+    filter_by_symbol,
+    mark_pinned_column,
+    normalize_pins,
+    pick_quote_row,
+    sort_pinned_first,
+    spark_cache_key,
+)
 
 
 def test_filter_by_symbol():
@@ -12,6 +20,15 @@ def test_filter_by_symbol():
     assert filter_by_symbol(frame, "v").iloc[0]["Mã"] == "VIC"
     assert list(filter_by_symbol(frame, "FP")["Mã"]) == ["FPT"]
     assert len(filter_by_symbol(frame, "")) == 3
+
+
+def test_sort_pinned_first_and_mark():
+    frame = pd.DataFrame({"Mã": ["VIC", "FPT", "VNM", "AAA"], "Giá": [1, 2, 3, 4]})
+    ordered = sort_pinned_first(frame, ["vnm", "fpt", "fpt", "ZZZ"])
+    assert list(ordered["Mã"]) == ["VNM", "FPT", "VIC", "AAA"]
+    marked = mark_pinned_column(ordered, ["FPT", "VNM"])
+    assert list(marked["Ghim"]) == ["★", "★", "", ""]
+    assert normalize_pins(["a", "A", "", "b"]) == ["A", "B"]
 
 
 def test_spark_cache_hits_builder_once():

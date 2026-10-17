@@ -16,6 +16,53 @@ def filter_by_symbol(frame: pd.DataFrame, query: str) -> pd.DataFrame:
     return frame.loc[mask].reset_index(drop=True)
 
 
+def normalize_pins(symbols: list | None, *, max_pins: int = 40) -> list[str]:
+    """Chuẩn hóa danh sách ghim: upper, unique, giữ thứ tự, cắt max_pins."""
+    out: list[str] = []
+    seen: set[str] = set()
+    for raw in symbols or []:
+        code = str(raw or "").strip().upper()
+        if not code or code in seen:
+            continue
+        seen.add(code)
+        out.append(code)
+        if len(out) >= max_pins:
+            break
+    return out
+
+
+def sort_pinned_first(frame: pd.DataFrame, pinned: list[str] | None) -> pd.DataFrame:
+    """Đưa mã ghim lên đầu (theo thứ tự pin); phần còn lại giữ nguyên thứ tự."""
+    pins = normalize_pins(pinned)
+    if not pins or frame.empty or "Mã" not in frame.columns:
+        return frame
+    order = {code: index for index, code in enumerate(pins)}
+    codes = frame["Mã"].astype(str).str.upper()
+    pinned_mask = codes.isin(order)
+    top = frame.loc[pinned_mask].copy()
+    top["_pin_ord"] = codes.loc[pinned_mask].map(order)
+    top = top.sort_values("_pin_ord", kind="stable").drop(columns=["_pin_ord"])
+    rest = frame.loc[~pinned_mask]
+    return pd.concat([top, rest], ignore_index=True)
+
+
+def mark_pinned_column(frame: pd.DataFrame, pinned: list[str] | None) -> pd.DataFrame:
+    """Thêm cột Ghim (★ / trống) ngay sau Mã nếu có."""
+    pins = set(normalize_pins(pinned))
+    if frame.empty or "Mã" not in frame.columns:
+        return frame
+    out = frame.copy()
+    out["Ghim"] = out["Mã"].astype(str).str.upper().map(lambda c: "★" if c in pins else "")
+    cols = list(out.columns)
+    cols.remove("Ghim")
+    if "Mã" in cols:
+        i = cols.index("Mã") + 1
+        ordered = cols[:i] + ["Ghim"] + cols[i:]
+    else:
+        ordered = ["Ghim"] + cols
+    return out[ordered]
+
+
 def spark_cache_key(
     code: str,
     state: str | None,
