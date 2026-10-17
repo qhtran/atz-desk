@@ -2,7 +2,7 @@
 
 > Master Architect artifact. Agent 2 (Code Executor) chỉ làm đúng task `Doing` trong mục Handoff.
 > Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
-> Cập nhật: **2026-10-17** — **T-163 Done (Pass)** — smoke contrast Δ @ 1280×800 trên atz.vn.
+> Cập nhật: **2026-10-17** — **Master ack T-163** — smoke contrast Pass @ 1280×800 (Exe1).
 
 ---
 
@@ -14,7 +14,7 @@
 | Data | Redis (nóng) + SQLite `data/signals.db` (bền); secrets chỉ env |
 | Deploy | Docker Compose `/opt/vnstocks` — services: `vnstocks`, ingestion, filter-runner, alert, position, index-feed, redis |
 | Auth | Authentik forward-auth; identity = headers; trading prefs = SQLite (ADR 0004); **ADR 0006** cấm OIDC Client Streamlit |
-| Branch / HEAD | `main` @ `7101272`+ — VPS UI `4aaa437be56c`; **T-163 smoke Pass** |
+| Branch / HEAD | `main` @ `52f407e`+ — VPS UI `4aaa437be56c`; T-163 **Master ack** |
 | NON-goal | Không đặt lệnh tự động; không SPA/BFF Phase 2; không OIDC client trong app trừ ADR mới |
 
 **Active goals (ưu tiên sản phẩm):**
@@ -109,7 +109,7 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 | T-161 | Deploy T-152 UI (`vnstocks` only) | docker | **Master ack** — image `8b8bba1590af`; upstream PASS; stcore 200; public→Authentik 302 |
 | T-153 | P1 Contrast zebra / chữ Δ trên nền tối | ui, tests | **Master ack** — ZEBRA_ODD; skip signed; font-weight 700; pytest Pass (9) |
 | T-162 | Deploy T-153 UI (`vnstocks` only) | docker | **Master ack** — image `4aaa437be56c`; pull `9e6aef3`; upstream PASS; health 200; public→302 |
-| T-163 | Smoke contrast T-153 trên atz.vn | ui | **Executor Pass** — Overview TopKL + Realtime board + idx cards + sidebar PnL @ 1280×800 |
+| T-163 | Smoke contrast T-153 trên atz.vn | ui | **Master ack** — Overview TopKL + Realtime + idx + sidebar PnL readable @ 1280×800 |
 
 ### Doing
 
@@ -143,7 +143,16 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 ## 6. Handoff to Agent 2
 
-**Current Doing:** *(trống)* — chờ human / mentor F1.
+**Current Doing:** *(trống)* — Master ack T-163 xong; chờ human / mentor F1.
+
+```
+1a) Chờ mentor F1
+1b) Chờ
+```
+
+### Master ack (T-163)
+- Report Exe1: **Pass** @ 1280×800 (Overview TopKL Δ/%, Realtime +/-/%, idx cards, sidebar PnL); image `4aaa437be56c`; không sửa code.
+- Master không re-smoke (plan-only stance).
 
 ### Executor notes (T-163 — smoke Pass)
 - Viewport **1280×800**; user `mydev`; image `4aaa437be56c`; Ngoài phiên.
@@ -183,13 +192,15 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing`.
 
 | Tab | Turns | Files this task | Slowing? | Status |
 |-----|------:|----------------:|----------|--------|
-| executor-1 | 1 | 1 | no | idle |
+| executor-1 | 0 | 0 | no | idle |
 | executor-2 | — | — | — | standby (mở khi fork / context đầy) |
 
 ### Master commands
 
 ```
-(none — T-163 Pass; Status=idle; chờ human)
+IDLE — no Doing.
+T-163 Master ack complete (Exe1 smoke Pass).
+Master: PLAN/ACK ONLY. Next: human 1a mentor F1 | 1b wait.
 ```
 
 ### Last Executor state
@@ -197,11 +208,10 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing`.
 ```
 task: T-163
 result: Pass
+master_ack: yes
 viewport: 1280x800
 image: 4aaa437be56c
-notes: Overview TopKL Δ/% + Realtime +/-/% + idx + sidebar PnL readable
 owner: executor-1
-paused_fork: no
 Status: idle
 ```
 
@@ -268,3 +278,4 @@ Status: idle
 | 2026-10-17 | **Stance** — Master plan-only; Exe1 execute; Exe2 standby khi fork |
 | 2026-10-17 | **T-163 Doing** — human 1a; Exe1 smoke contrast @ 1280×800 |
 | 2026-10-17 | **T-163 Done (Pass)** — Overview/Realtime/sidebar Δ readable @ 1280×800; Status=idle |
+| 2026-10-17 | **Master ack T-163** — Exe1 smoke Pass; no Master re-smoke |
