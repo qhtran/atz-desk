@@ -2,7 +2,7 @@
 
 > Master Architect artifact. Agent 2 (Code Executor) chỉ làm đúng task `Doing` trong mục Handoff.
 > Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
-> Cập nhật: **2026-10-17** — Master ack: **Agent2 xong T-110**; Doing trống; chờ chọn Todo.
+> Cập nhật: **2026-10-17** — **T-120 Doing** — giao executor-1 wire prefs SQLite.
 
 ---
 
@@ -14,7 +14,7 @@
 | Data | Redis (nóng) + SQLite `data/signals.db` (bền); secrets chỉ env |
 | Deploy | Docker Compose `/opt/vnstocks` — services: `vnstocks`, ingestion, filter-runner, alert, position, index-feed, redis |
 | Auth | Authentik forward-auth; identity = headers; trading prefs = SQLite (ADR 0004) |
-| Branch / HEAD | `main` @ `8132963` (+ T-110 test từ `8e98e0f`) |
+| Branch / HEAD | `main` @ `9a528ce` — Master ack T-110; tiếp T-120 |
 | NON-goal | Không đặt lệnh tự động; không SPA/BFF Phase 2 trừ nhu cầu mới |
 
 **Active goals (ưu tiên sản phẩm):**
@@ -101,7 +101,7 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 | ID | Title | Status | Modules | Target files | Acceptance | Deps | Agent 2 instructions |
 |----|-------|--------|---------|--------------|------------|------|----------------------|
-| — | *(trống — chờ human chọn Todo tiếp)* | — | — | — | — | — | — |
+| T-120 | Wire prefs workspace → Bộ lọc / sidebar (SQLite nhất quán) | **Doing** | ui, datasource, tests | `datasource/user_trading.py`, `ui/filters_page.py`, `ui/pages.py`, `ui/trading_workspace_page.py` (nếu cần), `tests/test_user_trading.py` | Xem §6 | T-040 | Xem §6 Handoff — **≤5 files**; không schema mới; không ghi DB mỗi tick |
 
 **Quy tắc:** luôn tối đa **một** task `Doing`.
 
@@ -109,7 +109,6 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 | ID | Title | Status | Modules | Target files (dự kiến) | Acceptance | Deps | Agent 2 instructions |
 |----|-------|--------|---------|------------------------|------------|------|----------------------|
-| T-120 | Wire prefs workspace → Bộ lọc / sidebar (đọc SQLite nhất quán) | Todo | ui, datasource | `pages.py`, `filters_page.py`, `sidebar_portfolio.py`, `user_trading.py`, `tests/test_user_trading.py` | Session start + sau Lưu: sidebar/filter dùng cùng prefs SQLite; không ghi DB mỗi tick realtime | T-040 | Một vertical slice prefs. Không thêm cột schema mới trừ khi thiếu field đã mô tả. Test Pass/Fail báo rõ. |
 | T-130 | Deploy hygiene: rebuild services lệch image | Todo | docker | Compose tại VPS `/opt/vnstocks` (không sửa nginx) | Services ingestion/index/alert/position chạy image mới nếu human xác nhận lệch; `atz-check-upstream` OK nếu có | Human confirm SSH | **Chỉ** `docker compose build/up --no-deps <svc>` qua `:22`. Không đụng stream/sshd/UFW. Không force-push. |
 | T-140 | Auditor: thu hoạch / đóng task cũ hoặc brief retest mới | Todo | docs | `docs/auditorbot/tasks/*`, `inbox/`, `reports/` | Inbox trống đã xử lý (archive hoặc brief mới); 1 task P0 rõ ràng nếu cần survey | — | Docs only trong `docs/auditorbot/`. Không code app. |
 | T-200 | F1: enum nến mạnh / TB / yếu gắn filter | Blocked | filters, analysis, ui | `filters/candle.py`, `analysis/candles*`, `filter_criteria.py`, tests | Mentor chốt định nghĩa → unit test + catalog | Mentor | **Blocked.** Không đoán ngưỡng. |
@@ -131,21 +130,36 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 ## 6. Handoff to Agent 2
 
-**Current Doing:** *(trống)* — chờ human chọn Todo.
+**Current Doing: T-120** — Wire prefs workspace → Bộ lọc / sidebar (SQLite nhất quán).
 
-```
-Chọn slice tiếp:
-1a) T-120 — Wire prefs SQLite nhất quán
-1b) T-140 — Auditor tasks / inbox
-1c) T-130 — Deploy hygiene (cần confirm SSH)
-1d) Chờ — không giao Executor
-```
+### Gap (Architect pre-survey — không implement)
+- Sidebar (`pages.render_sidebar`): hydrate ROE/KL/RS/`top_n` từ `load_filter_defaults` **một lần** vào `session_state` — OK tạm.
+- Workspace Lưu đã ghi SQLite + sync `sidebar_*` keys — OK.
+- **Lỗ hổng:** `filters_page.show_filters` seed param từ `saved.parameters` hoặc `ParamSpec.default` (registry/`config`) — **không** đọc `trading_profile.filter_defaults` (RSI/MACD đã lưu ở workspace).
+- Risk sidebar đã đọc SQLite qua `sidebar_portfolio` — không bắt buộc đụng trừ khi lệch.
 
-### Executor notes (T-110 — Done, Master ack)
-- Human: «agent2 xong T110» — Master đóng vòng.
-- Grep `src/atz`: chỉ `ui/components.py` → `st.dataframe` trong `render_data_table`.
-- `tests/test_table_theme.py::test_no_streamlit_table_bypass_outside_wrapper` — **Pass** (7).
-- Ship: `8e98e0f` trên `main`. Không fork.
+### Làm gì (executor-1)
+1. `git pull --ff-only origin main` (kỳ vọng ≥ `9a528ce`).
+2. Thêm helper **pure** trong `datasource/user_trading.py` (vd. `filter_defaults_param_overlay(prefs) -> dict`) map các key trùng tên param filter: `rsi_oversold`, `rsi_overbought`, `macd_fast`, `macd_slow`, `macd_signal` (+ alias nếu registry dùng tên khác — kiểm `filters/*.py` ParamSpec).
+3. Trong `ui/filters_page.py`: khi build `current` cho mỗi filter, merge:
+   `overlay = filter_defaults_param_overlay(load_filter_defaults(user))`
+   → `current = {**overlay, **(saved.parameters or {})}`  
+   (**saved thắng** nếu user đã Lưu cấu hình filter).
+4. Sidebar: giữ hydrate-from-SQLite; sau Lưu workspace đã sync — nếu thiếu sync `sidebar_top_n`/risk thì bổ sung tối thiểu. **Không** `persist_*` khi đổi widget sidebar / realtime tick.
+5. Test: unit cho overlay + 1 case merge saved-wins; chạy `PYTHONPATH=src/atz pytest tests/test_user_trading.py -q` (+ test mới nếu tách file). Báo **Pass/Fail**.
+6. Cập nhật PROGRESS: T-120 → Done; Last Executor state; Turns++; Files this task; Signals nếu cần fork.
+
+### Không đụng
+- Schema SQLite mới; Authentik; ingestion/filter_runner/alert/position; nginx/SSH
+- Đổi semantics filter F1 / registry labels
+- Ghi DB mỗi lần sidebar đổi số
+- Force-push; >5 files → ghi `SIGNAL_NEED_FORK` trước khi phình scope
+
+### Commit (khi human bảo hoặc Pass + human 2a-style)
+- Gợi ý: `feat(ui): seed filter params from trading_profile defaults`
+
+### Executor notes (T-110 — archived)
+- Done @ `8e98e0f`; Master ack `9a528ce`.
 
 ---
 
@@ -173,21 +187,25 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing`.
 
 | Tab | Turns | Files this task | Slowing? | Status |
 |-----|------:|----------------:|----------|--------|
-| executor-1 | 1 | 0 | no | idle |
+| executor-1 | 0 | 0 | no | active |
 
 ### Master commands
 
-(none) — chờ human chọn Todo tiếp theo cho executor-1
+```
+START T-120 — Wire prefs SQLite → filters_page + sidebar consistency.
+Read §6 Handoff. Stay ≤5 files. Update this §7 Turns/Files/Signals each turn.
+When Done: pytest Pass/Fail + Last Executor state + set Status=idle; clear Doing.
+```
 
 ### Last Executor state
 
 ```
-task: T-110
-result: Done
-commit: 8e98e0f
-pytest: tests/test_table_theme.py — 7 passed
-files: tests/test_table_theme.py
-notes: sole st.dataframe entry = ui/components.render_data_table; no bypass
+task: T-120
+result: in_progress
+commit: (pending)
+pytest: (pending)
+files: (pending)
+notes: assigned by Master after human chose 1a
 paused_fork: no
 ```
 
@@ -209,3 +227,4 @@ paused_fork: no
 | 2026-10-17 | **§7 chuẩn hóa** — bảng `executor-1` + Master commands / Last Executor state / Signals |
 | 2026-10-17 | executor-1 Turns 0→1 (Auto Fork ack) |
 | 2026-10-17 | **Master ack Agent2 xong T-110** — Last Executor state ghi Done; Status=idle |
+| 2026-10-17 | **T-120 Doing** — human 1a; Master commands START; executor-1 active Turns=0 |
