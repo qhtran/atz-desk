@@ -2,7 +2,7 @@
 
 > Master Architect artifact. Agent 2 (Code Executor) chỉ làm đúng task `Doing` trong mục Handoff.
 > Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
-> Cập nhật: **2026-10-17** — **T-130 Phase B GO** — human **3a** + `user_confirmed_infra: yes`.
+> Cập nhật: **2026-10-17** — T-130 Phase B: human **2a** → **executor-1 chạy**; Master chờ báo cáo.
 
 ---
 
@@ -121,7 +121,7 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 1. **Auditor inbox** — T-140 đã đánh stale + brief P0 mới; chờ AuditorBot push inbox.
 2. **Mentor gate** cho nến mạnh–TB–yếu + BB/Ichi — không tự invent.
-3. **T-130 Phase B** — human 3a confirmed; Executor đang / sẽ SSH `:22` (rủi ro recreate ngắn).
+3. **T-130 Phase B** — human 3a+2a; **executor-1** SSH `:22` (Master không SSH); recreate ngắn.
 4. **Multi-agent:** Architect ≠ app code; Executor = 1 `Doing`; bus = PROGRESS.md only.
 5. ~~HANDOFF lệch workspace~~ — hết sau T-100.
 6. ~~T-110 bypass~~ — hết (regression test Pass).
@@ -195,23 +195,27 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing`.
 ```
 user_confirmed_infra: yes
 scope: 3a
+owner: executor-1  (human chose 2a — Master does NOT SSH)
 START T-130 Phase B — SSH -p 22 root@112.213.88.230 → /opt/vnstocks
-git pull --ff-only; docker compose build vnstocks;
+git pull --ff-only (expect ≥ 8c80ae2); docker compose build vnstocks;
 up -d --no-deps --force-recreate:
   vnstocks ingestion filter-runner alert-dispatcher position-monitor index-feed
 Then atz-check-upstream + compose ps. NO nginx/sshd/UFW/volumes/down.
-Update §7 + mark T-130 Done when PASS. Report Fail clearly if any step fails.
+When done: update §7 Last Executor state + T-130 Done; Status=idle; push PROGRESS.
+Human will tell Master «agent2 xong T130» / 2a-style ack.
 ```
 
 ### Last Executor state
 
 ```
 task: T-130
-result: authorized_awaiting_executor
-HEAD_at_start: 87cea73
+result: in_progress_executor
+HEAD_at_start: 8c80ae2
 scope: 3a
 user_confirmed_infra: yes
+owner: executor-1
 ssh: allowed :22
+master: waiting_report (human 2a)
 paused_fork: no
 ```
 
@@ -241,3 +245,4 @@ paused_fork: no
 | 2026-10-17 | **Master ack T-140 (human 2a)** — review OK; ship docs; chờ AuditorBot inbox |
 | 2026-10-17 | **T-130 Doing HOLD SSH** — human 1a; chờ user_confirmed_infra + scope |
 | 2026-10-17 | **T-130 Phase B GO** — human 3a; user_confirmed_infra: yes; scope ALL workers+UI |
+| 2026-10-17 | **T-130 owner=executor-1** — human 2a; Master waits report; no Master SSH |
