@@ -12,7 +12,7 @@
 
 | Chủ đề | Quyết định |
 |--------|------------|
-| Auth | Forward-auth Authentik; identity = header; Account Phase 1 headers-only |
+| Auth | Forward-auth Authentik; identity = header; Account Phase 1 headers-only; **cấm** OIDC Client Streamlit (ADR 0006); Social = Authentik Sources (brief infra) |
 | Dữ liệu | Bền → SQLite; nóng → Redis; test → tmp/fixtures (`docs/adr/0005-…`) |
 | Trading profile | **Không** bảng TEXT-PK Gemini; dùng `user_capital_ledgers` + `cai_dat_chung.trading_profile` (`docs/adr/0004-…`) |
 | FE lớn | Giữ Streamlit; không SPA/BFF Phase 2 trừ nhu cầu mới |
@@ -53,7 +53,7 @@
 ### P2 / chặn mentor–infra
 
 - Bollinger / Ichimoku / phần II (F1) — T-210  
-- Brand CSS Authentik  
+- Brand CSS Authentik + Social Sources (Google/FB) — brief `docs/infrastructure/AUTHENTIK_SOCIAL_SOURCES_BRIEF.md`; **không** Executor OIDC app  
 - Dọn n8n exited; fail2ban Authentik; alert cert — T-220 (`user_confirmed_infra: yes`)  
 - Auditor tasks còn trong `docs/auditorbot/tasks/`  
 
@@ -67,7 +67,8 @@
 | `docs/bots/BOTS_ROSTER.md` | Vai trò bot |
 | `docs/infrastructure/VPS_NETWORK.md` | Mạng / SSH |
 | `docs/specs/ACCOUNT_UX_AUTHENTIK_BFF.md` | Account Phase 1/2 |
-| `docs/adr/0004-*.md`, `0005-*.md` | Profile + data placement |
+| `docs/adr/0004-*.md`, `0005-*.md`, `0006-*.md` | Profile + data placement + no OIDC client |
+| `docs/infrastructure/AUTHENTIK_SOCIAL_SOURCES_BRIEF.md` | Social Login trên Authentik (infra) |
 | `docs/COLOR_TOKENS.md` | Màu + 3 table variants |
 | `src/atz/datasource/user_trading.py` | Vốn/risk/pin/prefs |
 | `src/atz/ui/trading_workspace_page.py` | Không gian Trading |

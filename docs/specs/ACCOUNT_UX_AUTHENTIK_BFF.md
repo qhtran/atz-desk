@@ -21,6 +21,7 @@ Trang Tài khoản theme VANTIQ trên https://atz.vn. Không nhúng Authentik UI
 
 - Clone full Authentik user dashboard
 - Browser → Authentik CORS API
+- **OIDC Client trong Streamlit** (Authlib / code flow / JWT session / `CLIENT_SECRET` trong app) — xem ADR **0006**; Social Login = Authentik Sources ([brief](../infrastructure/AUTHENTIK_SOCIAL_SOURCES_BRIEF.md))
 - Đổi **sshd**, firewall, nginx **stream** / SSH reverse, cert/ACME trừ brief infra + `user_confirmed_infra: yes`
 - Nối bừa network Docker: **không** gắn `vnstocks` vào Authentik `internal` (Postgres)
 - Publish thêm port host; `docker network rm`; `down -v`; xóa volume redis/sqlite/authentik DB

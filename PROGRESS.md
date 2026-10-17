@@ -2,7 +2,7 @@
 
 > Master Architect artifact. Agent 2 (Code Executor) chỉ làm đúng task `Doing` trong mục Handoff.
 > Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
-> Cập nhật: **2026-10-17** — **T-160 Phase B GO** — human **3a**; executor-1 SSH `vnstocks` only.
+> Cập nhật: **2026-10-17** — **Master ack T-160** + ADR **0006** (no OIDC client); Social brief Authentik.
 
 ---
 
@@ -13,15 +13,15 @@
 | Stack | Python 3.13, Streamlit (`src/atz/app.py`), `PYTHONPATH=src/atz` |
 | Data | Redis (nóng) + SQLite `data/signals.db` (bền); secrets chỉ env |
 | Deploy | Docker Compose `/opt/vnstocks` — services: `vnstocks`, ingestion, filter-runner, alert, position, index-feed, redis |
-| Auth | Authentik forward-auth; identity = headers; trading prefs = SQLite (ADR 0004) |
-| Branch / HEAD | `main` @ `0191638`+ — T-160 authorized (pull ≥ `2bd7943` trên VPS) |
-| NON-goal | Không đặt lệnh tự động; không SPA/BFF Phase 2 trừ nhu cầu mới |
+| Auth | Authentik forward-auth; identity = headers; trading prefs = SQLite (ADR 0004); **ADR 0006** cấm OIDC Client Streamlit |
+| Branch / HEAD | `main` @ `0d94c98` — VPS UI image `8904bb446226` (T-160 **Master ack**) |
+| NON-goal | Không đặt lệnh tự động; không SPA/BFF Phase 2; không OIDC client trong app trừ ADR mới |
 
 **Active goals (ưu tiên sản phẩm):**
 1. Giữ pipeline near-realtime ổn định + UI bảng thống nhất (`realtime` / `analytical` / `compact`).
 2. Hoàn thiện UX trading cá nhân (workspace + prefs seed Done; còn mentor F1 / Auditor).
-3. **P0 còn T-151:** VNINDEX Overview ↔ Realtime (Top KL Giá/% đã T-150).
-4. Chờ mentor F1 (T-200/T-210); P1 polish từ inbox.
+3. ~~P0 Overview Top KL + VNINDEX~~ — T-150/T-151 + **T-160 deployed** (smoke UI human 1a).
+4. Chờ mentor F1 (T-200/T-210); P1 polish từ inbox (T-152/T-153).
 
 ---
 
@@ -42,10 +42,10 @@ config/*.yaml         # ingestion, filter_runner, alert, position, ui_realtime, 
 tests/test_*.py       # map theo module
 docs/
   architecture.md, troubleshooting.md, COLOR_TOKENS.md, F1_CHECKLIST_UI.md
-  adr/0001…0005
+  adr/0001…0006
   bots/ (ORCHESTRATION, HANDOFF_NEXT_CHAT, vpsbot…)
   auditorbot/tasks|inbox|reports
-  infrastructure/, specs/
+  infrastructure/ (VPS_NETWORK, AUTHENTIK_SOCIAL_SOURCES_BRIEF), specs/
 ```
 
 Target layout dài hạn (ADR 0001): `shared/` / `domain/` / `adapters/` / `services/` / `web/` — **không** big-bang; boy-scout từng PR.
@@ -59,6 +59,7 @@ Target layout dài hạn (ADR 0001): `shared/` / `domain/` / `adapters/` / `serv
 - ADR 0003: Account UX Phase 1 headers-only (Authentik).
 - ADR 0004: trading profile / vốn / risk / pin trong SQLite — **không** Authentik attributes.
 - ADR 0005: bền → SQLite; nóng → Redis; test → tmp/fixtures.
+- ADR 0006: **cấm** OIDC Client trong Streamlit; Social Login = Authentik Sources (brief infra).
 - UI bảng: mọi bảng qua `render_data_table(variant=…)` (`docs/COLOR_TOKENS.md`).
 - Debug overlay: `config/debug_overlay.yaml` / `ATZ_DEBUG_OVERLAY`.
 - SSH ops: ưu tiên host `:22`; **cấm** đụng nginx stream / sshd / UFW trừ human confirm.
@@ -77,6 +78,7 @@ Target layout dài hạn (ADR 0001): `shared/` / `domain/` / `adapters/` / `serv
 - Auto-order / broker API trading.
 - Seed test vào DB production.
 - Force-push; commit secrets.
+- OIDC Client / JWT session trong app (ADR 0006) — trừ ADR mới + confirm chủ repo.
 
 ---
 
@@ -101,12 +103,13 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 | T-130 | Deploy hygiene rebuild ALL (scope 3a) | docker | **Master ack** — image `8c872b1f46eb`; upstream PASS; stcore 200; no nginx/sshd/UFW |
 | T-150 | P0 Overview Top KL Giá/% = Redis phiên | analysis, ui, datasource, tests | **Master ack** — Redis overlay; KL OHLCV; exclude index; pytest Pass (10) |
 | T-151 | P0 Overview VN indexes ↔ Realtime idx:quote | ui, datasource, tests | **Master ack** — `index_quotes` overlay sau cache; caption ts; pytest Pass (3) |
+| T-160 | Deploy T-150+T-151 UI (`vnstocks` only) | docker | **Master ack** — image `8904bb446226`; upstream PASS; stcore 200; smoke checklist §6 |
 
 ### Doing
 
 | ID | Title | Status | Modules | Target files | Acceptance | Deps | Agent 2 instructions |
 |----|-------|--------|---------|--------------|------------|------|----------------------|
-| T-160 | Deploy T-150+T-151 UI (`vnstocks` only) | **Doing** (Phase B GO) | docker | VPS `/opt/vnstocks` | pull ≥ `2bd7943`; build+up `--no-deps vnstocks`; health 200; upstream OK | `user_confirmed_infra: yes` (human 3a) | Xem §6 — owner **executor-1** |
+| — | *(trống — chờ human smoke / Todo)* | — | — | — | — | — | — |
 
 **Quy tắc:** luôn tối đa **một** task `Doing`.
 
@@ -118,45 +121,44 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 | T-153 | P1 Contrast zebra / chữ Δ trên nền tối | Todo | ui | `table_theme.py`, COLOR_TOKENS | Đọc được 1280×800 | T-150 | Theme only. |
 | T-200 | F1: enum nến mạnh / TB / yếu gắn filter | Blocked | filters, analysis, ui | `filters/candle.py`, … | Mentor | Mentor | **Blocked.** |
 | T-210 | F1: Bollinger / Ichimoku / phần II | Blocked | filters, analysis | theo mentor | Mentor | Mentor | **Blocked.** |
-| T-220 | Brand CSS Authentik / infra soft | Blocked | infra | deploy | `user_confirmed_infra` | Human | **Blocked.** |
+| T-220 | Brand CSS Authentik / Social Sources / infra soft | Blocked | infra | deploy + `AUTHENTIK_SOCIAL_SOURCES_BRIEF.md` | `user_confirmed_infra` | Human | **Blocked** — không Executor OIDC app. |
 
 ---
 
 ## 5. Risks & open questions
 
-1. ~~P0 Top KL Giá≈TC~~ — **T-150 Done**; **verify sau T-160 deploy**.
-2. ~~T-151 VNINDEX Overview~~ — **Done**; **verify sau T-160 deploy**.
+1. ~~P0 Top KL Giá≈TC~~ — T-150 + T-160 **Master ack**; human visual smoke Overview vs Realtime (1a).
+2. ~~T-151 VNINDEX Overview~~ — T-151 + T-160 **Master ack**; human visual smoke (1a).
 3. **Mentor gate** F1 còn lại.
 4. ~~WAIT inbox 1530~~ — **hết** (report trên `auditor/20261017-post-ux-wave-retest` @ `6932c76`).
 5. ~~T-130 image drift~~ — hết.
 6. Multi-agent: bus = PROGRESS only.
+7. ~~Gemini OIDC-in-Streamlit~~ — **từ chối** (ADR 0006); Social = Authentik Sources brief.
 
 ---
 
 ## 6. Handoff to Agent 2
 
-**Current Doing: T-160** — Deploy UI. **Phase B AUTHORIZED** (human **3a**).
+**Current Doing:** *(trống)* — Master ack T-160 xong; chờ human chọn.
 
-### Scope (LOCKED)
-`user_confirmed_infra: yes` · owner: **executor-1** · chỉ **`vnstocks`**  
-Code ≥ `2bd7943` (T-150 + T-151 trên main).
-
-### Phase B — lệnh
-```bash
-ssh -p 22 root@112.213.88.230
-cd /opt/vnstocks
-git pull --ff-only origin main   # expect ≥ 0191638 / code ≥ 2bd7943
-docker compose build vnstocks
-docker compose up -d --no-deps --force-recreate vnstocks
-docker compose ps vnstocks
-/usr/local/bin/atz-check-upstream
-# curl _stcore/health → 200
 ```
-Smoke: Top KL Giá/% vs Realtime; VNINDEX Overview ≈ Realtime.  
-Cập nhật §7 + T-160 Done khi PASS.
+1a) Visual smoke Overview (Top KL Giá/% + VNINDEX) vs Realtime trên atz.vn
+1b) T-152 P1 polish
+1c) T-153 contrast
+1d) Chờ / Auditor Resolution 1530
+```
 
-### Cấm
-- nginx / sshd / UFW / Authentik / `compose down` / volumes / recreate workers
+### Master ack (T-160)
+- Report Executor: PASS (image `8904bb446226`, upstream PASS, health 200, không đụng stream/sshd).
+- Public check: `https://atz.vn/_stcore/health` → 302 auth (expected forward-auth) → follow 200.
+- Visual Top KL / VNINDEX: **human 1a** (cần phiên Authentik); code T-150/T-151 đã trên image.
+
+### Executor notes (T-160 — Done)
+- VPS pull → `0d94c98` (≥ T-150/T-151)
+- `docker compose build vnstocks` → image `8904bb446226`
+- `up -d --no-deps --force-recreate vnstocks` → Started
+- `atz-check-upstream` → **PASS**; `_stcore/health` → **200**
+- Không đụng workers / nginx / sshd / UFW / volumes
 
 ### Executor notes (T-151 — archived)
 - Done @ `7639ce2`; Master ack 2a.
@@ -187,33 +189,31 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing`.
 
 | Tab | Turns | Files this task | Slowing? | Status |
 |-----|------:|----------------:|----------|--------|
-| executor-1 | 0 | 0 | no | active |
+| executor-1 | 0 | 0 | no | idle |
 
 ### Master commands
 
 ```
-user_confirmed_infra: yes
-scope: vnstocks_only
-owner: executor-1  (human 3a — Master does NOT SSH)
-START T-160 Phase B — SSH -p 22 → /opt/vnstocks
-git pull --ff-only; docker compose build vnstocks;
-up -d --no-deps --force-recreate vnstocks
-atz-check-upstream + _stcore/health 200
-NO nginx/sshd/UFW/volumes/workers.
-When Done: §7 + T-160 Done; Status=idle; push PROGRESS.
+IDLE — no Doing.
+T-160 Master ack complete (deploy report + forward-auth smoke).
+Next: human 1a visual Top KL/VNINDEX | 1b T-152 | 1c T-153 | 1d wait.
+Auth: ADR 0006 — no Streamlit OIDC client.
+Social: docs/infrastructure/AUTHENTIK_SOCIAL_SOURCES_BRIEF.md (infra only).
 ```
 
 ### Last Executor state
 
 ```
 task: T-160
-result: authorized_awaiting_executor
-HEAD_at_start: 0191638
+result: Done
+master_ack: yes
+HEAD_vps: 0d94c98
+image: 8904bb446226
+atz-check-upstream: PASS
+stcore_health: 200 (VPS); public → 302 Authentik (forward-auth OK)
 scope: vnstocks_only
-user_confirmed_infra: yes
 owner: executor-1
-ssh: allowed :22
-paused_fork: no
+Status: idle
 ```
 
 ### Signals
@@ -256,3 +256,7 @@ paused_fork: no
 | 2026-10-17 | **Master ack T-151 (human 2a)** — re-verify pytest Pass (3); ship code |
 | 2026-10-17 | **T-160 Doing HOLD** — human 1a deploy UI; chờ user_confirmed_infra |
 | 2026-10-17 | **T-160 Phase B GO** — human 3a; user_confirmed_infra: yes; owner executor-1 |
+| 2026-10-17 | **T-160 Done** — executor-1 deploy vnstocks; image 8904bb446226; upstream PASS |
+| 2026-10-17 | **T-160 Done** — executor deploy; image 8904bb446226; upstream PASS; health 200 |
+| 2026-10-17 | **Master ack T-160** — report OK; public→Authentik 302 (forward-auth); visual = human 1a |
+| 2026-10-17 | **ADR 0006** — no OIDC client Streamlit; Social brief Authentik Sources |

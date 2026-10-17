@@ -17,3 +17,9 @@ Hiện tại không có access token OIDC trong Streamlit; phiên là cookie out
 - Module mới: UI Account + BFF proxy scoped; logout outpost + end-session Authentik.
 - Không sửa sshd/firewall; nginx/Authentik chỉ khi `user_confirmed_infra: yes`.
 - Spec triển khai: mục «Technical Specification» trong chat / brief VPSbot.
+
+## Clarification (2026-10-17) — NON-goal OIDC Client
+
+**Không** triển khai OIDC Client / authorization-code / JWT session **trong Streamlit**. Phiên = cookie outpost; identity = headers. Social Login (nếu cần) = Authentik Sources, không SDK trong app.
+
+Chi tiết: [`docs/adr/0006-no-oidc-client-in-streamlit.md`](0006-no-oidc-client-in-streamlit.md).

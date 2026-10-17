@@ -212,7 +212,8 @@ Theo dõi vị thế user đã nhập, tính P&L near-realtime, cảnh báo SL/T
 - Docker Compose trên VPS hiện tại
 - Redis (cache + stream)
 - SQLite (giữ multi-user)
-- Streamlit + Authentik giữ nguyên
+- Streamlit + Authentik **forward-auth** giữ nguyên (identity = `X-authentik-*`; **không** OIDC Client trong app — ADR 0006)
+- Social Login (nếu cần): Authentik Sources — [`AUTHENTIK_SOCIAL_SOURCES_BRIEF.md`](infrastructure/AUTHENTIK_SOCIAL_SOURCES_BRIEF.md)
 - Portainer quản lý
 
 **Chi tiết mạng / nginx / Docker networks / SSH-over-443:** [`docs/infrastructure/VPS_NETWORK.md`](infrastructure/VPS_NETWORK.md) (snapshot 2026-10-17).
