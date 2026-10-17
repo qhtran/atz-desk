@@ -2,7 +2,7 @@
 
 > Master Architect artifact. Agent 2 (Code Executor) chỉ làm đúng task `Doing` trong mục Handoff.
 > Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
-> Cập nhật: **2026-10-17** — thêm **Agent sessions / fork**; T-110 Done (chờ push regression test).
+> Cập nhật: **2026-10-17** — §7 sessions chuẩn hóa (`executor-1` + Master commands / Signals).
 
 ---
 
@@ -14,7 +14,7 @@
 | Data | Redis (nóng) + SQLite `data/signals.db` (bền); secrets chỉ env |
 | Deploy | Docker Compose `/opt/vnstocks` — services: `vnstocks`, ingestion, filter-runner, alert, position, index-feed, redis |
 | Auth | Authentik forward-auth; identity = headers; trading prefs = SQLite (ADR 0004) |
-| Branch / HEAD | `main` @ `fe21b90` docs sync (+ local T-110 test pending push) |
+| Branch / HEAD | `main` @ `8e98e0f` — Auto Fork bus + T-110 regression test |
 | NON-goal | Không đặt lệnh tự động; không SPA/BFF Phase 2 trừ nhu cầu mới |
 
 **Active goals (ưu tiên sản phẩm):**
@@ -151,15 +151,17 @@ Chọn slice tiếp:
 
 ## 7. Agent sessions / fork
 
+Bus duy nhất giữa tab = file này. Architect commit+push PROGRESS mỗi khi đổi Handoff / fork / bảng sessions.
+
 ### Auto-fork rules (mọi tab đọc mỗi turn)
 
 Fork khi **bất kỳ** điều kiện đúng:
 - Task `Doing` cần **>5 files** HOẶC tạo **module/package mới**
 - Code Agent turns trong tab hiện tại **≥15** (warn) / **≥20** (hard fork)
-- Code Agent ghi trong PROGRESS: `SIGNAL_NEED_FORK` / `SIGNAL_CONTEXT_HEAVY` / `slowing=yes`
+- Code Agent ghi signal: `SIGNAL_NEED_FORK` / `SIGNAL_CONTEXT_HEAVY` / `slowing=yes`
 - Human báo Executor tab đang lag
 
-Khi fork, Architect (hoặc Executor nếu Architect offline) ghi ngay dưới đây:
+Khi fork, ghi banner vào **Master commands** (hoặc ngay dưới bảng):
 
 ```text
 🚨 [ACTION REQUIRED]: CONTEXT EXCEEDED. Please open a NEW COMPOSER TAB,
@@ -169,23 +171,21 @@ Reason: <…>
 
 Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing`.
 
-Architect **commit + push PROGRESS.md** mỗi khi đổi Handoff / fork / sessions table — để tab khác `git pull` thấy.
+| Tab | Turns | Files this task | Slowing? | Status |
+|-----|------:|----------------:|----------|--------|
+| executor-1 | 0 | 0 | no | active |
 
-Signals Executor có thể ghi (1 dòng trong Notes hoặc dưới bảng):
-- `SIGNAL_NEED_FORK` — cần tab mới
-- `SIGNAL_CONTEXT_HEAVY` — context nặng
-- `slowing=yes` — tab chậm
+### Master commands
 
-### ACTION REQUIRED (fork banner)
+(none)
 
-*(trống — không cần fork lúc này)*
+### Last Executor state
 
-### Sessions table
+(empty until pause/fork)
 
-| Tab | Role | Turns | Files this task | Slowing? | Status | Notes |
-|-----|------|------:|-----------------|----------|--------|-------|
-| Architect (this) | Architect | ~6 | PROGRESS only | no | active | Owns plan/handoff/fork; never app code |
-| Executor | Code Agent | ~1–3 | `tests/test_table_theme.py` (+ PROGRESS notes) | no | idle | T-110 Done; sẵn sàng task Todo tiếp theo |
+### Signals
+
+(none)
 
 ---
 
@@ -198,3 +198,4 @@ Signals Executor có thể ghi (1 dòng trong Notes hoặc dưới bảng):
 | 2026-10-17 | **T-110 Doing** — handoff Agent 2 (audit + regression test; pre-survey sạch) |
 | 2026-10-17 | **T-110 Done** — bypass = 0; regression test Pass (7); Handoff clear |
 | 2026-10-17 | **§7 Agent sessions / fork** — Auto Fork via PROGRESS only; sessions table |
+| 2026-10-17 | **§7 chuẩn hóa** — bảng `executor-1` + Master commands / Last Executor state / Signals |
