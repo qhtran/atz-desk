@@ -2,7 +2,7 @@
 
 > Master Architect artifact. Agent 2 (Code Executor) chỉ làm đúng task `Doing` trong mục Handoff.
 > Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
-> Cập nhật: **2026-10-17** — **Master ack T-152** — ship P1 polish; pytest `test_t152_polish` Pass (4).
+> Cập nhật: **2026-10-17** — **T-161 Phase B GO** — Exe1 deploy T-152 UI (`vnstocks` only); `user_confirmed_infra: yes`.
 
 ---
 
@@ -14,14 +14,14 @@
 | Data | Redis (nóng) + SQLite `data/signals.db` (bền); secrets chỉ env |
 | Deploy | Docker Compose `/opt/vnstocks` — services: `vnstocks`, ingestion, filter-runner, alert, position, index-feed, redis |
 | Auth | Authentik forward-auth; identity = headers; trading prefs = SQLite (ADR 0004); **ADR 0006** cấm OIDC Client Streamlit |
-| Branch / HEAD | `main` @ `67b26e3` — T-152 ship; VPS UI vẫn `8904bb446226` tới khi deploy |
+| Branch / HEAD | `main` @ `459c446` — T-152 ship `67b26e3`; **T-161 Doing** (VPS UI `8904bb446226` → rebuild) |
 | NON-goal | Không đặt lệnh tự động; không SPA/BFF Phase 2; không OIDC client trong app trừ ADR mới |
 
 **Active goals (ưu tiên sản phẩm):**
 1. Giữ pipeline near-realtime ổn định + UI bảng thống nhất (`realtime` / `analytical` / `compact`).
 2. Hoàn thiện UX trading cá nhân (workspace + prefs seed Done; còn mentor F1 / Auditor).
 3. ~~P0 Overview Top KL + VNINDEX~~ — T-150/T-151 + T-160 **smoke Pass**.
-4. ~~T-152 P1 polish~~ — **Master ack** + ship; còn deploy UI / T-153; mentor F1.
+4. ~~T-152~~ ship; **T-161 Doing** (Exe1 deploy UI); còn T-153; mentor F1.
 
 ---
 
@@ -110,7 +110,7 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 | ID | Title | Status | Modules | Target files | Acceptance | Deps | Agent 2 instructions |
 |----|-------|--------|---------|--------------|------------|------|----------------------|
-| — | *(trống — chờ human)* | — | — | — | — | — | — |
+| T-161 | Deploy T-152 UI (`vnstocks` only) | **Doing** (Phase B GO) | docker | VPS `/opt/vnstocks` | pull ≥ `67b26e3`; build+up `--no-deps vnstocks`; health 200; upstream OK | `user_confirmed_infra: yes` | owner **executor-1** (Exe1) — §6 |
 
 **Quy tắc:** luôn tối đa **một** task `Doing`.
 
@@ -118,7 +118,7 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 | ID | Title | Status | Modules | Target files (dự kiến) | Acceptance | Deps | Agent 2 instructions |
 |----|-------|--------|---------|------------------------|------------|------|----------------------|
-| T-153 | P1 Contrast zebra / chữ Δ trên nền tối | Todo | ui | `table_theme.py`, COLOR_TOKENS | Đọc được 1280×800 | T-150 | Theme only — **không** gộp vào T-152. |
+| T-153 | P1 Contrast zebra / chữ Δ trên nền tối | Todo | ui | `table_theme.py`, COLOR_TOKENS | Đọc được 1280×800 | T-150 | Theme only. |
 | T-200 | F1: enum nến mạnh / TB / yếu gắn filter | Blocked | filters, analysis, ui | `filters/candle.py`, … | Mentor | Mentor | **Blocked.** |
 | T-210 | F1: Bollinger / Ichimoku / phần II | Blocked | filters, analysis | theo mentor | Mentor | Mentor | **Blocked.** |
 | T-220 | Brand CSS Authentik / Social Sources / infra soft | Blocked | infra | deploy + `AUTHENTIK_SOCIAL_SOURCES_BRIEF.md` | `user_confirmed_infra` | Human | **Blocked** — không Executor OIDC app. |
@@ -139,28 +139,35 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 ## 6. Handoff to Agent 2
 
-**Current Doing:** *(trống)* — Master ack T-152 xong; chờ human.
+**Current Doing: T-161** — Deploy T-152 UI. **Phase B AUTHORIZED**. Owner: **Exe1** (`executor-1`).
 
+### Scope (LOCKED)
+`user_confirmed_infra: yes` · human «để Exe1 deploy» · chỉ **`vnstocks`**  
+Code ≥ `67b26e3` (T-152 trên main; docs pin `459c446`).
+
+### Phase B — lệnh
+```bash
+ssh -p 22 root@112.213.88.230
+cd /opt/vnstocks
+git pull --ff-only origin main   # expect ≥ 67b26e3
+docker compose build vnstocks
+docker compose up -d --no-deps --force-recreate vnstocks
+docker compose ps vnstocks
+/usr/local/bin/atz-check-upstream
+# curl _stcore/health → 200
 ```
-1a) Deploy T-152 UI (vnstocks only — cần user_confirmed_infra)
-1b) T-153 contrast
-1c) Chờ
-```
+Smoke (tuỳ): Trần/Sàn format; `closed` ngoài phiên; POW caption; PnL bar theo dấu.  
+Cập nhật §7 + T-161 Done khi PASS.
 
-### Master ack (T-152)
-- Re-verify: `pytest tests/test_t152_polish.py` → **Pass (4)**.
-- DoD khớp report Executor (exclude index, POW caption, Trần/Sàn int, `closed`, PnL Altair).
-- Note: `test_t1_refresh_interval_trading_hours` Fail (5≠3) — **ngoài T-152** (config refresh); không block ship.
+### Cấm
+- nginx / sshd / UFW / Authentik / `compose down` / volumes / recreate workers
+- Master **không** SSH
 
-### Executor notes (T-152 — Done)
-- `is_index_symbol` + prefixes `VNINDE*` — Top KL không còn chỉ số
-- Search ngoài rổ: `«…» chưa trong universe realtime.`
-- Trần/Sàn → int; format `{:,.0f}`
-- Ngoài phiên: `Trạng thái=closed` (`quote_status_label`)
-- Sidebar PnL: Altair màu UP/DOWN theo dấu
+### Master ack (T-152) — archived
+- Ship `67b26e3`; `test_t152_polish` Pass (4).
 
-### Executor notes (T-160 / T-151 — archived)
-- T-160 Done @ image `8904bb446226`; T-151 @ `7639ce2`.
+### Executor notes (T-152 / T-160 / T-151 — archived)
+- T-152 code Done; T-160 image `8904bb446226`; T-151 `7639ce2`.
 
 ---
 
@@ -188,30 +195,40 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing`.
 
 | Tab | Turns | Files this task | Slowing? | Status |
 |-----|------:|----------------:|----------|--------|
-| executor-1 | 0 | 0 | no | idle |
+| executor-1 | 0 | 0 | no | active |
 
 ### Master commands
 
 ```
-IDLE — no Doing.
-T-152 Master ack + ship complete.
-Next: human 1a deploy vnstocks | 1b T-153 | 1c wait.
+user_confirmed_infra: yes
+scope: vnstocks_only
+owner: executor-1  (Exe1 — Master does NOT SSH)
+START T-161 Phase B — SSH -p 22 → /opt/vnstocks
+git pull --ff-only; docker compose build vnstocks;
+up -d --no-deps --force-recreate vnstocks
+atz-check-upstream + _stcore/health 200
+expect code ≥ 67b26e3
+NO nginx/sshd/UFW/volumes/workers.
+When Done: §7 + T-161 Done; Status=idle; push PROGRESS.
 ```
 
 ### Last Executor state
 
 ```
-task: T-152
-result: Done
-master_ack: yes
-HEAD_at_start: aa43a95
-pytest_master: Pass (4) test_t152_polish
-Status: idle
+task: T-161
+result: authorized_awaiting_executor
+HEAD_at_start: 459c446
+code_min: 67b26e3
+scope: vnstocks_only
+user_confirmed_infra: yes
+owner: executor-1
+ssh: allowed :22
+paused_fork: no
 ```
 
 ### Signals
 
-(none — Files=6 incl. test fix; no new module)
+(none)
 
 ---
 
@@ -258,3 +275,4 @@ Status: idle
 | 2026-10-17 | **T-152 Doing** — human 1a; owner executor-1; DoD inbox §4 mục 3–4 |
 | 2026-10-17 | **T-152 Done** — exclude/closed/Trần/PnL; pytest Pass; Status=idle; chờ commit |
 | 2026-10-17 | **Master ack T-152 (human 1a)** — re-verify test_t152_polish Pass (4); ship code |
+| 2026-10-17 | **T-161 Phase B GO** — Exe1 deploy T-152 UI; user_confirmed_infra: yes; vnstocks only |
