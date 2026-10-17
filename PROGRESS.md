@@ -2,7 +2,7 @@
 
 > Master Architect artifact. Agent 2 (Code Executor) chỉ làm đúng task `Doing` trong mục Handoff.
 > Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
-> Cập nhật: **2026-10-17** — Master ack **T-151 Done** (human 2a); pytest Pass (3).
+> Cập nhật: **2026-10-17** — **T-160 Doing HOLD** — deploy T-150+T-151 `vnstocks` only; chờ infra confirm.
 
 ---
 
@@ -14,7 +14,7 @@
 | Data | Redis (nóng) + SQLite `data/signals.db` (bền); secrets chỉ env |
 | Deploy | Docker Compose `/opt/vnstocks` — services: `vnstocks`, ingestion, filter-runner, alert, position, index-feed, redis |
 | Auth | Authentik forward-auth; identity = headers; trading prefs = SQLite (ADR 0004) |
-| Branch / HEAD | `main` @ `7639ce2` — T-151 VN index Redis overlay |
+| Branch / HEAD | `main` @ `2bd7943` — T-150+T-151 trên main; chờ deploy UI |
 | NON-goal | Không đặt lệnh tự động; không SPA/BFF Phase 2 trừ nhu cầu mới |
 
 **Active goals (ưu tiên sản phẩm):**
@@ -106,7 +106,7 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 | ID | Title | Status | Modules | Target files | Acceptance | Deps | Agent 2 instructions |
 |----|-------|--------|---------|--------------|------------|------|----------------------|
-| — | *(trống — chờ human)* | — | — | — | — | — | — |
+| T-160 | Deploy T-150+T-151 UI (`vnstocks` only) | **Doing** (HOLD SSH) | docker | VPS `/opt/vnstocks` | `git pull` ≥ `2bd7943`; build+up `--no-deps vnstocks`; health 200; atz-check-upstream OK | `user_confirmed_infra: yes` | Xem §6 — **cấm SSH** đến khi Master commands có confirm |
 
 **Quy tắc:** luôn tối đa **một** task `Doing`.
 
@@ -124,8 +124,8 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 ## 5. Risks & open questions
 
-1. ~~P0 Top KL Giá≈TC~~ — **T-150 Done** (Redis overlay); còn verify production sau deploy.
-2. ~~T-151 VNINDEX Overview~~ — **Done** (Redis overlay); verify sau deploy.
+1. ~~P0 Top KL Giá≈TC~~ — **T-150 Done**; **verify sau T-160 deploy**.
+2. ~~T-151 VNINDEX Overview~~ — **Done**; **verify sau T-160 deploy**.
 3. **Mentor gate** F1 còn lại.
 4. ~~WAIT inbox 1530~~ — **hết** (report trên `auditor/20261017-post-ux-wave-retest` @ `6932c76`).
 5. ~~T-130 image drift~~ — hết.
@@ -135,22 +135,30 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 ## 6. Handoff to Agent 2
 
-**Current Doing:** *(trống)* — chờ human.
+**Current Doing: T-160** — Deploy UI T-150+T-151. **SSH = HOLD** đến `user_confirmed_infra: yes`.
 
+### Scope (LOCKED khi confirm)
+- Chỉ service **`vnstocks`** (Streamlit UI) — **không** recreate workers.
+- Code trên main ≥ `2bd7943` (T-150 `93a1c5e` + T-151 `7639ce2`).
+
+### Phase B — sau confirm (gợi ý)
+```bash
+ssh -p 22 root@112.213.88.230
+cd /opt/vnstocks
+git pull --ff-only origin main   # expect ≥ 2bd7943
+docker compose build vnstocks
+docker compose up -d --no-deps --force-recreate vnstocks
+docker compose ps vnstocks
+/usr/local/bin/atz-check-upstream
+# curl health _stcore/health → 200
 ```
-1a) Commit + deploy T-151 (vnstocks)
-1b) T-152 / T-153 P1 polish
-1c) Chờ
-```
+Smoke: Tổng quan Top KL Giá/% vs Realtime; VNINDEX Overview ≈ Realtime.
 
-### Executor notes (T-151 — Done, Master ack 2a)
-- `datasource/index_quotes.py`: `load_idx_quotes` + `overlay_vietnam_index_board`
-- Overlay **sau** `vietnam_board()` cache; caption nguồn+giờ
-- Không đụng index-feed worker / index_cards HTML
-- Master re-verify: pytest **3 passed**
+### Cấm
+- nginx / sshd / UFW / Authentik / `compose down` / xóa volume / recreate workers
 
-### Executor notes (T-150 — archived)
-- Done @ `93a1c5e`; Master ack 2a.
+### Executor notes (T-151 — archived)
+- Done @ `7639ce2`; Master ack 2a.
 
 ---
 
@@ -178,26 +186,24 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing`.
 
 | Tab | Turns | Files this task | Slowing? | Status |
 |-----|------:|----------------:|----------|--------|
-| executor-1 | 1 | 0 | no | idle |
+| executor-1 | 0 | 0 | no | idle |
 
 ### Master commands
 
-(none) — T-151 closed; chờ human chọn deploy / T-152
+```
+HOLD T-160 — DO NOT SSH.
+Await human: user_confirmed_infra + owner (3a/3b/3c).
+Scope when GO: vnstocks only (T-150+T-151 UI).
+```
 
 ### Last Executor state
 
 ```
-task: T-151
-result: Done
-master_ack: human 2a
-HEAD_at_start: f9347a5
-commit: 7639ce2
-pytest: Pass (3) — Master re-verify OK
-files:
-  - src/atz/datasource/index_quotes.py
-  - src/atz/ui/overview_page.py
-  - tests/test_index_quotes.py
-  - PROGRESS.md
+task: T-160
+result: hold_awaiting_infra_confirm
+HEAD_at_start: 2bd7943
+scope: vnstocks_only
+ssh: blocked
 paused_fork: no
 ```
 
@@ -239,3 +245,4 @@ paused_fork: no
 | 2026-10-17 | **T-151 Doing** — human 1a; overlay Overview indexes từ Redis idx:quote |
 | 2026-10-17 | **T-151 Done** — index_quotes overlay; pytest Pass (3); Status=idle; chờ commit |
 | 2026-10-17 | **Master ack T-151 (human 2a)** — re-verify pytest Pass (3); ship code |
+| 2026-10-17 | **T-160 Doing HOLD** — human 1a deploy UI; chờ user_confirmed_infra |
