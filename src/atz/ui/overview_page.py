@@ -546,9 +546,18 @@ def show_volume_leaders() -> None:
             "Xu hướng": trend_image_column("Xu hướng", width="small"),
         },
     )
+    session = board.attrs.get("ohlcv_session_date") or "—"
+    source = board.attrs.get("price_source") or "ohlcv"
+    overlay_n = int(board.attrs.get("redis_overlay_count") or 0)
+    price_note = (
+        f"Giá/%: Redis phiên ({overlay_n}/{len(board)} mã)"
+        if source == "redis"
+        else "Giá/%: OHLCV (Redis miss)"
+    )
     st.caption(
-        f"Xếp theo KL phiên / TB 10 phiên trước. Lọc TB ≥ {VOLUME_LEADERS_MIN_AVG:,.0f}. "
-        "Giá/%/sparkline: xanh tăng · đỏ giảm · vàng đứng (FireAnt)."
+        f"Phiên OHLCV (KL): {session}. {price_note}. "
+        f"Xếp theo KL phiên / TB 10 · lọc TB ≥ {VOLUME_LEADERS_MIN_AVG:,.0f}. "
+        "Sparkline: xanh tăng · đỏ giảm · vàng đứng."
     )
 
 

@@ -2,7 +2,7 @@
 
 > Master Architect artifact. Agent 2 (Code Executor) chỉ làm đúng task `Doing` trong mục Handoff.
 > Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
-> Cập nhật: **2026-10-17** — **T-150 Doing** — P0 Overview Top KL / giá phiên (human 1a).
+> Cập nhật: **2026-10-17** — Master ack **T-150 Done** (human 2a); pytest Pass (10).
 
 ---
 
@@ -14,13 +14,13 @@
 | Data | Redis (nóng) + SQLite `data/signals.db` (bền); secrets chỉ env |
 | Deploy | Docker Compose `/opt/vnstocks` — services: `vnstocks`, ingestion, filter-runner, alert, position, index-feed, redis |
 | Auth | Authentik forward-auth; identity = headers; trading prefs = SQLite (ADR 0004) |
-| Branch / HEAD | `main` @ `d794f99` — T-150 handoff (Overview Top KL P0) |
+| Branch / HEAD | `main` — T-150 ship (xem commit sau Master push) |
 | NON-goal | Không đặt lệnh tự động; không SPA/BFF Phase 2 trừ nhu cầu mới |
 
 **Active goals (ưu tiên sản phẩm):**
 1. Giữ pipeline near-realtime ổn định + UI bảng thống nhất (`realtime` / `analytical` / `compact`).
 2. Hoàn thiện UX trading cá nhân (workspace + prefs seed Done; còn mentor F1 / Auditor).
-3. **P0 fix Overview:** Top KL/giá + VNINDEX lệch phiên vs Realtime/FireAnt (inbox 1530).
+3. **P0 còn T-151:** VNINDEX Overview ↔ Realtime (Top KL Giá/% đã T-150).
 4. Chờ mentor F1 (T-200/T-210); P1 polish từ inbox.
 
 ---
@@ -99,12 +99,13 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 | T-120 | Wire prefs → Bộ lọc (SQLite seed RSI/MACD) | ui, datasource, tests | **Master ack** — overlay+seed; saved thắng; MA≠MACD; pytest Pass (7) |
 | T-140 | Auditor backlog + P0 post-UX retest brief | docs | **Master ack** — BACKLOG stale×5; brief `1530`; PROTOCOL skip; chờ inbox |
 | T-130 | Deploy hygiene rebuild ALL (scope 3a) | docker | **Master ack** — image `8c872b1f46eb`; upstream PASS; stcore 200; no nginx/sshd/UFW |
+| T-150 | P0 Overview Top KL Giá/% = Redis phiên | analysis, ui, datasource, tests | **Master ack** — Redis overlay; KL OHLCV; exclude index; pytest Pass (10) |
 
 ### Doing
 
 | ID | Title | Status | Modules | Target files | Acceptance | Deps | Agent 2 instructions |
 |----|-------|--------|---------|--------------|------------|------|----------------------|
-| T-150 | P0 Overview Top KL / giá = phiên (không TC) | **Doing** | analysis, ui, datasource, tests | `analysis/volume_leaders.py`, `ui/overview_page.py`, `datasource/live_quotes.py` (reuse), `tests/test_volume_leaders.py` | Xem §6 | inbox 1530 | Xem §6 — ≤5 files; không tô màu che data |
+| — | *(trống — chờ human chọn Todo)* | — | — | — | — | — | — |
 
 **Quy tắc:** luôn tối đa **một** task `Doing`.
 
@@ -123,8 +124,8 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 ## 5. Risks & open questions
 
-1. **P0 data Overview** — Giá Overview ≈ TC Realtime; Δ ngược (VHM/STB/MBB…) — **không** fix bằng đổi màu.
-2. **Hai nguồn chỉ số** — Overview vs Realtime/index-feed.
+1. ~~P0 Top KL Giá≈TC~~ — **T-150 Done** (Redis overlay); còn verify production sau deploy.
+2. **Hai nguồn chỉ số** — Overview vs Realtime/index-feed (T-151).
 3. **Mentor gate** F1 còn lại.
 4. ~~WAIT inbox 1530~~ — **hết** (report trên `auditor/20261017-post-ux-wave-retest` @ `6932c76`).
 5. ~~T-130 image drift~~ — hết.
@@ -134,32 +135,19 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 ## 6. Handoff to Agent 2
 
-**Current Doing: T-150** — P0 Overview Top KL / giá phiên (human **1a**).
+**Current Doing:** *(trống)* — chờ human.
 
-### Gap (Architect pre-survey)
-- `analysis/volume_leaders.volume_stats`: `Giá` = `close.iloc[-1]`, `%` = vs `close.iloc[-2]` từ OHLCV CSV.
-- Auditor [live]: Overview **Giá ≈ TC Realtime** (VHM 58.90), Δ ngược FA/Realtime (61.00 +3.57%). Sidebar Redis quote **đúng** → lỗi nguồn Top KL OHLCV (bar cuối stale / thiếu phiên 16/10), không phải token màu.
-- UI: `overview_page.show_volume_leaders` chỉ gọi `rank_volume_leaders()` + caption cố định — chưa ghi ngày phiên / nguồn.
+```
+1a) T-151 — VNINDEX Overview ↔ Realtime
+1b) Commit + deploy T-150 (UI only)
+1c) Chờ
+```
 
-### Hướng implement (ưu tiên rõ ràng)
-1. **Giá + % trên bảng Top KL:** overlay từ Redis `quote:{symbol}` (reuse `datasource/live_quotes.py` / cùng đơn vị nghìn đồng như sidebar) khi có quote hợp lệ; **fallback** OHLCV.
-2. **KL phiên / TB10:** giữ từ OHLCV (F1 metric); nếu bar cuối không phải phiên giao dịch gần nhất → ưu tiên bar đúng ngày phiên (detect `time` cột nếu có) — đừng bịa dữ liệu.
-3. Caption: ngày phiên dùng + «Giá: Redis nếu có · KL: OHLCV».
-4. (Tuỳ chọn nhỏ trong cùng PR nếu ≤5 files) loại symbol chỉ số (`VNINDEX`…) khỏi rank — nếu phình scope → để T-152.
-5. Tests: unit overlay / fallback; không cần live Redis trong CI (mock).
-6. `pytest tests/test_volume_leaders.py` (+ test mới) → Pass/Fail.
-
-### Acceptance
-- Cùng điều kiện ngoài phiên: VHM Overview **cùng hướng** Realtime/FA (không còn Giá=TC + Δ ngược).
-- STB ~0%; MBB cùng hướng Realtime (−); caption có ngày/nguồn.
-- **Không** sửa màu token để «khớp» khi data sai.
-
-### Không đụng
-- T-151 VNINDEX path; nginx/SSH; Authentik; force-push; tô màu che OHLCV
-- `compose down` / volume wipe
-
-### Commit gợi ý
-`fix(overview): align Top KL price/pct with live quote session`
+### Executor notes (T-150 — Done, Master ack 2a)
+- `load_live_session_quotes` + `apply_live_price_overlay` → Giá/% Redis; KL OHLCV
+- Caption ngày/nguồn; loại VNINDEX khỏi Top KL
+- Master re-verify: pytest **10 passed**
+- Còn deploy `vnstocks` + verify live VHM nếu human muốn
 
 ---
 
@@ -187,24 +175,27 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing`.
 
 | Tab | Turns | Files this task | Slowing? | Status |
 |-----|------:|----------------:|----------|--------|
-| executor-1 | 0 | 0 | no | active |
+| executor-1 | 1 | 0 | no | idle |
 
 ### Master commands
 
-```
-START T-150 — P0 Overview Top KL price/pct vs live session (human 1a).
-Read §6. Prefer Redis quote overlay for Giá/%; OHLCV for volume metrics.
-≤5 files. No color-token fake-fix. No T-151 scope creep.
-pytest tests/test_volume_leaders.py Pass; update §7 + T-150 Done.
-```
+(none) — T-150 closed; chờ human chọn T-151 / deploy
 
 ### Last Executor state
 
 ```
 task: T-150
-result: in_progress
-HEAD_at_start: d794f99
-notes: assigned after human 1a
+result: Done
+master_ack: human 2a
+HEAD_at_start: 8091927
+commit: (see git after Master push)
+pytest: Pass (10) — Master re-verify OK
+files:
+  - src/atz/datasource/live_quotes.py
+  - src/atz/analysis/volume_leaders.py
+  - src/atz/ui/overview_page.py
+  - tests/test_volume_leaders.py
+  - PROGRESS.md
 paused_fork: no
 ```
 
@@ -241,3 +232,5 @@ paused_fork: no
 | 2026-10-17 | executor-1 re-check inbox vẫn trống; Turns 0→1; idle |
 | 2026-10-17 | **Inbox 1530 nhận** — Master summary; Todo T-150…T-153; WAIT clear |
 | 2026-10-17 | **T-150 Doing** — human 1a; Redis overlay Giá/% Top KL; Master START |
+| 2026-10-17 | **T-150 Done** — Redis session overlay; pytest Pass (10); Status=idle; chờ commit |
+| 2026-10-17 | **Master ack T-150 (human 2a)** — re-verify pytest Pass (10); ship code |

@@ -1,7 +1,6 @@
 """Top mã đột biến khối lượng so với TB 10 phiên (F1 mục 5).
 
-Chỉ đọc OHLCV local — không gọi mạng. TB 10 = trung bình 10 phiên
-trước phiên cuối; điều kiện sàn: TB ≥ min_avg.
+KL / TB10 từ OHLCV local. Giá + % ưu tiên Redis quote phiên (fallback OHLCV).
 """
 
 from __future__ import annotations
@@ -22,6 +21,19 @@ COLUMNS = (
     "KL / TB10",
     "Biến động giá (%)",
     "Xu hướng",
+)
+
+# Chỉ số / ETF hay lẫn trong data/ohlcv — không xếp Top KL cổ phiếu.
+_EXCLUDE_SYMBOLS = frozenset(
+    {
+        "VNINDEX",
+        "VN30",
+        "HNXINDEX",
+        "HNX",
+        "UPCOMINDEX",
+        "UPCOM",
+        "VN100",
+    }
 )
 
 
@@ -58,30 +70,78 @@ def volume_stats(
     }
 
 
+def bar_session_date(bars: pd.DataFrame) -> str | None:
+    """Ngày phiên của nến cuối (cột ``time``). Không có → None."""
+    if bars is None or bars.empty or "time" not in bars.columns:
+        return None
+    try:
+        return pd.to_datetime(bars["time"].iloc[-1]).date().isoformat()
+    except (TypeError, ValueError, IndexError):
+        return None
+
+
+def apply_live_price_overlay(
+    board: pd.DataFrame,
+    quotes: dict[str, dict[str, float]] | None,
+) -> tuple[pd.DataFrame, int]:
+    """Ghi đè Giá + Biến động giá (%) từ Redis session quotes. Trả (board, số mã overlay)."""
+    if board is None or board.empty or not quotes:
+        return board, 0
+    work = board.copy()
+    hits = 0
+    for index, row in work.iterrows():
+        symbol = str(row.get("Mã") or "").strip().upper()
+        payload = quotes.get(symbol)
+        if not payload:
+            continue
+        price_k = payload.get("price_k")
+        change_pct = payload.get("change_pct")
+        if price_k is None or change_pct is None:
+            continue
+        work.at[index, "Giá"] = round(float(price_k), 2)
+        work.at[index, "Biến động giá (%)"] = round(float(change_pct), 2)
+        hits += 1
+    return work, hits
+
+
 def rank_volume_leaders(
     symbols: list[str] | None = None,
     bars_dir: Path | None = None,
     min_avg: float = VOLUME_LEADERS_MIN_AVG,
     top_n: int = VOLUME_LEADERS_TOP_N,
     avg_bars: int = VOLUME_LEADERS_AVG,
+    *,
+    live_quotes: dict[str, dict[str, float]] | None = None,
+    use_live: bool = True,
 ) -> pd.DataFrame:
-    """Xếp hạng theo KL/TB10 giảm dần, lọc TB ≥ min_avg."""
+    """Xếp hạng theo KL/TB10 giảm dần, lọc TB ≥ min_avg.
+
+    ``use_live``: True → overlay Giá/% từ Redis (hoặc ``live_quotes`` mock).
+    attrs: ``ohlcv_session_date``, ``price_source``, ``redis_overlay_count``.
+    """
     root = bars_dir if bars_dir is not None else BARS_DIR
     if symbols is None:
         codes = sorted(path.stem.upper() for path in root.glob("*.csv") if path.stem)
     else:
         codes = [str(item).strip().upper() for item in symbols if str(item).strip()]
+    codes = [c for c in codes if c not in _EXCLUDE_SYMBOLS]
     rows: list[dict[str, object]] = []
+    session_dates: list[str] = []
     for symbol in codes:
         try:
             frame = load_symbol_csv(root, symbol)
         except Exception:
+            continue
+        if frame is None or getattr(frame, "empty", True):
             continue
         stats = volume_stats(frame, avg_bars=avg_bars)
         if stats is None:
             continue
         if stats["avg_volume"] < min_avg:
             continue
+        day = bar_session_date(frame)
+        if day:
+            session_dates.append(day)
         rows.append(
             {
                 "Mã": symbol,
@@ -94,10 +154,29 @@ def rank_volume_leaders(
             }
         )
     if not rows:
-        return pd.DataFrame(columns=list(COLUMNS))
+        empty = pd.DataFrame(columns=list(COLUMNS))
+        empty.attrs["ohlcv_session_date"] = None
+        empty.attrs["price_source"] = "ohlcv"
+        empty.attrs["redis_overlay_count"] = 0
+        return empty
     board = pd.DataFrame(rows)
-    return (
+    board = (
         board.sort_values("KL / TB10", ascending=False)
         .head(top_n)[list(COLUMNS)]
         .reset_index(drop=True)
     )
+    quotes = live_quotes
+    if quotes is None and use_live:
+        try:
+            from datasource.live_quotes import load_live_session_quotes
+
+            quotes = load_live_session_quotes(board["Mã"].astype(str).tolist())
+        except Exception:
+            quotes = {}
+    if quotes is None:
+        quotes = {}
+    board, hits = apply_live_price_overlay(board, quotes)
+    board.attrs["ohlcv_session_date"] = max(session_dates) if session_dates else None
+    board.attrs["price_source"] = "redis" if hits else "ohlcv"
+    board.attrs["redis_overlay_count"] = int(hits)
+    return board
