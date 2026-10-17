@@ -2,7 +2,7 @@
 
 > Master Architect artifact. Agent 2 (Code Executor) chỉ làm đúng task `Doing` trong mục Handoff.
 > Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
-> Cập nhật: **2026-10-17** — **T-162 Phase B GO** — Exe1 deploy T-153 UI (`vnstocks` only); human **1b**.
+> Cập nhật: **2026-10-17** — **T-162 Done** — image `4aaa437be56c`; upstream PASS; health 200.
 
 ---
 
@@ -14,14 +14,14 @@
 | Data | Redis (nóng) + SQLite `data/signals.db` (bền); secrets chỉ env |
 | Deploy | Docker Compose `/opt/vnstocks` — services: `vnstocks`, ingestion, filter-runner, alert, position, index-feed, redis |
 | Auth | Authentik forward-auth; identity = headers; trading prefs = SQLite (ADR 0004); **ADR 0006** cấm OIDC Client Streamlit |
-| Branch / HEAD | `main` @ `d6f62c6` — **T-162 Doing**; VPS UI `8b8bba1590af` → rebuild |
+| Branch / HEAD | `main` @ `9e6aef3`+ — **T-162 Done**; VPS UI `4aaa437be56c` |
 | NON-goal | Không đặt lệnh tự động; không SPA/BFF Phase 2; không OIDC client trong app trừ ADR mới |
 
 **Active goals (ưu tiên sản phẩm):**
 1. Giữ pipeline near-realtime ổn định + UI bảng thống nhất (`realtime` / `analytical` / `compact`).
 2. Hoàn thiện UX trading cá nhân (workspace + prefs seed Done; còn mentor F1 / Auditor).
 3. ~~P0 Overview Top KL + VNINDEX~~ — T-150/T-151 + T-160 **smoke Pass**.
-4. ~~T-152 / T-161 / T-153~~; **T-162 Doing** (Exe1 deploy contrast); mentor F1.
+4. ~~T-152 / T-161 / T-153 / T-162~~; mentor F1.
 
 ---
 
@@ -108,12 +108,13 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 | T-152 | P1 polish inbox §4 mục 3–4 | ui, ui_realtime, analysis, tests | **Master ack** — exclude/POW caption/Trần/Sàn/`closed`/PnL; `test_t152_polish` Pass (4) |
 | T-161 | Deploy T-152 UI (`vnstocks` only) | docker | **Master ack** — image `8b8bba1590af`; upstream PASS; stcore 200; public→Authentik 302 |
 | T-153 | P1 Contrast zebra / chữ Δ trên nền tối | ui, tests | **Master ack** — ZEBRA_ODD; skip signed; font-weight 700; pytest Pass (9) |
+| T-162 | Deploy T-153 UI (`vnstocks` only) | docker | **Executor Done** — image `4aaa437be56c`; pull `9e6aef3`; upstream PASS; health 200 |
 
 ### Doing
 
 | ID | Title | Status | Modules | Target files | Acceptance | Deps | Agent 2 instructions |
 |----|-------|--------|---------|--------------|------------|------|----------------------|
-| T-162 | Deploy T-153 UI (`vnstocks` only) | **Doing** (Phase B GO) | docker | VPS `/opt/vnstocks` | pull ≥ T-153 ship; build+up `--no-deps vnstocks`; health 200; upstream OK | `user_confirmed_infra: yes` (human 1b) | owner **Exe1** — §6 |
+| — | *(trống — chờ human)* | — | — | — | — | — | — |
 
 **Quy tắc:** luôn tối đa **một** task `Doing`.
 
@@ -141,38 +142,16 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 ## 6. Handoff to Agent 2
 
-**Current Doing: T-162** — Deploy T-153 UI. **Phase B AUTHORIZED** (human **1b**). Owner: **Exe1**.
+**Current Doing:** *(trống)* — chờ human / mentor F1.
 
-### Scope (LOCKED)
-`user_confirmed_infra: yes` · ADR 0007 · chỉ **`vnstocks`**  
-Code ≥ `d6f62c6` (zebra soft + skip signed + font-weight 700).
+### Executor notes (T-162 — Done)
+- VPS pull `566b29a` → `9e6aef3` (ff-only; ≥ `d6f62c6`)
+- image `4aaa437be56c`; `--no-deps --force-recreate vnstocks` only
+- `atz-check-upstream` PASS; `_stcore/health` **200**
+- Không đụng nginx / sshd / UFW / workers
 
-### Phase B — lệnh
-```bash
-ssh -p 22 root@112.213.88.230
-cd /opt/vnstocks
-git pull --ff-only origin main   # expect ≥ d6f62c6
-docker compose build vnstocks
-docker compose up -d --no-deps --force-recreate vnstocks
-docker compose ps vnstocks
-/usr/local/bin/atz-check-upstream
-# curl _stcore/health → 200
-```
-Smoke (tuỳ): Δ/% đọc được trên zebra @ 1280×800.  
-Cập nhật §7 + T-162 Done khi PASS.
-
-### Cấm
-- nginx / sshd / UFW / Authentik / `compose down` / volumes / recreate workers
-- Master **không** SSH
-
-### Master ack (T-153)
-- Re-verify: `pytest tests/test_table_theme.py` → **Pass (9)**.
-- DoD: ZEBRA_ODD nhẹ; skip signed cols; `css_up`/`css_down` font-weight 700.
-
-### Executor notes (T-153 — Done)
-- `ZEBRA_ODD` = `BG_CARD` + alpha `40`
-- `apply_zebra(skip_cols=signed)`
-- `COLOR_TOKENS.md` ghi chú T-153
+### Master ack (T-153) — archived
+- pytest `test_table_theme` Pass (9); ZEBRA_ODD + skip signed + font-weight 700.
 
 ### Executor notes (T-161 / T-152 — archived)
 - T-161 `8b8bba1590af`; T-152 `67b26e3`.
@@ -203,34 +182,27 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing`.
 
 | Tab | Turns | Files this task | Slowing? | Status |
 |-----|------:|----------------:|----------|--------|
-| executor-1 | 0 | 0 | no | active |
+| executor-1 | 1 | 1 | no | idle |
 
 ### Master commands
 
 ```
-user_confirmed_infra: yes
-scope: vnstocks_only
-owner: executor-1  (Exe1 — human 1b — Master does NOT SSH)
-START T-162 Phase B — SSH -p 22 → /opt/vnstocks
-git pull --ff-only; docker compose build vnstocks;
-up -d --no-deps --force-recreate vnstocks
-atz-check-upstream + _stcore/health 200
-expect ≥ d6f62c6
-NO nginx/sshd/UFW/volumes/workers.
-When Done: §7 + T-162 Done; Status=idle; push PROGRESS.
+(none — T-162 Done; Status=idle; chờ human)
 ```
 
 ### Last Executor state
 
 ```
 task: T-162
-result: authorized_awaiting_executor
-code_min: d6f62c6
+result: Done
+image: 4aaa437be56c
+code: 9e6aef3
 scope: vnstocks_only
-user_confirmed_infra: yes
+upstream: PASS
+health: 200
 owner: executor-1
-ssh: allowed :22
 paused_fork: no
+Status: idle
 ```
 
 ### Signals
@@ -291,3 +263,4 @@ paused_fork: no
 | 2026-10-17 | **T-153 Done** — zebra soft + skip signed + font-weight; pytest Pass (9) |
 | 2026-10-17 | **Master ack T-153 (human 1b)** — ship + authorize T-162 Exe1 deploy |
 | 2026-10-17 | **T-162 Phase B GO** — Exe1 deploy T-153 UI; user_confirmed_infra: yes |
+| 2026-10-17 | **T-162 Done** — image `4aaa437be56c`; pull `9e6aef3`; upstream PASS; health 200; Status=idle |
