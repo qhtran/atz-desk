@@ -2,18 +2,22 @@
 
 ## Vai trò
 
+Roster đầy đủ (Active + Planned): **[`BOTS_ROSTER.md`](BOTS_ROSTER.md)**
+
 | Vai trò | Ai | Việc | Kênh |
 |--------|-----|------|------|
-| **Orchestrator** | Cursor (Composer) trong chat này | Hiểu mục tiêu user → chia việc → đọc kết quả → chốt ưu tiên `1a/1b…` → (tuỳ chọn) review diff | Chat Cursor + git |
-| **Auditor** | AuditorBot (Grok + computer use) | Survey **atz.vn** / **fireant.vn**, báo cáo lệch UI/UX | `docs/auditorbot/inbox/` |
-| **Coder / Ops / Infra** | VPSbot | Code, test, commit; **Docker/Compose**, deploy `/opt/vnstocks`, Redis/SQLite, nginx & server setup (+ `user_confirmed_infra` nếu rủi ro) | GitHub inbox/outbox + **SSH:443 → VPS** |
-| **Chủ repo** | Bạn | Quyết định lớn, auth bot lần đầu, chuyển prompt khởi động | Chat + GitHub |
+| **Orchestrator** | Cursor | Brief, poll git, chốt hướng | Chat + git |
+| **Coder / Ops** | **VPSBot** | Code + deploy VPS; brief `inbox/` | `docs/bots/vpsbot/` + SSH:443 |
+| **Auditor (read-only)** | **AuditorBot** | So sánh atz vs FireAnt UI/UX / kiến trúc; không sửa | `docs/auditorbot/` |
+| **Sec / config** | **SecConfBot** (planned) | Kiểm tra bảo mật & cấu hình sau đổi VPS | `docs/bots/secconfbot/` |
+| **Screening** | **Stock Screening Agent** (planned) | CANSLIM, ngành, mẫu hình, dòng tiền | `docs/bots/screening/` |
+| **News** | **DailyStockNews** (planned) | Tóm tắt tin + biến động sáng/tối | `docs/bots/dailystocknews/` |
+| **Yuanta** | **YSradar Portfolio Agent** (planned) | Đọc/phân tích Portfolio & bảng giá YSradar | `docs/bots/ysradar/` |
+| **Chủ repo** | Bạn | Quyết định lớn, bật bot mới | Chat + GitHub |
 
-**Giả định nền (đã chốt):** **mọi bot đều `git pull` / `git push` được** cùng remote GitHub. Không copy tay file giữa máy trừ khi git lỗi.
+**Giả định:** bot Active `git pull`/`push` cùng remote.  
 
-**Hướng dẫn chủ repo:** [`HOW_TO_BAN.md`](HOW_TO_BAN.md)  
-**Phân vai:** [`ROLES_ARCHITECT.md`](ROLES_ARCHITECT.md)  
-**Hàng đợi / quyết định khóa:** [`OVERNIGHT_QUEUE.md`](OVERNIGHT_QUEUE.md) · [`ACCEPTANCE_TESTS.md`](ACCEPTANCE_TESTS.md)
+**Hướng dẫn:** [`HOW_TO_BAN.md`](HOW_TO_BAN.md) · [`ROLES_ARCHITECT.md`](ROLES_ARCHITECT.md) · [`OVERNIGHT_QUEUE.md`](OVERNIGHT_QUEUE.md) · [`ACCEPTANCE_TESTS.md`](ACCEPTANCE_TESTS.md)
 
 **Nguyên tắc tiết kiệm token Cursor:** survey dài + code/deploy lặp → giao bot. Cursor: brief ngắn → push hộp việc → sau đó `pull` đọc kết quả → hỏi user.
 
