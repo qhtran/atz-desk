@@ -14,7 +14,7 @@
 | Data | Redis (nóng) + SQLite `data/signals.db` (bền); secrets chỉ env |
 | Deploy | Docker Compose `/opt/vnstocks` — services: `vnstocks`, ingestion, filter-runner, alert, position, index-feed, redis |
 | Auth | Authentik forward-auth; identity = headers; trading prefs = SQLite (ADR 0004) |
-| Branch / HEAD | `main` — T-140 ship (xem commit sau push Master ack) |
+| Branch / HEAD | `main` @ `0e1132e` — T-140 Auditor backlog + P0 brief |
 | NON-goal | Không đặt lệnh tự động; không SPA/BFF Phase 2 trừ nhu cầu mới |
 
 **Active goals (ưu tiên sản phẩm):**
@@ -185,7 +185,7 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing`.
 task: T-140
 result: Done
 HEAD_at_start: 32480d1
-commit: (see git after Master push)
+commit: 0e1132e
 pytest: n/a (docs only)
 files:
   - docs/auditorbot/BACKLOG.md
