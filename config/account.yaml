@@ -1,0 +1,11 @@
+# Trang Tài khoản (Phase 1, docs/specs/ACCOUNT_UX_AUTHENTIK_BFF.md).
+# Danh tính lấy từ header X-authentik-* do nginx forward auth gắn; không gọi Authentik API.
+# Chỉ URL công khai, không để secret ở đây. URL rỗng thì nút tương ứng bị ẩn.
+account:
+  enabled: true
+  # Outpost xóa cookie rồi chạy invalidation flow của provider (default-provider-invalidation-flow).
+  logout_url: "https://atz.vn/outpost.goauthentik.io/sign_out"
+  password_flow_url: "https://auth.atz.vn/if/flow/default-password-change/"
+  mfa_flow_url: "https://auth.atz.vn/if/flow/default-authenticator-totp-setup/"
+  # Phase 2 only:
+  # authentik_api_url: ""  # prefer https://auth.atz.vn, không nối network internal

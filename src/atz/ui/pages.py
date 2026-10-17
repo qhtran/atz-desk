@@ -447,16 +447,22 @@ def open_page() -> None:
             + ("" if filters["min_rs"] <= RS_FILTER_OFF else f", RS ≥ {filters['min_rs']:.0f}%")
             + f", tối đa {filters['top_n']} mã."
         )
+    from ui.account_page import load_account_config
+
+    account_config = load_account_config()
+    page_names = [
+        "Tổng quan",
+        "Realtime",
+        "Trạm Trading",
+        "Bộ lọc tín hiệu",
+        "Danh mục",
+        "Tin tức / Bài viết",
+    ]
+    if account_config["enabled"]:
+        page_names.append("Tài khoản")
     page = st.segmented_control(
         "Trang",
-        [
-            "Tổng quan",
-            "Realtime",
-            "Trạm Trading",
-            "Bộ lọc tín hiệu",
-            "Danh mục",
-            "Tin tức / Bài viết",
-        ],
+        page_names,
         default="Tổng quan",
         key="open_page",
     )
@@ -493,6 +499,11 @@ def open_page() -> None:
 
         show_alerts()
         show_news_and_posts()
+        return
+    if page == "Tài khoản":
+        from ui.account_page import show_account
+
+        show_account(account_config)
         return
     if page == "Bộ lọc tín hiệu":
         from ui.filters_page import show_filters
