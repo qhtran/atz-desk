@@ -207,7 +207,6 @@ def _board(user_id: int, interval, query: str = "") -> None:
         except Exception:  # noqa: BLE001
             pins = []
     frame = bv.sort_pinned_first(frame, pins)
-    frame = bv.mark_pinned_column(frame, pins)
 
     state_by: dict[str, str] = {}
     for _, row in frame.iterrows():
@@ -301,7 +300,7 @@ def _board(user_id: int, interval, query: str = "") -> None:
             "Thấp": "{:,.0f}",
             "TC": "{:,.0f}",
         },
-        subset=[c for c in frame.columns if c not in ("Xu hướng", "Ghim", "Sàn", "Trần", "Sàn giá")],
+        subset=[c for c in frame.columns if c not in ("Xu hướng", "Sàn", "Trần", "Sàn giá")],
         na_rep="-",
     ).apply(_rt_row_colors, axis=1)
     hide_cols = [c for c in ("Sàn", "Trần", "Sàn giá") if c in frame.columns]
@@ -309,7 +308,7 @@ def _board(user_id: int, interval, query: str = "") -> None:
         styled = styled.hide(axis="columns", subset=hide_cols)
     render_data_table(
         styled,
-        key_cols=["Ghim", "Giá", "%", "Xu hướng", "Trạng thái"],
+        key_cols=["Giá", "%", "Xu hướng", "Trạng thái"],
         key="rt_board",
         column_config={"Xu hướng": trend_image_column("Xu hướng", width="small")},
         alt="Bảng giá realtime kèm sparkline, trần/sàn và flash khi giá đổi",
