@@ -28,6 +28,14 @@ ssh -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes root@112.213.88.230 cat /opt/auth
 
 Phê duyệt: `https://auth.atz.vn/if/admin/` → Directory → Users. Lọc nhóm `cho-duyet`, mở user, bật **Active**, rồi Update. User đăng nhập lại, quét TOTP, rồi vào `https://atz.vn`.
 
+## Social / SSO (Google, Facebook, OIDC)
+
+- Brief: `docs/infrastructure/AUTHENTIK_SOCIAL_SOURCES_BRIEF.md`
+- Blueprints: `blueprints/atz-source-enrollment.yaml` (user mới = inactive + `cho-duyet`, không auto-login), `blueprints/atz-social-sources.yaml` (Sources, mặc định `enabled: false` đến khi có secret)
+- Secrets: thêm biến `AUTHENTIK_SOURCES_*` vào `.env` (xem `.env.example`). **Không** commit giá trị.
+- Sau SSO lần đầu: user **chưa** vào `atz.vn` cho đến khi admin Active (cùng quy trình phê duyệt ở trên).
+- App Streamlit không dùng OIDC client (ADR 0006).
+
 Giao diện Authentik 2026.8.3 không có gói tiếng Việt. Form đăng ký dùng nhãn tiếng Việt. Các nút sẵn của Authentik vẫn là tiếng Anh.
 
 ## Gia hạn chứng chỉ auth.atz.vn

@@ -1,0 +1,113 @@
+# SSO / Social source enrollment — create inactive user in cho-duyet; no auto-login.
+# Policy atz-user-is-active on application "atz" blocks atz.vn until admin activates.
+version: 1
+metadata:
+  name: atz.vn source enrollment pending approve
+  labels:
+    blueprints.goauthentik.io/instantiate: "true"
+entries:
+  - model: authentik_core.group
+    id: pending-group
+    identifiers:
+      name: cho-duyet
+
+  - model: authentik_policies_expression.expressionpolicy
+    id: if-sso
+    identifiers:
+      name: atz-source-enrollment-if-sso
+    attrs:
+      expression: return ak_is_sso_flow
+
+  - model: authentik_policies_expression.expressionpolicy
+    id: username-from-email
+    identifiers:
+      name: atz-source-enrollment-username-from-email
+    attrs:
+      expression: |
+        # Prefer IdP email as username when username missing.
+        pd = request.context.setdefault("prompt_data", {})
+        if not pd.get("username") and pd.get("email"):
+            pd["username"] = pd["email"]
+        return True
+
+  - model: authentik_stages_prompt.prompt
+    id: field-notice
+    identifiers:
+      name: atz-source-enroll-notice
+    attrs:
+      field_key: notice
+      label: Đăng ký SSO thành công
+      type: alert_info
+      required: false
+      order: 0
+      initial_value: |
+        <p>Tài khoản của bạn đã được tạo từ Google / Facebook / SSO và
+        <strong>đang chờ quản trị viên phê duyệt</strong>.</p>
+        <p>Bạn chưa thể vào <code>atz.vn</code> cho đến khi được kích hoạt.</p>
+        <p>Trong lúc chờ, đọc hướng dẫn:
+        <a href="https://atz.vn/huong-dan">https://atz.vn/huong-dan</a></p>
+
+  - model: authentik_stages_prompt.promptstage
+    id: enroll-done
+    identifiers:
+      name: atz-source-enrollment-done
+    attrs:
+      fields:
+        - !KeyOf field-notice
+
+  - model: authentik_stages_user_write.userwritestage
+    id: enroll-write
+    identifiers:
+      name: atz-source-enrollment-write
+    attrs:
+      user_creation_mode: always_create
+      create_users_as_inactive: true
+      create_users_group: !KeyOf pending-group
+      # external: giữ UserSourceConnection để lần sau không re-enroll lỗi username
+      user_type: external
+
+  - model: authentik_flows.flow
+    id: enroll-flow
+    identifiers:
+      slug: atz-source-enrollment
+    attrs:
+      name: Đăng ký SSO atz.vn (chờ duyệt)
+      title: Chờ phê duyệt
+      designation: enrollment
+      authentication: none
+      denied_action: message_continue
+      policy_engine_mode: any
+      layout: stacked
+
+  - model: authentik_policies.policybinding
+    identifiers:
+      order: 0
+      target: !KeyOf enroll-flow
+      policy: !KeyOf if-sso
+    attrs:
+      enabled: true
+      negate: false
+
+  # username-from-email: bind to flow (not FlowStageBinding) — avoids 2026.8 policybindingmodel_ptr errors
+  - model: authentik_policies.policybinding
+    identifiers:
+      order: 5
+      target: !KeyOf enroll-flow
+      policy: !KeyOf username-from-email
+    attrs:
+      enabled: true
+      negate: false
+
+  - model: authentik_flows.flowstagebinding
+    identifiers:
+      target: !KeyOf enroll-flow
+      stage: !KeyOf enroll-write
+      order: 10
+
+  - model: authentik_flows.flowstagebinding
+    identifiers:
+      target: !KeyOf enroll-flow
+      stage: !KeyOf enroll-done
+      order: 20
+
+  # Explicit: không gắn User Login stage — user inactive không được phiên đầy đủ.

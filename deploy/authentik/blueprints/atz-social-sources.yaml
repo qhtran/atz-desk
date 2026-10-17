@@ -1,0 +1,47 @@
+# Google + Facebook Sources → enrollment atz-source-enrollment.
+# OIDC generic: see atz-social-oidc-generic.yaml (needs auth/token/profile URLs).
+# Placeholders until human sets real secrets; keep enabled=false.
+version: 1
+metadata:
+  name: atz.vn social sources google facebook
+  labels:
+    blueprints.goauthentik.io/instantiate: "true"
+entries:
+  - model: authentik_sources_oauth.oauthsource
+    id: source-google
+    identifiers:
+      slug: google
+    attrs:
+      name: Google
+      slug: google
+      enabled: false
+      provider_type: google
+      consumer_key: !Env [AUTHENTIK_SOURCES_GOOGLE_CLIENT_ID, "pending-set-in-admin"]
+      consumer_secret: !Env [AUTHENTIK_SOURCES_GOOGLE_CLIENT_SECRET, "pending-set-in-admin"]
+      user_matching_mode: email_link
+      enrollment_flow: !Find [authentik_flows.flow, [slug, atz-source-enrollment]]
+      authentication_flow: !Find [authentik_flows.flow, [slug, default-source-authentication]]
+
+  - model: authentik_sources_oauth.oauthsource
+    id: source-facebook
+    identifiers:
+      slug: facebook
+    attrs:
+      name: Facebook
+      slug: facebook
+      enabled: false
+      provider_type: facebook
+      consumer_key: !Env [AUTHENTIK_SOURCES_FACEBOOK_CLIENT_ID, "pending-set-in-admin"]
+      consumer_secret: !Env [AUTHENTIK_SOURCES_FACEBOOK_CLIENT_SECRET, "pending-set-in-admin"]
+      user_matching_mode: email_link
+      enrollment_flow: !Find [authentik_flows.flow, [slug, atz-source-enrollment]]
+      authentication_flow: !Find [authentik_flows.flow, [slug, default-source-authentication]]
+
+  - model: authentik_stages_identification.identificationstage
+    identifiers:
+      name: default-authentication-identification
+    attrs:
+      sources:
+        - !KeyOf source-google
+        - !KeyOf source-facebook
+        - !Find [authentik_sources_oauth.oauthsource, [slug, oidc-generic]]

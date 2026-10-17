@@ -2,7 +2,7 @@
 
 > Master Architect artifact. Agent 2 (Code Executor) chỉ làm đúng task `Doing` trong mục Handoff.
 > Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
-> Cập nhật: **2026-10-17** — **Master ack T-163** — smoke contrast Pass @ 1280×800 (Exe1).
+> Cập nhật: **2026-10-17** — **T-220 Done** / **T-221 Partial** — SSO blueprints live; chờ OAuth secrets enable.
 
 ---
 
@@ -14,14 +14,15 @@
 | Data | Redis (nóng) + SQLite `data/signals.db` (bền); secrets chỉ env |
 | Deploy | Docker Compose `/opt/vnstocks` — services: `vnstocks`, ingestion, filter-runner, alert, position, index-feed, redis |
 | Auth | Authentik forward-auth; identity = headers; trading prefs = SQLite (ADR 0004); **ADR 0006** cấm OIDC Client Streamlit |
-| Branch / HEAD | `main` @ `52f407e`+ — VPS UI `4aaa437be56c`; T-163 **Master ack** |
+| Branch / HEAD | `main` @ `da418b8`+ — VPS UI `4aaa437be56c`; T-220 SSO pending-approve |
 | NON-goal | Không đặt lệnh tự động; không SPA/BFF Phase 2; không OIDC client trong app trừ ADR mới |
+| `user_confirmed_infra` | **yes** — scope Authentik Sources/blueprints only (plan SSO); **không** stream/sshd/UFW |
 
 **Active goals (ưu tiên sản phẩm):**
 1. Giữ pipeline near-realtime ổn định + UI bảng thống nhất (`realtime` / `analytical` / `compact`).
 2. Hoàn thiện UX trading cá nhân (workspace + prefs seed Done; còn mentor F1 / Auditor).
 3. ~~P0 Overview Top KL + VNINDEX~~ — T-150/T-151 + T-160 **smoke Pass**.
-4. ~~T-152…T-163~~; mentor F1.
+4. ~~T-152…T-163~~; mentor F1; **T-220/T-221 SSO + approve**.
 
 ---
 
@@ -110,12 +111,13 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 | T-153 | P1 Contrast zebra / chữ Δ trên nền tối | ui, tests | **Master ack** — ZEBRA_ODD; skip signed; font-weight 700; pytest Pass (9) |
 | T-162 | Deploy T-153 UI (`vnstocks` only) | docker | **Master ack** — image `4aaa437be56c`; pull `9e6aef3`; upstream PASS; health 200; public→302 |
 | T-163 | Smoke contrast T-153 trên atz.vn | ui | **Master ack** — Overview TopKL + Realtime + idx + sidebar PnL readable @ 1280×800 |
+| T-220 | Authentik SSO Sources + enrollment pending approve | infra | **Done** — flow `atz-source-enrollment`; Sources google/fb/oidc-generic `enabled=false`; policy smoke Pass; site 302; outbox `1830-DONE` |
 
 ### Doing
 
 | ID | Title | Status | Modules | Target files | Acceptance | Deps | Agent 2 instructions |
 |----|-------|--------|---------|--------------|------------|------|----------------------|
-| — | *(trống — chờ human)* | — | — | — | — | — | — |
+| — | *(trống)* | — | — | — | — | — | — |
 
 **Quy tắc:** luôn tối đa **một** task `Doing`.
 
@@ -123,9 +125,10 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 | ID | Title | Status | Modules | Target files (dự kiến) | Acceptance | Deps | Agent 2 instructions |
 |----|-------|--------|---------|------------------------|------------|------|----------------------|
+| T-221 | Smoke SSO live Google/FB (sau secrets) | Todo | infra | `SSO_SMOKE_CHECKLIST.md` | A+B Pass browser | Human secrets | **Human** enable Sources → Exe1 browser smoke. |
 | T-200 | F1: enum nến mạnh / TB / yếu gắn filter | Blocked | filters, analysis, ui | `filters/candle.py`, … | Mentor | Mentor | **Blocked.** |
 | T-210 | F1: Bollinger / Ichimoku / phần II | Blocked | filters, analysis | theo mentor | Mentor | Mentor | **Blocked.** |
-| T-220 | Brand CSS Authentik / Social Sources / infra soft | Blocked | infra | deploy + `AUTHENTIK_SOCIAL_SOURCES_BRIEF.md` | `user_confirmed_infra` | Human | **Blocked** — không Executor OIDC app. |
+| T-222 | Brand CSS Authentik login (optional) | Blocked | infra | Authentik brand CSS | Visual brand | Human | **Blocked** — tách khỏi Sources; optional. |
 
 ---
 
@@ -137,18 +140,19 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 4. ~~WAIT inbox 1530~~ — **hết** (report trên `auditor/20261017-post-ux-wave-retest` @ `6932c76`).
 5. ~~T-130 image drift~~ — hết.
 6. Multi-agent: bus = PROGRESS only.
-7. ~~Gemini OIDC-in-Streamlit~~ — **từ chối** (ADR 0006); Social = Authentik Sources brief.
+7. ~~Gemini OIDC-in-Streamlit~~ — **từ chối** (ADR 0006); Social = Authentik Sources + **pending approve**.
+8. **OAuth secrets** — human điền `AUTHENTIK_SOURCES_*` vào `/opt/authentik/.env` trước khi enable Source (không qua git).
 
 ---
 
 ## 6. Handoff to Agent 2
 
-**Current Doing:** *(trống)* — Master ack T-163 xong; chờ human / mentor F1.
+**Current Doing:** *(trống)* — T-220 Done; T-221 chờ human OAuth secrets.
 
-```
-1a) Chờ mentor F1
-1b) Chờ
-```
+### Master notes (SSO plan)
+- Model: Google/FB/OIDC Source → user inactive + `cho-duyet` → admin Active → atz.vn.
+- **T-220 Done** on VPS; Sources disabled until secrets; policy A' Pass; live A/B = T-221.
+- Human: dán `AUTHENTIK_SOURCES_*` + enable Sources → rồi T-221 browser smoke.
 
 ### Master ack (T-163)
 - Report Exe1: **Pass** @ 1280×800 (Overview TopKL Δ/%, Realtime +/-/%, idx cards, sidebar PnL); image `4aaa437be56c`; không sửa code.
@@ -198,20 +202,17 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing`.
 ### Master commands
 
 ```
-IDLE — no Doing.
-T-163 Master ack complete (Exe1 smoke Pass).
-Master: PLAN/ACK ONLY. Next: human 1a mentor F1 | 1b wait.
+IDLE — T-220 Done (outbox 1830-DONE).
+T-221 blocked on human OAuth secrets → then enable Sources + browser smoke.
 ```
 
 ### Last Executor state
 
 ```
-task: T-163
+task: T-220
 result: Pass
-master_ack: yes
-viewport: 1280x800
-image: 4aaa437be56c
-owner: executor-1
+T-221: Partial (policy proxy Pass; live SSO Skip until secrets)
+owner: cursor-implement
 Status: idle
 ```
 
@@ -279,3 +280,5 @@ Status: idle
 | 2026-10-17 | **T-163 Doing** — human 1a; Exe1 smoke contrast @ 1280×800 |
 | 2026-10-17 | **T-163 Done (Pass)** — Overview/Realtime/sidebar Δ readable @ 1280×800; Status=idle |
 | 2026-10-17 | **Master ack T-163** — Exe1 smoke Pass; no Master re-smoke |
+| 2026-10-17 | **SSO plan** — Sources + pending approve; brief/blueprints/T-220 Doing; T-221 Todo; user_confirmed_infra: yes |
+| 2026-10-17 | **T-220 Done** — blueprints + Sources on VPS; T-221 Partial; outbox 1830-DONE |

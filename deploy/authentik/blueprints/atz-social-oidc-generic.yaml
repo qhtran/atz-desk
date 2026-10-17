@@ -1,0 +1,26 @@
+# Generic OIDC Source template — fill issuer endpoints before enable.
+# When human has real IdP: set AUTHENTIK_SOURCES_OIDC_* and URL fields, then enable.
+version: 1
+metadata:
+  name: atz.vn social source oidc generic
+  labels:
+    blueprints.goauthentik.io/instantiate: "true"
+entries:
+  - model: authentik_sources_oauth.oauthsource
+    id: source-oidc
+    identifiers:
+      slug: oidc-generic
+    attrs:
+      name: OIDC (generic)
+      slug: oidc-generic
+      enabled: false
+      provider_type: openidconnect
+      consumer_key: !Env [AUTHENTIK_SOURCES_OIDC_CLIENT_ID, "pending-set-in-admin"]
+      consumer_secret: !Env [AUTHENTIK_SOURCES_OIDC_CLIENT_SECRET, "pending-set-in-admin"]
+      oidc_well_known_url: !Env [AUTHENTIK_SOURCES_OIDC_OIDC_URL, "https://example.com/.well-known/openid-configuration"]
+      authorization_url: !Env [AUTHENTIK_SOURCES_OIDC_AUTHORIZATION_URL, "https://example.com/oauth/authorize"]
+      access_token_url: !Env [AUTHENTIK_SOURCES_OIDC_TOKEN_URL, "https://example.com/oauth/token"]
+      profile_url: !Env [AUTHENTIK_SOURCES_OIDC_PROFILE_URL, "https://example.com/oauth/userinfo"]
+      user_matching_mode: email_link
+      enrollment_flow: !Find [authentik_flows.flow, [slug, atz-source-enrollment]]
+      authentication_flow: !Find [authentik_flows.flow, [slug, default-source-authentication]]
