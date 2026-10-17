@@ -2,7 +2,7 @@
 
 > Master Architect artifact. Agent 2 (Code Executor) chỉ làm đúng task `Doing` trong mục Handoff.
 > Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
-> Cập nhật: **2026-10-17** — **T-140 Doing** — Auditor backlog / brief retest (docs only).
+> Cập nhật: **2026-10-17** — Master ack **T-140 Done** (human 2a); brief P0 `1530` sẵn poll.
 
 ---
 
@@ -14,13 +14,13 @@
 | Data | Redis (nóng) + SQLite `data/signals.db` (bền); secrets chỉ env |
 | Deploy | Docker Compose `/opt/vnstocks` — services: `vnstocks`, ingestion, filter-runner, alert, position, index-feed, redis |
 | Auth | Authentik forward-auth; identity = headers; trading prefs = SQLite (ADR 0004) |
-| Branch / HEAD | `main` @ `8337f03` — T-120 shipped; tiếp T-140 Auditor docs |
+| Branch / HEAD | `main` — T-140 ship (xem commit sau push Master ack) |
 | NON-goal | Không đặt lệnh tự động; không SPA/BFF Phase 2 trừ nhu cầu mới |
 
 **Active goals (ưu tiên sản phẩm):**
 1. Giữ pipeline near-realtime ổn định + UI bảng thống nhất (`realtime` / `analytical` / `compact`).
 2. Hoàn thiện UX trading cá nhân (workspace + prefs seed Done; còn mentor F1 / Auditor).
-3. Auditor queue / survey baseline còn trống inbox.
+3. Auditor: brief P0 `1530` active — chờ AuditorBot push inbox.
 4. Chờ mentor cho nến mạnh–TB–yếu, Bollinger, Ichimoku, phần II.
 
 ---
@@ -97,12 +97,13 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 | T-100 | Đồng bộ docs handoff với HEAD thực tế | docs | HANDOFF + PROGRESS khớp Done |
 | T-110 | Verify không còn bảng bypass theme | ui, tests | **Agent2 Done** — grep sạch; regression Pass (7); ship `8e98e0f` |
 | T-120 | Wire prefs → Bộ lọc (SQLite seed RSI/MACD) | ui, datasource, tests | **Master ack** — overlay+seed; saved thắng; MA≠MACD; pytest Pass (7) |
+| T-140 | Auditor backlog + P0 post-UX retest brief | docs | **Master ack** — BACKLOG stale×5; brief `1530`; PROTOCOL skip; chờ inbox |
 
 ### Doing
 
 | ID | Title | Status | Modules | Target files | Acceptance | Deps | Agent 2 instructions |
 |----|-------|--------|---------|--------------|------------|------|----------------------|
-| T-140 | Auditor: thu hoạch backlog + 1 brief P0 mới | **Doing** | docs | `docs/auditorbot/**`, `PROGRESS.md` | Xem §6 | — | **Chỉ docs.** ≤5 files. Không `src/`. Không survey browser trừ human bảo. |
+| — | *(trống — chờ human chọn Todo)* | — | — | — | — | — | — |
 
 **Quy tắc:** luôn tối đa **một** task `Doing`.
 
@@ -119,7 +120,7 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 ## 5. Risks & open questions
 
-1. **Auditor inbox trống** — 5 task overnight không báo cáo (T-140 đang dọn).
+1. **Auditor inbox** — T-140 đã đánh stale + brief P0 mới; chờ AuditorBot push inbox.
 2. **Mentor gate** cho nến mạnh–TB–yếu + BB/Ichi — không tự invent.
 3. **Image drift** trên VPS — cần human xác nhận trước T-130.
 4. **Multi-agent:** Architect ≠ app code; Executor = 1 `Doing`; bus = PROGRESS.md only.
@@ -130,42 +131,18 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 ## 6. Handoff to Agent 2
 
-**Current Doing: T-140** — Auditor: thu hoạch backlog + 1 brief P0 mới (docs only).
+**Current Doing:** *(trống)* — chờ human chọn Todo.
 
-### Gap (Architect pre-survey)
-- `docs/auditorbot/inbox/` — **trống** (chỉ README/`.gitkeep`).
-- `docs/auditorbot/reports/` — trống.
-- `docs/auditorbot/tasks/` còn **5** brief overnight không báo cáo:
-  - `20261017-0622-f1-acceptance-baseline.md` (P0)
-  - `20261017-0630-colors-ceiling-floor.md`
-  - `20261017-0630-rss-html.md`
-  - `20261017-0700-sidebar-retest.md`
-  - `20261017-0800-post-vps-wave1-retest.md` (P1)
-- AuditorBot có thể stalled; không giả định baseline UI đã audit.
+```
+1a) T-130 — Deploy hygiene (cần confirm SSH)
+1b) Chờ — không giao Executor / chờ AuditorBot inbox
+```
 
-### Làm gì (executor-1) — **≤5 files**, không `src/`
-1. `git pull --ff-only origin main` (≥ `8337f03`).
-2. Tạo `docs/auditorbot/BACKLOG.md`: bảng 5 task cũ = `stale_no_inbox` (ngày, P0/P1, lý do supersede vì HEAD đã qua table variants / pin strip / workspace / T-120).
-3. Viết **một** brief P0 mới trong `tasks/`, tên gợi ý:
-   `20261017-1530-post-ux-wave-retest.md`
-   Phạm vi survey (atz vs fireant, bám `REPORT_TEMPLATE.md` + `COLOR_TOKENS.md`):
-   - Realtime: màu ±/TC/trần/sàn, flash, **pinned strip**, search mã
-   - Tổng quan: Top KL
-   - Sidebar vị thế sống (Redis quote)
-   - Tab **Không gian Trading** có/không (smoke)
-   - RSS HTML thô (1 check ngắn)
-   Done khi: push inbox báo cáo cùng stem (AuditorBot làm survey — Executor **không** bắt buộc browser).
-4. Cập nhật `docs/auditorbot/tasks/README.md` (hoặc 1 dòng trong BACKLOG): task active = chỉ file P0 mới; 5 file cũ = stale (giữ file, **không** git mv cả 5 trong turn này — tránh >5 files / fork).
-5. Cập nhật PROGRESS: T-140 → Done; §7 Turns/Files; Last Executor state; Status=idle.
-
-### Không đụng
-- `src/`, `config/`, Docker, nginx/SSH, secrets
-- Chạy AuditorBot computer-use trừ human yêu cầu riêng
-- Xóa cứng 5 task cũ (chỉ đánh dấu stale trong BACKLOG)
-- Force-push
-
-### Commit (khi Pass / human ok)
-- Gợi ý: `docs(auditor): backlog stale overnight tasks + post-UX retest brief`
+### Executor notes (T-140 — Done, Master ack 2a)
+- `docs/auditorbot/BACKLOG.md` — 5 overnight = `stale_no_inbox`; active = `1530` P0
+- Brief: `tasks/20261017-1530-post-ux-wave-retest.md` (pin/workspace/tables/RSS smoke)
+- `tasks/README.md` + `PROTOCOL.md`: skip stale / chỉ Active
+- Master review: 5 files docs-only, đúng handoff ≤5; **không** `src/`
 
 ### Executor notes (T-120 — archived)
 - Done @ `d19ef30`; Master ack human 2a.
@@ -196,25 +173,28 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing`.
 
 | Tab | Turns | Files this task | Slowing? | Status |
 |-----|------:|----------------:|----------|--------|
-| executor-1 | 0 | 0 | no | active |
+| executor-1 | 1 | 0 | no | idle |
 
 ### Master commands
 
-```
-START T-140 — Auditor backlog + one P0 retest brief (docs only).
-Read §6. Stay ≤5 files under docs/auditorbot/ (+ PROGRESS.md).
-Do NOT move all 5 stale tasks in one turn. Do NOT touch src/.
-When Done: update §7 + T-140 Done; Status=idle.
-```
+(none) — chờ human chọn Todo / hoặc chờ AuditorBot inbox
 
 ### Last Executor state
 
 ```
 task: T-140
-result: in_progress
-commit: (pending)
-files: (pending)
-notes: assigned by Master after human chose 1a (Auditor)
+result: Done
+HEAD_at_start: 32480d1
+commit: (see git after Master push)
+pytest: n/a (docs only)
+files:
+  - docs/auditorbot/BACKLOG.md
+  - docs/auditorbot/tasks/20261017-1530-post-ux-wave-retest.md
+  - docs/auditorbot/tasks/README.md
+  - docs/auditorbot/PROTOCOL.md
+  - PROGRESS.md
+master_ack: human 2a
+next_step: AuditorBot poll → inbox/20261017-1530-atz-post-ux-wave-retest.md
 paused_fork: no
 ```
 
@@ -240,3 +220,5 @@ paused_fork: no
 | 2026-10-17 | **T-120 Done** — overlay+seed RSI/MACD; pytest Pass (7); Status=idle; chờ commit |
 | 2026-10-17 | **Master ack T-120 (human 2a)** — re-verify pytest Pass; ship code + PROGRESS |
 | 2026-10-17 | **T-140 Doing** — human 1a Auditor; Master START backlog + P0 brief |
+| 2026-10-17 | **T-140 Done** — BACKLOG+brief+PROTOCOL skip stale; Status=idle; chờ commit |
+| 2026-10-17 | **Master ack T-140 (human 2a)** — review OK; ship docs; chờ AuditorBot inbox |

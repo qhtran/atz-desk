@@ -23,10 +23,11 @@ AuditorBot **git push được** cùng remote. Báo cáo chỉ tính khi đã l�
 ### Vòng poll (~5 phút)
 
 1. `git pull --ff-only origin main`
-2. Chọn **1** file trong `tasks/` chưa có báo cáo tương ứng trong `inbox/` (cùng topic / ngày gần nhất)
-3. Survey → ghi inbox → commit + push
-4. Không có task → chờ ~5 phút rồi lặp (giữ phiên mở)
-5. Hướng dẫn chủ repo: `docs/bots/HOW_TO_BAN.md`
+2. Đọc `docs/auditorbot/BACKLOG.md` (nếu có): **bỏ qua** mọi task `stale_no_inbox` / không nằm mục Active
+3. Chọn **1** file Active trong `tasks/` chưa có báo cáo tương ứng trong `inbox/` (cùng topic / ngày gần nhất)
+4. Survey → ghi inbox → commit + push
+5. Không có task Active → chờ ~5 phút rồi lặp (giữ phiên mở)
+6. Hướng dẫn chủ repo: `docs/bots/HOW_TO_BAN.md`
 
 - Branch gợi ý: `auditor/YYYYMMDD-<topic>` hoặc commit thẳng `main` nếu team cho phép.
 - Message: `docs(auditor): <topic> vs FireAnt`.
