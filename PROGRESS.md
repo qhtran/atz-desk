@@ -14,7 +14,7 @@
 | Data | Redis (nóng) + SQLite `data/signals.db` (bền); secrets chỉ env |
 | Deploy | Docker Compose `/opt/vnstocks` — services: `vnstocks`, ingestion, filter-runner, alert, position, index-feed, redis |
 | Auth | Authentik forward-auth; identity = headers; trading prefs = SQLite (ADR 0004) |
-| Branch / HEAD | `main` — T-120 ship (xem commit sau push Master ack) |
+| Branch / HEAD | `main` @ `d19ef30` — T-120 seed filter params + Master ack |
 | NON-goal | Không đặt lệnh tự động; không SPA/BFF Phase 2 trừ nhu cầu mới |
 
 **Active goals (ưu tiên sản phẩm):**
@@ -187,7 +187,7 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing`.
 task: T-120
 result: Done
 HEAD_at_start: 93988e7
-commit: (see git after Master push)
+commit: d19ef30
 pytest: Pass (7) tests/test_user_trading.py — Master re-verify OK
 files:
   - src/atz/datasource/user_trading.py
