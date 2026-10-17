@@ -496,11 +496,29 @@ def _signals(user_id: int) -> None:
     if not items:
         st.info("Chưa có tín hiệu trong khoảng này.")
         return
-    st.caption("Bấm biểu tượng copy ở góc khung để chép. Đây chỉ là thông tin hỗ trợ, tự đặt lệnh trên app sàn.")
+    st.caption(
+        "Bấm biểu tượng copy trên khung để chép chuỗi chuẩn "
+        "(MÃ | HÀNH ĐỘNG | KL | GIÁ nghìn đồng | SL | TP). Chỉ hỗ trợ — tự đặt lệnh trên app sàn."
+    )
     for s in items[:10]:
-        st.code(s["text"] + ("  🔒 riêng" if s["private"] else ""), language=None)
-    frame = pd.DataFrame([{"Lúc": s["time_text"], "Mã": s["symbol"], "Chiều": s["direction"], "Giá": s["price"],
-                           "Bộ lọc": s["filter_name"], "Lý do": s["reason"], "Copy": s["copy"]} for s in items])
+        label = s["copy"] + ("  🔒 riêng" if s["private"] else "")
+        st.code(label, language=None)
+        with st.expander(f"Chi tiết {s['symbol']} · {s['time_text']}", expanded=False):
+            st.text(s["text"])
+    frame = pd.DataFrame(
+        [
+            {
+                "Lúc": s["time_text"],
+                "Mã": s["symbol"],
+                "Chiều": s["direction"],
+                "Giá": s["price"],
+                "Bộ lọc": s["filter_name"],
+                "Lý do": s["reason"],
+                "Copy": s["copy"],
+            }
+            for s in items
+        ]
+    )
     render_data_table(frame.style.format({"Giá": "{:,.0f}"}, na_rep="-"), pin=("Mã",), key="oah_table")
     st.download_button("Tải CSV", oah.to_csv(items), file_name="tin_hieu.csv", mime="text/csv", key="oah_csv")
 

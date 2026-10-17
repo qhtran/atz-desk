@@ -136,7 +136,7 @@ Log nên chứa các trường tối thiểu:
 
 **Order Action Helper - hành vi (Module 6)**: mục **Tín hiệu** trong trang Realtime (code `order_helper/core.py` + `_signals` trong `ui/realtime_page.py`). Chỉ đọc, **không đặt lệnh, không gửi tin**.
 - **Nguồn**: bảng `signal_history` lọc **luôn theo `user_id` của người đăng nhập**. Tín hiệu vị thế `pos_*` (Module 4) chỉ chủ vị thế thấy, gắn nhãn `🔒 riêng`; Telegram vẫn chỉ gửi chat riêng (Module 3 `private_filter_prefixes`).
-- **Format chuẩn**: `MUA VHM @ 59,800 | rsi | RSI 28.9 dưới 30.0 | 16/10/2026 13:07` (giờ VN). 10 tín hiệu mới nhất hiện trong khung có nút copy; bảng đầy đủ có cột **Copy** = `VHM MUA 59800`; nút **Tải CSV**.
+- **Format chuẩn (copy paste sàn)**: `MÃ: VHM | HÀNH ĐỘNG: MUA | KL: … | GIÁ: 59.8 | SL: … | TP: …` (giá/SL/TP **nghìn đồng**). Dòng đọc UI vẫn có `MUA VHM @ 59,800 | …`. 10 tín hiệu mới nhất trong `st.code` (nút copy); bảng có cột **Copy**; nút **Tải CSV**.
 - **Lọc**: số ngày (mặc định 7), mã, chiều MUA/BÁN, số dòng (mặc định 50). Mã và chiều lọc ngay trong SQL **trước** LIMIT (MUA = `mua`/`buy`, BÁN = `ban`/`bán`/`sell`), nên "BÁN + 1 dòng" luôn ra tín hiệu BÁN mới nhất. Trùng `signal_id` chỉ hiện 1 dòng.
 - **Giá**: `signal_history.gia_tai_thoi_diem` luôn là **VND**. Filter realtime (Module 2) lấy giá quote (VND); nút "Chạy bộ lọc" (`engine/runner.py`, nến nghìn đồng) nhân `THOUSAND_VND` trước khi ghi/gửi mail (sửa 16/10/2026; các dòng cũ < 1000 đã nhân 1000, backup `/root/backups/m6fix-20261016-1459/`).
 - **Kết nối DB**: UI mở SQLite bằng `contextlib.closing(...)` (`with conn:` của sqlite3 không đóng kết nối). Migration (`ui_realtime.data.open_db`) chạy 1 lần/process.

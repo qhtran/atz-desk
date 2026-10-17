@@ -30,6 +30,68 @@ def direction(v) -> str:
     return DIR.get(str(v or "").strip().lower(), str(v or "?").upper())
 
 
+def price_to_thousands(price: float | None) -> float | None:
+    """Giá tín hiệu thường VND đầy đủ → nghìn đồng (paste app sàn VN)."""
+    if price is None:
+        return None
+    try:
+        number = float(price)
+    except (TypeError, ValueError):
+        return None
+    if number >= 1000:
+        return round(number / 1000.0, 2)
+    return number
+
+
+def _fmt_thousands(price: float | None) -> str:
+    val = price_to_thousands(price)
+    if val is None:
+        return "-"
+    text = f"{val:.2f}".rstrip("0").rstrip(".")
+    return text or "0"
+
+
+def _detail_num(details: dict, *keys: str) -> float | None:
+    for key in keys:
+        if key not in details or details[key] in (None, ""):
+            continue
+        try:
+            return float(details[key])
+        except (TypeError, ValueError):
+            continue
+    return None
+
+
+def format_order_copy(
+    *,
+    symbol: str,
+    direction: str,
+    price: float | None = None,
+    qty: float | None = None,
+    stop_loss: float | None = None,
+    take_profit: float | None = None,
+) -> str:
+    """Chuỗi copy chuẩn để paste sang app sàn (không đặt lệnh).
+
+    Ví dụ: ``MÃ: POW | HÀNH ĐỘNG: MUA | KL: 2,000 | GIÁ: 12.5 | SL: 11.8 | TP: 14.0``
+    Giá/SL/TP theo **nghìn đồng** khi đầu vào là VND ≥ 1000.
+    """
+    parts = [f"MÃ: {str(symbol or '').upper()}", f"HÀNH ĐỘNG: {direction}"]
+    if qty is not None:
+        try:
+            q = float(qty)
+            parts.append(f"KL: {q:,.0f}" if q >= 1 else f"KL: {q:g}")
+        except (TypeError, ValueError):
+            pass
+    if price is not None:
+        parts.append(f"GIÁ: {_fmt_thousands(price)}")
+    if stop_loss is not None:
+        parts.append(f"SL: {_fmt_thousands(stop_loss)}")
+    if take_profit is not None:
+        parts.append(f"TP: {_fmt_thousands(take_profit)}")
+    return " | ".join(parts)
+
+
 def _local(ts: str) -> datetime | None:
     try:
         d = datetime.fromisoformat(str(ts))
@@ -51,17 +113,27 @@ def format_signal(row: dict) -> dict:
             user_id=row.get("user_id"), history_id=row.get("id"))
     when = _local(details.get("timestamp") or row.get("detected_at"))
     price = row.get("gia_tai_thoi_diem")
-    price = details.get("price", price) if price is None else price
+    if price is None:
+        price = details.get("price")
+    try:
+        price = float(price) if price is not None else None
+    except (TypeError, ValueError):
+        price = None
     d = direction(row.get("signal_type"))
     sym = str(row.get("symbol") or "").upper()
     price_txt = f"{float(price):,.0f}" if price is not None else "-"
     reason = details.get("reason") or ""
     filt = str(row.get("filter_name") or "")
     ts_txt = when.strftime("%d/%m/%Y %H:%M") if when else str(row.get("detected_at") or "")
+    qty = _detail_num(details, "qty", "quantity", "size", "kl")
+    sl = _detail_num(details, "stop_loss", "sl", "cat_lo")
+    tp = _detail_num(details, "take_profit", "tp", "chot_loi")
+    copy = format_order_copy(symbol=sym, direction=d, price=price, qty=qty, stop_loss=sl, take_profit=tp)
+    # text: dòng đọc nhanh + cùng chuỗi copy (nút copy trên st.code)
     text = f"{d} {sym} @ {price_txt} | {filt}" + (f" | {reason}" if reason else "") + f" | {ts_txt}"
-    copy = f"{sym} {d} {price_txt.replace(',', '') if price is not None else ''}".strip()
+    text = f"{text}\n{copy}"
     return {"id": row.get("id"), "signal_id": details.get("signal_id"), "symbol": sym, "direction": d,
-            "price": None if price is None else float(price), "filter_name": filt, "reason": reason,
+            "price": price, "filter_name": filt, "reason": reason, "qty": qty, "stop_loss": sl, "take_profit": tp,
             "time": when, "time_text": ts_txt, "private": filt.startswith("pos_"), "text": text, "copy": copy}
 
 

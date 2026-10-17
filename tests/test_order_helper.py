@@ -34,9 +34,39 @@ def test_t1_format_and_copy():
     s = core.format_signal({"id": 1, "symbol": "vhm", "filter_name": "rsi", "signal_type": "mua",
                             "detected_at": "2026-10-16T06:07:54+00:00", "gia_tai_thoi_diem": 59800.0,
                             "details": json.dumps({"signal_id": "sig_1", "reason": "RSI 28.9 dưới 30.0"})})
-    assert s["text"] == "MUA VHM @ 59,800 | rsi | RSI 28.9 dưới 30.0 | 16/10/2026 13:07"
-    assert s["copy"] == "VHM MUA 59800"
+    assert "MUA VHM @ 59,800 | rsi | RSI 28.9 dưới 30.0 | 16/10/2026 13:07" in s["text"]
+    assert s["copy"] == "MÃ: VHM | HÀNH ĐỘNG: MUA | GIÁ: 59.8"
+    assert s["copy"] in s["text"]
     assert core.direction("SELL") == "BÁN" and core.direction("BUY") == "MUA"
+
+
+def test_format_order_copy_with_qty_sl_tp():
+    text = core.format_order_copy(
+        symbol="pow",
+        direction="MUA",
+        price=12500,
+        qty=2000,
+        stop_loss=11800,
+        take_profit=14000,
+    )
+    assert text == "MÃ: POW | HÀNH ĐỘNG: MUA | KL: 2,000 | GIÁ: 12.5 | SL: 11.8 | TP: 14"
+
+
+def test_format_signal_reads_sl_tp_from_details():
+    s = core.format_signal(
+        {
+            "id": 2,
+            "symbol": "FPT",
+            "filter_name": "pos_sl",
+            "signal_type": "ban",
+            "detected_at": "2026-10-16T06:07:54+00:00",
+            "gia_tai_thoi_diem": 100000.0,
+            "details": json.dumps(
+                {"signal_id": "p1", "qty": 500, "sl": 95000, "tp": 110000, "reason": "cắt lỗ"}
+            ),
+        }
+    )
+    assert s["copy"] == "MÃ: FPT | HÀNH ĐỘNG: BÁN | KL: 500 | GIÁ: 100 | SL: 95 | TP: 110"
 
 
 def test_t2_history_isolated(conn, caplog):
