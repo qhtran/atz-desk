@@ -2,7 +2,7 @@
 
 > Master Architect artifact. Agent 2 (Code Executor) chỉ làm đúng task `Doing` trong mục Handoff.
 > Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
-> Cập nhật: **2026-10-17** — §7 sessions chuẩn hóa (`executor-1` + Master commands / Signals).
+> Cập nhật: **2026-10-17** — Master ack: **Agent2 xong T-110**; Doing trống; chờ chọn Todo.
 
 ---
 
@@ -14,7 +14,7 @@
 | Data | Redis (nóng) + SQLite `data/signals.db` (bền); secrets chỉ env |
 | Deploy | Docker Compose `/opt/vnstocks` — services: `vnstocks`, ingestion, filter-runner, alert, position, index-feed, redis |
 | Auth | Authentik forward-auth; identity = headers; trading prefs = SQLite (ADR 0004) |
-| Branch / HEAD | `main` @ `8e98e0f` — Auto Fork bus + T-110 regression test |
+| Branch / HEAD | `main` @ `8132963` (+ T-110 test từ `8e98e0f`) |
 | NON-goal | Không đặt lệnh tự động; không SPA/BFF Phase 2 trừ nhu cầu mới |
 
 **Active goals (ưu tiên sản phẩm):**
@@ -70,7 +70,7 @@ Target layout dài hạn (ADR 0001): `shared/` / `domain/` / `adapters/` / `serv
 - Trading workspace tab + filter prefs SQLite — **Done**.
 - Unify tables → 3 variants (`cf68947`) — **Done**.
 - F1 filter mode nến/RSI/MACD (catalog + logic hàng 1–3).
-- T-110 regression: sole `st.dataframe` entry = `ui/components.py` — **Done** (local).
+- T-110 regression: sole `st.dataframe` entry = `ui/components.py` — **Done** trên `main` (`8e98e0f`).
 
 **NON-goals:**
 - Greenfield rewrite / SPA.
@@ -95,7 +95,7 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 | T-050 | Debug overlay + table COL/ROW chips | ui | kill-switch YAML |
 | T-060 | Unify `render_data_table` 3 variants | ui | `cf68947` |
 | T-100 | Đồng bộ docs handoff với HEAD thực tế | docs | HANDOFF + PROGRESS khớp Done |
-| T-110 | Verify không còn bảng bypass theme | ui, tests | Grep sạch; `test_no_streamlit_table_bypass_outside_wrapper` **Pass** (7) |
+| T-110 | Verify không còn bảng bypass theme | ui, tests | **Agent2 Done** — grep sạch; regression Pass (7); ship `8e98e0f` |
 
 ### Doing
 
@@ -141,11 +141,11 @@ Chọn slice tiếp:
 1d) Chờ — không giao Executor
 ```
 
-### Executor notes (T-110 — Done)
+### Executor notes (T-110 — Done, Master ack)
+- Human: «agent2 xong T110» — Master đóng vòng.
 - Grep `src/atz`: chỉ `ui/components.py` → `st.dataframe` trong `render_data_table`.
-- Thêm `tests/test_table_theme.py::test_no_streamlit_table_bypass_outside_wrapper`.
-- `PYTHONPATH=src/atz pytest tests/test_table_theme.py -q` → **Pass** (7 passed).
-- Commit message đã dùng / gợi ý: `test(ui): guard render_data_table as sole dataframe entry`
+- `tests/test_table_theme.py::test_no_streamlit_table_bypass_outside_wrapper` — **Pass** (7).
+- Ship: `8e98e0f` trên `main`. Không fork.
 
 ---
 
@@ -173,15 +173,23 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing`.
 
 | Tab | Turns | Files this task | Slowing? | Status |
 |-----|------:|----------------:|----------|--------|
-| executor-1 | 0 | 0 | no | active |
+| executor-1 | 1 | 0 | no | idle |
 
 ### Master commands
 
-(none)
+(none) — chờ human chọn Todo tiếp theo cho executor-1
 
 ### Last Executor state
 
-(empty until pause/fork)
+```
+task: T-110
+result: Done
+commit: 8e98e0f
+pytest: tests/test_table_theme.py — 7 passed
+files: tests/test_table_theme.py
+notes: sole st.dataframe entry = ui/components.render_data_table; no bypass
+paused_fork: no
+```
 
 ### Signals
 
@@ -199,3 +207,5 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing`.
 | 2026-10-17 | **T-110 Done** — bypass = 0; regression test Pass (7); Handoff clear |
 | 2026-10-17 | **§7 Agent sessions / fork** — Auto Fork via PROGRESS only; sessions table |
 | 2026-10-17 | **§7 chuẩn hóa** — bảng `executor-1` + Master commands / Last Executor state / Signals |
+| 2026-10-17 | executor-1 Turns 0→1 (Auto Fork ack) |
+| 2026-10-17 | **Master ack Agent2 xong T-110** — Last Executor state ghi Done; Status=idle |
