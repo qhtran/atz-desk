@@ -2,7 +2,7 @@
 
 > Master Architect artifact. Agent 2 (Code Executor) chỉ làm đúng task `Doing` trong mục Handoff.
 > Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
-> Cập nhật: **2026-10-17** — **T-152 visual smoke Pass** (+ ADR 0007 Accepted `@2331fed`).
+> Cập nhật: **2026-10-17** — **T-153 Doing** — human **1a**; owner **Exe1** (P1 contrast zebra / Δ).
 
 ---
 
@@ -14,14 +14,14 @@
 | Data | Redis (nóng) + SQLite `data/signals.db` (bền); secrets chỉ env |
 | Deploy | Docker Compose `/opt/vnstocks` — services: `vnstocks`, ingestion, filter-runner, alert, position, index-feed, redis |
 | Auth | Authentik forward-auth; identity = headers; trading prefs = SQLite (ADR 0004); **ADR 0006** cấm OIDC Client Streamlit |
-| Branch / HEAD | `main` @ `566b29a`+ — VPS UI image `8b8bba1590af` (T-161 **Master ack**) |
+| Branch / HEAD | `main` @ `d34f750`+ — VPS UI `8b8bba1590af`; **T-153 Doing** |
 | NON-goal | Không đặt lệnh tự động; không SPA/BFF Phase 2; không OIDC client trong app trừ ADR mới |
 
 **Active goals (ưu tiên sản phẩm):**
 1. Giữ pipeline near-realtime ổn định + UI bảng thống nhất (`realtime` / `analytical` / `compact`).
 2. Hoàn thiện UX trading cá nhân (workspace + prefs seed Done; còn mentor F1 / Auditor).
 3. ~~P0 Overview Top KL + VNINDEX~~ — T-150/T-151 + T-160 **smoke Pass**.
-4. ~~T-152 / T-161~~ ship+deploy; còn T-153; mentor F1.
+4. ~~T-152 / T-161~~; **T-153 Doing** (Exe1); mentor F1.
 
 ---
 
@@ -111,7 +111,7 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 | ID | Title | Status | Modules | Target files | Acceptance | Deps | Agent 2 instructions |
 |----|-------|--------|---------|--------------|------------|------|----------------------|
-| — | *(trống — chờ human smoke / Todo)* | — | — | — | — | — | — |
+| T-153 | P1 Contrast zebra / chữ Δ trên nền tối | **Doing** | ui, tests | `table_theme.py`, `COLOR_TOKENS.md`, theme tokens | Xem §6 DoD | T-152 | owner **Exe1** — START §6 |
 
 **Quy tắc:** luôn tối đa **một** task `Doing`.
 
@@ -119,7 +119,6 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 | ID | Title | Status | Modules | Target files (dự kiến) | Acceptance | Deps | Agent 2 instructions |
 |----|-------|--------|---------|------------------------|------------|------|----------------------|
-| T-153 | P1 Contrast zebra / chữ Δ trên nền tối | Todo | ui | `table_theme.py`, COLOR_TOKENS | Đọc được 1280×800 | T-150 | Theme only. |
 | T-200 | F1: enum nến mạnh / TB / yếu gắn filter | Blocked | filters, analysis, ui | `filters/candle.py`, … | Mentor | Mentor | **Blocked.** |
 | T-210 | F1: Bollinger / Ichimoku / phần II | Blocked | filters, analysis | theo mentor | Mentor | Mentor | **Blocked.** |
 | T-220 | Brand CSS Authentik / Social Sources / infra soft | Blocked | infra | deploy + `AUTHENTIK_SOCIAL_SOURCES_BRIEF.md` | `user_confirmed_infra` | Human | **Blocked** — không Executor OIDC app. |
@@ -140,30 +139,32 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 ## 6. Handoff to Agent 2
 
-**Current Doing:** *(trống)* — T-152 smoke Pass; chờ human.
+**Current Doing: T-153** — P1 contrast. **AUTHORIZED** (human **1a**). Owner: **Exe1** (`executor-1`).
 
-```
-1a) T-153 contrast → Exe1
-1b) Chờ
-```
+### Scope (LOCKED)
+Nguồn: inbox `20261017-1530` §4 mục **5** — zebra tối + chữ Δ xanh/đỏ khó đọc (chỉ số, screener, sidebar).  
+**Theme only** — `table_theme.py` / `COLOR_TOKENS.md` / `theme_tokens.py`. Không đổi auth/deploy/ingest. Không T-200.
 
-### Master ack (T-161) + T-152 visual smoke
-- Deploy: image `8b8bba1590af`; public health 302 OK.
-- Smoke @ atz.vn (`mydev`, ngoài phiên 17:25):
-  - Top KL: **không** VNINDEX trong bảng Top 20
-  - POW search: caption **«POW» chưa trong universe realtime.**
-  - PnL sidebar: legend **Xanh = lãi · đỏ = lỗ**
-  - Trần/`closed`: cột ẩn khi «Chỉ hiện cột chính» ON — format code `{:,.0f}` + `quote_status_label`→`closed` (T-152 ship); UI đầy đủ khi tắt compact.
+### DoD (Pass khi)
+1. Chữ Δ / % tăng-giảm đọc được trên hàng zebra tối ở **1280×800** (không cần zoom) — HNX/NASDAQ/screener/sidebar.
+2. Cách làm chấp nhận: tăng contrast chữ **hoặc** tắt/nhẹ zebra trên hàng có màu Δ (inbox §4.5).
+3. Không phá 3 variants `render_data_table`; không đụng nginx/sshd.
+4. pytest theme/table liên quan **Pass** (thêm/cập nhật test nếu cần); §7 Done; push.
 
-### Executor notes (T-161 — Done)
-- VPS pull → `566b29a` (≥ `67b26e3`)
-- `build vnstocks` → image `8b8bba1590af`
-- `up --no-deps --force-recreate vnstocks` → Started
-- `atz-check-upstream` → **PASS**; `_stcore/health` → **200**
-- Không đụng workers / nginx / sshd / UFW / volumes
+### Target files (gợi ý)
+- `src/atz/ui/table_theme.py`
+- `docs/COLOR_TOKENS.md` (nếu đổi token)
+- `src/atz/ui/theme_tokens.py` (nếu cần)
+- `tests/test_*.py`
 
-### Executor notes (T-152 / T-160 / T-151 — archived)
-- T-152 `67b26e3`; T-160 image `8904bb446226`; T-151 `7639ce2`.
+### Cấm
+- Deploy SSH trừ task riêng; Authentik/OIDC; force-push; secrets.
+
+### Master ack (T-161 / T-152 smoke) — archived
+- Image `8b8bba1590af`; smoke TopKL/POW/PnL Pass.
+
+### Executor notes (T-161 / T-152 — archived)
+- T-161 `8b8bba1590af`; T-152 `67b26e3`.
 
 ---
 
@@ -191,29 +192,26 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing`.
 
 | Tab | Turns | Files this task | Slowing? | Status |
 |-----|------:|----------------:|----------|--------|
-| executor-1 | 0 | 0 | no | idle |
+| executor-1 | 0 | 0 | no | active |
 
 ### Master commands
 
 ```
-IDLE — no Doing.
-T-161 ack + T-152 smoke Pass; ADR 0007 Accepted.
-Next: human 1a T-153 | 1b wait.
+owner: executor-1  (Exe1 — human 1a)
+START T-153 — P1 contrast zebra / Δ trên nền tối
+DoD: §6 (đọc được @1280×800; theme only)
+NO deploy/nginx/sshd/Authentik/OIDC.
+When Done: pytest Pass; §7 Done; Status=idle; push.
 ```
 
 ### Last Executor state
 
 ```
-task: T-161
-result: Done
-master_ack: yes
-HEAD_vps: 566b29a
-image: 8b8bba1590af
-atz-check-upstream: PASS
-stcore_health: 200 (VPS); public → 302 Authentik
-scope: vnstocks_only
+task: T-153
+result: authorized_awaiting_executor
+HEAD_at_start: d34f750
 owner: executor-1
-Status: idle
+paused_fork: no
 ```
 
 ### Signals
@@ -270,3 +268,4 @@ Status: idle
 | 2026-10-17 | **Master ack T-161** — verify report + public health 302; ship PROGRESS |
 | 2026-10-17 | **ADR 0007 Accepted** — Exe1 deploy gate `@2331fed` |
 | 2026-10-17 | **T-152 visual smoke Pass** — TopKL no index; POW universe caption; PnL legend |
+| 2026-10-17 | **T-153 Doing** — human 1a; owner Exe1; contrast zebra / Δ |
