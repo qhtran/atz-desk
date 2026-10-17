@@ -2,7 +2,7 @@
 
 > Master Architect artifact. Agent 2 (Code Executor) chỉ làm đúng task `Doing` trong mục Handoff.
 > Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
-> Cập nhật: **2026-10-17** — **Auditor inbox 1530 nhận** — 2×P0 Overview data; chờ chọn slice.
+> Cập nhật: **2026-10-17** — **T-150 Doing** — P0 Overview Top KL / giá phiên (human 1a).
 
 ---
 
@@ -14,7 +14,7 @@
 | Data | Redis (nóng) + SQLite `data/signals.db` (bền); secrets chỉ env |
 | Deploy | Docker Compose `/opt/vnstocks` — services: `vnstocks`, ingestion, filter-runner, alert, position, index-feed, redis |
 | Auth | Authentik forward-auth; identity = headers; trading prefs = SQLite (ADR 0004) |
-| Branch / HEAD | `main` @ `22154f7`+ — inbox 1530 từ branch `auditor/20261017-post-ux-wave-retest` |
+| Branch / HEAD | `main` @ `d794f99` — T-150 handoff (Overview Top KL P0) |
 | NON-goal | Không đặt lệnh tự động; không SPA/BFF Phase 2 trừ nhu cầu mới |
 
 **Active goals (ưu tiên sản phẩm):**
@@ -104,7 +104,7 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 | ID | Title | Status | Modules | Target files | Acceptance | Deps | Agent 2 instructions |
 |----|-------|--------|---------|--------------|------------|------|----------------------|
-| — | *(trống — chờ human chọn P0 T-150 / T-151)* | — | — | — | — | — | — |
+| T-150 | P0 Overview Top KL / giá = phiên (không TC) | **Doing** | analysis, ui, datasource, tests | `analysis/volume_leaders.py`, `ui/overview_page.py`, `datasource/live_quotes.py` (reuse), `tests/test_volume_leaders.py` | Xem §6 | inbox 1530 | Xem §6 — ≤5 files; không tô màu che data |
 
 **Quy tắc:** luôn tối đa **một** task `Doing`.
 
@@ -112,7 +112,6 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 | ID | Title | Status | Modules | Target files (dự kiến) | Acceptance | Deps | Agent 2 instructions |
 |----|-------|--------|---------|------------------------|------------|------|----------------------|
-| T-150 | P0 Overview Top KL / giá = bar phiên (không dùng TC làm Giá) | Todo | analysis, ui, datasource | `analysis/volume_leaders.py`, `ui/overview_page.py`, store Top20, tests | VHM Overview khớp hướng Realtime/FireAnt (vd. 61.00 +3.57%); STB 0%; MBB −0.25%; tiêu đề ghi ngày phiên | inbox 1530 | **Một slice data.** Không «tô màu» che lỗi OHLCV. Không đụng nginx. |
 | T-151 | P0 Thống nhất VNINDEX Overview ↔ Realtime | Todo | ui, ingestion/index | `overview_page`, index cards / index-feed path | Ngoài phiên Overview = Realtime = FA (~1705.91 +0.45%) hoặc caption nguồn+giờ rõ | inbox 1530 | Chỉ nguồn chỉ số; không đổi token màu. |
 | T-152 | P1: lọc chỉ số khỏi Top20; POW ngoài rổ; format Trần/Sàn; label closed; PnL bar theo dấu | Todo | ui, ui_realtime | overview, board_view, sidebar_portfolio, theme | Theo đề xuất 3–4 inbox §4 | T-150 | Sau P0; có thể tách 2 PR. |
 | T-153 | P1 Contrast zebra / chữ Δ trên nền tối | Todo | ui | `table_theme.py`, COLOR_TOKENS | Đọc được 1280×800 | T-150 | Theme only. |
@@ -135,26 +134,32 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 ## 6. Handoff to Agent 2
 
-**Current Doing:** *(trống)* — chờ human chọn P0.
+**Current Doing: T-150** — P0 Overview Top KL / giá phiên (human **1a**).
 
-### Auditor 1530 — Master summary (đã đọc)
-- File: `docs/auditorbot/inbox/20261017-1530-atz-post-ux-wave-retest.md`
-- UX wave **Pass:** pin UI, Không gian Trading, RSS sạch HTML; Realtime board màu OK vs FA.
-- **P0:** Overview Top KL/giá lệch phiên (dùng TC); VNINDEX Overview sai vs Realtime/FA.
-- **P1:** Trần/Sàn float; `live` ngoài phiên; PnL bar 1 màu; VNINDEX trong Top20; POW không trong board 30.
-- **N/A:** flash (ngoài phiên). **BLOCKED:** hover/T&S Streamlit.
-- Resolution inbox: vẫn `todo` đến khi T-150/T-151 xong → chuyển `reports/`.
+### Gap (Architect pre-survey)
+- `analysis/volume_leaders.volume_stats`: `Giá` = `close.iloc[-1]`, `%` = vs `close.iloc[-2]` từ OHLCV CSV.
+- Auditor [live]: Overview **Giá ≈ TC Realtime** (VHM 58.90), Δ ngược FA/Realtime (61.00 +3.57%). Sidebar Redis quote **đúng** → lỗi nguồn Top KL OHLCV (bar cuối stale / thiếu phiên 16/10), không phải token màu.
+- UI: `overview_page.show_volume_leaders` chỉ gọi `rank_volume_leaders()` + caption cố định — chưa ghi ngày phiên / nguồn.
 
-```
-Giao Executor:
-1a) T-150 — P0 Overview Top KL / giá phiên
-1b) T-151 — P0 VNINDEX thống nhất
-1c) T-150 rồi T-151 tuần tự (Master giao 150 trước)
-1d) Chờ — chưa code
-```
+### Hướng implement (ưu tiên rõ ràng)
+1. **Giá + % trên bảng Top KL:** overlay từ Redis `quote:{symbol}` (reuse `datasource/live_quotes.py` / cùng đơn vị nghìn đồng như sidebar) khi có quote hợp lệ; **fallback** OHLCV.
+2. **KL phiên / TB10:** giữ từ OHLCV (F1 metric); nếu bar cuối không phải phiên giao dịch gần nhất → ưu tiên bar đúng ngày phiên (detect `time` cột nếu có) — đừng bịa dữ liệu.
+3. Caption: ngày phiên dùng + «Giá: Redis nếu có · KL: OHLCV».
+4. (Tuỳ chọn nhỏ trong cùng PR nếu ≤5 files) loại symbol chỉ số (`VNINDEX`…) khỏi rank — nếu phình scope → để T-152.
+5. Tests: unit overlay / fallback; không cần live Redis trong CI (mock).
+6. `pytest tests/test_volume_leaders.py` (+ test mới) → Pass/Fail.
 
-### Executor notes (T-130 — archived)
-- Done image `8c872b1f46eb`; Master ack `dcc465b`.
+### Acceptance
+- Cùng điều kiện ngoài phiên: VHM Overview **cùng hướng** Realtime/FA (không còn Giá=TC + Δ ngược).
+- STB ~0%; MBB cùng hướng Realtime (−); caption có ngày/nguồn.
+- **Không** sửa màu token để «khớp» khi data sai.
+
+### Không đụng
+- T-151 VNINDEX path; nginx/SSH; Authentik; force-push; tô màu che OHLCV
+- `compose down` / volume wipe
+
+### Commit gợi ý
+`fix(overview): align Top KL price/pct with live quote session`
 
 ---
 
@@ -182,22 +187,24 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing`.
 
 | Tab | Turns | Files this task | Slowing? | Status |
 |-----|------:|----------------:|----------|--------|
-| executor-1 | 0 | 0 | no | idle |
+| executor-1 | 0 | 0 | no | active |
 
 ### Master commands
 
 ```
-(none) — awaiting human 1a/1b/1c/1d for P0 from Auditor 1530
-Inbox on main after this commit; BACKLOG mark 1530 done.
+START T-150 — P0 Overview Top KL price/pct vs live session (human 1a).
+Read §6. Prefer Redis quote overlay for Giá/%; OHLCV for volume metrics.
+≤5 files. No color-token fake-fix. No T-151 scope creep.
+pytest tests/test_volume_leaders.py Pass; update §7 + T-150 Done.
 ```
 
 ### Last Executor state
 
 ```
-task: (none)
-result: idle
-inbox: docs/auditorbot/inbox/20261017-1530-atz-post-ux-wave-retest.md (received)
-auditor_branch: auditor/20261017-post-ux-wave-retest @ 6932c76
+task: T-150
+result: in_progress
+HEAD_at_start: d794f99
+notes: assigned after human 1a
 paused_fork: no
 ```
 
@@ -233,3 +240,4 @@ paused_fork: no
 | 2026-10-17 | **WAIT_AUDITOR** — human 1a; inbox trống; brief 1530 active; Executor idle |
 | 2026-10-17 | executor-1 re-check inbox vẫn trống; Turns 0→1; idle |
 | 2026-10-17 | **Inbox 1530 nhận** — Master summary; Todo T-150…T-153; WAIT clear |
+| 2026-10-17 | **T-150 Doing** — human 1a; Redis overlay Giá/% Top KL; Master START |
