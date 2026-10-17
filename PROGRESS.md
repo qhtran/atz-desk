@@ -14,7 +14,7 @@
 | Data | Redis (nóng) + SQLite `data/signals.db` (bền); secrets chỉ env |
 | Deploy | Docker Compose `/opt/vnstocks` — services: `vnstocks`, ingestion, filter-runner, alert, position, index-feed, redis |
 | Auth | Authentik forward-auth; identity = headers; trading prefs = SQLite (ADR 0004) |
-| Branch / HEAD | `main` — T-150 ship (xem commit sau Master push) |
+| Branch / HEAD | `main` @ `93a1c5e` — T-150 Top KL Redis overlay |
 | NON-goal | Không đặt lệnh tự động; không SPA/BFF Phase 2 trừ nhu cầu mới |
 
 **Active goals (ưu tiên sản phẩm):**
@@ -188,7 +188,7 @@ task: T-150
 result: Done
 master_ack: human 2a
 HEAD_at_start: 8091927
-commit: (see git after Master push)
+commit: 93a1c5e
 pytest: Pass (10) — Master re-verify OK
 files:
   - src/atz/datasource/live_quotes.py
