@@ -2,7 +2,7 @@
 
 > Master Architect artifact. Agent 2 (Code Executor) chỉ làm đúng task `Doing` trong mục Handoff.
 > Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
-> Cập nhật: **2026-10-17** — **Master ack T-161** — image `8b8bba1590af`; upstream PASS; public health 302 forward-auth.
+> Cập nhật: **2026-10-17** — **T-152 visual smoke Pass** (+ ADR 0007 Accepted `@2331fed`).
 
 ---
 
@@ -140,17 +140,20 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 ## 6. Handoff to Agent 2
 
-**Current Doing:** *(trống)* — Master ack T-161 xong; chờ human.
+**Current Doing:** *(trống)* — T-152 smoke Pass; chờ human.
 
 ```
-1a) Smoke T-152 trên atz.vn (closed / Trần / POW / PnL)
-1b) T-153 contrast → Exe1
-1c) Chờ
+1a) T-153 contrast → Exe1
+1b) Chờ
 ```
 
-### Master ack (T-161)
-- Report Exe1: PASS (image `8b8bba1590af`, pull `566b29a` ≥ `67b26e3`, upstream PASS, health 200, không đụng stream/sshd).
-- Public: `atz.vn/_stcore/health` → **302** Authentik outpost (forward-auth OK).
+### Master ack (T-161) + T-152 visual smoke
+- Deploy: image `8b8bba1590af`; public health 302 OK.
+- Smoke @ atz.vn (`mydev`, ngoài phiên 17:25):
+  - Top KL: **không** VNINDEX trong bảng Top 20
+  - POW search: caption **«POW» chưa trong universe realtime.**
+  - PnL sidebar: legend **Xanh = lãi · đỏ = lỗ**
+  - Trần/`closed`: cột ẩn khi «Chỉ hiện cột chính» ON — format code `{:,.0f}` + `quote_status_label`→`closed` (T-152 ship); UI đầy đủ khi tắt compact.
 
 ### Executor notes (T-161 — Done)
 - VPS pull → `566b29a` (≥ `67b26e3`)
@@ -194,8 +197,8 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing`.
 
 ```
 IDLE — no Doing.
-T-161 Master ack complete.
-Next: human 1a smoke T-152 UI | 1b T-153 | 1c wait.
+T-161 ack + T-152 smoke Pass; ADR 0007 Accepted.
+Next: human 1a T-153 | 1b wait.
 ```
 
 ### Last Executor state
@@ -265,3 +268,5 @@ Status: idle
 | 2026-10-17 | **T-161 Phase B GO** — Exe1 deploy T-152 UI; user_confirmed_infra: yes; vnstocks only |
 | 2026-10-17 | **T-161 Done** — image 8b8bba1590af; upstream PASS; health 200; Status=idle |
 | 2026-10-17 | **Master ack T-161** — verify report + public health 302; ship PROGRESS |
+| 2026-10-17 | **ADR 0007 Accepted** — Exe1 deploy gate `@2331fed` |
+| 2026-10-17 | **T-152 visual smoke Pass** — TopKL no index; POW universe caption; PnL legend |
