@@ -13,7 +13,8 @@ Roster: **[`BOTS_ROSTER.md`](BOTS_ROSTER.md)** — **2026-10-17: Cursor tự cod
 
 **Giả định:** bot Active `git pull`/`push` cùng remote.  
 
-**Hướng dẫn:** [`HOW_TO_BAN.md`](HOW_TO_BAN.md) · [`ROLES_ARCHITECT.md`](ROLES_ARCHITECT.md) · [`OVERNIGHT_QUEUE.md`](OVERNIGHT_QUEUE.md) · [`ACCEPTANCE_TESTS.md`](ACCEPTANCE_TESTS.md)
+**Hướng dẫn:** [`HOW_TO_BAN.md`](HOW_TO_BAN.md) · [`ROLES_ARCHITECT.md`](ROLES_ARCHITECT.md) · [`OVERNIGHT_QUEUE.md`](OVERNIGHT_QUEUE.md) · [`ACCEPTANCE_TESTS.md`](ACCEPTANCE_TESTS.md)  
+**Handoff chat mới:** [`HANDOFF_NEXT_CHAT.md`](HANDOFF_NEXT_CHAT.md)
 
 **Nguyên tắc tiết kiệm token Cursor:** survey dài + code/deploy lặp → giao bot. Cursor: brief ngắn → push hộp việc → sau đó `pull` đọc kết quả → hỏi user.
 
