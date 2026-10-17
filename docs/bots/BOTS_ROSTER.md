@@ -7,7 +7,7 @@ Cập nhật **2026-10-17**: chủ repo tạm **không** dùng bot trả phí đ
 |-----|---------|------------|
 | **Cursor (Orchestrator + Coder)** | Thiết kế, code, test, commit/push, deploy khi cần | **Active — làm hết** |
 | **AuditorBot** | So sánh atz vs FireAnt (hình / UI/UX); **chỉ đọc** | **Active — giữ** (survey hình) |
-| **VPSBot** | Code/deploy VPS | **Paused** — không giao việc mới |
+| **VPSBot** | Ops/SSH:443 dự phòng (IP nhà, deploy khi bật lại); code app thường Cursor | **Paused code**; giữ kênh SSH:443 cho infra khi cần |
 | **SecConfBot** | Sec/config sau đổi VPS | **Paused** |
 | **Stock Screening Agent** | Sàng CANSLIM / ngành / mẫu / dòng tiền | **Paused** |
 | **DailyStockNews** | Tin sáng/tối | **Paused** |

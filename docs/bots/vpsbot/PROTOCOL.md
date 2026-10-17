@@ -25,7 +25,7 @@ VPSbot là **coder + ops/infra** cho atz.vn / VPS. Ngoài app Python, bot **bi�
 | **SSH → VPS (qua cổng 443)** | Mọi thao tác trên server: deploy Docker, log, nginx, DB/volume, kiểm tra service |
 
 - VPSbot **vào máy qua SSH** (không qua Cursor browser / không nhờ Orchestrator SSH giúp).
-- **Forwarding qua 443:** SSH không dùng cổng 22 công khai; client kết nối `Port 443` (nginx `stream` / TLS passthrough hoặc tunnel tương đương). Cấu hình `~/.ssh/config` trên máy bot (Host, HostName, Port 443, IdentityFile) — **không** commit key/config secret vào repo.
+- **Dual-path (chốt):** Mac nhà dùng **`:22`**. VPSBot ưu tiên **SSH-over-443** (`rd.atz.vn` / Port 443, nginx stream) — dự phòng khi chặn 22 hoặc cần ops (vd. cập nhật allowlist IP nhà). Không tắt stream 443. Cấu hình ssh trên máy bot — **không** commit key vào repo.
 - Working dir chuẩn trên VPS: `/opt/vnstocks`.
 - Host / user / key: theo cấu hình máy bot (chỉ ghi **tên** biến nếu cần).
 - Outbox ghi lệnh đã chạy (rút gọn); không dán private key / `IdentityFile` path chứa mật.

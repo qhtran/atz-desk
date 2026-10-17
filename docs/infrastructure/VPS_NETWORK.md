@@ -120,7 +120,7 @@ rồi `/usr/local/bin/atz-check-upstream` (kiểm tra tên container `vnstocks` 
 
 - Cron certbot host + copy cert vào volume nginx  
 - Backup: cron `vps-backup`; tool `atz-backup` (mã hoá, giữ bản gần)  
-- SSH: cổng 22 **hoặc** 443 qua `rd.atz.vn`  
+- SSH: xem §11  
 - Portainer: `ssh -L 9443:127.0.0.1:9443 …`
 
 ## 9. Việc tồn (hạ tầng — không tự làm trong brief app)
@@ -135,8 +135,21 @@ rồi `/usr/local/bin/atz-check-upstream` (kiểm tra tên container `vnstocks` 
 
 | Được | Không |
 |------|------|
-| `build` + `up -d --no-deps` service app trong `/opt/vnstocks` | Sửa `stream.d` / SSH-over-443 / UFW / sshd |
+| `build` + `up -d --no-deps` service app trong `/opt/vnstocks` | Tự sửa `stream.d` / UFW / sshd **trừ** brief + `user_confirmed_infra: yes` |
 | Đọc `atz-check-upstream`, log container | Xóa volume Redis/SQLite/Authentik PG |
-| Brief + `user_confirmed_infra: yes` mới đụng nginx/Authentik routing | Join nhầm network `authentik_internal` |
+| Brief infra: cập nhật allowlist IP nhà / kiểm tra SSH:443 khi Mac không vào được | Join nhầm network `authentik_internal` |
+| Brief + confirm mới đụng nginx/Authentik routing | |
+
+Code app thường do **Cursor**; VPSBot (khi bật lại) ưu tiên **ops/SSH:443** và việc infra có confirm.
+
+## 11. SSH dual-path (đã chốt 2026-10-17)
+
+| Đường | Ai dùng | Mục đích |
+|-------|---------|----------|
+| **`:22` trực tiếp** | Mac (nhà / mạng tin cậy), key-only | Deploy / debug hàng ngày — thuận tiện |
+| **`:443` SNI `rd.atz.vn`** | Dự phòng; **VPSBot** khi cần | Mạng chặn 22; hoặc nhờ bot **cập nhật allowlist IP nhà** / sửa ops khi Mac không SSH được |
+
+**Giữ cả hai.** Không tắt stream SSH-over-443 chỉ vì đã có 22.  
+**Không** đổi UFW/stream/sshd từ Cursor trừ khi chủ repo confirm rõ.
 
 Xem thêm: `docs/architecture.md`, `docs/specs/ACCOUNT_UX_AUTHENTIK_BFF.md`, `docs/bots/vpsbot/PROTOCOL.md`.
