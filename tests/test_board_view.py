@@ -63,7 +63,7 @@ def test_pick_quote_row():
 
 def test_detect_price_flashes_min_tick():
     prev = {"AAA": 10000.0, "BBB": 20000.0}
-    nxt = {"AAA": 10040.0, "BBB": 20020.0}  # BBB < 50 VND
+    nxt = {"AAA": 10080.0, "BBB": 20020.0}  # BBB < 50 VND; AAA ≥ 50
     got = detect_price_flashes(prev, nxt, min_tick=50)
     assert got == {"AAA": True}
     assert detect_price_flashes(prev, {"AAA": 9900.0}, min_tick=50) == {"AAA": False}
