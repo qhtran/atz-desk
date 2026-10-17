@@ -2,7 +2,7 @@
 
 > Master Architect artifact. Agent 2 (Code Executor) chỉ làm đúng task `Doing` trong mục Handoff.
 > Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
-> Cập nhật: **2026-10-17** — **Master ack T-160** + ADR **0006** (no OIDC client); Social brief Authentik.
+> Cập nhật: **2026-10-17** — **T-160 visual smoke Pass** (Top KL + VNINDEX); ADR 0006 shipped `@24197d0`.
 
 ---
 
@@ -14,13 +14,13 @@
 | Data | Redis (nóng) + SQLite `data/signals.db` (bền); secrets chỉ env |
 | Deploy | Docker Compose `/opt/vnstocks` — services: `vnstocks`, ingestion, filter-runner, alert, position, index-feed, redis |
 | Auth | Authentik forward-auth; identity = headers; trading prefs = SQLite (ADR 0004); **ADR 0006** cấm OIDC Client Streamlit |
-| Branch / HEAD | `main` @ `0d94c98` — VPS UI image `8904bb446226` (T-160 **Master ack**) |
+| Branch / HEAD | `main` @ `24197d0` — VPS UI image `8904bb446226` (T-160 ack + smoke Pass) |
 | NON-goal | Không đặt lệnh tự động; không SPA/BFF Phase 2; không OIDC client trong app trừ ADR mới |
 
 **Active goals (ưu tiên sản phẩm):**
 1. Giữ pipeline near-realtime ổn định + UI bảng thống nhất (`realtime` / `analytical` / `compact`).
 2. Hoàn thiện UX trading cá nhân (workspace + prefs seed Done; còn mentor F1 / Auditor).
-3. ~~P0 Overview Top KL + VNINDEX~~ — T-150/T-151 + **T-160 deployed** (smoke UI human 1a).
+3. ~~P0 Overview Top KL + VNINDEX~~ — T-150/T-151 + T-160 **smoke Pass**.
 4. Chờ mentor F1 (T-200/T-210); P1 polish từ inbox (T-152/T-153).
 
 ---
@@ -127,8 +127,8 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 ## 5. Risks & open questions
 
-1. ~~P0 Top KL Giá≈TC~~ — T-150 + T-160 **Master ack**; human visual smoke Overview vs Realtime (1a).
-2. ~~T-151 VNINDEX Overview~~ — T-151 + T-160 **Master ack**; human visual smoke (1a).
+1. ~~P0 Top KL Giá≈TC~~ — **smoke Pass** — caption Redis Giá/% 11/20; MBB/CTG/GAS khớp Realtime (19.85/−0.25, 30.6/+2.68, 76.1/−0.13).
+2. ~~T-151 VNINDEX Overview~~ — **smoke Pass** — VNIndex 1,705.91 (+0.45%); caption Redis index-feed 6/6 @ 16:56:54.
 3. **Mentor gate** F1 còn lại.
 4. ~~WAIT inbox 1530~~ — **hết** (report trên `auditor/20261017-post-ux-wave-retest` @ `6932c76`).
 5. ~~T-130 image drift~~ — hết.
@@ -139,19 +139,20 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 ## 6. Handoff to Agent 2
 
-**Current Doing:** *(trống)* — Master ack T-160 xong; chờ human chọn.
+**Current Doing:** *(trống)* — T-160 smoke Pass; chờ human chọn.
 
 ```
-1a) Visual smoke Overview (Top KL Giá/% + VNINDEX) vs Realtime trên atz.vn
-1b) T-152 P1 polish
-1c) T-153 contrast
-1d) Chờ / Auditor Resolution 1530
+1a) T-152 P1 polish
+1b) T-153 contrast
+1c) Auditor Resolution 1530
+1d) Chờ
 ```
 
-### Master ack (T-160)
-- Report Executor: PASS (image `8904bb446226`, upstream PASS, health 200, không đụng stream/sshd).
-- Public check: `https://atz.vn/_stcore/health` → 302 auth (expected forward-auth) → follow 200.
-- Visual Top KL / VNINDEX: **human 1a** (cần phiên Authentik); code T-150/T-151 đã trên image.
+### Master ack (T-160) + visual smoke
+- Report Executor: PASS (image `8904bb446226`, upstream PASS, health 200).
+- Visual **Pass** @ atz.vn (session `mydev`, ngoài phiên 16:57 17/10):
+  - Top KL: Redis Giá/%; mẫu MBB/CTG/GAS = Realtime board
+  - VNIndex Overview: 1,705.91 / Redis index-feed 6/6
 
 ### Executor notes (T-160 — Done)
 - VPS pull → `0d94c98` (≥ T-150/T-151)
@@ -195,10 +196,9 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing`.
 
 ```
 IDLE — no Doing.
-T-160 Master ack complete (deploy report + forward-auth smoke).
-Next: human 1a visual Top KL/VNINDEX | 1b T-152 | 1c T-153 | 1d wait.
+T-160 Master ack + visual smoke Pass.
+Next: human 1a T-152 | 1b T-153 | 1c Auditor 1530 | 1d wait.
 Auth: ADR 0006 — no Streamlit OIDC client.
-Social: docs/infrastructure/AUTHENTIK_SOCIAL_SOURCES_BRIEF.md (infra only).
 ```
 
 ### Last Executor state
@@ -207,12 +207,10 @@ Social: docs/infrastructure/AUTHENTIK_SOCIAL_SOURCES_BRIEF.md (infra only).
 task: T-160
 result: Done
 master_ack: yes
+visual_smoke: Pass
+HEAD_docs: 24197d0
 HEAD_vps: 0d94c98
 image: 8904bb446226
-atz-check-upstream: PASS
-stcore_health: 200 (VPS); public → 302 Authentik (forward-auth OK)
-scope: vnstocks_only
-owner: executor-1
 Status: idle
 ```
 
@@ -260,3 +258,5 @@ Status: idle
 | 2026-10-17 | **T-160 Done** — executor deploy; image 8904bb446226; upstream PASS; health 200 |
 | 2026-10-17 | **Master ack T-160** — report OK; public→Authentik 302 (forward-auth); visual = human 1a |
 | 2026-10-17 | **ADR 0006** — no OIDC client Streamlit; Social brief Authentik Sources |
+| 2026-10-17 | **Ship** `@24197d0` — ADR 0006 + T-160 ack docs |
+| 2026-10-17 | **T-160 visual smoke Pass** — Top KL Redis + VNINDEX 6/6 vs Realtime |
