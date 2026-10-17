@@ -119,18 +119,23 @@ FIREANT_CSS = f"""
 .text-floor {{ color: {FLOOR} !important; }}
 .text-muted {{ color: {TEXT_MUTED} !important; }}
 @keyframes fa-flash-up {{
-  0% {{ background-color: {UP}66; }}
+  0% {{ background-color: {UP}99; }}
+  35% {{ background-color: {UP}55; }}
+  70% {{ background-color: {UP}33; }}
   100% {{ background-color: transparent; }}
 }}
 @keyframes fa-flash-dn {{
-  0% {{ background-color: {DOWN}66; }}
+  0% {{ background-color: {DOWN}99; }}
+  35% {{ background-color: {DOWN}55; }}
+  70% {{ background-color: {DOWN}33; }}
   100% {{ background-color: transparent; }}
 }}
 </style>
 """
 
 
-def css_flash(up: bool) -> str:
-    """Nháy nền ô giá khi vừa đổi (Realtime fragment)."""
+def css_flash(up: bool, *, strong: bool = True) -> str:
+    """Nháy nền ô khi giá đổi (Realtime fragment). strong = đậm hơn kiểu iBoard."""
     name = "fa-flash-up" if up else "fa-flash-dn"
-    return f"animation: {name} 0.85s ease-out"
+    duration = "1.15s" if strong else "0.85s"
+    return f"animation: {name} {duration} ease-out"

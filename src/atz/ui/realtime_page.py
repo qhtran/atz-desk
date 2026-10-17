@@ -218,7 +218,6 @@ def _board(user_id: int, interval, query: str = "") -> None:
         )
 
     prev_prices: dict = st.session_state.get("rt_prev_prices") or {}
-    flashed: dict[str, bool] = {}
     next_prices: dict[str, float] = {}
     for _, row in frame.iterrows():
         code = str(row.get("Mã") or "")
@@ -227,10 +226,14 @@ def _board(user_id: int, interval, query: str = "") -> None:
         except (TypeError, ValueError):
             price = None
         if code and price is not None:
-            old = prev_prices.get(code)
-            if old is not None and abs(float(old) - price) >= 1.0:
-                flashed[code] = price > float(old)
             next_prices[code] = price
+    rt_cfg = _cfg()["ui_realtime"]
+    min_tick = float(rt_cfg.get("flash_min_tick_vnd", 50))
+    hold_cycles = int(rt_cfg.get("flash_hold_cycles", 2))
+    fresh = bv.detect_price_flashes(prev_prices, next_prices, min_tick=min_tick)
+    hold = st.session_state.get("rt_flash_hold") or {}
+    flashed, hold = bv.merge_flash_hold(fresh, hold, hold_cycles=hold_cycles)
+    st.session_state["rt_flash_hold"] = hold
     st.session_state["rt_prev_prices"] = next_prices
 
     spark_cache: dict = st.session_state.setdefault("rt_spark_uri", {})
@@ -265,13 +268,23 @@ def _board(user_id: int, interval, query: str = "") -> None:
         st.info(f"Không có mã khớp «{needle.strip()}».")
         return
 
-    paint = {"Giá", "+/-", "%"}
+    paint = {"Giá", "+/-", "%", "Mã"}
 
     def _rt_row_colors(row: pd.Series) -> list[str]:
         code = str(row.get("Mã") or "")
         tone = css_for_price_state(state_by.get(code, ""))
-        flash = f"; {css_flash(flashed[code])}" if code in flashed else ""
-        return [tone + flash if name in paint else "" for name in row.index]
+        flash = f"; {css_flash(flashed[code], strong=True)}" if code in flashed else ""
+        styles = []
+        for name in row.index:
+            if name in paint and (tone or flash):
+                # Mã: chỉ nền flash, giữ chữ mặc định; Giá/+/-/%: màu state + flash
+                if name == "Mã":
+                    styles.append(flash.lstrip("; ").strip() if flash else "")
+                else:
+                    styles.append((tone + flash).strip("; ") if (tone or flash) else "")
+            else:
+                styles.append("")
+        return styles
 
     styled = frame.style.format(
         {

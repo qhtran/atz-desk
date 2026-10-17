@@ -46,6 +46,53 @@ def sort_pinned_first(frame: pd.DataFrame, pinned: list[str] | None) -> pd.DataF
     return pd.concat([top, rest], ignore_index=True)
 
 
+def detect_price_flashes(
+    prev_prices: dict[str, float],
+    next_prices: dict[str, float],
+    *,
+    min_tick: float = 50.0,
+) -> dict[str, bool]:
+    """So giá cũ/mới → {Mã: True=tăng / False=giảm}. Bỏ qua đổi < min_tick (VND)."""
+    out: dict[str, bool] = {}
+    threshold = max(0.0, float(min_tick))
+    for code, price in next_prices.items():
+        old = prev_prices.get(code)
+        if old is None:
+            continue
+        delta = float(price) - float(old)
+        if abs(delta) < threshold:
+            continue
+        out[str(code)] = delta > 0
+    return out
+
+
+def merge_flash_hold(
+    fresh: dict[str, bool],
+    hold: dict[str, dict] | None,
+    *,
+    hold_cycles: int = 2,
+) -> tuple[dict[str, bool], dict[str, dict]]:
+    """Giữ flash thêm vài chu kỳ fragment để mắt kịp thấy (SSI-like linger).
+
+    hold[code] = {"up": bool, "left": int}
+    """
+    cycles = max(1, int(hold_cycles))
+    state: dict[str, dict] = dict(hold or {})
+    for code, up in fresh.items():
+        state[code] = {"up": bool(up), "left": cycles}
+    visible: dict[str, bool] = {}
+    next_hold: dict[str, dict] = {}
+    for code, meta in state.items():
+        left = int(meta.get("left") or 0)
+        if left <= 0:
+            continue
+        visible[code] = bool(meta.get("up"))
+        remain = left - 1
+        if remain > 0:
+            next_hold[code] = {"up": bool(meta.get("up")), "left": remain}
+    return visible, next_hold
+
+
 def mark_pinned_column(frame: pd.DataFrame, pinned: list[str] | None) -> pd.DataFrame:
     """Thêm cột Ghim (★ / trống) ngay sau Mã nếu có."""
     pins = set(normalize_pins(pinned))

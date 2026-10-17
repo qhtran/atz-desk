@@ -6,8 +6,10 @@ import pandas as pd
 
 from ui_realtime.board_view import (
     cached_spark_uri,
+    detect_price_flashes,
     filter_by_symbol,
     mark_pinned_column,
+    merge_flash_hold,
     normalize_pins,
     pick_quote_row,
     sort_pinned_first,
@@ -57,3 +59,18 @@ def test_pick_quote_row():
     rows = [{"Mã": "VIC", "Giá": 1}, {"Mã": "FPT", "Giá": 2}]
     assert pick_quote_row(rows, "fpt")["Giá"] == 2
     assert pick_quote_row(rows, "") is None
+
+
+def test_detect_price_flashes_min_tick():
+    prev = {"AAA": 10000.0, "BBB": 20000.0}
+    nxt = {"AAA": 10040.0, "BBB": 20020.0}  # BBB < 50 VND
+    got = detect_price_flashes(prev, nxt, min_tick=50)
+    assert got == {"AAA": True}
+    assert detect_price_flashes(prev, {"AAA": 9900.0}, min_tick=50) == {"AAA": False}
+
+
+def test_merge_flash_hold_lingers():
+    visible, hold = merge_flash_hold({"FPT": True}, {}, hold_cycles=2)
+    assert visible == {"FPT": True} and hold["FPT"]["left"] == 1
+    visible2, hold2 = merge_flash_hold({}, hold, hold_cycles=2)
+    assert visible2 == {"FPT": True} and "FPT" not in hold2

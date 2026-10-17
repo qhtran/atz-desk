@@ -16,6 +16,6 @@ Nguồn code: `src/atz/ui/theme_tokens.py`
 
 **Quy tắc:** số Δ / % / giá theo dấu phiên; sparkline bảng mã = **một màu** theo dấu Δ (không clip TC). Thẻ chỉ số vẫn dùng sparkline clip vàng TC.
 
-**Realtime:** trần `#AB47BC` / sàn `#29B6F6` từ `ceiling_price`/`floor_price` (price_board); thiếu field thì fallback TC × `BAND_*`. Flash nền khi giá đổi giữa 2 lần fragment.
+**Realtime:** trần `#AB47BC` / sàn `#29B6F6` từ `ceiling_price`/`floor_price` (price_board); thiếu field thì fallback TC × `BAND_*`. Flash nền khi đổi ≥ `flash_min_tick_vnd` (mặc định 50), giữ `flash_hold_cycles` chu kỳ fragment (Giá / +/- / % / Mã).
 
 Đã áp: desk, Tổng quan, Realtime, Top KL, thẻ chỉ số, `config.CHART`.

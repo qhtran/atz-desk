@@ -9,6 +9,9 @@ ui_realtime:
   symbols_cache_seconds: 60         # SCAN quote:* tối đa 1 lần / 60s
   quote_key: "quote:{symbol}"
   quote_stale_seconds: 120          # quote cũ hơn -> đánh dấu stale
+  flash_min_tick_vnd: 50            # đổi giá tối thiểu (VND) mới nháy — tránh nhiễu 1 đồng
+  flash_hold_cycles: 2              # giữ flash thêm N chu kỳ fragment (~10s nếu refresh=5s)
+
   live_key: "pos:live:{user_id}"
   inapp_key: "inapp:{user_id}"
   inapp_seen_key: "inapp:seen:{user_id}"   # timestamp tin mới nhất đã đọc (badge chưa đọc)
