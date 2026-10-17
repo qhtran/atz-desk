@@ -85,12 +85,53 @@ def _index_cards(user_id: int) -> None:
         log("INDEX", f"render failed: {type(e).__name__}: {e}", error_code=index_cards.ERR_UI_INDEX, user_id=user_id)
 
 
+def _pinned_live_strip(pins: list[str], frame: pd.DataFrame) -> None:
+    """Khối «Đang ghim» phía trên bảng lớn — không nằm trong viewport scroll của dataframe."""
+    if not pins:
+        return
+    from ui.debug_overlay import dbg_anchor
+
+    dbg_anchor("DBG-RT-PINNED-STRIP")
+    pin_order = {str(p).upper(): i for i, p in enumerate(pins)}
+    codes = frame["Mã"].astype(str).str.upper() if "Mã" in frame.columns and not frame.empty else pd.Series(dtype=str)
+    strip = frame.loc[codes.isin(pin_order)].copy() if len(codes) else frame.iloc[0:0].copy()
+    if not strip.empty:
+        strip["_ord"] = strip["Mã"].astype(str).str.upper().map(pin_order)
+        strip = strip.sort_values("_ord", kind="stable").drop(columns=["_ord"])
+    with st.container(border=True):
+        st.markdown("**Đang ghim**")
+        st.caption(
+            "Khối này cố định phía trên bảng giá — cuộn trong bảng lớn không làm mất các mã ghim. "
+            "Ghim bằng ô «Chi tiết mã» + nút bên phải (không click trên bảng)."
+        )
+        if strip.empty:
+            missing = " · ".join(pins)
+            st.warning(f"Đã lưu ghim nhưng chưa có quote trong bảng: {missing}")
+            return
+        view_cols = [c for c in ("Mã", "Giá", "+/-", "%", "Trạng thái") if c in strip.columns]
+        st.dataframe(
+            strip[view_cols],
+            hide_index=True,
+            width="stretch",
+            alt="Khối mã đang ghim với giá live",
+            column_config={
+                "Giá": st.column_config.NumberColumn(format="%.0f"),
+                "+/-": st.column_config.NumberColumn(format="%+.0f"),
+                "%": st.column_config.NumberColumn(format="%+.2f"),
+            },
+        )
+
+
 def _board_controls(user_id: int, username: str) -> tuple[str, str]:
     """Search + chọn mã + ghim (ngoài fragment — gõ không bị reset mỗi chu kỳ)."""
     from datasource.user_trading import load_pinned_symbols, toggle_pinned_symbol
     from ui.debug_overlay import dbg_anchor
 
     dbg_anchor("DBG-RT-PIN")
+    st.caption(
+        "Ghim mã: chọn ở ô «Chi tiết mã» → bấm «Ghim …». "
+        "Không click/double-click trên bảng. Mã ghim hiện ở khối «Đang ghim» phía trên bảng giá."
+    )
     cols = st.columns([2, 2, 1])
     query = cols[0].text_input(
         "Tìm mã nhanh",
@@ -133,7 +174,9 @@ def _board_controls(user_id: int, username: str) -> tuple[str, str]:
         else:
             st.caption("Chọn mã để ghim")
     if pins:
-        st.caption("Ghim (đầu bảng): " + " · ".join(pins))
+        st.info("Đã ghim: " + " · ".join(pins))
+    else:
+        st.caption("Chưa ghim mã nào.")
     _time_sales_panel(user_id, symbol, quotes)
     return str(query or ""), symbol
 
@@ -207,6 +250,7 @@ def _board(user_id: int, interval, query: str = "") -> None:
         except Exception:  # noqa: BLE001
             pins = []
     frame = bv.sort_pinned_first(frame, pins)
+    _pinned_live_strip(pins, frame)
 
     state_by: dict[str, str] = {}
     for _, row in frame.iterrows():
