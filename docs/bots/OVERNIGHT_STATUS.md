@@ -1,6 +1,5 @@
-# Status (poll ~07:56 ICT)
+# Status (poll ~11:18 ICT)
 
-- **VPSbot:** DONE cả 3 — `0622` sidebar deploy, `0630` tests, `0700` filter F1 core (`fe9450e`)
-- **AuditorBot:** chưa có báo cáo trong `inbox/` (tasks vẫn chờ)
-- **Orchestrator:** không mở brief mới P0; chờ Auditor baseline / colors / RSS / sidebar-retest
-- **Mode:** autonomous + git poll ~30 phút · cấm ngoài project
+- **VPSbot:** Account UX Phase 1 **DONE** (`677791f`) — trang Tài khoản + logout redirect; safety checklist trong outbox
+- **Auditor:** inbox trống
+- **SecConf:** brief `20261017-1118-post-account-ux-phase1` đã xếp (planned bot)
