@@ -22,6 +22,9 @@ def _pins_from_text(text: str) -> list[str]:
 
 
 def show_trading_workspace() -> None:
+    from ui.debug_overlay import dbg_anchor
+
+    dbg_anchor("DBG-WORKSPACE")
     username = current_username()
     trading = load_user_trading(username)
     prefs = load_filter_defaults(username)

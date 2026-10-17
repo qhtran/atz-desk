@@ -78,8 +78,10 @@ def show_account(config: dict | None = None) -> None:
     import streamlit as st
 
     from engine.identity import current_me
+    from ui.debug_overlay import dbg_anchor
 
     config = config or load_account_config()
+    dbg_anchor("DBG-ACCOUNT")
     st.subheader("Tài khoản")
     me = current_me()
     if me is None:

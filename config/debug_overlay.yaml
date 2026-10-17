@@ -1,0 +1,13 @@
+# Lớp debug UI atz.vn — hotkey ⌘⇧D / Ctrl⇧D gắn nhãn vùng để báo bug.
+# Chỉ inject JS khi enabled + user được phép (groups Authentik hoặc local).
+debug_overlay:
+  enabled: true
+  # Cho phép khi không có header Authentik (dev local / SSH tunnel).
+  allow_local: true
+  # Khớp không phân biệt hoa thường với X-authentik-groups.
+  allowed_groups:
+    - admin
+    - admins
+    - authentik Admins
+  # Chỉ dùng [A-Za-z0-9_-]; JS đọc meta này.
+  storage_key: atz-dbg-on

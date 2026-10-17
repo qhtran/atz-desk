@@ -122,6 +122,9 @@ def _money(value: float) -> str:
 
 def render_portfolio_overview() -> tuple[float, float]:
     """Vẽ khối tổng quan vị thế (chỉ đọc). Sửa vốn/risk/pin ở tab Không gian Trading."""
+    from ui.debug_overlay import dbg_anchor
+
+    dbg_anchor("DBG-SIDEBAR-PORTFOLIO")
     st.header("Tổng quan vị thế của bạn")
     status, clock = market_session()
     trading = load_user_trading(current_username())

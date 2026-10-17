@@ -47,6 +47,7 @@ def render_sidebar() -> tuple[float, float, dict]:
     with st.sidebar:
         from datasource.user_trading import load_filter_defaults
         from engine.identity import current_username
+        from ui.debug_overlay import dbg_anchor
         from ui.sidebar_portfolio import render_portfolio_overview
 
         capital, risk_pct = render_portfolio_overview()
@@ -60,6 +61,7 @@ def render_sidebar() -> tuple[float, float, dict]:
         if "sidebar_top_n" not in st.session_state:
             st.session_state["sidebar_top_n"] = int(prefs.top_n)
 
+        dbg_anchor("DBG-SIDEBAR-FILTER")
         st.header("Bộ lọc")
         min_roe_pct = st.number_input(
             "ROE tối thiểu (%)",
@@ -481,6 +483,9 @@ def open_page() -> None:
     ]
     if account_config["enabled"]:
         page_names.append("Tài khoản")
+    from ui.debug_overlay import dbg_anchor
+
+    dbg_anchor("DBG-NAV")
     page = st.segmented_control(
         "Trang",
         page_names,

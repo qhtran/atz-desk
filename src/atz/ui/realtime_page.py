@@ -88,7 +88,9 @@ def _index_cards(user_id: int) -> None:
 def _board_controls(user_id: int, username: str) -> tuple[str, str]:
     """Search + chọn mã + ghim (ngoài fragment — gõ không bị reset mỗi chu kỳ)."""
     from datasource.user_trading import load_pinned_symbols, toggle_pinned_symbol
+    from ui.debug_overlay import dbg_anchor
 
+    dbg_anchor("DBG-RT-PIN")
     cols = st.columns([2, 2, 1])
     query = cols[0].text_input(
         "Tìm mã nhanh",
@@ -164,6 +166,9 @@ def _time_sales_panel(user_id: int, symbol: str, quotes: list) -> None:
 
 
 def _board(user_id: int, interval, query: str = "") -> None:
+    from ui.debug_overlay import dbg_anchor
+
+    dbg_anchor("DBG-RT-BOARD")
     _tick("board", user_id, interval)
     _index_cards(user_id)
     r = data.reader()
@@ -524,6 +529,9 @@ def _signals(user_id: int) -> None:
 
 
 def show_realtime() -> None:
+    from ui.debug_overlay import dbg_anchor
+
+    dbg_anchor("DBG-REALTIME")
     try:
         cfg = _cfg()
     except Exception as e:  # noqa: BLE001
@@ -540,6 +548,7 @@ def show_realtime() -> None:
     sections = ["Bảng giá", "Vị thế", f"Thông báo ({unread})" if unread else "Thông báo", "Tín hiệu", "Cài đặt"]
     if username in cfg["ui_realtime"]["admin_users"]:
         sections.append("Health")
+    dbg_anchor("DBG-RT-SECTION")
     section = st.segmented_control("Realtime", sections, default="Bảng giá", key="rt_section")
     section = (section or "Bảng giá").split(" (")[0]
     status = "Trong giờ giao dịch" if data.in_trading(cfg) else "Ngoài giờ giao dịch"
