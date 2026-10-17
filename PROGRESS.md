@@ -2,7 +2,7 @@
 
 > Master Architect artifact. Agent 2 (Code Executor) chỉ làm đúng task `Doing` trong mục Handoff.
 > Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
-> Cập nhật: **2026-10-17** — **T-151 Doing** — P0 VNINDEX Overview ↔ Realtime (human 1a).
+> Cập nhật: **2026-10-17** — Master ack **T-151 Done** (human 2a); pytest Pass (3).
 
 ---
 
@@ -14,7 +14,7 @@
 | Data | Redis (nóng) + SQLite `data/signals.db` (bền); secrets chỉ env |
 | Deploy | Docker Compose `/opt/vnstocks` — services: `vnstocks`, ingestion, filter-runner, alert, position, index-feed, redis |
 | Auth | Authentik forward-auth; identity = headers; trading prefs = SQLite (ADR 0004) |
-| Branch / HEAD | `main` @ `45051ad` — T-150 shipped; T-151 handoff |
+| Branch / HEAD | `main` — T-151 ship (xem commit sau Master push) |
 | NON-goal | Không đặt lệnh tự động; không SPA/BFF Phase 2 trừ nhu cầu mới |
 
 **Active goals (ưu tiên sản phẩm):**
@@ -100,12 +100,13 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 | T-140 | Auditor backlog + P0 post-UX retest brief | docs | **Master ack** — BACKLOG stale×5; brief `1530`; PROTOCOL skip; chờ inbox |
 | T-130 | Deploy hygiene rebuild ALL (scope 3a) | docker | **Master ack** — image `8c872b1f46eb`; upstream PASS; stcore 200; no nginx/sshd/UFW |
 | T-150 | P0 Overview Top KL Giá/% = Redis phiên | analysis, ui, datasource, tests | **Master ack** — Redis overlay; KL OHLCV; exclude index; pytest Pass (10) |
+| T-151 | P0 Overview VN indexes ↔ Realtime idx:quote | ui, datasource, tests | **Master ack** — `index_quotes` overlay sau cache; caption ts; pytest Pass (3) |
 
 ### Doing
 
 | ID | Title | Status | Modules | Target files | Acceptance | Deps | Agent 2 instructions |
 |----|-------|--------|---------|--------------|------------|------|----------------------|
-| T-151 | P0 Thống nhất VNINDEX Overview ↔ Realtime | **Doing** | ui, ui_realtime, tests | `ui/overview_page.py`, (tuỳ) helper đọc `idx:quote`, `tests/test_*.py` | Xem §6 | inbox 1530 | Xem §6 — ≤5 files; overlay Redis index; không đụng ingestion worker trừ cần thiết |
+| — | *(trống — chờ human)* | — | — | — | — | — | — |
 
 **Quy tắc:** luôn tối đa **một** task `Doing`.
 
@@ -124,7 +125,7 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 ## 5. Risks & open questions
 
 1. ~~P0 Top KL Giá≈TC~~ — **T-150 Done** (Redis overlay); còn verify production sau deploy.
-2. **T-151 Doing** — Overview OHLCV vs Realtime Redis `idx:quote`.
+2. ~~T-151 VNINDEX Overview~~ — **Done** (Redis overlay); verify sau deploy.
 3. **Mentor gate** F1 còn lại.
 4. ~~WAIT inbox 1530~~ — **hết** (report trên `auditor/20261017-post-ux-wave-retest` @ `6932c76`).
 5. ~~T-130 image drift~~ — hết.
@@ -134,30 +135,19 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 ## 6. Handoff to Agent 2
 
-**Current Doing: T-151** — P0 thống nhất chỉ số VN Overview ↔ Realtime (human **1a**).
+**Current Doing:** *(trống)* — chờ human.
 
-### Gap (Architect pre-survey)
-- **Realtime:** `ui_realtime/index_cards.py` đọc Redis `idx:quote:{symbol}` (+ spark) — Auditor: VNINDEX **1705.91 +0.45%** khớp FireAnt.
-- **Overview:** `overview_page.vietnam_board` → `_row_from_bars`: `Đóng cửa` = `close[-1]`, `Tham chiếu` = `close[-2]` từ OHLCV/API local — Auditor: **1704.87 −0.85%** sai (đang so 2 nến close, không phải TC phiên + last).
-- Cùng pattern lỗi T-150 (OHLCV stale / sai semantics ref).
+```
+1a) Commit + deploy T-151 (vnstocks)
+1b) T-152 / T-153 P1 polish
+1c) Chờ
+```
 
-### Hướng implement
-1. Overlay hàng chỉ số VN (ít nhất VNIndex / map `_VN_SYMBOLS`) từ Redis `idx:quote` — reuse logic đọc giống `index_cards.read` (có thể extract helper nhỏ dùng chung, hoặc gọi Redis reader từ overview **không** import Streamlit trong index_cards path).
-2. Map fields: value → Đóng cửa; ref → Tham chiếu; change/pct → Tăng/giảm (điểm/%). Giữ mũi tên session từ ref/high/low/close nếu quote đủ; else giữ OHLCV.
-3. Fallback OHLCV nếu Redis miss; caption «Chỉ số: Redis index-feed nếu có · OHLCV fallback» + giờ/ts nếu có.
-4. Scope tối thiểu: **VNINDEX** (+ cùng bảng HNX/UPCOM/VN30 nếu cùng pipe `idx:quote` — nên làm cả hàng VN board cho đồng nhất).
-5. Test: unit overlay với mock quote dict; không cần Redis thật.
-6. pytest Pass/Fail báo rõ. ≤5 files.
-
-### Acceptance
-- Ngoài phiên: Overview VNINDEX **cùng hướng/số** Realtime (≈1705.91 +0.45%) hoặc caption nguồn+giờ giải thích lệch cố ý.
-- Không đổi token màu; không đụng nginx/SSH; không sửa index-feed worker trừ khi Redis key thiếu (ưu tiên chỉ UI overlay).
-
-### Không đụng
-- T-152/T-153; force-push; `compose down`; Authentik
-
-### Commit gợi ý
-`fix(overview): align VN index board with Redis idx:quote`
+### Executor notes (T-151 — Done, Master ack 2a)
+- `datasource/index_quotes.py`: `load_idx_quotes` + `overlay_vietnam_index_board`
+- Overlay **sau** `vietnam_board()` cache; caption nguồn+giờ
+- Không đụng index-feed worker / index_cards HTML
+- Master re-verify: pytest **3 passed**
 
 ### Executor notes (T-150 — archived)
 - Done @ `93a1c5e`; Master ack 2a.
@@ -188,24 +178,26 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing`.
 
 | Tab | Turns | Files this task | Slowing? | Status |
 |-----|------:|----------------:|----------|--------|
-| executor-1 | 0 | 0 | no | active |
+| executor-1 | 1 | 0 | no | idle |
 
 ### Master commands
 
-```
-START T-151 — P0 Overview VN indexes ↔ Realtime Redis idx:quote (human 1a).
-Read §6. Overlay vietnam_board from idx:quote; OHLCV fallback.
-≤5 files. No color fake-fix. No index-feed rewrite unless keys missing.
-pytest Pass; update §7 + T-151 Done.
-```
+(none) — T-151 closed; chờ human chọn deploy / T-152
 
 ### Last Executor state
 
 ```
 task: T-151
-result: in_progress
-HEAD_at_start: 45051ad
-notes: assigned after human 1a
+result: Done
+master_ack: human 2a
+HEAD_at_start: f9347a5
+commit: (see git after Master push)
+pytest: Pass (3) — Master re-verify OK
+files:
+  - src/atz/datasource/index_quotes.py
+  - src/atz/ui/overview_page.py
+  - tests/test_index_quotes.py
+  - PROGRESS.md
 paused_fork: no
 ```
 
@@ -245,3 +237,5 @@ paused_fork: no
 | 2026-10-17 | **T-150 Done** — Redis session overlay; pytest Pass (10); Status=idle; chờ commit |
 | 2026-10-17 | **Master ack T-150 (human 2a)** — re-verify pytest Pass (10); ship code |
 | 2026-10-17 | **T-151 Doing** — human 1a; overlay Overview indexes từ Redis idx:quote |
+| 2026-10-17 | **T-151 Done** — index_quotes overlay; pytest Pass (3); Status=idle; chờ commit |
+| 2026-10-17 | **Master ack T-151 (human 2a)** — re-verify pytest Pass (3); ship code |

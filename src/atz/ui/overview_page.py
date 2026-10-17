@@ -577,6 +577,13 @@ def show_overview() -> None:
                 columns=list(VN_COLUMNS),
             )
         try:
+            from datasource.index_quotes import overlay_vietnam_index_board
+
+            # Overlay Redis sau cache OHLCV (tránh TTL 10' giữ giá stale).
+            vietnam = overlay_vietnam_index_board(vietnam)
+        except Exception:
+            pass
+        try:
             world = world_board()
         except Exception:
             world = pd.DataFrame(
@@ -598,10 +605,25 @@ def show_overview() -> None:
         column_config=_index_column_config(list(vietnam.columns)),
         alt="Chỉ số Việt Nam: tham chiếu, đóng cửa, biến động, khối lượng và giá trị",
     )
+    idx_src = vietnam.attrs.get("index_price_source") or "ohlcv"
+    idx_hits = int(vietnam.attrs.get("index_redis_hits") or 0)
+    idx_ts = vietnam.attrs.get("index_quote_ts")
+    if idx_src == "redis" and idx_ts:
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+
+        try:
+            when = datetime.fromtimestamp(float(idx_ts), ZoneInfo("Asia/Ho_Chi_Minh")).strftime("%H:%M:%S")
+        except (TypeError, ValueError, OSError):
+            when = "—"
+        idx_note = f"Giá chỉ số: Redis index-feed ({idx_hits}/{len(vietnam)} · {when})."
+    elif idx_src == "redis":
+        idx_note = f"Giá chỉ số: Redis index-feed ({idx_hits}/{len(vietnam)})."
+    else:
+        idx_note = "Giá chỉ số: OHLCV/vnstock (Redis miss)."
     st.caption(
-        "Giá và khối lượng lấy từ vnstock. Giá trị khớp và thỏa thuận lấy từ VCI, không có thì KBS. "
-        "Khối ngoại và tự doanh nguồn VCI, đơn vị tỷ đồng. Thiếu số thì «—». "
-        "Cột hình: vạch vàng = tham chiếu; mũi tên xanh = tăng, đỏ = giảm (đóng cửa vs tham chiếu)."
+        f"{idx_note} KL/GT vẫn từ vnstock/VCI/KBS. Thiếu số thì «—». "
+        "Cột hình: vạch vàng = tham chiếu; mũi tên xanh = tăng, đỏ = giảm."
     )
     st.subheader("Chỉ số quốc tế")
     world_paint = [c for c in ("Tăng/giảm (điểm/%)",) if c in world.columns]
