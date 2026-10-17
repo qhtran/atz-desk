@@ -6,7 +6,13 @@ Cập nhật: **2026-10-17** (T-140). Inbox trống → các brief overnight dư
 
 | Task file | Priority | Status | Notes |
 |-----------|----------|--------|-------|
-| `tasks/20261017-1530-post-ux-wave-retest.md` | P0 | **active** | Retest sau UX wave (pin strip, workspace, table variants, T-120) |
+| *(không)* | — | — | Chờ brief mới từ Orchestrator |
+
+## Done (có inbox)
+
+| Task file | Priority | Inbox | Notes |
+|-----------|----------|-------|-------|
+| `tasks/20261017-1530-post-ux-wave-retest.md` | P0 | `inbox/20261017-1530-atz-post-ux-wave-retest.md` | Auditor `6932c76` / branch `auditor/20261017-post-ux-wave-retest`; Master → T-150…T-153 |
 
 ## Stale (không làm lại — giữ file, không xóa)
 

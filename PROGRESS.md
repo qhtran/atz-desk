@@ -2,7 +2,7 @@
 
 > Master Architect artifact. Agent 2 (Code Executor) chỉ làm đúng task `Doing` trong mục Handoff.
 > Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
-> Cập nhật: **2026-10-17** — human **1a**: **WAIT AuditorBot inbox** (brief `1530`); Executor idle.
+> Cập nhật: **2026-10-17** — **Auditor inbox 1530 nhận** — 2×P0 Overview data; chờ chọn slice.
 
 ---
 
@@ -14,14 +14,14 @@
 | Data | Redis (nóng) + SQLite `data/signals.db` (bền); secrets chỉ env |
 | Deploy | Docker Compose `/opt/vnstocks` — services: `vnstocks`, ingestion, filter-runner, alert, position, index-feed, redis |
 | Auth | Authentik forward-auth; identity = headers; trading prefs = SQLite (ADR 0004) |
-| Branch / HEAD | `main` @ `2ec61de` — T-130 closed; waiting Auditor inbox `1530` |
+| Branch / HEAD | `main` @ `22154f7`+ — inbox 1530 từ branch `auditor/20261017-post-ux-wave-retest` |
 | NON-goal | Không đặt lệnh tự động; không SPA/BFF Phase 2 trừ nhu cầu mới |
 
 **Active goals (ưu tiên sản phẩm):**
 1. Giữ pipeline near-realtime ổn định + UI bảng thống nhất (`realtime` / `analytical` / `compact`).
 2. Hoàn thiện UX trading cá nhân (workspace + prefs seed Done; còn mentor F1 / Auditor).
-3. **WAIT:** AuditorBot poll brief P0 `1530` → push `inbox/20261017-1530-atz-post-ux-wave-retest.md` (inbox hiện **trống**).
-4. Chờ mentor cho nến mạnh–TB–yếu, Bollinger, Ichimoku, phần II.
+3. **P0 fix Overview:** Top KL/giá + VNINDEX lệch phiên vs Realtime/FireAnt (inbox 1530).
+4. Chờ mentor F1 (T-200/T-210); P1 polish từ inbox.
 
 ---
 
@@ -104,7 +104,7 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 | ID | Title | Status | Modules | Target files | Acceptance | Deps | Agent 2 instructions |
 |----|-------|--------|---------|--------------|------------|------|----------------------|
-| — | *(trống — WAIT AuditorBot; không giao code)* | — | — | — | — | — | — |
+| — | *(trống — chờ human chọn P0 T-150 / T-151)* | — | — | — | — | — | — |
 
 **Quy tắc:** luôn tối đa **một** task `Doing`.
 
@@ -112,43 +112,45 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 | ID | Title | Status | Modules | Target files (dự kiến) | Acceptance | Deps | Agent 2 instructions |
 |----|-------|--------|---------|------------------------|------------|------|----------------------|
-| T-200 | F1: enum nến mạnh / TB / yếu gắn filter | Blocked | filters, analysis, ui | `filters/candle.py`, `analysis/candles*`, `filter_criteria.py`, tests | Mentor chốt định nghĩa → unit test + catalog | Mentor | **Blocked.** Không đoán ngưỡng. |
-| T-210 | F1: Bollinger / Ichimoku / phần II | Blocked | filters, analysis | theo doc mentor | Spec mentor đủ → implement từng indicator 1 PR | Mentor | **Blocked.** |
-| T-220 | Brand CSS Authentik / infra soft (n8n, fail2ban, cert) | Blocked | infra | deploy Authentik / VPS | Human `user_confirmed_infra: yes` trước mọi đụng auth/nginx | Human | **Blocked** trừ confirm tường minh. |
+| T-150 | P0 Overview Top KL / giá = bar phiên (không dùng TC làm Giá) | Todo | analysis, ui, datasource | `analysis/volume_leaders.py`, `ui/overview_page.py`, store Top20, tests | VHM Overview khớp hướng Realtime/FireAnt (vd. 61.00 +3.57%); STB 0%; MBB −0.25%; tiêu đề ghi ngày phiên | inbox 1530 | **Một slice data.** Không «tô màu» che lỗi OHLCV. Không đụng nginx. |
+| T-151 | P0 Thống nhất VNINDEX Overview ↔ Realtime | Todo | ui, ingestion/index | `overview_page`, index cards / index-feed path | Ngoài phiên Overview = Realtime = FA (~1705.91 +0.45%) hoặc caption nguồn+giờ rõ | inbox 1530 | Chỉ nguồn chỉ số; không đổi token màu. |
+| T-152 | P1: lọc chỉ số khỏi Top20; POW ngoài rổ; format Trần/Sàn; label closed; PnL bar theo dấu | Todo | ui, ui_realtime | overview, board_view, sidebar_portfolio, theme | Theo đề xuất 3–4 inbox §4 | T-150 | Sau P0; có thể tách 2 PR. |
+| T-153 | P1 Contrast zebra / chữ Δ trên nền tối | Todo | ui | `table_theme.py`, COLOR_TOKENS | Đọc được 1280×800 | T-150 | Theme only. |
+| T-200 | F1: enum nến mạnh / TB / yếu gắn filter | Blocked | filters, analysis, ui | `filters/candle.py`, … | Mentor | Mentor | **Blocked.** |
+| T-210 | F1: Bollinger / Ichimoku / phần II | Blocked | filters, analysis | theo mentor | Mentor | Mentor | **Blocked.** |
+| T-220 | Brand CSS Authentik / infra soft | Blocked | infra | deploy | `user_confirmed_infra` | Human | **Blocked.** |
 
 ---
 
 ## 5. Risks & open questions
 
-1. **Auditor inbox trống** (2026-10-17 check) — brief `1530` active; cần bật/poll AuditorBot.
-2. **Mentor gate** cho nến mạnh–TB–yếu + BB/Ichi — không tự invent.
-3. ~~T-130 image drift~~ — **hết** sau Phase B (cùng image `8c872b1f46eb`).
-4. **Multi-agent:** Architect ≠ app code; Executor = 1 `Doing`; bus = PROGRESS.md only.
-5. ~~HANDOFF lệch workspace~~ — hết sau T-100.
-6. ~~T-110 bypass~~ — hết (regression test Pass).
+1. **P0 data Overview** — Giá Overview ≈ TC Realtime; Δ ngược (VHM/STB/MBB…) — **không** fix bằng đổi màu.
+2. **Hai nguồn chỉ số** — Overview vs Realtime/index-feed.
+3. **Mentor gate** F1 còn lại.
+4. ~~WAIT inbox 1530~~ — **hết** (report trên `auditor/20261017-post-ux-wave-retest` @ `6932c76`).
+5. ~~T-130 image drift~~ — hết.
+6. Multi-agent: bus = PROGRESS only.
 
 ---
 
 ## 6. Handoff to Agent 2
 
-**Current Doing:** *(trống)* — human **1a** = **WAIT AuditorBot**.
+**Current Doing:** *(trống)* — chờ human chọn P0.
 
-### Watch criteria (Master / human)
-- Kỳ vọng file: `docs/auditorbot/inbox/20261017-1530-atz-post-ux-wave-retest.md`
-- Task active: `docs/auditorbot/tasks/20261017-1530-post-ux-wave-retest.md`
-- Protocol: skip `stale_no_inbox` (`BACKLOG.md`)
-- Prompt bot: `docs/auditorbot/PROMPT_FOR_AUDITORBOT.md`
-- Khi có inbox: Master đọc → tóm tắt P0/P1 → Resolution → chuyển `reports/` nếu xử lý xong
+### Auditor 1530 — Master summary (đã đọc)
+- File: `docs/auditorbot/inbox/20261017-1530-atz-post-ux-wave-retest.md`
+- UX wave **Pass:** pin UI, Không gian Trading, RSS sạch HTML; Realtime board màu OK vs FA.
+- **P0:** Overview Top KL/giá lệch phiên (dùng TC); VNINDEX Overview sai vs Realtime/FA.
+- **P1:** Trần/Sàn float; `live` ngoài phiên; PnL bar 1 màu; VNINDEX trong Top20; POW không trong board 30.
+- **N/A:** flash (ngoài phiên). **BLOCKED:** hover/T&S Streamlit.
+- Resolution inbox: vẫn `todo` đến khi T-150/T-151 xong → chuyển `reports/`.
 
-### Executor-1
-- **Idle** — không SSH, không `src/`, không tạo brief mới trừ human bảo.
-- Có thể `git pull` định kỳ; nếu thấy inbox mới → báo Master (không tự Resolution lớn).
-
-### Khi inbox về — human chọn tiếp
 ```
-2a) Master đọc inbox + tóm tắt hành động
-2b) Vẫn chờ / poll thêm
-2c) Việc khác
+Giao Executor:
+1a) T-150 — P0 Overview Top KL / giá phiên
+1b) T-151 — P0 VNINDEX thống nhất
+1c) T-150 rồi T-151 tuần tự (Master giao 150 trước)
+1d) Chờ — chưa code
 ```
 
 ### Executor notes (T-130 — archived)
@@ -185,20 +187,17 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing`.
 ### Master commands
 
 ```
-WAIT_AUDITOR — human 1a
-Poll/watch: docs/auditorbot/inbox/ for 20261017-1530-atz-post-ux-wave-retest.md
-Executor-1: IDLE (no code, no SSH).
-When inbox appears: human → 2a for Master summary.
-Optional: human starts AuditorBot with PROMPT_FOR_AUDITORBOT.md
+(none) — awaiting human 1a/1b/1c/1d for P0 from Auditor 1530
+Inbox on main after this commit; BACKLOG mark 1530 done.
 ```
 
 ### Last Executor state
 
 ```
 task: (none)
-result: idle_wait_auditor
-watch: inbox/20261017-1530-atz-post-ux-wave-retest.md
-inbox_status: empty (checked 2026-10-17)
+result: idle
+inbox: docs/auditorbot/inbox/20261017-1530-atz-post-ux-wave-retest.md (received)
+auditor_branch: auditor/20261017-post-ux-wave-retest @ 6932c76
 paused_fork: no
 ```
 
@@ -232,3 +231,5 @@ paused_fork: no
 | 2026-10-17 | **T-130 Done** — executor-1 Phase B PASS; image 8c872b1f46eb; upstream PASS; Status=idle |
 | 2026-10-17 | **Master ack T-130** — verify report; commit+push PROGRESS |
 | 2026-10-17 | **WAIT_AUDITOR** — human 1a; inbox trống; brief 1530 active; Executor idle |
+| 2026-10-17 | executor-1 re-check inbox vẫn trống; Turns 0→1; idle |
+| 2026-10-17 | **Inbox 1530 nhận** — Master summary; Todo T-150…T-153; WAIT clear |
