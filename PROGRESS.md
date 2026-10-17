@@ -14,7 +14,7 @@
 | Data | Redis (nóng) + SQLite `data/signals.db` (bền); secrets chỉ env |
 | Deploy | Docker Compose `/opt/vnstocks` — services: `vnstocks`, ingestion, filter-runner, alert, position, index-feed, redis |
 | Auth | Authentik forward-auth; identity = headers; trading prefs = SQLite (ADR 0004) |
-| Branch / HEAD | `main` @ `908809f` — VPS deploy image `8c872b1f46eb` (T-130) |
+| Branch / HEAD | `main` @ `dcc465b` — T-130 Master ack; VPS image `8c872b1f46eb` |
 | NON-goal | Không đặt lệnh tự động; không SPA/BFF Phase 2 trừ nhu cầu mới |
 
 **Active goals (ưu tiên sản phẩm):**
