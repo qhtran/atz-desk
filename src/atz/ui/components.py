@@ -30,6 +30,7 @@ def render_data_table(
     key_cols: Sequence[str] | None = None,
     *,
     key: str | None = None,
+    dbg_key: str | None = None,
     glance_label: str = "Chỉ hiện cột chính",
     column_config: dict | None = None,
     **kwargs: Any,
@@ -38,6 +39,8 @@ def render_data_table(
 
     Mặc định hiện mọi cột (desktop như cũ). Có ``key_cols`` thì thêm toggle Glance để
     chỉ xem cột chính, hữu ích trên điện thoại.
+
+    ``dbg_key`` (hoặc ``key``) → chip COL/ROW debug khi overlay bật.
     """
     columns = _columns_of(data)
     pins = [pin] if isinstance(pin, str) else list(pin or [])
@@ -52,6 +55,12 @@ def render_data_table(
             glance = st.toggle(glance_label, value=False, key=f"glance_{key}" if key else None)
             if glance:
                 order = list(dict.fromkeys(wanted))
+    table_dbg = dbg_key or key
+    if table_dbg:
+        from ui.debug_overlay import dbg_table_legend
+
+        visible_cols = order if order else columns
+        dbg_table_legend(str(table_dbg), visible_cols, data=data)
     kwargs.setdefault("hide_index", True)
     st.dataframe(
         data,

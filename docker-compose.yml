@@ -9,6 +9,10 @@ services:
     ports: ["127.0.0.1:8501:8501"]
     volumes: ["./data:/app/data", "./vnstock_home:/root/.vnstock"]
     env_file: [".env"]
+    environment:
+      # Kill-switch debug UI (không cần rebuild): ATZ_DEBUG_OVERLAY=0 rồi up -d --no-deps vnstocks
+      ATZ_DEBUG_OVERLAY: ${ATZ_DEBUG_OVERLAY:-1}
+      ATZ_DEBUG_TABLE_DEEP: ${ATZ_DEBUG_TABLE_DEEP:-1}
     networks: [default, realtime]   # Module 5: đọc Redis (quote/pos:live/inapp/health) cho UI realtime
   # --- Module 1: realtime ingestion (docs/architecture.md mục 2) ---
   redis:

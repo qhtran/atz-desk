@@ -1,13 +1,20 @@
-# Lớp debug UI atz.vn — hotkey ⌘⇧D / Ctrl⇧D gắn nhãn vùng để báo bug.
-# Chỉ inject JS khi enabled + user được phép (groups Authentik hoặc local).
+# Lớp debug UI atz.vn — hotkey ⌘⇧D / Ctrl⇧D + chip hàng/cột bảng.
+#
+# TẮT KHI HỆ THỐNG ỔN (không cần debug):
+#   1) Nhanh (không rebuild image): trong .env đặt ATZ_DEBUG_OVERLAY=0
+#      rồi `docker compose up -d --no-deps vnstocks`
+#   2) Hoặc đặt enabled: false bên dưới rồi build lại image vnstocks
+#
+# Tắt riêng chip bảng (giữ overlay khối): table_deep: false
 debug_overlay:
   enabled: true
-  # Cho phép khi không có header Authentik (dev local / SSH tunnel).
+  table_deep: true
+  max_row_chips: 40
+  # Cho phép khi không có header Authentik (dev local).
   allow_local: true
   # Khớp không phân biệt hoa thường với X-authentik-groups.
   allowed_groups:
     - admin
     - admins
     - authentik Admins
-  # Chỉ dùng [A-Za-z0-9_-]; JS đọc meta này.
   storage_key: atz-dbg-on
