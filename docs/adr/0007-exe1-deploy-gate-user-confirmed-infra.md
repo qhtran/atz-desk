@@ -1,6 +1,6 @@
 # ADR 0007 — Cổng deploy Exe1 (user_confirmed_infra)
 
-- **Status:** Proposed (Master Architect draft, 2026-10-17)
+- **Status:** Accepted (Master Architect, 2026-10-17)
 - **Context:** Multi-agent: Master không SSH production; Exe1 (executor-1) triển khai theo task `Doing` trên PROGRESS.md. Rủi ro mất SSH nếu đụng nginx stream / sshd.
 
 ## Quyết định
