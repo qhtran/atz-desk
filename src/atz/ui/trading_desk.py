@@ -327,9 +327,11 @@ def show_trading_desk(capital: float) -> None:
     board = view_board(store, capital)
     render_data_table(
         style_desk_board(board),
+        variant="analytical",
         pin="Mã",
         key_cols=["Xu hướng ngày", "Giá mua", "Giá hiện tại", "Lãi/lỗ thương vụ"],
         key="desk_board",
+        auto_signed=False,
         alt="Bảng quản trị vị thế Trạm Trading, đã tô màu lãi lỗ và xu hướng",
     )
     if not store.empty:

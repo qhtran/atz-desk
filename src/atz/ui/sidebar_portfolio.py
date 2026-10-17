@@ -166,10 +166,14 @@ def render_portfolio_overview() -> tuple[float, float]:
                 for row in positions
             ]
         )
-        st.dataframe(
+        from ui.components import render_data_table
+
+        render_data_table(
             view,
-            hide_index=True,
-            width="stretch",
+            variant="compact",
+            pin="Mã",
+            key="sidebar_positions",
+            height=220,
             alt="Vị thế sidebar: mã, giá mua, giá hiện tại, cảnh báo",
             column_config={
                 "Giá mua": st.column_config.NumberColumn(format="%.2f"),

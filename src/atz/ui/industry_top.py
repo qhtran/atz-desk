@@ -280,6 +280,7 @@ def show_industry_top() -> None:
         shown = part.drop(columns=["Ngành"])
         render_data_table(
             shown,
+            variant="analytical",
             pin="Mã",
             key_cols=["Điểm", "Cường độ mua/bán", "Xu hướng ngày", "KQKD quý hiện tại"],
             key=f"top5_{industry}",

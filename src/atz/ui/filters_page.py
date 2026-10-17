@@ -70,10 +70,11 @@ def _show_criteria_catalog() -> None:
     from ui.filter_criteria import criteria_board
 
     with st.expander("Tiêu chí lọc (catalog F1)", expanded=False):
-        st.dataframe(
+        render_data_table(
             criteria_board(),
-            hide_index=True,
-            width="stretch",
+            variant="analytical",
+            pin=None,
+            key="flt_criteria",
             alt="Bảng tiêu chí lọc kỹ thuật và mẫu hình theo checklist F1",
         )
         st.caption(
@@ -212,6 +213,7 @@ def show_filters() -> None:
                     st.caption("KQKD = LNST quý hiện tại / cùng kỳ. Thiếu dữ liệu thì «—».")
                     render_data_table(
                         board,
+                        variant="analytical",
                         pin="Mã",
                         key_cols=["Tín hiệu", "Giá", "KQKD quý hiện tại"],
                         key="free_filter_board",

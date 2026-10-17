@@ -54,7 +54,9 @@ def _show_symbol_table(symbols: list[str], volumes: dict[str, float] | None = No
         if volumes and symbol in volumes:
             row["KL TB 10 phiên"] = volumes[symbol]
         rows.append(row)
-    render_data_table(rows, pin="Mã", alt="Danh sách mã trong watchlist")
+    render_data_table(
+        rows, variant="analytical", pin="Mã", key="wl_rows", alt="Danh sách mã trong watchlist"
+    )
 
 
 def _sector_section() -> None:

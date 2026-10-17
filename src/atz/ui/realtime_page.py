@@ -73,7 +73,9 @@ def _fallback_board(reason: str, user_id: int) -> None:
         st.error(f"Không đọc được dữ liệu dự phòng: {error}")
         return
     cols = [c for c in ("Mã", "Giá", "RS 3 tháng (%)", "ROE (%)", "KLGD TB 20 phiên") if c in board.columns]
-    render_data_table(board[cols] if cols else board, key="rt_board_fb")
+    render_data_table(
+        board[cols] if cols else board, variant="realtime", key="rt_board_fb"
+    )
 
 
 def _index_cards(user_id: int) -> None:
@@ -109,10 +111,12 @@ def _pinned_live_strip(pins: list[str], frame: pd.DataFrame) -> None:
             st.warning(f"Đã lưu ghim nhưng chưa có quote trong bảng: {missing}")
             return
         view_cols = [c for c in ("Mã", "Giá", "+/-", "%", "Trạng thái") if c in strip.columns]
-        st.dataframe(
+        render_data_table(
             strip[view_cols],
-            hide_index=True,
-            width="stretch",
+            variant="compact",
+            pin="Mã",
+            key="rt_pinned_strip",
+            height=min(220, 48 + 36 * max(1, len(strip))),
             alt="Khối mã đang ghim với giá live",
             column_config={
                 "Giá": st.column_config.NumberColumn(format="%.0f"),
@@ -230,10 +234,9 @@ def _board(user_id: int, interval, query: str = "") -> None:
     from ui.price_action import price_state
     from ui.sparkline import spark_image_uri, trend_image_column
     from ui.stock_item import realtime_board_frame
-    from ui.theme_tokens import FIREANT_CSS, css_flash, css_for_price_state
+    from ui.theme_tokens import css_flash, css_for_price_state
     from ui_realtime import board_view as bv
 
-    st.markdown(FIREANT_CSS, unsafe_allow_html=True)
     frame = realtime_board_frame(rows)
     frame = frame.copy()
     # Lọc theo ô tìm (session) — ưu tiên tham số, fallback key
@@ -352,6 +355,7 @@ def _board(user_id: int, interval, query: str = "") -> None:
         styled = styled.hide(axis="columns", subset=hide_cols)
     render_data_table(
         styled,
+        variant="realtime",
         key_cols=["Giá", "%", "Xu hướng", "Trạng thái"],
         key="rt_board",
         column_config={"Xu hướng": trend_image_column("Xu hướng", width="small")},
@@ -398,7 +402,9 @@ def _positions_live(user_id: int, interval) -> None:
     styled = frame.style.format({"KL": "{:,.0f}", "Giá vốn": "{:,.0f}", "Giá": "{:,.0f}", "Lãi/lỗ": "{:+,.0f}", "%": "{:+.2f}",
                                  "Cắt lỗ": "{:,.0f}", "Chốt lời": "{:,.0f}"}, na_rep="-").map(
         css_signed_number, subset=["Lãi/lỗ", "%"])
-    render_data_table(styled, key_cols=["Giá", "Lãi/lỗ", "%"], key="rt_pos")
+    render_data_table(
+        styled, variant="analytical", key_cols=["Giá", "Lãi/lỗ", "%"], key="rt_pos"
+    )
     st.caption(f"{_stamp(interval)} · Lãi/lỗ cập nhật khi có giá mới, chậm nhất khoảng 15 giây.")
 
 
@@ -484,7 +490,12 @@ def _alerts(user_id: int, interval) -> None:
                            "Ngày": str(x.get("timestamp", ""))[:10], "Mã": x.get("symbol"),
                            "Chiều": {"BUY": "Mua", "SELL": "Bán"}.get(x.get("direction"), x.get("direction")),
                            "Giá": x.get("price"), "Bộ lọc": x.get("filter_name"), "Lý do": x.get("reason")} for x in items])
-    render_data_table(frame.style.format({"Giá": "{:,.0f}"}, na_rep="-"), pin=("Mã",), key="rt_alerts")
+    render_data_table(
+        frame.style.format({"Giá": "{:,.0f}"}, na_rep="-"),
+        variant="compact",
+        pin=("Mã",),
+        key="rt_alerts",
+    )
     st.caption(_stamp(interval))
 
 
@@ -516,7 +527,9 @@ def _health(user_id: int, interval) -> None:
     _tick("health", user_id, interval)
     h = data.reader().health()
     rows = [{"Thành phần": k, "Trạng thái": "✅" if v["ok"] else "❌", "Chi tiết": v["detail"]} for k, v in h.items()]
-    render_data_table(pd.DataFrame(rows), pin=("Thành phần",), key="rt_health")
+    render_data_table(
+        pd.DataFrame(rows), variant="analytical", pin=("Thành phần",), key="rt_health"
+    )
     st.caption(_stamp(interval))
 
 
@@ -567,7 +580,12 @@ def _signals(user_id: int) -> None:
             for s in items
         ]
     )
-    render_data_table(frame.style.format({"Giá": "{:,.0f}"}, na_rep="-"), pin=("Mã",), key="oah_table")
+    render_data_table(
+        frame.style.format({"Giá": "{:,.0f}"}, na_rep="-"),
+        variant="analytical",
+        pin=("Mã",),
+        key="oah_table",
+    )
     st.download_button("Tải CSV", oah.to_csv(items), file_name="tin_hieu.csv", mime="text/csv", key="oah_csv")
 
 

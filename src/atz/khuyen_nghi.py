@@ -249,10 +249,14 @@ def main() -> None:
             )
         st.caption("Trung bình cộng cột LN tạm tính (%) của các mã lấy được giá.")
 
-    st.dataframe(
+    from ui.components import render_data_table
+
+    render_data_table(
         style_board(board),
-        hide_index=True,
-        width="stretch",
+        variant="analytical",
+        pin="Mã CK",
+        key="khuyen_nghi_board",
+        auto_signed=False,
         alt="Danh mục khuyến nghị ngắn hạn: giá mua, mục tiêu, cắt lỗ, lãi tạm tính và xu hướng",
     )
     for note in watch_notes(board):

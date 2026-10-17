@@ -526,9 +526,6 @@ def show_volume_leaders() -> None:
     from analysis.volume_leaders import rank_volume_leaders
     from config import VOLUME_LEADERS_MIN_AVG, VOLUME_LEADERS_TOP_N
     from ui.sparkline import trend_image_column
-    from ui.theme_tokens import FIREANT_CSS
-
-    st.markdown(FIREANT_CSS, unsafe_allow_html=True)
     st.subheader(f"Top {VOLUME_LEADERS_TOP_N} khối lượng phiên")
     board = rank_volume_leaders()
     if board.empty:
@@ -538,10 +535,12 @@ def show_volume_leaders() -> None:
         )
         return
     view = _volume_leaders_view(board)
-    st.dataframe(
+    render_data_table(
         _style_volume_leaders(view),
-        hide_index=True,
-        width="stretch",
+        variant="realtime",
+        pin="Mã",
+        key="ov_volume_leaders",
+        auto_signed=False,
         alt="Top mã khối lượng tăng mạnh so với trung bình 10 phiên, kèm sparkline",
         column_config={
             "Xu hướng": trend_image_column("Xu hướng", width="small"),
@@ -582,9 +581,11 @@ def show_overview() -> None:
     vn_paint = [c for c in _PAINTED if c in vietnam.columns]
     render_data_table(
         vietnam.style.map(_paint, subset=vn_paint) if vn_paint else vietnam,
+        variant="analytical",
         pin="Chỉ số",
         key_cols=[c for c in ("Đóng cửa", "Tăng/giảm (điểm/%)") if c in vietnam.columns],
         key="ov_vietnam",
+        auto_signed=False,
         column_config=_index_column_config(list(vietnam.columns)),
         alt="Chỉ số Việt Nam: tham chiếu, đóng cửa, biến động, khối lượng và giá trị",
     )
@@ -597,8 +598,10 @@ def show_overview() -> None:
     world_paint = [c for c in ("Tăng/giảm (điểm/%)",) if c in world.columns]
     render_data_table(
         world.style.map(_paint, subset=world_paint) if world_paint else world,
+        variant="analytical",
         pin="Chỉ số",
         key="ov_world",
+        auto_signed=False,
         column_config=_index_column_config(list(world.columns)),
         alt="Chỉ số Mỹ, châu Âu và châu Á với mũi tên tăng giảm",
     )

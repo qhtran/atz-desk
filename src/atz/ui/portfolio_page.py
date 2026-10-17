@@ -8,7 +8,6 @@ import pandas as pd
 import streamlit as st
 
 from ui.components import render_data_table
-from ui.mobile import pinned
 
 from config import CAPITAL_TRANCHES
 from datasource.portfolio import (
@@ -54,24 +53,25 @@ def show_portfolio() -> None:
         st.info("Chưa có vị thế.")
     else:
         shown = _positions_view(positions)
-        st.dataframe(
-            shown.style.format(
-                {
-                    "Giá mua": "{:.2f}",
-                    "Giá hiện tại": "{:.2f}",
-                    "Khối lượng": "{:,.0f}",
-                    "Lãi/lỗ (VND)": "{:,.0f}",
-                },
-                na_rep="—",
-            ),
-            hide_index=True,
-            width="stretch",
-            column_config=pinned("Mã") or None,
+        render_data_table(
+            shown,
+            variant="analytical",
+            pin="Mã",
+            key="pf_positions",
+            signed_cols=["Lãi/lỗ (VND)"],
             alt="Danh sách vị thế và lãi lỗ",
+            column_config={
+                "Giá mua": st.column_config.NumberColumn(format="%.2f"),
+                "Giá hiện tại": st.column_config.NumberColumn(format="%.2f"),
+                "Khối lượng": st.column_config.NumberColumn(format="%.0f"),
+                "Lãi/lỗ (VND)": st.column_config.NumberColumn(format="%.0f"),
+            },
         )
         usage = tranche_usage(positions)
         st.markdown("**Giải ngân theo mã**")
-        render_data_table(usage, pin="Mã", alt="Số phần đã giải ngân theo mã")
+        render_data_table(
+            usage, variant="analytical", pin="Mã", key="pf_usage", alt="Số phần đã giải ngân theo mã"
+        )
         over = usage.loc[usage["Phần đã giải ngân"] > CAPITAL_TRANCHES, "Mã"]
         if not over.empty:
             st.warning(f"Vượt {CAPITAL_TRANCHES} phần: {', '.join(over.astype(str))}.")
@@ -111,7 +111,9 @@ def show_portfolio() -> None:
     else:
         render_data_table(
             shown_notes.drop(columns=["id"]),
+            variant="analytical",
             pin="Mã",
+            key="pf_journal",
             alt="Nhật ký mua bán theo thời gian",
         )
     with st.form("add_journal"):

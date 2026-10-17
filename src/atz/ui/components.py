@@ -1,14 +1,21 @@
-"""Thành phần UI dùng chung: bảng ghim cột đầu và biểu đồ chiều cao cố định."""
+"""Thành phần UI dùng chung: bảng 3 variants + biểu đồ chiều cao cố định."""
 
 from __future__ import annotations
 
 from collections.abc import Sequence
 from typing import Any
 
-import pandas as pd
 import streamlit as st
 
 from ui.mobile import pinned
+from ui.table_theme import (
+    TableVariant,
+    container_key,
+    inject_table_theme,
+    normalize_variant,
+    polish_for_variant,
+    unwrap_frame,
+)
 
 CHART_MIN_HEIGHT = 400
 CHART_MAX_HEIGHT = 450
@@ -16,40 +23,54 @@ CHART_DEFAULT_HEIGHT = 420
 
 
 def _columns_of(data: Any) -> list[str]:
-    frame = getattr(data, "data", data)  # Styler giữ DataFrame trong .data
-    if isinstance(frame, pd.DataFrame):
+    frame = unwrap_frame(data)
+    if frame is not None:
         return [str(c) for c in frame.columns]
-    if isinstance(frame, list) and frame and isinstance(frame[0], dict):
-        return [str(c) for c in frame[0]]
+    if isinstance(data, list) and data and isinstance(data[0], dict):
+        return [str(c) for c in data[0]]
     return []
 
 
 def render_data_table(
     data: Any,
-    pin: Sequence[str] | str | None = ("Mã",),
+    pin: Sequence[str] | str | None = None,
     key_cols: Sequence[str] | None = None,
     *,
+    variant: TableVariant | str = "analytical",
     key: str | None = None,
     dbg_key: str | None = None,
     glance_label: str = "Chỉ hiện cột chính",
     column_config: dict | None = None,
+    signed_cols: Sequence[str] | None = None,
+    auto_signed: bool = True,
     **kwargs: Any,
 ) -> None:
-    """st.dataframe full width, ghim cột đầu.
+    """Một helper bảng — 3 variants: ``realtime`` | ``analytical`` | ``compact``.
 
-    Mặc định hiện mọi cột (desktop như cũ). Có ``key_cols`` thì thêm toggle Glance để
-    chỉ xem cột chính, hữu ích trên điện thoại.
+    - ``realtime``: bảng giá (flash/spark do caller); mật độ siêu dày.
+    - ``analytical``: Tổng quan / desk / watchlist / filter — pin cột, zebra, tô Δ/PnL.
+    - ``compact``: sidebar / khối ghim / alerts — thu nhỏ.
 
-    ``dbg_key`` (hoặc ``key``) → chip COL/ROW debug khi overlay bật.
+    Có ``key_cols`` thì thêm toggle Glance. ``dbg_key``/``key`` → chip debug.
     """
+    inject_table_theme()
+    kind = normalize_variant(variant)
     columns = _columns_of(data)
-    pins = [pin] if isinstance(pin, str) else list(pin or [])
-    pins = [name for name in pins if name in columns] if columns else pins
+    if pin is None:
+        if "Mã" in columns:
+            pins = ["Mã"]
+        elif columns:
+            pins = [columns[0]] if kind == "compact" else []
+        else:
+            pins = []
+    else:
+        pins = [pin] if isinstance(pin, str) else list(pin or [])
+        pins = [name for name in pins if name in columns] if columns else pins
     config = dict(pinned(*pins))
     if column_config:
         config.update(column_config)
     order = None
-    if key_cols and columns:
+    if key_cols and columns and kind != "compact":
         wanted = [c for c in [*pins, *key_cols] if c in columns]
         if wanted and len(wanted) < len(columns):
             glance = st.toggle(glance_label, value=False, key=f"glance_{key}" if key else None)
@@ -61,15 +82,25 @@ def render_data_table(
 
         visible_cols = order if order else columns
         dbg_table_legend(str(table_dbg), visible_cols, data=data)
-    kwargs.setdefault("hide_index", True)
-    st.dataframe(
+    display = polish_for_variant(
         data,
-        width="stretch",
-        column_config=config or None,
-        column_order=order,
-        key=key,
-        **kwargs,
+        kind,
+        signed_cols=list(signed_cols) if signed_cols else None,
+        auto_signed=auto_signed and kind != "realtime",
     )
+    kwargs.setdefault("hide_index", True)
+    if kind == "compact":
+        kwargs.setdefault("height", 280)
+    wrap = container_key(kind, key)
+    with st.container(key=wrap, border=(kind == "compact")):
+        st.dataframe(
+            display,
+            width="stretch",
+            column_config=config or None,
+            column_order=order,
+            key=key,
+            **kwargs,
+        )
 
 
 MOBILE_CHART_HEIGHT = 420

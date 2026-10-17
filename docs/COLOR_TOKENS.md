@@ -19,3 +19,13 @@ Nguồn code: `src/atz/ui/theme_tokens.py`
 **Realtime:** trần `#AB47BC` / sàn `#29B6F6` từ `ceiling_price`/`floor_price` (price_board); thiếu field thì fallback TC × `BAND_*`. Flash nền khi đổi ≥ `flash_min_tick_vnd` (mặc định 50), giữ `flash_hold_cycles` chu kỳ fragment (Giá / +/- / % / Mã).
 
 Đã áp: desk, Tổng quan, Realtime, Top KL, thẻ chỉ số, `config.CHART`.
+
+## Bảng — 3 variants (`ui/table_theme.py` + `render_data_table`)
+
+| Variant | Dùng cho | Ghi chú |
+|---------|----------|---------|
+| `realtime` | Bảng giá, Top KL | Flash/spark do caller; mật độ dày |
+| `analytical` | Tổng quan, desk, watchlist, filter, BCTC… | Pin cột, zebra, tô Δ/PnL |
+| `compact` | Sidebar, khối ghim, alerts | Thu nhỏ, thay `st.dataframe` thô |
+
+Mọi bảng UI đi qua `render_data_table(variant=...)`. CSS inject một lần (`inject_table_theme`).

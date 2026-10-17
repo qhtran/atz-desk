@@ -146,10 +146,14 @@ def show_dashboard(board: pd.DataFrame, note: str | None = None) -> None:
     if board.empty:
         st.info("Chưa có dữ liệu Top 20 ROE. Bấm «Quét và làm mới dữ liệu» ở thanh bên.")
         return
-    st.dataframe(
+    from ui.components import render_data_table
+
+    render_data_table(
         style_board(board),
-        hide_index=True,
-        width="stretch",
+        variant="analytical",
+        pin="Mã",
+        key="top20_roe",
+        auto_signed=False,
         alt="Top cổ phiếu theo ROE và thanh khoản, xếp RS 3 tháng",
     )
 
@@ -202,10 +206,13 @@ def show_patterns(symbol: str, bars: pd.DataFrame) -> None:
         {"Mẫu hình": item["name"], "Khớp": "✓" if item["found"] else "—", "Chi tiết": item["detail"]}
         for item in patterns.detect_all(bars)
     ]
-    st.dataframe(
+    from ui.components import render_data_table
+
+    render_data_table(
         pd.DataFrame(rows),
-        hide_index=True,
-        width="stretch",
+        variant="analytical",
+        pin="Mẫu hình",
+        key=f"patterns_{symbol}",
         alt=f"Mẫu hình giá nhận diện tự động cho {symbol}",
     )
     st.caption(
@@ -275,10 +282,13 @@ def show_valuation(symbol: str) -> None:
         ]
     )
     shown = pd.concat([board, summary], ignore_index=True)
-    st.dataframe(
+    from ui.components import render_data_table
+
+    render_data_table(
         shown.style.format({"P/E": "{:.2f}", "P/B": "{:.2f}"}, na_rep="—"),
-        hide_index=True,
-        width="stretch",
+        variant="analytical",
+        pin="Mã",
+        key=f"valuation_{symbol}",
         alt=f"P/E và P/B của {symbol} so với trung vị các mã cùng ngành trong danh sách quét",
     )
     own = board.loc[board["Mã"] == symbol, "P/E"]

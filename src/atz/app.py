@@ -7,6 +7,7 @@ import warnings
 import streamlit as st
 
 from ui.brand import BRAND_EXPAND, BRAND_NAME, PAGE_TITLE, SLOGAN
+from ui.components import inject_table_theme
 from ui.debug_overlay import dbg_anchor, inject_debug_overlay
 from ui.mobile import inject_mobile_css
 from ui.pages import open_page
@@ -17,6 +18,7 @@ warnings.filterwarnings("ignore", category=UserWarning, module=r"vnstock(\.|$)")
 def main() -> None:
     st.set_page_config(page_title=PAGE_TITLE, layout="wide")
     inject_mobile_css()
+    inject_table_theme()
     inject_debug_overlay()
     dbg_anchor("DBG-BRAND")
     st.title(BRAND_NAME)

@@ -49,7 +49,11 @@ def show_alerts() -> None:
     if report.empty:
         st.info("Chưa có cảnh báo.")
     else:
-        st.dataframe(report, hide_index=True, width="stretch", alt="Kết quả cảnh báo đang lưu")
+        from ui.components import render_data_table
+
+        render_data_table(
+            report, variant="compact", pin="Mã", key="alerts_report", alt="Kết quả cảnh báo đang lưu"
+        )
 
     with st.form("add_alert"):
         st.markdown("**Thêm cảnh báo**")
