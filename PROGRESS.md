@@ -14,7 +14,7 @@
 | Data | Redis (nóng) + SQLite `data/signals.db` (bền); secrets chỉ env |
 | Deploy | Docker Compose `/opt/vnstocks` — services: `vnstocks`, ingestion, filter-runner, alert, position, index-feed, redis |
 | Auth | Authentik forward-auth; identity = headers; trading prefs = SQLite (ADR 0004); **ADR 0006** cấm OIDC Client Streamlit |
-| Branch / HEAD | `main` @ `7f265c4` — VPS UI vẫn `8904bb446226` tới khi deploy |
+| Branch / HEAD | `main` @ `67b26e3` — T-152 ship; VPS UI vẫn `8904bb446226` tới khi deploy |
 | NON-goal | Không đặt lệnh tự động; không SPA/BFF Phase 2; không OIDC client trong app trừ ADR mới |
 
 **Active goals (ưu tiên sản phẩm):**
