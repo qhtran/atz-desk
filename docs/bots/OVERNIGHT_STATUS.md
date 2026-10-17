@@ -1,5 +1,5 @@
-# Status (poll ~11:18 ICT)
+# Status
 
-- **VPSbot:** Account UX Phase 1 **DONE** (`677791f`) — trang Tài khoản + logout redirect; safety checklist trong outbox
-- **Auditor:** inbox trống
-- **SecConf:** brief `20261017-1118-post-account-ux-phase1` đã xếp (planned bot)
+- **Deploy 2026-10-17 ~12:19 ICT:** SSH `:22` OK → `/opt/vnstocks` `76a17e7`; `vnstocks` rebuilt; `atz-check-upstream` PASS; `/_stcore/health` = ok
+- Gồm: vốn/risk SQLite, pin symbols, docs dual-path SSH
+- Auditor inbox: vẫn trống
