@@ -89,6 +89,69 @@ def set_user_settings(
     conn.commit()
 
 
+def get_capital_ledger(conn: sqlite3.Connection, user_id: int) -> dict[str, float] | None:
+    """Đọc sổ vốn per-user. None nếu chưa có dòng."""
+    row = conn.execute(
+        "SELECT initial, additional, withdrawn FROM user_capital_ledgers WHERE user_id = ?",
+        (user_id,),
+    ).fetchone()
+    if row is None:
+        return None
+    return {
+        "initial": float(row["initial"]),
+        "additional": float(row["additional"]),
+        "withdrawn": float(row["withdrawn"]),
+    }
+
+
+def save_capital_ledger(
+    conn: sqlite3.Connection,
+    user_id: int,
+    initial: float,
+    additional: float,
+    withdrawn: float,
+) -> None:
+    """Upsert sổ vốn. Ném LookupError nếu user không tồn tại."""
+    if get_user(conn, user_id) is None:
+        raise LookupError("không có user")
+    conn.execute(
+        """
+        INSERT INTO user_capital_ledgers (user_id, initial, additional, withdrawn, updated_at)
+        VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT(user_id) DO UPDATE SET
+            initial = excluded.initial,
+            additional = excluded.additional,
+            withdrawn = excluded.withdrawn,
+            updated_at = excluded.updated_at
+        """,
+        (user_id, float(initial), float(additional), float(withdrawn), _now()),
+    )
+    conn.commit()
+
+
+_TRADING_PROFILE_KEY = "trading_profile"
+
+
+def get_trading_profile(conn: sqlite3.Connection, user_id: int) -> dict[str, Any]:
+    """Đọc khối trading_profile trong cai_dat_chung (mặc định {})."""
+    user = get_user(conn, user_id)
+    if user is None:
+        raise LookupError("không có user")
+    settings = user.get("cai_dat_chung") or {}
+    raw = settings.get(_TRADING_PROFILE_KEY) or {}
+    return dict(raw) if isinstance(raw, dict) else {}
+
+
+def set_trading_profile(conn: sqlite3.Connection, user_id: int, profile: dict[str, Any]) -> None:
+    """Ghi đè trading_profile trong cai_dat_chung; giữ các key khác."""
+    user = get_user(conn, user_id)
+    if user is None:
+        raise LookupError("không có user")
+    settings = dict(user.get("cai_dat_chung") or {})
+    settings[_TRADING_PROFILE_KEY] = dict(profile)
+    set_user_settings(conn, user_id, settings, user.get("email_nhan_thong_bao"))
+
+
 def save_filter_config(
     conn: sqlite3.Connection,
     user_id: int,

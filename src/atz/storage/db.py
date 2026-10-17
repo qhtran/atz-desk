@@ -80,6 +80,14 @@ CREATE TABLE IF NOT EXISTS notification_logs (
 CREATE UNIQUE INDEX IF NOT EXISTS notification_success_once
 ON notification_logs (user_id, symbol, filter_name, bar_date)
 WHERE status = 'thành công';
+
+CREATE TABLE IF NOT EXISTS user_capital_ledgers (
+    user_id INTEGER PRIMARY KEY REFERENCES users(id),
+    initial REAL NOT NULL DEFAULT 0,
+    additional REAL NOT NULL DEFAULT 0,
+    withdrawn REAL NOT NULL DEFAULT 0,
+    updated_at TEXT NOT NULL
+);
 """
 
 

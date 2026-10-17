@@ -1,4 +1,8 @@
-"""Sổ vốn sidebar (F1 mục 2). CSV một dòng: nạp lần đầu / bổ sung / rút."""
+"""Sổ vốn (F1 mục 2) — kiểu CapitalLedger + CSV legacy.
+
+Runtime per-user: `datasource.user_trading` → SQLite `user_capital_ledgers`.
+CSV chỉ còn migrate một lần / test cũ.
+"""
 
 from __future__ import annotations
 
