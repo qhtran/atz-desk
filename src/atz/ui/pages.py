@@ -45,33 +45,53 @@ def style_board(board: pd.DataFrame):
 
 def render_sidebar() -> tuple[float, float, dict]:
     with st.sidebar:
+        from datasource.user_trading import load_filter_defaults
+        from engine.identity import current_username
         from ui.sidebar_portfolio import render_portfolio_overview
 
         capital, risk_pct = render_portfolio_overview()
+        prefs = load_filter_defaults(current_username())
+        if "sidebar_min_roe" not in st.session_state:
+            st.session_state["sidebar_min_roe"] = float(prefs.min_roe_pct)
+        if "sidebar_min_volume" not in st.session_state:
+            st.session_state["sidebar_min_volume"] = float(prefs.min_volume)
+        if "sidebar_min_rs" not in st.session_state:
+            st.session_state["sidebar_min_rs"] = float(prefs.min_rs)
+        if "sidebar_top_n" not in st.session_state:
+            st.session_state["sidebar_top_n"] = int(prefs.top_n)
+
         st.header("Bộ lọc")
         min_roe_pct = st.number_input(
             "ROE tối thiểu (%)",
             min_value=0.0,
             max_value=100.0,
-            value=float(MIN_ROE * 100),
             step=0.5,
+            key="sidebar_min_roe",
         )
         min_volume = st.number_input(
             "KLGD trung bình 20 phiên tối thiểu",
             min_value=0.0,
-            value=float(MIN_AVG_VOLUME),
             step=10_000.0,
+            key="sidebar_min_volume",
         )
         min_rs = st.number_input(
             "RS 3 tháng tối thiểu (%)",
             min_value=RS_FILTER_OFF,
             max_value=200.0,
-            value=RS_FILTER_OFF,
             step=1.0,
             help="Mức sàn không cắt thêm. Tăng số này để chỉ giữ mã mạnh hơn.",
+            key="sidebar_min_rs",
         )
-        top_n = st.slider("Số mã hiển thị", min_value=5, max_value=len(UNIVERSE), value=TOP_N)
-        st.caption("Mặc định vẫn là Top 20: ROE 12% và khối lượng 100.000. Quét ghi lại đúng bộ mặc định.")
+        top_n = st.slider(
+            "Số mã hiển thị",
+            min_value=5,
+            max_value=len(UNIVERSE),
+            key="sidebar_top_n",
+        )
+        st.caption(
+            "Giá trị khởi tạo lấy từ Không gian Trading (SQLite). "
+            "Đổi tạm trên sidebar; muốn giữ lâu dài thì Lưu toàn bộ ở tab đó."
+        )
         st.header("Dữ liệu")
         refresh = st.button("Quét và làm mới dữ liệu", width="stretch")
         st.link_button("Tài khoản", "https://auth.atz.vn/if/user/", width="stretch")
@@ -454,6 +474,7 @@ def open_page() -> None:
         "Tổng quan",
         "Realtime",
         "Trạm Trading",
+        "Không gian Trading",
         "Bộ lọc tín hiệu",
         "Danh mục",
         "Tin tức / Bài viết",
@@ -477,6 +498,11 @@ def open_page() -> None:
         from ui.realtime_page import show_realtime
 
         show_realtime()
+        return
+    if page == "Không gian Trading":
+        from ui.trading_workspace_page import show_trading_workspace
+
+        show_trading_workspace()
         return
     if page == "Danh mục":
         from ui.portfolio_page import show_portfolio

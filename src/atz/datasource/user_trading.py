@@ -29,6 +29,21 @@ class UserTradingState:
     profile: dict
 
 
+@dataclass(frozen=True)
+class FilterDefaults:
+    """Mặc định bộ lọc / chỉ báo lưu trong trading_profile.filter_defaults."""
+
+    min_roe_pct: float
+    min_volume: float  # KLGD TB 20 phiên (min_klgd)
+    min_rs: float
+    top_n: int
+    rsi_oversold: int
+    rsi_overbought: int
+    macd_fast: int
+    macd_slow: int
+    macd_signal: int
+
+
 def _clamp_risk(value: int | float | None) -> int:
     from config import RISK_MAX, RISK_MIN
 
@@ -37,6 +52,94 @@ def _clamp_risk(value: int | float | None) -> int:
     except (TypeError, ValueError):
         number = int(RISK_DEFAULT)
     return max(int(RISK_MIN), min(int(RISK_MAX), number))
+
+
+def _as_float(value: object, fallback: float) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return float(fallback)
+
+
+def _as_int(value: object, fallback: int) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return int(fallback)
+
+
+def default_filter_prefs() -> FilterDefaults:
+    from config import (
+        MACD_FAST,
+        MACD_SIGNAL,
+        MACD_SLOW,
+        MIN_AVG_VOLUME,
+        MIN_ROE,
+        RS_FILTER_OFF,
+        RSI_OVERBOUGHT,
+        RSI_OVERSOLD,
+        TOP_N,
+        UNIVERSE,
+    )
+
+    return FilterDefaults(
+        min_roe_pct=float(MIN_ROE * 100),
+        min_volume=float(MIN_AVG_VOLUME),
+        min_rs=float(RS_FILTER_OFF),
+        top_n=max(5, min(int(TOP_N), len(UNIVERSE))),
+        rsi_oversold=int(RSI_OVERSOLD),
+        rsi_overbought=int(RSI_OVERBOUGHT),
+        macd_fast=int(MACD_FAST),
+        macd_slow=int(MACD_SLOW),
+        macd_signal=int(MACD_SIGNAL),
+    )
+
+
+def _normalize_filter_defaults(raw: dict | None) -> FilterDefaults:
+    from config import RS_FILTER_OFF, UNIVERSE
+
+    base = default_filter_prefs()
+    data = raw if isinstance(raw, dict) else {}
+    # Alias min_klgd → min_volume (tên cũ trong handoff)
+    volume = data.get("min_volume", data.get("min_klgd", base.min_volume))
+    roe = data.get("min_roe_pct", data.get("min_roe", base.min_roe_pct))
+    if "min_roe" in data and "min_roe_pct" not in data:
+        # min_roe có thể là tỷ lệ 0–1 hoặc % — nếu ≤ 1 coi là tỷ lệ
+        try:
+            ratio = float(data["min_roe"])
+            roe = ratio * 100 if 0 < ratio <= 1 else ratio
+        except (TypeError, ValueError):
+            roe = base.min_roe_pct
+    rsi_lo = _as_int(data.get("rsi_oversold", base.rsi_oversold), base.rsi_oversold)
+    rsi_hi = _as_int(data.get("rsi_overbought", base.rsi_overbought), base.rsi_overbought)
+    if rsi_lo > rsi_hi:
+        rsi_lo, rsi_hi = rsi_hi, rsi_lo
+    return FilterDefaults(
+        min_roe_pct=max(0.0, min(100.0, _as_float(roe, base.min_roe_pct))),
+        min_volume=max(0.0, _as_float(volume, base.min_volume)),
+        min_rs=max(float(RS_FILTER_OFF), min(200.0, _as_float(data.get("min_rs", base.min_rs), base.min_rs))),
+        top_n=max(5, min(len(UNIVERSE), _as_int(data.get("top_n", base.top_n), base.top_n))),
+        rsi_oversold=max(0, min(100, rsi_lo)),
+        rsi_overbought=max(0, min(100, rsi_hi)),
+        macd_fast=max(2, _as_int(data.get("macd_fast", base.macd_fast), base.macd_fast)),
+        macd_slow=max(3, _as_int(data.get("macd_slow", base.macd_slow), base.macd_slow)),
+        macd_signal=max(2, _as_int(data.get("macd_signal", base.macd_signal), base.macd_signal)),
+    )
+
+
+def filter_defaults_to_dict(prefs: FilterDefaults) -> dict:
+    return {
+        "min_roe_pct": float(prefs.min_roe_pct),
+        "min_volume": float(prefs.min_volume),
+        "min_klgd": float(prefs.min_volume),
+        "min_rs": float(prefs.min_rs),
+        "top_n": int(prefs.top_n),
+        "rsi_oversold": int(prefs.rsi_oversold),
+        "rsi_overbought": int(prefs.rsi_overbought),
+        "macd_fast": int(prefs.macd_fast),
+        "macd_slow": int(prefs.macd_slow),
+        "macd_signal": int(prefs.macd_signal),
+    }
 
 
 def _ledger_from_row(row: dict[str, float] | None) -> CapitalLedger | None:
@@ -182,3 +285,64 @@ def toggle_pinned_symbol(username: str, symbol: str, *, conn=None) -> list[str]:
     else:
         pins = _normalize_pins([*pins, code])
     return save_pinned_symbols(username, pins, conn=conn)
+
+
+def load_filter_defaults(username: str, *, conn=None) -> FilterDefaults:
+    own = conn is None
+    db = conn or open_signals()
+    try:
+        user_id = ensure_user(db, username)
+        profile = get_trading_profile(db, user_id)
+        return _normalize_filter_defaults(profile.get("filter_defaults"))
+    finally:
+        if own:
+            db.close()
+
+
+def persist_filter_defaults(username: str, prefs: FilterDefaults, *, conn=None) -> FilterDefaults:
+    own = conn is None
+    db = conn or open_signals()
+    try:
+        user_id = ensure_user(db, username)
+        profile = get_trading_profile(db, user_id)
+        clean = _normalize_filter_defaults(filter_defaults_to_dict(prefs))
+        profile["filter_defaults"] = filter_defaults_to_dict(clean)
+        if "custom_filters" not in profile:
+            profile["custom_filters"] = {}
+        set_trading_profile(db, user_id, profile)
+        return clean
+    finally:
+        if own:
+            db.close()
+
+
+def persist_workspace(
+    username: str,
+    ledger: CapitalLedger,
+    risk_pct: int,
+    prefs: FilterDefaults,
+    pins: list[str] | None = None,
+    *,
+    conn=None,
+) -> FilterDefaults:
+    """Lưu một lần: sổ vốn + risk + filter defaults + (tuỳ chọn) pin."""
+    own = conn is None
+    db = conn or open_signals()
+    try:
+        user_id = ensure_user(db, username)
+        save_capital_ledger(db, user_id, ledger.initial, ledger.additional, ledger.withdrawn)
+        profile = get_trading_profile(db, user_id)
+        profile["risk_tolerance_pct"] = _clamp_risk(risk_pct)
+        clean = _normalize_filter_defaults(filter_defaults_to_dict(prefs))
+        profile["filter_defaults"] = filter_defaults_to_dict(clean)
+        if pins is not None:
+            profile["pinned_symbols"] = _normalize_pins(pins)
+        elif "pinned_symbols" not in profile:
+            profile["pinned_symbols"] = []
+        if "custom_filters" not in profile:
+            profile["custom_filters"] = {}
+        set_trading_profile(db, user_id, profile)
+        return clean
+    finally:
+        if own:
+            db.close()

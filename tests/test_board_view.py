@@ -29,7 +29,7 @@ def test_sort_pinned_first_and_mark():
     ordered = sort_pinned_first(frame, ["vnm", "fpt", "fpt", "ZZZ"])
     assert list(ordered["Mã"]) == ["VNM", "FPT", "VIC", "AAA"]
     marked = mark_pinned_column(ordered, ["FPT", "VNM"])
-    assert list(marked["Ghim"]) == ["★", "★", "", ""]
+    assert list(marked["Ghim"]) == ["*", "*", "", ""]
     assert normalize_pins(["a", "A", "", "b"]) == ["A", "B"]
 
 

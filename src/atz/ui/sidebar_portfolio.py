@@ -10,15 +10,10 @@ import pandas as pd
 import streamlit as st
 
 from analysis.session import market_session
-from config import (
-    CAPITAL_STEP,
-    CAPITAL_TRANCHES,
-    RISK_MAX,
-    RISK_MIN,
-)
-from datasource.capital_ledger import CapitalLedger, nav_breakdown
+from config import CAPITAL_TRANCHES
+from datasource.capital_ledger import nav_breakdown
 from datasource.live_quotes import load_live_prices_thousands
-from datasource.user_trading import load_user_trading, persist_capital_and_risk
+from datasource.user_trading import load_user_trading
 from engine.identity import current_username
 from ui.trading_desk import _bars, _last_close, _optional, load_desk
 
@@ -126,49 +121,17 @@ def _money(value: float) -> str:
 
 
 def render_portfolio_overview() -> tuple[float, float]:
-    """Vẽ khối tổng quan vị thế. Trả (capital/NAV dùng sizing, risk_pct)."""
+    """Vẽ khối tổng quan vị thế (chỉ đọc). Sửa vốn/risk/pin ở tab Không gian Trading."""
     st.header("Tổng quan vị thế của bạn")
     status, clock = market_session()
-    username = current_username()
-    trading = load_user_trading(username)
+    trading = load_user_trading(current_username())
+    risk_pct = int(trading.risk_tolerance_pct)
+    ledger = trading.ledger
     st.caption(f"{status} · Giờ HN {clock} · User `{trading.username}` (SQLite)")
 
-    saved = trading.ledger
-    if "sidebar_risk" not in st.session_state:
-        st.session_state["sidebar_risk"] = int(trading.risk_tolerance_pct)
-
-    with st.expander("Sổ vốn (nạp / rút)", expanded=False):
-        initial = st.number_input(
-            "Vốn rót lần đầu (VND)",
-            min_value=0.0,
-            value=float(saved.initial),
-            step=float(CAPITAL_STEP),
-            key="cap_initial",
-        )
-        additional = st.number_input(
-            "Vốn bổ sung (VND)",
-            min_value=0.0,
-            value=float(saved.additional),
-            step=float(CAPITAL_STEP),
-            key="cap_additional",
-        )
-        withdrawn = st.number_input(
-            "Vốn đã rút ra (VND)",
-            min_value=0.0,
-            value=float(saved.withdrawn),
-            step=float(CAPITAL_STEP),
-            key="cap_withdrawn",
-        )
-        if st.button("Lưu sổ vốn & rủi ro", width="stretch", key="cap_save"):
-            risk_now = int(st.session_state.get("sidebar_risk", trading.risk_tolerance_pct))
-            persist_capital_and_risk(
-                username,
-                CapitalLedger(initial=initial, additional=additional, withdrawn=withdrawn),
-                risk_now,
-            )
-            st.success("Đã lưu sổ vốn & rủi ro (SQLite theo user).")
-            st.rerun()
-        ledger = CapitalLedger(initial=initial, additional=additional, withdrawn=withdrawn)
+    if st.button("Sửa vốn / risk / ghim", width="stretch", key="open_trading_workspace"):
+        st.session_state["open_page"] = "Không gian Trading"
+        st.rerun()
 
     store = load_desk()
     positions = desk_position_rows(store, ledger.total)
@@ -180,6 +143,10 @@ def render_portfolio_overview() -> tuple[float, float]:
     st.metric("Giá trị chứng khoán", _money(snap["securities_mkt"]))
     st.metric("Tiền mặt", _money(snap["cash"]))
     st.metric("Tài sản ròng (NAV)", _money(snap["nav"]), delta=int(round(snap["pnl"])))
+    st.caption(
+        f"Rủi ro sizing: {risk_pct}% · Lệnh 1 dò đường "
+        f"(1/{CAPITAL_TRANCHES} NAV): {_money(snap['nav'] / CAPITAL_TRANCHES if snap['nav'] > 0 else 0.0)} VND"
+    )
 
     st.subheader("Vị thế hiện tại")
     if not positions:
@@ -215,20 +182,5 @@ def render_portfolio_overview() -> tuple[float, float]:
         ).set_index("Mã")
         st.bar_chart(chart, alt="Lãi lỗ ước lượng từng mã trên NAV phân bổ")
         st.caption("Lãi/lỗ ước lượng theo vốn phân bổ (1/4 NAV hoặc ô Thăm dò trên desk).")
-
-    with st.expander("Phiên và mức rủi ro (sizing)", expanded=False):
-        st.caption(f"Sáng 9:00–11:30, chiều 13:00–14:45. NAV sizing: {_money(snap['nav'])} VND.")
-        risk_pct = st.slider(
-            "Mức rủi ro tối đa trên tổng vốn (%)",
-            RISK_MIN,
-            RISK_MAX,
-            key="sidebar_risk",
-        )
-        if st.button("Lưu mức rủi ro", width="stretch", key="risk_save"):
-            persist_capital_and_risk(username, ledger, int(risk_pct))
-            st.success("Đã lưu mức rủi ro.")
-            st.rerun()
-        probe = snap["nav"] / CAPITAL_TRANCHES if snap["nav"] > 0 else 0.0
-        st.markdown(f"Lệnh 1 dò đường (1/{CAPITAL_TRANCHES} NAV): {_money(probe)} VND")
 
     return float(snap["nav"]), float(risk_pct)

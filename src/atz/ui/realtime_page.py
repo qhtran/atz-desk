@@ -304,7 +304,7 @@ def _board(user_id: int, interval, query: str = "") -> None:
         styled = styled.hide(axis="columns", subset=hide_cols)
     render_data_table(
         styled,
-        key_cols=["Giá", "%", "Xu hướng", "Trạng thái"],
+        key_cols=["Ghim", "Giá", "%", "Xu hướng", "Trạng thái"],
         key="rt_board",
         column_config={"Xu hướng": trend_image_column("Xu hướng", width="small")},
         alt="Bảng giá realtime kèm sparkline, trần/sàn và flash khi giá đổi",

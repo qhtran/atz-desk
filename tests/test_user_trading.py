@@ -6,9 +6,12 @@ import sqlite3
 
 from datasource.capital_ledger import CapitalLedger
 from datasource.user_trading import (
+    FilterDefaults,
+    load_filter_defaults,
     load_pinned_symbols,
     load_user_trading,
     persist_capital_and_risk,
+    persist_workspace,
     toggle_pinned_symbol,
 )
 from storage.repository import ensure_user, get_capital_ledger, get_trading_profile
@@ -56,3 +59,42 @@ def test_pin_toggle_persists(db: sqlite3.Connection) -> None:
     assert toggle_pinned_symbol("alice", "FPT", conn=db) == ["VIC"]
     assert load_pinned_symbols("alice", conn=db) == ["VIC"]
     assert load_pinned_symbols("bob", conn=db) == []
+
+
+def test_filter_defaults_and_workspace_persist(db: sqlite3.Connection) -> None:
+    defaults = load_filter_defaults("carol", conn=db)
+    assert defaults.min_roe_pct == 12.0
+    assert defaults.min_volume == 100_000.0
+
+    prefs = FilterDefaults(
+        min_roe_pct=15.0,
+        min_volume=200_000.0,
+        min_rs=5.0,
+        top_n=10,
+        rsi_oversold=25,
+        rsi_overbought=75,
+        macd_fast=10,
+        macd_slow=20,
+        macd_signal=7,
+    )
+    persist_workspace(
+        "carol",
+        CapitalLedger(80_000_000, 0, 0),
+        5,
+        prefs,
+        ["fpt", "vic"],
+        conn=db,
+    )
+    state = load_user_trading("carol", conn=db, migrate_csv=False)
+    assert state.ledger.total == 80_000_000
+    assert state.risk_tolerance_pct == 5
+    loaded = load_filter_defaults("carol", conn=db)
+    assert loaded.min_roe_pct == 15.0
+    assert loaded.min_volume == 200_000.0
+    assert loaded.min_rs == 5.0
+    assert loaded.top_n == 10
+    assert loaded.rsi_oversold == 25
+    assert loaded.macd_fast == 10
+    assert load_pinned_symbols("carol", conn=db) == ["FPT", "VIC"]
+    profile = get_trading_profile(db, state.user_id)
+    assert profile["filter_defaults"]["min_klgd"] == 200_000.0

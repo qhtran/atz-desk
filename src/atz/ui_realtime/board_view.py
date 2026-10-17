@@ -94,12 +94,12 @@ def merge_flash_hold(
 
 
 def mark_pinned_column(frame: pd.DataFrame, pinned: list[str] | None) -> pd.DataFrame:
-    """Thêm cột Ghim (★ / trống) ngay sau Mã nếu có."""
+    """Thêm cột Ghim (* / trống) ngay sau Mã nếu có."""
     pins = set(normalize_pins(pinned))
     if frame.empty or "Mã" not in frame.columns:
         return frame
     out = frame.copy()
-    out["Ghim"] = out["Mã"].astype(str).str.upper().map(lambda c: "★" if c in pins else "")
+    out["Ghim"] = out["Mã"].astype(str).str.upper().map(lambda c: "*" if c in pins else "")
     cols = list(out.columns)
     cols.remove("Ghim")
     if "Mã" in cols:
