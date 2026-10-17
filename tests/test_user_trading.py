@@ -7,11 +7,13 @@ import sqlite3
 from datasource.capital_ledger import CapitalLedger
 from datasource.user_trading import (
     FilterDefaults,
+    filter_defaults_param_overlay,
     load_filter_defaults,
     load_pinned_symbols,
     load_user_trading,
     persist_capital_and_risk,
     persist_workspace,
+    seed_filter_parameters,
     toggle_pinned_symbol,
 )
 from storage.repository import ensure_user, get_capital_ledger, get_trading_profile
@@ -98,3 +100,57 @@ def test_filter_defaults_and_workspace_persist(db: sqlite3.Connection) -> None:
     assert load_pinned_symbols("carol", conn=db) == ["FPT", "VIC"]
     profile = get_trading_profile(db, state.user_id)
     assert profile["filter_defaults"]["min_klgd"] == 200_000.0
+
+
+def test_filter_defaults_param_overlay_maps_rsi_macd() -> None:
+    prefs = FilterDefaults(
+        min_roe_pct=12.0,
+        min_volume=100_000.0,
+        min_rs=-999.0,
+        top_n=20,
+        rsi_oversold=28,
+        rsi_overbought=72,
+        macd_fast=8,
+        macd_slow=21,
+        macd_signal=6,
+    )
+    overlay = filter_defaults_param_overlay(prefs)
+    assert overlay["oversold"] == 28.0
+    assert overlay["overbought"] == 72.0
+    assert overlay["fast"] == 8
+    assert overlay["slow"] == 21
+    assert overlay["signal"] == 6
+
+
+def test_seed_filter_parameters_saved_wins_and_skips_ma() -> None:
+    overlay = {
+        "oversold": 28.0,
+        "overbought": 72.0,
+        "fast": 8,
+        "slow": 21,
+        "signal": 6,
+    }
+    # RSI: seed oversold/overbought; saved oversold thắng
+    rsi = seed_filter_parameters(
+        ["mode", "length", "oversold", "overbought"],
+        overlay,
+        {"oversold": 30.0, "length": 14},
+    )
+    assert rsi["oversold"] == 30.0
+    assert rsi["overbought"] == 72.0
+    assert rsi["length"] == 14
+    assert "fast" not in rsi
+
+    # MACD: seed fast/slow/signal
+    macd = seed_filter_parameters(
+        ["mode", "fast", "slow", "signal"],
+        overlay,
+        {"fast": 12},
+    )
+    assert macd["fast"] == 12
+    assert macd["slow"] == 21
+    assert macd["signal"] == 6
+
+    # MA: có fast/slow nhưng không signal → không lấy MACD prefs
+    ma = seed_filter_parameters(["fast", "slow"], overlay, None)
+    assert ma == {}

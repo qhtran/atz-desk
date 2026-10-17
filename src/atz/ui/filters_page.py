@@ -8,6 +8,11 @@ import pandas as pd
 import streamlit as st
 
 from config import UNIVERSE
+from datasource.user_trading import (
+    filter_defaults_param_overlay,
+    load_filter_defaults,
+    seed_filter_parameters,
+)
 from engine.exchange import export_user, import_user
 from engine.identity import current_username
 from engine.notify import BrevoSender, maybe_notify
@@ -126,10 +131,19 @@ def show_filters() -> None:
             default=default_names,
             format_func=lambda name: labels.get(name, name),
         )
+        # Workspace RSI/MACD defaults seed form; saved filter config thắng.
+        profile_overlay = filter_defaults_param_overlay(
+            load_filter_defaults(current_username(), conn=conn)
+        )
         chosen: dict[str, dict] = {}
         for name in names:
             spec = registry[name].FILTER
-            current = (saved.get(name) or {}).get("parameters") or {}
+            saved_params = (saved.get(name) or {}).get("parameters") or {}
+            current = seed_filter_parameters(
+                [param.name for param in spec.params],
+                profile_overlay,
+                saved_params,
+            )
             st.markdown(f"**{spec.label}**")
             st.caption(spec.description)
             params = {param.name: _field(name, param, current) for param in spec.params}

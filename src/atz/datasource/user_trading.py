@@ -142,6 +142,38 @@ def filter_defaults_to_dict(prefs: FilterDefaults) -> dict:
     }
 
 
+def filter_defaults_param_overlay(prefs: FilterDefaults) -> dict[str, object]:
+    """Map trading_profile filter_defaults → ParamSpec names (RSI + MACD).
+
+    RSI registry: ``oversold`` / ``overbought``. MACD: ``fast`` / ``slow`` / ``signal``.
+    Use :func:`seed_filter_parameters` so MA ``fast``/``slow`` không bị ghi đè.
+    """
+    return {
+        "oversold": float(prefs.rsi_oversold),
+        "overbought": float(prefs.rsi_overbought),
+        "fast": int(prefs.macd_fast),
+        "slow": int(prefs.macd_slow),
+        "signal": int(prefs.macd_signal),
+    }
+
+
+def seed_filter_parameters(
+    param_names: set[str] | list[str] | tuple[str, ...],
+    overlay: dict,
+    saved: dict | None,
+) -> dict:
+    """Seed form params từ overlay; ``saved`` thắng. Không seed MACD vào MA."""
+    names = set(param_names)
+    usable = dict(overlay or {})
+    # MA có fast/slow nhưng không có signal — tránh nhầm MACD prefs.
+    if "signal" not in names:
+        usable.pop("fast", None)
+        usable.pop("slow", None)
+        usable.pop("signal", None)
+    seeded = {key: value for key, value in usable.items() if key in names}
+    return {**seeded, **(saved or {})}
+
+
 def _ledger_from_row(row: dict[str, float] | None) -> CapitalLedger | None:
     if row is None:
         return None
