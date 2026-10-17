@@ -25,7 +25,9 @@ Nguồn code: `src/atz/ui/theme_tokens.py`
 | Variant | Dùng cho | Ghi chú |
 |---------|----------|---------|
 | `realtime` | Bảng giá, Top KL | Flash/spark do caller; mật độ dày |
-| `analytical` | Tổng quan, desk, watchlist, filter, BCTC… | Pin cột, zebra, tô Δ/PnL |
+| `analytical` | Tổng quan, desk, watchlist, filter, BCTC… | Pin cột, zebra nhẹ, tô Δ/PnL |
 | `compact` | Sidebar, khối ghim, alerts | Thu nhỏ, thay `st.dataframe` thô |
+
+**T-153 contrast:** zebra odd = `BG_CARD` ~25% opacity (`ZEBRA_ODD`); cột signed (Δ/%/PnL) **không** zebra; chữ Δ `font-weight: 700` (`css_up`/`css_down`).
 
 Mọi bảng UI đi qua `render_data_table(variant=...)`. CSS inject một lần (`inject_table_theme`).

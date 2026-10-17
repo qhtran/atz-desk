@@ -16,6 +16,9 @@ from ui.theme_tokens import BG_CARD, FIREANT_CSS, css_signed_number, css_signed_
 TableVariant = Literal["realtime", "analytical", "compact"]
 VARIANTS: tuple[str, ...] = ("realtime", "analytical", "compact")
 
+# Zebra nhẹ — tránh nuốt chữ Δ xanh/đỏ trên nền tối (T-153 / inbox §4.5).
+ZEBRA_ODD = f"{BG_CARD}40"
+
 # Cột hay mang dấu Δ / PnL — analytical tự tô nếu có trong frame.
 SIGNED_COL_HINTS = (
     "%",
@@ -57,9 +60,9 @@ _TABLE_VARIANT_CSS = f"""
   padding-top: 0.12rem !important;
   padding-bottom: 0.12rem !important;
 }}
-/* zebra fallback nếu Styler không áp được */
+/* zebra fallback nhẹ (không đụng cột Δ — Styler skip signed) */
 [class*="st-key-atz_tbl_analytical"] [data-testid="stDataFrame"] tbody tr:nth-child(even) {{
-  background-color: {BG_CARD}66;
+  background-color: {ZEBRA_ODD};
 }}
 </style>
 """
@@ -110,14 +113,22 @@ def detect_signed_columns(columns: list[str]) -> list[str]:
     return found
 
 
-def apply_zebra(styler: Any) -> Any:
+def apply_zebra(styler: Any, *, skip_cols: list[str] | None = None) -> Any:
+    """Zebra nhẹ; bỏ nền trên cột signed (Δ/%/PnL) để chữ màu đọc được."""
     frame = styler.data
     order = {idx: i for i, idx in enumerate(frame.index)}
+    skip = set(skip_cols or [])
 
     def band(row: pd.Series) -> list[str]:
         odd = order.get(row.name, 0) % 2 == 1
-        tone = f"background-color: {BG_CARD}88" if odd else ""
-        return [tone] * len(row)
+        tone = f"background-color: {ZEBRA_ODD}" if odd else ""
+        styles: list[str] = []
+        for name in row.index:
+            if name in skip:
+                styles.append("")
+            else:
+                styles.append(tone)
+        return styles
 
     return styler.apply(band, axis=1)
 
@@ -135,27 +146,27 @@ def polish_for_variant(
     frame = unwrap_frame(data)
     if frame is None:
         return data
-    # Đã là Styler (desk/overview tự tô) → chỉ thêm zebra
-    if type(data).__name__ == "Styler":
-        try:
-            return apply_zebra(data)
-        except Exception:
-            return data
-    styler = frame.style
     cols = list(signed_cols or [])
     if auto_signed and not cols:
         cols = detect_signed_columns([str(c) for c in frame.columns])
     present = [c for c in cols if c in frame.columns]
+    # Đã là Styler (desk/overview tự tô) → zebra bỏ cột signed
+    if type(data).__name__ == "Styler":
+        try:
+            return apply_zebra(data, skip_cols=present)
+        except Exception:
+            return data
+    styler = frame.style
+    # Zebra trước, signed sau (color/font-weight thắng trên ô Δ)
+    try:
+        styler = apply_zebra(styler, skip_cols=present)
+    except Exception:
+        pass
     if present:
-        # Ưu tiên số; cột text (+1.2%) dùng css_signed_text
         numeric = [c for c in present if pd.api.types.is_numeric_dtype(frame[c])]
         textual = [c for c in present if c not in numeric]
         if numeric:
             styler = styler.map(css_signed_number, subset=numeric)
         if textual:
             styler = styler.map(css_signed_text, subset=textual)
-    try:
-        styler = apply_zebra(styler)
-    except Exception:
-        pass
     return styler

@@ -23,15 +23,16 @@ TEXT_DARK = "#212121"  # chữ trên nền sáng / nền vàng giá mua
 
 
 def css_up() -> str:
-    return f"color: {UP}"
+    # font-weight: đọc rõ Δ trên nền tối / zebra (T-153)
+    return f"color: {UP}; font-weight: 700"
 
 
 def css_down() -> str:
-    return f"color: {DOWN}"
+    return f"color: {DOWN}; font-weight: 700"
 
 
 def css_ref() -> str:
-    return f"color: {REF}"
+    return f"color: {REF}; font-weight: 600"
 
 
 def css_ceiling() -> str:

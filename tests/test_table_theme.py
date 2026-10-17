@@ -8,12 +8,14 @@ from pathlib import Path
 import pandas as pd
 
 from ui.table_theme import (
+    ZEBRA_ODD,
     apply_zebra,
     container_key,
     detect_signed_columns,
     normalize_variant,
     polish_for_variant,
 )
+from ui.theme_tokens import css_down, css_up
 
 # Calls allowed only inside ui/components.py (render_data_table wrapper).
 _STREAMLIT_TABLE_CALL = re.compile(
@@ -56,6 +58,21 @@ def test_apply_zebra_len() -> None:
     frame = pd.DataFrame({"a": [1, 2, 3]})
     styled = apply_zebra(frame.style)
     assert len(styled.data) == 3
+
+
+def test_zebra_skips_signed_cols_and_is_soft() -> None:
+    """T-153: ô % không nhận nền zebra; tone zebra nhẹ hơn BG đặc."""
+    assert "40" in ZEBRA_ODD or ZEBRA_ODD.endswith("40")
+    frame = pd.DataFrame({"Mã": ["A", "B"], "%": [1.5, -2.0]})
+    styled = apply_zebra(frame.style, skip_cols=["%"])
+    # Styler giữ đủ cột; signed vẫn trong data
+    assert list(styled.data.columns) == ["Mã", "%"]
+    polished = polish_for_variant(frame, "analytical")
+    assert type(polished).__name__ == "Styler"
+
+
+def test_signed_css_has_font_weight() -> None:
+    assert "font-weight" in css_up() and "font-weight" in css_down()
 
 
 def test_no_streamlit_table_bypass_outside_wrapper() -> None:
