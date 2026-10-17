@@ -14,7 +14,7 @@
 | Data | Redis (nóng) + SQLite `data/signals.db` (bền); secrets chỉ env |
 | Deploy | Docker Compose `/opt/vnstocks` — services: `vnstocks`, ingestion, filter-runner, alert, position, index-feed, redis |
 | Auth | Authentik forward-auth; identity = headers; trading prefs = SQLite (ADR 0004) |
-| Branch / HEAD | `main` — T-151 ship (xem commit sau Master push) |
+| Branch / HEAD | `main` @ `7639ce2` — T-151 VN index Redis overlay |
 | NON-goal | Không đặt lệnh tự động; không SPA/BFF Phase 2 trừ nhu cầu mới |
 
 **Active goals (ưu tiên sản phẩm):**
@@ -191,7 +191,7 @@ task: T-151
 result: Done
 master_ack: human 2a
 HEAD_at_start: f9347a5
-commit: (see git after Master push)
+commit: 7639ce2
 pytest: Pass (3) — Master re-verify OK
 files:
   - src/atz/datasource/index_quotes.py
