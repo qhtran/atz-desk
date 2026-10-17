@@ -215,6 +215,8 @@ Theo dõi vị thế user đã nhập, tính P&L near-realtime, cảnh báo SL/T
 - Streamlit + Authentik giữ nguyên
 - Portainer quản lý
 
+**Chi tiết mạng / nginx / Docker networks / SSH-over-443:** [`docs/infrastructure/VPS_NETWORK.md`](infrastructure/VPS_NETWORK.md) (snapshot 2026-10-17).
+
 ---
 
 *Tài liệu này tổng hợp toàn bộ thiết kế từ phiên làm việc 2026-10-16. Dùng làm nguồn chân lý cho triển khai.*

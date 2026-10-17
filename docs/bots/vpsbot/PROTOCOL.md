@@ -13,7 +13,7 @@ VPSbot là **coder + ops/infra** cho atz.vn / VPS. Ngoài app Python, bot **bi�
 | **Server setup** | package, user service, disk, cron nhẹ, env **tên biến** (không commit secret) |
 | **App code** | `src/atz/`, `config/*.yaml`, tests — theo brief |
 
-Đọc trước khi sửa lớn: `AGENTS.md`, `docs/architecture.md`, `docs/troubleshooting.md`, `deploy/` (nếu đụng Authentik/nginx).
+Đọc trước khi sửa lớn: `AGENTS.md`, `docs/architecture.md`, `docs/infrastructure/VPS_NETWORK.md`, `docs/troubleshooting.md`, `deploy/` (nếu đụng Authentik/nginx).
 
 ---
 
