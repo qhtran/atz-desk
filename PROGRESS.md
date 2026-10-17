@@ -2,7 +2,7 @@
 
 > Master Architect artifact. Agent 2 (Code Executor) chỉ làm đúng task `Doing` trong mục Handoff.
 > Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
-> Cập nhật: **2026-10-17** — **T-220 Done** / **T-221 Partial** — SSO blueprints live; chờ OAuth secrets enable.
+> Cập nhật: **2026-10-17** — **T-221 Partial** — Sources enabled + Google OAuth UI Pass; A/B chờ human hoàn tất IdP login.
 
 ---
 
@@ -111,7 +111,8 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 | T-153 | P1 Contrast zebra / chữ Δ trên nền tối | ui, tests | **Master ack** — ZEBRA_ODD; skip signed; font-weight 700; pytest Pass (9) |
 | T-162 | Deploy T-153 UI (`vnstocks` only) | docker | **Master ack** — image `4aaa437be56c`; pull `9e6aef3`; upstream PASS; health 200; public→302 |
 | T-163 | Smoke contrast T-153 trên atz.vn | ui | **Master ack** — Overview TopKL + Realtime + idx + sidebar PnL readable @ 1280×800 |
-| T-220 | Authentik SSO Sources + enrollment pending approve | infra | **Done** — flow `atz-source-enrollment`; Sources google/fb/oidc-generic `enabled=false`; policy smoke Pass; site 302; outbox `1830-DONE` |
+| T-220 | Authentik SSO Sources + enrollment pending approve | infra | **Done** — enrollment + Sources; secrets synced; outbox `1830-DONE` |
+| T-221 | Smoke SSO live Google/FB | infra | **Partial** — enable+redirect+login buttons Pass; A/B Blocked (human IdP); C Skip; outbox `2320-T-221` |
 
 ### Doing
 
@@ -125,7 +126,7 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 | ID | Title | Status | Modules | Target files (dự kiến) | Acceptance | Deps | Agent 2 instructions |
 |----|-------|--------|---------|------------------------|------------|------|----------------------|
-| T-221 | Smoke SSO live Google/FB (sau secrets) | Todo | infra | `SSO_SMOKE_CHECKLIST.md` | A+B Pass browser | Human secrets | **Human** enable Sources → Exe1 browser smoke. |
+| T-221b | Smoke SSO A+B sau human Google login | Todo | infra | `SSO_SMOKE_CHECKLIST.md` | A+B Pass | T-221 Partial | **Human** xong IdP → báo; Exe1 verify Users inactive rồi Active. |
 | T-200 | F1: enum nến mạnh / TB / yếu gắn filter | Blocked | filters, analysis, ui | `filters/candle.py`, … | Mentor | Mentor | **Blocked.** |
 | T-210 | F1: Bollinger / Ichimoku / phần II | Blocked | filters, analysis | theo mentor | Mentor | Mentor | **Blocked.** |
 | T-222 | Brand CSS Authentik login (optional) | Blocked | infra | Authentik brand CSS | Visual brand | Human | **Blocked** — tách khỏi Sources; optional. |
@@ -141,18 +142,18 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 5. ~~T-130 image drift~~ — hết.
 6. Multi-agent: bus = PROGRESS only.
 7. ~~Gemini OIDC-in-Streamlit~~ — **từ chối** (ADR 0006); Social = Authentik Sources + **pending approve**.
-8. **OAuth secrets** — human điền `AUTHENTIK_SOURCES_*` vào `/opt/authentik/.env` trước khi enable Source (không qua git).
+8. ~~OAuth secrets~~ — **SET** + Sources Google/FB enabled; T-221 A/B cần human login IdP.
 
 ---
 
 ## 6. Handoff to Agent 2
 
-**Current Doing:** *(trống)* — T-220 Done; T-221 chờ human OAuth secrets.
+**Current Doing:** *(trống)* — T-221 Partial; chờ human hoàn tất Google login (T-221b).
 
-### Master notes (SSO plan)
-- Model: Google/FB/OIDC Source → user inactive + `cho-duyet` → admin Active → atz.vn.
-- **T-220 Done** on VPS; Sources disabled until secrets; policy A' Pass; live A/B = T-221.
-- Human: dán `AUTHENTIK_SOURCES_*` + enable Sources → rồi T-221 browser smoke.
+### Master notes (SSO / T-221)
+- Sources Google/FB **enabled**; OAuth redirect + login buttons **Pass**.
+- A/B live: human Sign in Google (account mới) → pending → admin Active.
+- Outbox: `docs/bots/vpsbot/outbox/20261017-2320-T-221-SSO-smoke-DONE.md`.
 
 ### Master ack (T-163)
 - Report Exe1: **Pass** @ 1280×800 (Overview TopKL Δ/%, Realtime +/-/%, idx cards, sidebar PnL); image `4aaa437be56c`; không sửa code.
@@ -202,16 +203,19 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing`.
 ### Master commands
 
 ```
-IDLE — T-220 Done (outbox 1830-DONE).
-T-221 blocked on human OAuth secrets → then enable Sources + browser smoke.
+IDLE — T-221 Partial (outbox 2320).
+Human: complete Google SSO once → then T-221b A+B verify / Master ack Pass.
 ```
 
 ### Last Executor state
 
 ```
-task: T-220
-result: Pass
-T-221: Partial (policy proxy Pass; live SSO Skip until secrets)
+task: T-221
+result: Partial
+A_B: Blocked_human_IdP
+C: Skip
+google_oauth_ui: Pass
+facebook_redirect: Pass
 owner: cursor-implement
 Status: idle
 ```
@@ -282,3 +286,4 @@ Status: idle
 | 2026-10-17 | **Master ack T-163** — Exe1 smoke Pass; no Master re-smoke |
 | 2026-10-17 | **SSO plan** — Sources + pending approve; brief/blueprints/T-220 Doing; T-221 Todo; user_confirmed_infra: yes |
 | 2026-10-17 | **T-220 Done** — blueprints + Sources on VPS; T-221 Partial; outbox 1830-DONE |
+| 2026-10-17 | **T-221 Partial** — secrets sync+enable; Google UI Pass; A/B chờ human IdP; outbox 2320 |
