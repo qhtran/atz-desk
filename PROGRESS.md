@@ -2,7 +2,7 @@
 
 > Master Architect artifact. Agent 2 (Code Executor) chỉ làm đúng task `Doing` trong mục Handoff.
 > Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
-> Cập nhật: **2026-10-17** — Master ack **T-140 Done** (human 2a); brief P0 `1530` sẵn poll.
+> Cập nhật: **2026-10-17** — **T-130 Doing** — deploy hygiene; **HOLD SSH** chờ `user_confirmed_infra`.
 
 ---
 
@@ -14,7 +14,7 @@
 | Data | Redis (nóng) + SQLite `data/signals.db` (bền); secrets chỉ env |
 | Deploy | Docker Compose `/opt/vnstocks` — services: `vnstocks`, ingestion, filter-runner, alert, position, index-feed, redis |
 | Auth | Authentik forward-auth; identity = headers; trading prefs = SQLite (ADR 0004) |
-| Branch / HEAD | `main` @ `0e1132e` — T-140 Auditor backlog + P0 brief |
+| Branch / HEAD | `main` @ `4c7d217` — T-140 pinned; T-130 HOLD SSH |
 | NON-goal | Không đặt lệnh tự động; không SPA/BFF Phase 2 trừ nhu cầu mới |
 
 **Active goals (ưu tiên sản phẩm):**
@@ -103,7 +103,7 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 | ID | Title | Status | Modules | Target files | Acceptance | Deps | Agent 2 instructions |
 |----|-------|--------|---------|--------------|------------|------|----------------------|
-| — | *(trống — chờ human chọn Todo)* | — | — | — | — | — | — |
+| T-130 | Deploy hygiene: rebuild services cùng image `vnstocks-vnstocks` | **Doing** (HOLD SSH) | docker | VPS `/opt/vnstocks` + `docker-compose.yml` | Xem §6; `atz-check-upstream` PASS; health OK | **Human `user_confirmed_infra: yes`** | Xem §6 — **cấm SSH** đến khi Master commands có confirm |
 
 **Quy tắc:** luôn tối đa **một** task `Doing`.
 
@@ -111,7 +111,6 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 | ID | Title | Status | Modules | Target files (dự kiến) | Acceptance | Deps | Agent 2 instructions |
 |----|-------|--------|---------|------------------------|------------|------|----------------------|
-| T-130 | Deploy hygiene: rebuild services lệch image | Todo | docker | Compose tại VPS `/opt/vnstocks` (không sửa nginx) | Services ingestion/index/alert/position chạy image mới nếu human xác nhận lệch; `atz-check-upstream` OK nếu có | Human confirm SSH | **Chỉ** `docker compose build/up --no-deps <svc>` qua `:22`. Không đụng stream/sshd/UFW. Không force-push. |
 | T-200 | F1: enum nến mạnh / TB / yếu gắn filter | Blocked | filters, analysis, ui | `filters/candle.py`, `analysis/candles*`, `filter_criteria.py`, tests | Mentor chốt định nghĩa → unit test + catalog | Mentor | **Blocked.** Không đoán ngưỡng. |
 | T-210 | F1: Bollinger / Ichimoku / phần II | Blocked | filters, analysis | theo doc mentor | Spec mentor đủ → implement từng indicator 1 PR | Mentor | **Blocked.** |
 | T-220 | Brand CSS Authentik / infra soft (n8n, fail2ban, cert) | Blocked | infra | deploy Authentik / VPS | Human `user_confirmed_infra: yes` trước mọi đụng auth/nginx | Human | **Blocked** trừ confirm tường minh. |
@@ -122,7 +121,7 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 1. **Auditor inbox** — T-140 đã đánh stale + brief P0 mới; chờ AuditorBot push inbox.
 2. **Mentor gate** cho nến mạnh–TB–yếu + BB/Ichi — không tự invent.
-3. **Image drift** trên VPS — cần human xác nhận trước T-130.
+3. **T-130 HOLD** — human chọn 1a nhưng chưa `user_confirmed_infra`; Executor chưa được SSH.
 4. **Multi-agent:** Architect ≠ app code; Executor = 1 `Doing`; bus = PROGRESS.md only.
 5. ~~HANDOFF lệch workspace~~ — hết sau T-100.
 6. ~~T-110 bypass~~ — hết (regression test Pass).
@@ -131,21 +130,34 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 ## 6. Handoff to Agent 2
 
-**Current Doing:** *(trống)* — chờ human chọn Todo.
+**Current Doing: T-130** — Deploy hygiene (VPS image sync). **SSH = HOLD** đến khi human confirm.
 
-```
-1a) T-130 — Deploy hygiene (cần confirm SSH)
-1b) Chờ — không giao Executor / chờ AuditorBot inbox
-```
+### Context (Architect — compose local)
+- Image chung: `vnstocks-vnstocks` (service `vnstocks` **build**; các service khác **image:** cùng tên).
+- Services cần recreate sau rebuild image: `ingestion`, `filter-runner`, `alert-dispatcher`, `position-monitor`, `index-feed` (+ thường `vnstocks` UI).
+- **Không** đụng: nginx stream, sshd, UFW, Authentik compose, Redis volume wipe.
+- Host: `root@112.213.88.230` SSH **`:22`** → `/opt/vnstocks` (xem `docs/infrastructure/VPS_NETWORK.md`).
+- Sau deploy: `/usr/local/bin/atz-check-upstream` + `curl` health Streamlit nếu có.
 
-### Executor notes (T-140 — Done, Master ack 2a)
-- `docs/auditorbot/BACKLOG.md` — 5 overnight = `stale_no_inbox`; active = `1530` P0
-- Brief: `tasks/20261017-1530-post-ux-wave-retest.md` (pin/workspace/tables/RSS smoke)
-- `tasks/README.md` + `PROTOCOL.md`: skip stale / chỉ Active
-- Master review: 5 files docs-only, đúng handoff ≤5; **không** `src/`
+### Phase A — được làm NGAY (không SSH)
+- Đọc `docker-compose.yml` + HANDOFF; ghi kế hoạch lệnh vào Last Executor state / note ngắn trong PROGRESS.
+- **Không** SSH, **không** `docker` remote.
 
-### Executor notes (T-120 — archived)
-- Done @ `d19ef30`; Master ack human 2a.
+### Phase B — CHỈ sau Master commands có `user_confirmed_infra: yes`
+1. `ssh -p 22 root@112.213.88.230` → `cd /opt/vnstocks` → `git pull --ff-only origin main`
+2. `docker compose build vnstocks` (hoặc build theo compose hiện có)
+3. Recreate lệch — ưu tiên từng service `--no-deps`:
+   - theo scope human chọn (3a/3b/3c bên dưới)
+4. `atz-check-upstream` + kiểm container Up
+5. Cập nhật PROGRESS T-130 Done + Last Executor state (lệnh đã chạy, kết quả)
+
+### Cấm tuyệt đối
+- `docker compose down` toàn stack; xóa volume Redis/SQLite
+- Sửa nginx / sshd / UFW / Authentik
+- Force-push; commit secrets; đụng `:443` trừ backup path đã confirm riêng
+
+### Executor notes (T-140 — archived)
+- Done @ `0e1132e`; Master ack 2a.
 
 ---
 
@@ -173,28 +185,25 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing`.
 
 | Tab | Turns | Files this task | Slowing? | Status |
 |-----|------:|----------------:|----------|--------|
-| executor-1 | 1 | 0 | no | idle |
+| executor-1 | 0 | 0 | no | idle |
 
 ### Master commands
 
-(none) — chờ human chọn Todo / hoặc chờ AuditorBot inbox
+```
+HOLD T-130 — DO NOT SSH.
+Await human reply with user_confirmed_infra + service scope (3a/3b/3c/3d).
+Phase A (local plan notes) OK; Phase B forbidden until confirm line appears here.
+```
 
 ### Last Executor state
 
 ```
-task: T-140
-result: Done
-HEAD_at_start: 32480d1
-commit: 0e1132e
-pytest: n/a (docs only)
-files:
-  - docs/auditorbot/BACKLOG.md
-  - docs/auditorbot/tasks/20261017-1530-post-ux-wave-retest.md
-  - docs/auditorbot/tasks/README.md
-  - docs/auditorbot/PROTOCOL.md
-  - PROGRESS.md
-master_ack: human 2a
-next_step: AuditorBot poll → inbox/20261017-1530-atz-post-ux-wave-retest.md
+task: T-130
+result: hold_awaiting_infra_confirm
+HEAD_at_start: 4c7d217
+commit: (n/a yet)
+ssh: blocked
+notes: human chose 1a (want T-130); Master HOLDs until explicit confirm
 paused_fork: no
 ```
 
@@ -222,3 +231,4 @@ paused_fork: no
 | 2026-10-17 | **T-140 Doing** — human 1a Auditor; Master START backlog + P0 brief |
 | 2026-10-17 | **T-140 Done** — BACKLOG+brief+PROTOCOL skip stale; Status=idle; chờ commit |
 | 2026-10-17 | **Master ack T-140 (human 2a)** — review OK; ship docs; chờ AuditorBot inbox |
+| 2026-10-17 | **T-130 Doing HOLD SSH** — human 1a; chờ user_confirmed_infra + scope |
