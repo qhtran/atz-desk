@@ -2,7 +2,7 @@
 
 > Master Architect artifact. Agent 2 (Code Executor) chỉ làm đúng task `Doing` trong mục Handoff.
 > Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
-> Cập nhật: **2026-10-17** — T-130 Phase B: human **2a** → **executor-1 chạy**; Master chờ báo cáo.
+> Cập nhật: **2026-10-17** — Master ack **T-130 Done** (Executor report); upstream PASS.
 
 ---
 
@@ -14,7 +14,7 @@
 | Data | Redis (nóng) + SQLite `data/signals.db` (bền); secrets chỉ env |
 | Deploy | Docker Compose `/opt/vnstocks` — services: `vnstocks`, ingestion, filter-runner, alert, position, index-feed, redis |
 | Auth | Authentik forward-auth; identity = headers; trading prefs = SQLite (ADR 0004) |
-| Branch / HEAD | `main` @ `87cea73`+ — T-130 Phase B authorized (scope 3a) |
+| Branch / HEAD | `main` @ `908809f` — VPS deploy image `8c872b1f46eb` (T-130) |
 | NON-goal | Không đặt lệnh tự động; không SPA/BFF Phase 2 trừ nhu cầu mới |
 
 **Active goals (ưu tiên sản phẩm):**
@@ -98,12 +98,13 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 | T-110 | Verify không còn bảng bypass theme | ui, tests | **Agent2 Done** — grep sạch; regression Pass (7); ship `8e98e0f` |
 | T-120 | Wire prefs → Bộ lọc (SQLite seed RSI/MACD) | ui, datasource, tests | **Master ack** — overlay+seed; saved thắng; MA≠MACD; pytest Pass (7) |
 | T-140 | Auditor backlog + P0 post-UX retest brief | docs | **Master ack** — BACKLOG stale×5; brief `1530`; PROTOCOL skip; chờ inbox |
+| T-130 | Deploy hygiene rebuild ALL (scope 3a) | docker | **Master ack** — image `8c872b1f46eb`; upstream PASS; stcore 200; no nginx/sshd/UFW |
 
 ### Doing
 
 | ID | Title | Status | Modules | Target files | Acceptance | Deps | Agent 2 instructions |
 |----|-------|--------|---------|--------------|------------|------|----------------------|
-| T-130 | Deploy hygiene: rebuild ALL workers + UI (scope **3a**) | **Doing** (Phase B GO) | docker | VPS `/opt/vnstocks` | `atz-check-upstream` PASS; containers Up | `user_confirmed_infra: yes` (human 3a) | Xem §6 Phase B — SSH `:22` allowed |
+| — | *(trống — chờ human / mentor)* | — | — | — | — | — | — |
 
 **Quy tắc:** luôn tối đa **một** task `Doing`.
 
@@ -121,7 +122,7 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 1. **Auditor inbox** — T-140 đã đánh stale + brief P0 mới; chờ AuditorBot push inbox.
 2. **Mentor gate** cho nến mạnh–TB–yếu + BB/Ichi — không tự invent.
-3. **T-130 Phase B** — human 3a+2a; **executor-1** SSH `:22` (Master không SSH); recreate ngắn.
+3. ~~T-130 image drift~~ — **hết** sau Phase B (cùng image `8c872b1f46eb`).
 4. **Multi-agent:** Architect ≠ app code; Executor = 1 `Doing`; bus = PROGRESS.md only.
 5. ~~HANDOFF lệch workspace~~ — hết sau T-100.
 6. ~~T-110 bypass~~ — hết (regression test Pass).
@@ -130,34 +131,21 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 ## 6. Handoff to Agent 2
 
-**Current Doing: T-130** — Deploy hygiene. **Phase B AUTHORIZED** (human **3a**).
+**Current Doing:** *(trống)* — chờ human / mentor (T-200…T-220 Blocked).
 
-### Scope 3a (LOCKED)
-`user_confirmed_infra: yes`  
-SSH `:22` → build image + recreate **ALL**:
-`vnstocks`, `ingestion`, `filter-runner`, `alert-dispatcher`, `position-monitor`, `index-feed`
-
-### Context
-- Image: `vnstocks-vnstocks` (build qua service `vnstocks`).
-- Host: `root@112.213.88.230` port **22** → `/opt/vnstocks`
-- **Không** đụng: nginx stream, sshd, UFW, Authentik, Redis/SQLite volume wipe, `compose down` toàn stack.
-
-### Phase B — lệnh gợi ý (Executor)
-```bash
-ssh -p 22 root@112.213.88.230
-cd /opt/vnstocks
-git pull --ff-only origin main
-docker compose build vnstocks
-docker compose up -d --no-deps --force-recreate \
-  vnstocks ingestion filter-runner alert-dispatcher position-monitor index-feed
-docker compose ps
-/usr/local/bin/atz-check-upstream
-# optional: curl -fsS http://127.0.0.1:<streamlit-port>/_stcore/health
 ```
-Ghi kết quả (Pass/Fail từng bước) vào §7 Last Executor state; T-130 → Done khi check PASS; Status=idle.
+1a) Chờ AuditorBot inbox (brief 1530)
+1b) Chờ mentor F1
+1c) Việc khác — mô tả ngắn
+```
 
-### Cấm tuyệt đối
-- `docker compose down`; xóa volume; sửa nginx/sshd/UFW/Authentik; force-push; secrets; SSH `:443` trừ human confirm riêng
+### Executor notes (T-130 — Done, Master ack)
+- VPS `/opt/vnstocks`: `git pull` → `908809f`
+- `docker compose build vnstocks` → image `8c872b1f46eb`
+- recreate ×6 → Pass (cùng image)
+- `atz-check-upstream` → **PASS**; `_stcore/health` → **HTTP 200**
+- Không đụng nginx/sshd/UFW/volumes/`compose down`
+- Human/Executor report verified by Master → ship PROGRESS
 
 ### Executor notes (T-140 — archived)
 - Done @ `0e1132e`; Master ack 2a.
@@ -188,34 +176,30 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing`.
 
 | Tab | Turns | Files this task | Slowing? | Status |
 |-----|------:|----------------:|----------|--------|
-| executor-1 | 0 | 0 | no | active |
+| executor-1 | 1 | 0 | no | idle |
 
 ### Master commands
 
-```
-user_confirmed_infra: yes
-scope: 3a
-owner: executor-1  (human chose 2a — Master does NOT SSH)
-START T-130 Phase B — SSH -p 22 root@112.213.88.230 → /opt/vnstocks
-git pull --ff-only (expect ≥ 8c80ae2); docker compose build vnstocks;
-up -d --no-deps --force-recreate:
-  vnstocks ingestion filter-runner alert-dispatcher position-monitor index-feed
-Then atz-check-upstream + compose ps. NO nginx/sshd/UFW/volumes/down.
-When done: update §7 Last Executor state + T-130 Done; Status=idle; push PROGRESS.
-Human will tell Master «agent2 xong T130» / 2a-style ack.
-```
+(none) — T-130 closed; chờ human chọn 1a/1b/1c
 
 ### Last Executor state
 
 ```
 task: T-130
-result: in_progress_executor
-HEAD_at_start: 8c80ae2
+result: Done
+master_ack: yes
+HEAD_at_start: 908809f (VPS after pull)
 scope: 3a
 user_confirmed_infra: yes
 owner: executor-1
-ssh: allowed :22
-master: waiting_report (human 2a)
+ssh: :22 OK
+steps:
+  git_pull: Pass → 908809f
+  docker_compose_build_vnstocks: Pass → 8c872b1f46eb
+  force_recreate_all: Pass (×6)
+  atz-check-upstream: PASS
+  stcore_health: HTTP 200
+image_id: 8c872b1f46eb
 paused_fork: no
 ```
 
@@ -246,3 +230,5 @@ paused_fork: no
 | 2026-10-17 | **T-130 Doing HOLD SSH** — human 1a; chờ user_confirmed_infra + scope |
 | 2026-10-17 | **T-130 Phase B GO** — human 3a; user_confirmed_infra: yes; scope ALL workers+UI |
 | 2026-10-17 | **T-130 owner=executor-1** — human 2a; Master waits report; no Master SSH |
+| 2026-10-17 | **T-130 Done** — executor-1 Phase B PASS; image 8c872b1f46eb; upstream PASS; Status=idle |
+| 2026-10-17 | **Master ack T-130** — verify report; commit+push PROGRESS |
