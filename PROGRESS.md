@@ -2,7 +2,7 @@
 
 > Master Architect artifact. Agent 2 (Code Executor) chỉ làm đúng task `Doing` trong mục Handoff.
 > Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
-> Cập nhật: **2026-10-17** — **T-153 Doing** — human **1a**; owner **Exe1** (P1 contrast zebra / Δ).
+> Cập nhật: **2026-10-17** — **T-162 Phase B GO** — Exe1 deploy T-153 UI (`vnstocks` only); human **1b**.
 
 ---
 
@@ -14,14 +14,14 @@
 | Data | Redis (nóng) + SQLite `data/signals.db` (bền); secrets chỉ env |
 | Deploy | Docker Compose `/opt/vnstocks` — services: `vnstocks`, ingestion, filter-runner, alert, position, index-feed, redis |
 | Auth | Authentik forward-auth; identity = headers; trading prefs = SQLite (ADR 0004); **ADR 0006** cấm OIDC Client Streamlit |
-| Branch / HEAD | `main` @ `d34f750`+ — VPS UI `8b8bba1590af`; **T-153 Doing** |
+| Branch / HEAD | `main` @ `d6f62c6` — **T-162 Doing**; VPS UI `8b8bba1590af` → rebuild |
 | NON-goal | Không đặt lệnh tự động; không SPA/BFF Phase 2; không OIDC client trong app trừ ADR mới |
 
 **Active goals (ưu tiên sản phẩm):**
 1. Giữ pipeline near-realtime ổn định + UI bảng thống nhất (`realtime` / `analytical` / `compact`).
 2. Hoàn thiện UX trading cá nhân (workspace + prefs seed Done; còn mentor F1 / Auditor).
 3. ~~P0 Overview Top KL + VNINDEX~~ — T-150/T-151 + T-160 **smoke Pass**.
-4. ~~T-152 / T-161~~; **T-153 Doing** (Exe1); mentor F1.
+4. ~~T-152 / T-161 / T-153~~; **T-162 Doing** (Exe1 deploy contrast); mentor F1.
 
 ---
 
@@ -42,7 +42,7 @@ config/*.yaml         # ingestion, filter_runner, alert, position, ui_realtime, 
 tests/test_*.py       # map theo module
 docs/
   architecture.md, troubleshooting.md, COLOR_TOKENS.md, F1_CHECKLIST_UI.md
-  adr/0001…0006
+  adr/0001…0007
   bots/ (ORCHESTRATION, HANDOFF_NEXT_CHAT, vpsbot…)
   auditorbot/tasks|inbox|reports
   infrastructure/ (VPS_NETWORK, AUTHENTIK_SOCIAL_SOURCES_BRIEF), specs/
@@ -60,6 +60,7 @@ Target layout dài hạn (ADR 0001): `shared/` / `domain/` / `adapters/` / `serv
 - ADR 0004: trading profile / vốn / risk / pin trong SQLite — **không** Authentik attributes.
 - ADR 0005: bền → SQLite; nóng → Redis; test → tmp/fixtures.
 - ADR 0006: **cấm** OIDC Client trong Streamlit; Social Login = Authentik Sources (brief infra).
+- ADR 0007: Exe1 deploy gate — `user_confirmed_infra: yes`; Master không SSH.
 - UI bảng: mọi bảng qua `render_data_table(variant=…)` (`docs/COLOR_TOKENS.md`).
 - Debug overlay: `config/debug_overlay.yaml` / `ATZ_DEBUG_OVERLAY`.
 - SSH ops: ưu tiên host `:22`; **cấm** đụng nginx stream / sshd / UFW trừ human confirm.
@@ -106,12 +107,13 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 | T-160 | Deploy T-150+T-151 UI (`vnstocks` only) | docker | **Master ack** — image `8904bb446226`; upstream PASS; stcore 200; smoke checklist §6 |
 | T-152 | P1 polish inbox §4 mục 3–4 | ui, ui_realtime, analysis, tests | **Master ack** — exclude/POW caption/Trần/Sàn/`closed`/PnL; `test_t152_polish` Pass (4) |
 | T-161 | Deploy T-152 UI (`vnstocks` only) | docker | **Master ack** — image `8b8bba1590af`; upstream PASS; stcore 200; public→Authentik 302 |
+| T-153 | P1 Contrast zebra / chữ Δ trên nền tối | ui, tests | **Master ack** — ZEBRA_ODD; skip signed; font-weight 700; pytest Pass (9) |
 
 ### Doing
 
 | ID | Title | Status | Modules | Target files | Acceptance | Deps | Agent 2 instructions |
 |----|-------|--------|---------|--------------|------------|------|----------------------|
-| T-153 | P1 Contrast zebra / chữ Δ trên nền tối | **Doing** | ui, tests | `table_theme.py`, `COLOR_TOKENS.md`, theme tokens | Xem §6 DoD | T-152 | owner **Exe1** — START §6 |
+| T-162 | Deploy T-153 UI (`vnstocks` only) | **Doing** (Phase B GO) | docker | VPS `/opt/vnstocks` | pull ≥ T-153 ship; build+up `--no-deps vnstocks`; health 200; upstream OK | `user_confirmed_infra: yes` (human 1b) | owner **Exe1** — §6 |
 
 **Quy tắc:** luôn tối đa **một** task `Doing`.
 
@@ -139,29 +141,38 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 ## 6. Handoff to Agent 2
 
-**Current Doing: T-153** — P1 contrast. **AUTHORIZED** (human **1a**). Owner: **Exe1** (`executor-1`).
+**Current Doing: T-162** — Deploy T-153 UI. **Phase B AUTHORIZED** (human **1b**). Owner: **Exe1**.
 
 ### Scope (LOCKED)
-Nguồn: inbox `20261017-1530` §4 mục **5** — zebra tối + chữ Δ xanh/đỏ khó đọc (chỉ số, screener, sidebar).  
-**Theme only** — `table_theme.py` / `COLOR_TOKENS.md` / `theme_tokens.py`. Không đổi auth/deploy/ingest. Không T-200.
+`user_confirmed_infra: yes` · ADR 0007 · chỉ **`vnstocks`**  
+Code ≥ `d6f62c6` (zebra soft + skip signed + font-weight 700).
 
-### DoD (Pass khi)
-1. Chữ Δ / % tăng-giảm đọc được trên hàng zebra tối ở **1280×800** (không cần zoom) — HNX/NASDAQ/screener/sidebar.
-2. Cách làm chấp nhận: tăng contrast chữ **hoặc** tắt/nhẹ zebra trên hàng có màu Δ (inbox §4.5).
-3. Không phá 3 variants `render_data_table`; không đụng nginx/sshd.
-4. pytest theme/table liên quan **Pass** (thêm/cập nhật test nếu cần); §7 Done; push.
-
-### Target files (gợi ý)
-- `src/atz/ui/table_theme.py`
-- `docs/COLOR_TOKENS.md` (nếu đổi token)
-- `src/atz/ui/theme_tokens.py` (nếu cần)
-- `tests/test_*.py`
+### Phase B — lệnh
+```bash
+ssh -p 22 root@112.213.88.230
+cd /opt/vnstocks
+git pull --ff-only origin main   # expect ≥ d6f62c6
+docker compose build vnstocks
+docker compose up -d --no-deps --force-recreate vnstocks
+docker compose ps vnstocks
+/usr/local/bin/atz-check-upstream
+# curl _stcore/health → 200
+```
+Smoke (tuỳ): Δ/% đọc được trên zebra @ 1280×800.  
+Cập nhật §7 + T-162 Done khi PASS.
 
 ### Cấm
-- Deploy SSH trừ task riêng; Authentik/OIDC; force-push; secrets.
+- nginx / sshd / UFW / Authentik / `compose down` / volumes / recreate workers
+- Master **không** SSH
 
-### Master ack (T-161 / T-152 smoke) — archived
-- Image `8b8bba1590af`; smoke TopKL/POW/PnL Pass.
+### Master ack (T-153)
+- Re-verify: `pytest tests/test_table_theme.py` → **Pass (9)**.
+- DoD: ZEBRA_ODD nhẹ; skip signed cols; `css_up`/`css_down` font-weight 700.
+
+### Executor notes (T-153 — Done)
+- `ZEBRA_ODD` = `BG_CARD` + alpha `40`
+- `apply_zebra(skip_cols=signed)`
+- `COLOR_TOKENS.md` ghi chú T-153
 
 ### Executor notes (T-161 / T-152 — archived)
 - T-161 `8b8bba1590af`; T-152 `67b26e3`.
@@ -197,20 +208,28 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing`.
 ### Master commands
 
 ```
-owner: executor-1  (Exe1 — human 1a)
-START T-153 — P1 contrast zebra / Δ trên nền tối
-DoD: §6 (đọc được @1280×800; theme only)
-NO deploy/nginx/sshd/Authentik/OIDC.
-When Done: pytest Pass; §7 Done; Status=idle; push.
+user_confirmed_infra: yes
+scope: vnstocks_only
+owner: executor-1  (Exe1 — human 1b — Master does NOT SSH)
+START T-162 Phase B — SSH -p 22 → /opt/vnstocks
+git pull --ff-only; docker compose build vnstocks;
+up -d --no-deps --force-recreate vnstocks
+atz-check-upstream + _stcore/health 200
+expect ≥ d6f62c6
+NO nginx/sshd/UFW/volumes/workers.
+When Done: §7 + T-162 Done; Status=idle; push PROGRESS.
 ```
 
 ### Last Executor state
 
 ```
-task: T-153
+task: T-162
 result: authorized_awaiting_executor
-HEAD_at_start: d34f750
+code_min: d6f62c6
+scope: vnstocks_only
+user_confirmed_infra: yes
 owner: executor-1
+ssh: allowed :22
 paused_fork: no
 ```
 
@@ -269,3 +288,6 @@ paused_fork: no
 | 2026-10-17 | **ADR 0007 Accepted** — Exe1 deploy gate `@2331fed` |
 | 2026-10-17 | **T-152 visual smoke Pass** — TopKL no index; POW universe caption; PnL legend |
 | 2026-10-17 | **T-153 Doing** — human 1a; owner Exe1; contrast zebra / Δ |
+| 2026-10-17 | **T-153 Done** — zebra soft + skip signed + font-weight; pytest Pass (9) |
+| 2026-10-17 | **Master ack T-153 (human 1b)** — ship + authorize T-162 Exe1 deploy |
+| 2026-10-17 | **T-162 Phase B GO** — Exe1 deploy T-153 UI; user_confirmed_infra: yes |
