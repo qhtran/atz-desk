@@ -2,18 +2,14 @@
 
 ## Vai trò
 
-Roster đầy đủ (Active + Planned): **[`BOTS_ROSTER.md`](BOTS_ROSTER.md)**
+Roster: **[`BOTS_ROSTER.md`](BOTS_ROSTER.md)** — **2026-10-17: Cursor tự code/deploy; bot code paused.**
 
 | Vai trò | Ai | Việc | Kênh |
 |--------|-----|------|------|
-| **Orchestrator** | Cursor | Brief, poll git, chốt hướng | Chat + git |
-| **Coder / Ops** | **VPSBot** | Code + deploy VPS; brief `inbox/` | `docs/bots/vpsbot/` + SSH:443 |
-| **Auditor (read-only)** | **AuditorBot** | So sánh atz vs FireAnt UI/UX / kiến trúc; không sửa | `docs/auditorbot/` |
-| **Sec / config** | **SecConfBot** (planned) | Kiểm tra bảo mật & cấu hình sau đổi VPS | `docs/bots/secconfbot/` |
-| **Screening** | **Stock Screening Agent** (planned) | CANSLIM, ngành, mẫu hình, dòng tiền | `docs/bots/screening/` |
-| **News** | **DailyStockNews** (planned) | Tóm tắt tin + biến động sáng/tối | `docs/bots/dailystocknews/` |
-| **Yuanta** | **YSradar Portfolio Agent** (planned) | Đọc/phân tích Portfolio & bảng giá YSradar | `docs/bots/ysradar/` |
-| **Chủ repo** | Bạn | Quyết định lớn, bật bot mới | Chat + GitHub |
+| **Architect + Coder + Ops** | **Cursor** | Thiết kế, code, test, push, deploy | Chat + git (+ SSH khi được giao) |
+| **Auditor hình / UI** | **AuditorBot** | So sánh atz vs FireAnt (chỉ đọc) | `docs/auditorbot/` |
+| **VPSBot / SecConf / Screening / News / YSradar** | — | **Paused** (tiết kiệm phí Grok) | Stub thư mục giữ chỗ |
+| **Chủ repo** | Bạn | Ưu tiên sản phẩm, bật lại bot khi cần | Chat |
 
 **Giả định:** bot Active `git pull`/`push` cùng remote.  
 

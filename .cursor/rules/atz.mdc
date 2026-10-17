@@ -6,7 +6,7 @@ alwaysApply: true
 # atz.vn / vnstocks
 
 - Đọc `AGENTS.md`, `docs/architecture.md`, `docs/troubleshooting.md` trước khi sửa.
-- Orchestrator: **liên lạc = poll git** (`pull` → đọc `vpsbot/outbox` + `auditorbot/inbox`); tự chạy lệnh trong repo. Code/survey/deploy nặng → 2 bot. Không hỏi user gõ cmd. **Cấm** file ngoài project; không xóa phá; không force push.
+- Cursor: **tự code/test/deploy** trong repo (bot code paused). Giữ AuditorBot cho survey hình/UI. Poll git chủ yếu `auditorbot/inbox`. Không hỏi user gõ cmd. **Cấm** file ngoài project; không xóa phá; không force push.
 - `git pull` trước; commit nhỏ, push thường; **KHÔNG force push**.
 - Một module mỗi lần; viết/cập nhật test trong `tests/test_<module>.py`; báo Pass/Fail.
 - Config để trong `config/*.yaml`, không hardcode. Package mới phải thêm `COPY` vào Dockerfile.

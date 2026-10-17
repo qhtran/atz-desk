@@ -1,6 +1,6 @@
 # ADR 0004 — Trading Profile trong SQLite (không Authentik)
 
-- **Status:** Proposed (review Gemini 2026-10-17 — chờ chốt triển khai)
+- **Status:** Accepted hướng; **Cursor tự triển khai** (không giao VPSBot) — chờ chọn phạm vi 1a/1b
 - **Context:** Cần thuộc tính trade cá nhân (rủi ro, filter ưu tiên, vốn…). Gemini đề xuất bảng `user_trading_profiles` trên `signals.db`.
 
 ## Quyết định kiến trúc (hội đồng Cursor)

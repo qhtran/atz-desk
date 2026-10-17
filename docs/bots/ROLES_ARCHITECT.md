@@ -2,9 +2,9 @@
 
 | Vai | Ai | Làm | Không làm |
 |-----|-----|-----|-----------|
-| **Orchestrator** | Cursor | **Liên lạc = poll git** (kéo `main`, xem bot đã gửi báo cáo chưa); brief ngắn; tự chạy lệnh trong repo | Code/survey/deploy nặng; **cấm** file ngoài project |
-| **Coder / Ops** | VPSbot | Code → outbox DONE/FAIL | Ngoài brief |
-| **Tester** | AuditorBot | Survey → `docs/auditorbot/inbox/` | Sửa code production |
+| **Architect + Coder + Ops** | Cursor | Thiết kế + **tự code/test/deploy**; poll git nếu còn Auditor | **Cấm** file ngoài project |
+| **Auditor hình/UI** | AuditorBot | Survey atz vs FireAnt (chỉ đọc) | Sửa code |
+| **VPSBot & bot code khác** | — | **Paused** (phí Grok) | — |
 
 ## Liên lạc (định nghĩa)
 
