@@ -83,7 +83,11 @@ def test_t1_board_reads_redis_mget_cache_and_stale(cfg, r, caplog):
     t = [0.0]
     rd = data.RedisReader(cfg, clock=lambda: t[0])
     q = rd.quotes()
-    rows = {x["Mã"]: x for x in data.quote_rows(q, cfg["ui_realtime"]["quote_stale_seconds"])}
+    # trading=True: tránh flake ngoài giờ / cuối tuần (T-152: ngoài phiên → closed)
+    rows = {
+        x["Mã"]: x
+        for x in data.quote_rows(q, cfg["ui_realtime"]["quote_stale_seconds"], trading=True)
+    }
     assert rows["FPT"]["Giá"] == 58100 and not rows["FPT"]["_stale"] and rows["FPT"]["Trạng thái"] == "live"
     assert rows["VPB"]["_stale"] and rows["VPB"]["Trạng thái"] == "⚠️ cũ"
     assert rows["ACB"]["_stale"]

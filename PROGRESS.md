@@ -2,7 +2,7 @@
 
 > Master Architect artifact. Agent 2 (Code Executor) chỉ làm đúng task `Doing` trong mục Handoff.
 > Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
-> Cập nhật: **2026-10-17** — **T-152 Doing** — human **1a**; owner **executor-1** (P1 polish inbox §4 mục 3–4).
+> Cập nhật: **2026-10-17** — **Master ack T-152** — ship P1 polish; pytest `test_t152_polish` Pass (4).
 
 ---
 
@@ -14,14 +14,14 @@
 | Data | Redis (nóng) + SQLite `data/signals.db` (bền); secrets chỉ env |
 | Deploy | Docker Compose `/opt/vnstocks` — services: `vnstocks`, ingestion, filter-runner, alert, position, index-feed, redis |
 | Auth | Authentik forward-auth; identity = headers; trading prefs = SQLite (ADR 0004); **ADR 0006** cấm OIDC Client Streamlit |
-| Branch / HEAD | `main` @ `1291948` — VPS UI image `8904bb446226` (T-160 smoke Pass); **T-152 Doing** |
+| Branch / HEAD | `main` @ `7f265c4` — VPS UI vẫn `8904bb446226` tới khi deploy |
 | NON-goal | Không đặt lệnh tự động; không SPA/BFF Phase 2; không OIDC client trong app trừ ADR mới |
 
 **Active goals (ưu tiên sản phẩm):**
 1. Giữ pipeline near-realtime ổn định + UI bảng thống nhất (`realtime` / `analytical` / `compact`).
 2. Hoàn thiện UX trading cá nhân (workspace + prefs seed Done; còn mentor F1 / Auditor).
 3. ~~P0 Overview Top KL + VNINDEX~~ — T-150/T-151 + T-160 **smoke Pass**.
-4. **T-152 Doing** (executor-1); còn T-153 contrast; mentor F1 (T-200/T-210).
+4. ~~T-152 P1 polish~~ — **Master ack** + ship; còn deploy UI / T-153; mentor F1.
 
 ---
 
@@ -104,12 +104,13 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 | T-150 | P0 Overview Top KL Giá/% = Redis phiên | analysis, ui, datasource, tests | **Master ack** — Redis overlay; KL OHLCV; exclude index; pytest Pass (10) |
 | T-151 | P0 Overview VN indexes ↔ Realtime idx:quote | ui, datasource, tests | **Master ack** — `index_quotes` overlay sau cache; caption ts; pytest Pass (3) |
 | T-160 | Deploy T-150+T-151 UI (`vnstocks` only) | docker | **Master ack** — image `8904bb446226`; upstream PASS; stcore 200; smoke checklist §6 |
+| T-152 | P1 polish inbox §4 mục 3–4 | ui, ui_realtime, analysis, tests | **Master ack** — exclude/POW caption/Trần/Sàn/`closed`/PnL; `test_t152_polish` Pass (4) |
 
 ### Doing
 
 | ID | Title | Status | Modules | Target files | Acceptance | Deps | Agent 2 instructions |
 |----|-------|--------|---------|--------------|------------|------|----------------------|
-| T-152 | P1 polish inbox §4 mục 3–4 | **Doing** | ui, ui_realtime, analysis, tests | `volume_leaders.py`, `ui_realtime/data.py`, board empty-search, `sidebar_portfolio.py` | Xem §6 DoD | T-150/T-160 | owner **executor-1** — START §6 |
+| — | *(trống — chờ human)* | — | — | — | — | — | — |
 
 **Quy tắc:** luôn tối đa **một** task `Doing`.
 
@@ -138,31 +139,25 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 ## 6. Handoff to Agent 2
 
-**Current Doing: T-152** — P1 polish. **AUTHORIZED** (human **1a**). Owner: **executor-1**.
+**Current Doing:** *(trống)* — Master ack T-152 xong; chờ human.
 
-### Scope (LOCKED)
-Nguồn: `docs/auditorbot/inbox/20261017-1530-atz-post-ux-wave-retest.md` §4 mục **3 + 4**.  
-**Không** T-153 (zebra/contrast). **Không** mở rộng ingest universe (POW). **Không** nginx/sshd/Authentik/OIDC.
+```
+1a) Deploy T-152 UI (vnstocks only — cần user_confirmed_infra)
+1b) T-153 contrast
+1c) Chờ
+```
 
-### DoD (Pass khi)
-1. Top 20 KL **không** còn dòng chỉ số (VNINDEX / VNINDE…). Siết `_EXCLUDE_SYMBOLS` + normalize nhãn nếu cần (`analysis/volume_leaders.py`).
-2. Search mã ngoài rổ (vd. POW): empty state / caption rõ **«… chưa trong universe realtime»** (board UI).
-3. Trần/Sàn format như cột Giá (vd. `12550` → `12,550` hoặc nghìn đồng nhất quán) — `ui_realtime/data.py`.
-4. Ngoài phiên: `Trạng thái` ≠ `live` (vd. `closed` / `last`) — chỗ gán `"live"` trong `data.py` + tín hiệu phiên.
-5. Bar PnL sidebar theo dấu (lãi xanh / lỗ đỏ), không một màu sàn — `ui/sidebar_portfolio.py` (+ `theme_tokens`).
-6. pytest liên quan **Pass**; cập nhật §7 Last Executor state → Done; Status=idle; push.
+### Master ack (T-152)
+- Re-verify: `pytest tests/test_t152_polish.py` → **Pass (4)**.
+- DoD khớp report Executor (exclude index, POW caption, Trần/Sàn int, `closed`, PnL Altair).
+- Note: `test_t1_refresh_interval_trading_hours` Fail (5≠3) — **ngoài T-152** (config refresh); không block ship.
 
-### Target files (gợi ý)
-- `src/atz/analysis/volume_leaders.py`
-- `src/atz/ui_realtime/data.py` (+ board empty-search UI)
-- `src/atz/ui/sidebar_portfolio.py`
-- `tests/test_*.py` (map module)
-
-### Cấm
-- T-153; SSH/deploy; nginx/sshd/UFW/Authentik; OIDC client Streamlit; force-push; secrets.
-
-### Master ack (T-160) — archived
-- Visual smoke Pass; image `8904bb446226`.
+### Executor notes (T-152 — Done)
+- `is_index_symbol` + prefixes `VNINDE*` — Top KL không còn chỉ số
+- Search ngoài rổ: `«…» chưa trong universe realtime.`
+- Trần/Sàn → int; format `{:,.0f}`
+- Ngoài phiên: `Trạng thái=closed` (`quote_status_label`)
+- Sidebar PnL: Altair màu UP/DOWN theo dấu
 
 ### Executor notes (T-160 / T-151 — archived)
 - T-160 Done @ image `8904bb446226`; T-151 @ `7639ce2`.
@@ -193,32 +188,30 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing`.
 
 | Tab | Turns | Files this task | Slowing? | Status |
 |-----|------:|----------------:|----------|--------|
-| executor-1 | 0 | 0 | no | active |
+| executor-1 | 0 | 0 | no | idle |
 
 ### Master commands
 
 ```
-owner: executor-1  (human 1a — Master does NOT write app code)
-START T-152 — P1 polish inbox 1530 §4 mục 3+4
-DoD: §6 (exclude index Top20; POW caption ngoài rổ; Trần/Sàn format;
-      status closed/last ngoài phiên; PnL bar theo dấu)
-NO T-153 / nginx / sshd / Authentik / OIDC.
-When Done: pytest Pass; §7 Done; Status=idle; push PROGRESS (+ code).
+IDLE — no Doing.
+T-152 Master ack + ship complete.
+Next: human 1a deploy vnstocks | 1b T-153 | 1c wait.
 ```
 
 ### Last Executor state
 
 ```
 task: T-152
-result: authorized_awaiting_executor
-HEAD_at_start: 1291948
-owner: executor-1
-paused_fork: no
+result: Done
+master_ack: yes
+HEAD_at_start: aa43a95
+pytest_master: Pass (4) test_t152_polish
+Status: idle
 ```
 
 ### Signals
 
-(none)
+(none — Files=6 incl. test fix; no new module)
 
 ---
 
@@ -263,3 +256,5 @@ paused_fork: no
 | 2026-10-17 | **Ship** `@24197d0` — ADR 0006 + T-160 ack docs |
 | 2026-10-17 | **T-160 visual smoke Pass** — Top KL Redis + VNINDEX 6/6 vs Realtime |
 | 2026-10-17 | **T-152 Doing** — human 1a; owner executor-1; DoD inbox §4 mục 3–4 |
+| 2026-10-17 | **T-152 Done** — exclude/closed/Trần/PnL; pytest Pass; Status=idle; chờ commit |
+| 2026-10-17 | **Master ack T-152 (human 1a)** — re-verify test_t152_polish Pass (4); ship code |

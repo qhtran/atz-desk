@@ -184,10 +184,36 @@ def render_portfolio_overview() -> tuple[float, float]:
         src = f"Redis {hits}/{len(positions)}" if hits else "OHLCV fallback"
         st.caption(f"Giá HT: {src} (nghìn đồng). Tham chiếu: https://rtboard.hsx.vn/")
 
+        from ui.theme_tokens import DOWN, UP
+
         chart = pd.DataFrame(
-            {"Mã": [row["Mã"] for row in positions], "Lãi/lỗ (VND)": [row["pnl"] for row in positions]}
-        ).set_index("Mã")
-        st.bar_chart(chart, alt="Lãi lỗ ước lượng từng mã trên NAV phân bổ")
-        st.caption("Lãi/lỗ ước lượng theo vốn phân bổ (1/4 NAV hoặc ô Thăm dò trên desk).")
+            {
+                "Mã": [row["Mã"] for row in positions],
+                "Lãi/lỗ (VND)": [float(row["pnl"]) for row in positions],
+            }
+        )
+        # Tô theo dấu: lãi xanh / lỗ đỏ (không dùng màu sàn cho cả hai).
+        try:
+            import altair as alt
+
+            bars = (
+                alt.Chart(chart)
+                .mark_bar()
+                .encode(
+                    x=alt.X("Mã:N", sort=None, title=None),
+                    y=alt.Y("Lãi/lỗ (VND):Q", title="Lãi/lỗ (VND)"),
+                    color=alt.condition(
+                        alt.datum["Lãi/lỗ (VND)"] >= 0,
+                        alt.value(UP),
+                        alt.value(DOWN),
+                    ),
+                    tooltip=["Mã", "Lãi/lỗ (VND)"],
+                )
+                .properties(height=180)
+            )
+            st.altair_chart(bars, width="stretch")
+        except Exception:  # noqa: BLE001
+            st.bar_chart(chart.set_index("Mã"), alt="Lãi lỗ ước lượng từng mã trên NAV phân bổ")
+        st.caption("Lãi/lỗ ước lượng theo vốn phân bổ (1/4 NAV hoặc ô Thăm dò trên desk). Xanh = lãi · đỏ = lỗ.")
 
     return float(snap["nav"]), float(risk_pct)

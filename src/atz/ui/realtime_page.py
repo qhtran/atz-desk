@@ -316,7 +316,16 @@ def _board(user_id: int, interval, query: str = "") -> None:
     if stale:
         st.warning(f"⚠️ {stale}/{len(rows)} mã có giá cũ (> {_cfg()['ui_realtime']['quote_stale_seconds']}s hoặc nguồn gắn cờ stale).")
     if needle.strip() and frame.empty:
-        st.info(f"Không có mã khớp «{needle.strip()}».")
+        code = needle.strip().upper()
+        universe = {
+            str(item.get("Mã") or "").strip().upper()
+            for item in rows
+            if item.get("Mã")
+        }
+        if code and code not in universe:
+            st.info(f"«{code}» chưa trong universe realtime.")
+        else:
+            st.info(f"Không có mã khớp «{needle.strip()}».")
         return
 
     paint = {"Giá", "+/-", "%", "Mã"}
@@ -346,13 +355,14 @@ def _board(user_id: int, interval, query: str = "") -> None:
             "Cao": "{:,.0f}",
             "Thấp": "{:,.0f}",
             "TC": "{:,.0f}",
+            "Trần": "{:,.0f}",
+            "Sàn giá": "{:,.0f}",
         },
-        subset=[c for c in frame.columns if c not in ("Xu hướng", "Sàn", "Trần", "Sàn giá")],
+        subset=[c for c in frame.columns if c not in ("Xu hướng", "Sàn")],
         na_rep="-",
     ).apply(_rt_row_colors, axis=1)
-    hide_cols = [c for c in ("Sàn", "Trần", "Sàn giá") if c in frame.columns]
-    if hide_cols:
-        styled = styled.hide(axis="columns", subset=hide_cols)
+    if "Sàn" in frame.columns:
+        styled = styled.hide(axis="columns", subset=["Sàn"])
     render_data_table(
         styled,
         variant="realtime",

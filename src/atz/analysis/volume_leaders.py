@@ -28,13 +28,38 @@ _EXCLUDE_SYMBOLS = frozenset(
     {
         "VNINDEX",
         "VN30",
+        "VN100",
         "HNXINDEX",
         "HNX",
         "UPCOMINDEX",
         "UPCOM",
-        "VN100",
+        "VN30F1M",
+        "VN30F2M",
     }
 )
+_EXCLUDE_PREFIXES = (
+    "VNINDEX",
+    "VNINDE",  # nhãn UI cắt
+    "HNXINDEX",
+    "HNXINDE",
+    "UPCOMINDEX",
+    "UPCOMINDE",
+    "VN30F",
+)
+
+
+def _normalize_leader_symbol(raw: object) -> str:
+    return str(raw or "").strip().upper()
+
+
+def is_index_symbol(raw: object) -> bool:
+    """True nếu mã là chỉ số / phái sinh chỉ số — không đưa vào Top KL CP."""
+    code = _normalize_leader_symbol(raw)
+    if not code:
+        return True
+    if code in _EXCLUDE_SYMBOLS:
+        return True
+    return any(code.startswith(prefix) for prefix in _EXCLUDE_PREFIXES)
 
 
 def volume_stats(
@@ -121,10 +146,10 @@ def rank_volume_leaders(
     """
     root = bars_dir if bars_dir is not None else BARS_DIR
     if symbols is None:
-        codes = sorted(path.stem.upper() for path in root.glob("*.csv") if path.stem)
+        codes = sorted(_normalize_leader_symbol(path.stem) for path in root.glob("*.csv") if path.stem)
     else:
-        codes = [str(item).strip().upper() for item in symbols if str(item).strip()]
-    codes = [c for c in codes if c not in _EXCLUDE_SYMBOLS]
+        codes = [_normalize_leader_symbol(item) for item in symbols if str(item).strip()]
+    codes = [c for c in codes if c and not is_index_symbol(c)]
     rows: list[dict[str, object]] = []
     session_dates: list[str] = []
     for symbol in codes:

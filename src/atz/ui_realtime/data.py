@@ -211,9 +211,39 @@ class RedisReader:
         return out
 
 
-def quote_rows(quotes: list[dict], stale_seconds: float, now: datetime | None = None) -> list[dict]:
+def _vnd_int(value: object) -> int | None:
+    """Trần/Sàn/giá VND → int (bỏ .000000)."""
+    if value is None:
+        return None
+    try:
+        return int(round(float(value)))
+    except (TypeError, ValueError):
+        return None
+
+
+def quote_status_label(*, stale: bool, trading: bool) -> str:
+    """Ngoài phiên không hiện ``live`` (DoD T-152)."""
+    if stale:
+        return "⚠️ cũ"
+    if not trading:
+        return "closed"
+    return "live"
+
+
+def quote_rows(
+    quotes: list[dict],
+    stale_seconds: float,
+    now: datetime | None = None,
+    *,
+    trading: bool | None = None,
+) -> list[dict]:
     """Quote -> dòng bảng giá (VND). stale nếu ingestion gắn cờ hoặc tuổi > stale_seconds."""
     now = (now or datetime.now(TZ)).astimezone(TZ)
+    if trading is None:
+        try:
+            trading = in_trading(ui_config.load(), now)
+        except Exception:  # noqa: BLE001
+            trading = True
     rows = []
     for q in quotes:
         try:
@@ -225,10 +255,11 @@ def quote_rows(quotes: list[dict], stale_seconds: float, now: datetime | None = 
         stale = flagged or age is None or age > stale_seconds
         rows.append({"Mã": q.get("symbol"), "Giá": q.get("price"), "+/-": q.get("change"), "%": q.get("change_pct"),
                      "Mở": q.get("open"), "Cao": q.get("high"), "Thấp": q.get("low"), "TC": q.get("ref_price"),
-                     "Trần": q.get("ceiling_price"), "Sàn giá": q.get("floor_price"),
+                     "Trần": _vnd_int(q.get("ceiling_price")), "Sàn giá": _vnd_int(q.get("floor_price")),
                      "Sàn": str(q.get("exchange") or ""),
                      "Nguồn": str(q.get("source") or "").upper(), "Lúc": ts.astimezone(TZ).strftime("%H:%M:%S") if ts else "?",
-                     "Trạng thái": "⚠️ cũ" if stale else "live", "_stale": stale, "_ts": ts})
+                     "Trạng thái": quote_status_label(stale=stale, trading=bool(trading)),
+                     "_stale": stale, "_ts": ts})
     rows.sort(key=lambda r: r["Mã"] or "")
     return rows
 
