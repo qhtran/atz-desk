@@ -2,7 +2,7 @@
 
 > Master Architect artifact. Agent 2 (Code Executor) chỉ làm đúng task `Doing` trong mục Handoff.
 > Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
-> Cập nhật: **2026-10-17** — Master ack **T-130 Done** (Executor report); upstream PASS.
+> Cập nhật: **2026-10-17** — human **1a**: **WAIT AuditorBot inbox** (brief `1530`); Executor idle.
 
 ---
 
@@ -14,13 +14,13 @@
 | Data | Redis (nóng) + SQLite `data/signals.db` (bền); secrets chỉ env |
 | Deploy | Docker Compose `/opt/vnstocks` — services: `vnstocks`, ingestion, filter-runner, alert, position, index-feed, redis |
 | Auth | Authentik forward-auth; identity = headers; trading prefs = SQLite (ADR 0004) |
-| Branch / HEAD | `main` @ `dcc465b` — T-130 Master ack; VPS image `8c872b1f46eb` |
+| Branch / HEAD | `main` @ `2ec61de` — T-130 closed; waiting Auditor inbox `1530` |
 | NON-goal | Không đặt lệnh tự động; không SPA/BFF Phase 2 trừ nhu cầu mới |
 
 **Active goals (ưu tiên sản phẩm):**
 1. Giữ pipeline near-realtime ổn định + UI bảng thống nhất (`realtime` / `analytical` / `compact`).
 2. Hoàn thiện UX trading cá nhân (workspace + prefs seed Done; còn mentor F1 / Auditor).
-3. Auditor: brief P0 `1530` active — chờ AuditorBot push inbox.
+3. **WAIT:** AuditorBot poll brief P0 `1530` → push `inbox/20261017-1530-atz-post-ux-wave-retest.md` (inbox hiện **trống**).
 4. Chờ mentor cho nến mạnh–TB–yếu, Bollinger, Ichimoku, phần II.
 
 ---
@@ -104,7 +104,7 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 | ID | Title | Status | Modules | Target files | Acceptance | Deps | Agent 2 instructions |
 |----|-------|--------|---------|--------------|------------|------|----------------------|
-| — | *(trống — chờ human / mentor)* | — | — | — | — | — | — |
+| — | *(trống — WAIT AuditorBot; không giao code)* | — | — | — | — | — | — |
 
 **Quy tắc:** luôn tối đa **một** task `Doing`.
 
@@ -120,7 +120,7 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 ## 5. Risks & open questions
 
-1. **Auditor inbox** — T-140 đã đánh stale + brief P0 mới; chờ AuditorBot push inbox.
+1. **Auditor inbox trống** (2026-10-17 check) — brief `1530` active; cần bật/poll AuditorBot.
 2. **Mentor gate** cho nến mạnh–TB–yếu + BB/Ichi — không tự invent.
 3. ~~T-130 image drift~~ — **hết** sau Phase B (cùng image `8c872b1f46eb`).
 4. **Multi-agent:** Architect ≠ app code; Executor = 1 `Doing`; bus = PROGRESS.md only.
@@ -131,24 +131,28 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 ## 6. Handoff to Agent 2
 
-**Current Doing:** *(trống)* — chờ human / mentor (T-200…T-220 Blocked).
+**Current Doing:** *(trống)* — human **1a** = **WAIT AuditorBot**.
 
+### Watch criteria (Master / human)
+- Kỳ vọng file: `docs/auditorbot/inbox/20261017-1530-atz-post-ux-wave-retest.md`
+- Task active: `docs/auditorbot/tasks/20261017-1530-post-ux-wave-retest.md`
+- Protocol: skip `stale_no_inbox` (`BACKLOG.md`)
+- Prompt bot: `docs/auditorbot/PROMPT_FOR_AUDITORBOT.md`
+- Khi có inbox: Master đọc → tóm tắt P0/P1 → Resolution → chuyển `reports/` nếu xử lý xong
+
+### Executor-1
+- **Idle** — không SSH, không `src/`, không tạo brief mới trừ human bảo.
+- Có thể `git pull` định kỳ; nếu thấy inbox mới → báo Master (không tự Resolution lớn).
+
+### Khi inbox về — human chọn tiếp
 ```
-1a) Chờ AuditorBot inbox (brief 1530)
-1b) Chờ mentor F1
-1c) Việc khác — mô tả ngắn
+2a) Master đọc inbox + tóm tắt hành động
+2b) Vẫn chờ / poll thêm
+2c) Việc khác
 ```
 
-### Executor notes (T-130 — Done, Master ack)
-- VPS `/opt/vnstocks`: `git pull` → `908809f`
-- `docker compose build vnstocks` → image `8c872b1f46eb`
-- recreate ×6 → Pass (cùng image)
-- `atz-check-upstream` → **PASS**; `_stcore/health` → **HTTP 200**
-- Không đụng nginx/sshd/UFW/volumes/`compose down`
-- Human/Executor report verified by Master → ship PROGRESS
-
-### Executor notes (T-140 — archived)
-- Done @ `0e1132e`; Master ack 2a.
+### Executor notes (T-130 — archived)
+- Done image `8c872b1f46eb`; Master ack `dcc465b`.
 
 ---
 
@@ -176,30 +180,25 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing`.
 
 | Tab | Turns | Files this task | Slowing? | Status |
 |-----|------:|----------------:|----------|--------|
-| executor-1 | 1 | 0 | no | idle |
+| executor-1 | 0 | 0 | no | idle |
 
 ### Master commands
 
-(none) — T-130 closed; chờ human chọn 1a/1b/1c
+```
+WAIT_AUDITOR — human 1a
+Poll/watch: docs/auditorbot/inbox/ for 20261017-1530-atz-post-ux-wave-retest.md
+Executor-1: IDLE (no code, no SSH).
+When inbox appears: human → 2a for Master summary.
+Optional: human starts AuditorBot with PROMPT_FOR_AUDITORBOT.md
+```
 
 ### Last Executor state
 
 ```
-task: T-130
-result: Done
-master_ack: yes
-HEAD_at_start: 908809f (VPS after pull)
-scope: 3a
-user_confirmed_infra: yes
-owner: executor-1
-ssh: :22 OK
-steps:
-  git_pull: Pass → 908809f
-  docker_compose_build_vnstocks: Pass → 8c872b1f46eb
-  force_recreate_all: Pass (×6)
-  atz-check-upstream: PASS
-  stcore_health: HTTP 200
-image_id: 8c872b1f46eb
+task: (none)
+result: idle_wait_auditor
+watch: inbox/20261017-1530-atz-post-ux-wave-retest.md
+inbox_status: empty (checked 2026-10-17)
 paused_fork: no
 ```
 
@@ -232,3 +231,4 @@ paused_fork: no
 | 2026-10-17 | **T-130 owner=executor-1** — human 2a; Master waits report; no Master SSH |
 | 2026-10-17 | **T-130 Done** — executor-1 Phase B PASS; image 8c872b1f46eb; upstream PASS; Status=idle |
 | 2026-10-17 | **Master ack T-130** — verify report; commit+push PROGRESS |
+| 2026-10-17 | **WAIT_AUDITOR** — human 1a; inbox trống; brief 1530 active; Executor idle |
