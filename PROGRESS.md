@@ -2,7 +2,7 @@
 
 > Master Architect artifact. Agent 2 (Code Executor) chỉ làm đúng task `Doing` trong mục Handoff.
 > Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
-> Cập nhật: **2026-10-17** — **T-162 Done** — image `4aaa437be56c`; upstream PASS; health 200.
+> Cập nhật: **2026-10-17** — **Master ack T-162** — image `4aaa437be56c`; upstream PASS; public health 302.
 
 ---
 
@@ -14,7 +14,7 @@
 | Data | Redis (nóng) + SQLite `data/signals.db` (bền); secrets chỉ env |
 | Deploy | Docker Compose `/opt/vnstocks` — services: `vnstocks`, ingestion, filter-runner, alert, position, index-feed, redis |
 | Auth | Authentik forward-auth; identity = headers; trading prefs = SQLite (ADR 0004); **ADR 0006** cấm OIDC Client Streamlit |
-| Branch / HEAD | `main` @ `9e6aef3`+ — **T-162 Done**; VPS UI `4aaa437be56c` |
+| Branch / HEAD | `main` @ `9e6aef3`+ — VPS UI `4aaa437be56c` (T-162 **Master ack**) |
 | NON-goal | Không đặt lệnh tự động; không SPA/BFF Phase 2; không OIDC client trong app trừ ADR mới |
 
 **Active goals (ưu tiên sản phẩm):**
@@ -108,7 +108,7 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 | T-152 | P1 polish inbox §4 mục 3–4 | ui, ui_realtime, analysis, tests | **Master ack** — exclude/POW caption/Trần/Sàn/`closed`/PnL; `test_t152_polish` Pass (4) |
 | T-161 | Deploy T-152 UI (`vnstocks` only) | docker | **Master ack** — image `8b8bba1590af`; upstream PASS; stcore 200; public→Authentik 302 |
 | T-153 | P1 Contrast zebra / chữ Δ trên nền tối | ui, tests | **Master ack** — ZEBRA_ODD; skip signed; font-weight 700; pytest Pass (9) |
-| T-162 | Deploy T-153 UI (`vnstocks` only) | docker | **Executor Done** — image `4aaa437be56c`; pull `9e6aef3`; upstream PASS; health 200 |
+| T-162 | Deploy T-153 UI (`vnstocks` only) | docker | **Master ack** — image `4aaa437be56c`; pull `9e6aef3`; upstream PASS; health 200; public→302 |
 
 ### Doing
 
@@ -142,7 +142,17 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 ## 6. Handoff to Agent 2
 
-**Current Doing:** *(trống)* — chờ human / mentor F1.
+**Current Doing:** *(trống)* — Master ack T-162 xong; chờ human / mentor F1.
+
+```
+1a) Smoke contrast Δ @ 1280×800
+1b) Chờ mentor F1
+1c) Chờ
+```
+
+### Master ack (T-162)
+- Report Exe1: PASS (image `4aaa437be56c`, pull `9e6aef3` ≥ `d6f62c6`, upstream PASS, health 200, vnstocks only).
+- Public: `atz.vn/_stcore/health` → **302** Authentik (forward-auth OK).
 
 ### Executor notes (T-162 — Done)
 - VPS pull `566b29a` → `9e6aef3` (ff-only; ≥ `d6f62c6`)
@@ -182,12 +192,14 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing`.
 
 | Tab | Turns | Files this task | Slowing? | Status |
 |-----|------:|----------------:|----------|--------|
-| executor-1 | 1 | 1 | no | idle |
+| executor-1 | 0 | 0 | no | idle |
 
 ### Master commands
 
 ```
-(none — T-162 Done; Status=idle; chờ human)
+IDLE — no Doing.
+T-162 Master ack complete.
+Next: human 1a smoke contrast | 1b mentor F1 | 1c wait.
 ```
 
 ### Last Executor state
@@ -195,13 +207,13 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing`.
 ```
 task: T-162
 result: Done
+master_ack: yes
 image: 4aaa437be56c
 code: 9e6aef3
 scope: vnstocks_only
 upstream: PASS
-health: 200
+health: 200 (VPS); public → 302 Authentik
 owner: executor-1
-paused_fork: no
 Status: idle
 ```
 
@@ -264,3 +276,4 @@ Status: idle
 | 2026-10-17 | **Master ack T-153 (human 1b)** — ship + authorize T-162 Exe1 deploy |
 | 2026-10-17 | **T-162 Phase B GO** — Exe1 deploy T-153 UI; user_confirmed_infra: yes |
 | 2026-10-17 | **T-162 Done** — image `4aaa437be56c`; pull `9e6aef3`; upstream PASS; health 200; Status=idle |
+| 2026-10-17 | **Master ack T-162** — verify report + public health 302; ship PROGRESS |
