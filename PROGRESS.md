@@ -2,7 +2,7 @@
 
 > Master Architect artifact. Agent 2 (Code Executor) chỉ làm đúng task `Doing` trong mục Handoff.
 > Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
-> Cập nhật: **2026-10-17** — **T-161 Phase B GO** — Exe1 deploy T-152 UI (`vnstocks` only); `user_confirmed_infra: yes`.
+> Cập nhật: **2026-10-17** — **Master ack T-161** — image `8b8bba1590af`; upstream PASS; public health 302 forward-auth.
 
 ---
 
@@ -14,14 +14,14 @@
 | Data | Redis (nóng) + SQLite `data/signals.db` (bền); secrets chỉ env |
 | Deploy | Docker Compose `/opt/vnstocks` — services: `vnstocks`, ingestion, filter-runner, alert, position, index-feed, redis |
 | Auth | Authentik forward-auth; identity = headers; trading prefs = SQLite (ADR 0004); **ADR 0006** cấm OIDC Client Streamlit |
-| Branch / HEAD | `main` @ `459c446` — T-152 ship `67b26e3`; **T-161 Doing** (VPS UI `8904bb446226` → rebuild) |
+| Branch / HEAD | `main` @ `566b29a`+ — VPS UI image `8b8bba1590af` (T-161 **Master ack**) |
 | NON-goal | Không đặt lệnh tự động; không SPA/BFF Phase 2; không OIDC client trong app trừ ADR mới |
 
 **Active goals (ưu tiên sản phẩm):**
 1. Giữ pipeline near-realtime ổn định + UI bảng thống nhất (`realtime` / `analytical` / `compact`).
 2. Hoàn thiện UX trading cá nhân (workspace + prefs seed Done; còn mentor F1 / Auditor).
 3. ~~P0 Overview Top KL + VNINDEX~~ — T-150/T-151 + T-160 **smoke Pass**.
-4. ~~T-152~~ ship; **T-161 Doing** (Exe1 deploy UI); còn T-153; mentor F1.
+4. ~~T-152 / T-161~~ ship+deploy; còn T-153; mentor F1.
 
 ---
 
@@ -105,12 +105,13 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 | T-151 | P0 Overview VN indexes ↔ Realtime idx:quote | ui, datasource, tests | **Master ack** — `index_quotes` overlay sau cache; caption ts; pytest Pass (3) |
 | T-160 | Deploy T-150+T-151 UI (`vnstocks` only) | docker | **Master ack** — image `8904bb446226`; upstream PASS; stcore 200; smoke checklist §6 |
 | T-152 | P1 polish inbox §4 mục 3–4 | ui, ui_realtime, analysis, tests | **Master ack** — exclude/POW caption/Trần/Sàn/`closed`/PnL; `test_t152_polish` Pass (4) |
+| T-161 | Deploy T-152 UI (`vnstocks` only) | docker | **Master ack** — image `8b8bba1590af`; upstream PASS; stcore 200; public→Authentik 302 |
 
 ### Doing
 
 | ID | Title | Status | Modules | Target files | Acceptance | Deps | Agent 2 instructions |
 |----|-------|--------|---------|--------------|------------|------|----------------------|
-| T-161 | Deploy T-152 UI (`vnstocks` only) | **Doing** (Phase B GO) | docker | VPS `/opt/vnstocks` | pull ≥ `67b26e3`; build+up `--no-deps vnstocks`; health 200; upstream OK | `user_confirmed_infra: yes` | owner **executor-1** (Exe1) — §6 |
+| — | *(trống — chờ human smoke / Todo)* | — | — | — | — | — | — |
 
 **Quy tắc:** luôn tối đa **một** task `Doing`.
 
@@ -139,35 +140,27 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 ## 6. Handoff to Agent 2
 
-**Current Doing: T-161** — Deploy T-152 UI. **Phase B AUTHORIZED**. Owner: **Exe1** (`executor-1`).
+**Current Doing:** *(trống)* — Master ack T-161 xong; chờ human.
 
-### Scope (LOCKED)
-`user_confirmed_infra: yes` · human «để Exe1 deploy» · chỉ **`vnstocks`**  
-Code ≥ `67b26e3` (T-152 trên main; docs pin `459c446`).
-
-### Phase B — lệnh
-```bash
-ssh -p 22 root@112.213.88.230
-cd /opt/vnstocks
-git pull --ff-only origin main   # expect ≥ 67b26e3
-docker compose build vnstocks
-docker compose up -d --no-deps --force-recreate vnstocks
-docker compose ps vnstocks
-/usr/local/bin/atz-check-upstream
-# curl _stcore/health → 200
 ```
-Smoke (tuỳ): Trần/Sàn format; `closed` ngoài phiên; POW caption; PnL bar theo dấu.  
-Cập nhật §7 + T-161 Done khi PASS.
+1a) Smoke T-152 trên atz.vn (closed / Trần / POW / PnL)
+1b) T-153 contrast → Exe1
+1c) Chờ
+```
 
-### Cấm
-- nginx / sshd / UFW / Authentik / `compose down` / volumes / recreate workers
-- Master **không** SSH
+### Master ack (T-161)
+- Report Exe1: PASS (image `8b8bba1590af`, pull `566b29a` ≥ `67b26e3`, upstream PASS, health 200, không đụng stream/sshd).
+- Public: `atz.vn/_stcore/health` → **302** Authentik outpost (forward-auth OK).
 
-### Master ack (T-152) — archived
-- Ship `67b26e3`; `test_t152_polish` Pass (4).
+### Executor notes (T-161 — Done)
+- VPS pull → `566b29a` (≥ `67b26e3`)
+- `build vnstocks` → image `8b8bba1590af`
+- `up --no-deps --force-recreate vnstocks` → Started
+- `atz-check-upstream` → **PASS**; `_stcore/health` → **200**
+- Không đụng workers / nginx / sshd / UFW / volumes
 
 ### Executor notes (T-152 / T-160 / T-151 — archived)
-- T-152 code Done; T-160 image `8904bb446226`; T-151 `7639ce2`.
+- T-152 `67b26e3`; T-160 image `8904bb446226`; T-151 `7639ce2`.
 
 ---
 
@@ -195,35 +188,29 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing`.
 
 | Tab | Turns | Files this task | Slowing? | Status |
 |-----|------:|----------------:|----------|--------|
-| executor-1 | 0 | 0 | no | active |
+| executor-1 | 0 | 0 | no | idle |
 
 ### Master commands
 
 ```
-user_confirmed_infra: yes
-scope: vnstocks_only
-owner: executor-1  (Exe1 — Master does NOT SSH)
-START T-161 Phase B — SSH -p 22 → /opt/vnstocks
-git pull --ff-only; docker compose build vnstocks;
-up -d --no-deps --force-recreate vnstocks
-atz-check-upstream + _stcore/health 200
-expect code ≥ 67b26e3
-NO nginx/sshd/UFW/volumes/workers.
-When Done: §7 + T-161 Done; Status=idle; push PROGRESS.
+IDLE — no Doing.
+T-161 Master ack complete.
+Next: human 1a smoke T-152 UI | 1b T-153 | 1c wait.
 ```
 
 ### Last Executor state
 
 ```
 task: T-161
-result: authorized_awaiting_executor
-HEAD_at_start: 459c446
-code_min: 67b26e3
+result: Done
+master_ack: yes
+HEAD_vps: 566b29a
+image: 8b8bba1590af
+atz-check-upstream: PASS
+stcore_health: 200 (VPS); public → 302 Authentik
 scope: vnstocks_only
-user_confirmed_infra: yes
 owner: executor-1
-ssh: allowed :22
-paused_fork: no
+Status: idle
 ```
 
 ### Signals
@@ -276,3 +263,5 @@ paused_fork: no
 | 2026-10-17 | **T-152 Done** — exclude/closed/Trần/PnL; pytest Pass; Status=idle; chờ commit |
 | 2026-10-17 | **Master ack T-152 (human 1a)** — re-verify test_t152_polish Pass (4); ship code |
 | 2026-10-17 | **T-161 Phase B GO** — Exe1 deploy T-152 UI; user_confirmed_infra: yes; vnstocks only |
+| 2026-10-17 | **T-161 Done** — image 8b8bba1590af; upstream PASS; health 200; Status=idle |
+| 2026-10-17 | **Master ack T-161** — verify report + public health 302; ship PROGRESS |
