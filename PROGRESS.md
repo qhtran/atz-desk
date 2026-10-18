@@ -1,19 +1,20 @@
 # PROGRESS.md — atz.vn / vnstocks
 
 > Master Architect artifact. Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
-> Cập nhật: **2026-10-18** — **START T-237** — cột Giá RT trên F3 `wl_rows` (human 11a).
+> Cập nhật: **2026-10-18** — **FORK T-237** ag2→**ag6/exe2** (context full); DoD Giá RT giữ nguyên.
 
 ### Naming convention (bắt buộc)
 
 | Alias | Cũng gọi là | Vai trò | Làm / không làm |
 |-------|-------------|---------|-----------------|
 | **ag1** | agent1, **Master** | Architect / orchestrator | Plan, authorize, ack, brief giao việc — **không code**, không SSH, không smoke dài |
-| **ag2** | agent2, **Exe1**, executor-1 | Code Executor | Code app (`src/atz`), test, deploy khi được authorize — đúng task `Doing` |
+| **ag2** | agent2, **Exe1**, executor-1 | Code Executor (primary) | Code app (`src/atz`), test, deploy khi được authorize — đúng task `Doing` |
+| **ag6** | agent6, **Exe2**, **exe2**, executor-2 | Code Executor (fork) | Cùng lane **T-*** với ag2 — tab mới khi Exe1 context full; **một** T-* Doing tại một thời điểm |
 | **ag3** | agent3, **Support**, **sp1**, support-1 | Support (primary) | Việc phụ: `scripts/tools/*`, doc2md, reverse-engineer mentor, seed/spec — **không** production app/deploy trừ Master giao rõ |
 | **ag5** | agent5, **Support2**, **sp2**, support-2 | Support (fork) | Cùng lane **S-*** với ag3 — tab mới khi sp1 context full; **một** S-* Doing tại một thời điểm |
 
-Exe2 = executor-2 (standby khi fork) — vẫn dưới nhánh **ag2**, không đổi alias.  
-**ag5/sp2** = support-2 (fork Support) — vẫn dưới lane **S-***, không mở lane ID mới.
+**ag6/exe2** = executor-2 (fork Exe) — vẫn dưới lane **T-***, không mở lane ID mới.  
+**ag5/sp2** = support-2 (fork Support) — vẫn dưới lane **S-***.
 
 ### Bus protocol — ít copy-paste (bắt buộc từ 2026-10-18)
 
@@ -21,7 +22,7 @@ Exe2 = executor-2 (standby khi fork) — vẫn dưới nhánh **ag2**, không đ
 
 **ag1:** ghi START/ack/`Master commands` vào **PROGRESS.md** → `commit+push` bus (và code khi human bảo). Không nhờ human chuyển tin.
 
-**ag2 / ag3 / ag5 (mỗi turn):**
+**ag2 / ag6 / ag3 / ag5 (mỗi turn):**
 1. `git pull --ff-only`
 2. Đọc `Master commands` + §6 / §6b Doing
 3. Nếu `Doing` đúng role mình (owner = alias tab) → làm đến Done → cập nhật Last * state trên PROGRESS → `commit+push` (code + bus)
@@ -29,7 +30,7 @@ Exe2 = executor-2 (standby khi fork) — vẫn dưới nhánh **ag2**, không đ
 
 **Cấm:** paste §START dài giữa tab; human làm “bưu tá” brief.
 
-**Hook ngắn (tab ag2/ag3/ag5):** mở chat với `@PROGRESS.md` + câu cố định: `Pull bus. Làm task Doing của mình nếu có. Xong cập nhật PROGRESS + push.`
+**Hook ngắn (tab ag2/ag6/ag3/ag5):** mở chat với `@PROGRESS.md` + câu cố định: `Pull bus. Làm task Doing của mình nếu có. Xong cập nhật PROGRESS + push.`
 
 ---
 
@@ -93,7 +94,7 @@ Target layout dài hạn (ADR 0001): `shared/` / `domain/` / `adapters/` / `serv
 - Debug overlay: `config/debug_overlay.yaml` / `ATZ_DEBUG_OVERLAY`.
 - SSH ops: ưu tiên host `:22`; **cấm** đụng nginx stream / sshd / UFW trừ human confirm.
 - Bot code paused; AuditorBot giữ survey UI; Cursor = code/deploy.
-- **ag1 (Master)** = plan / authorize / ack only — không tự code, không tự smoke/deploy/SSH. **ag2 (Exe1)** execute. **ag3 (sp1)** = Support primary; fork Support → **ag5 (sp2)**. Context đầy Exe → **Exe2** (vẫn ag2).
+- **ag1 (Master)** = plan / authorize / ack only — không tự code, không tự smoke/deploy/SSH. **ag2 (Exe1)** execute; fork Exe → **ag6 (Exe2)**. **ag3 (sp1)** = Support primary; fork Support → **ag5 (sp2)**.
 
 **Đã ship gần đây (không mở lại trừ bug):**
 - Pin + live pinned strip; flash tick; OAH copy string; vốn/risk per-user.
@@ -152,7 +153,7 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 | ID | Title | Status | Modules | Target files | Acceptance | Deps | Agent 2 instructions |
 |----|-------|--------|---------|--------------|------------|------|----------------------|
-| **T-237** | F3 wl_rows + cột Giá RT | **Doing** | ui, datasource, tests | `ui/watchlists_page.py`, `datasource/live_quotes.py` (reuse) | Cột **Giá** RT giữa Mã và Cảnh báo; pytest | T-236 | Xem §6 START |
+| **T-237** | F3 wl_rows + cột Giá RT | **Doing** | ui, datasource, tests | `ui/watchlists_page.py`, `datasource/live_quotes.py` (reuse) | Cột **Giá** RT giữa Mã và Cảnh báo; pytest | T-236 | Owner **ag6/exe2** — xem §6 |
 
 **Quy tắc:** tối đa **một** `T-*` Doing (ag2) **và** tối đa **một** `S-*` Doing (ag3/ag5) — hai lane song song, không chung ID.
 
@@ -206,11 +207,17 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 ---
 
-## 6. Handoff to Agent 2 (ag2 / Exe1)
+## 6. Handoff to Executor (ag2/Exe1 · ag6/Exe2)
 
-**Current Doing (T-*):** **T-237** — cột Giá RT `wl_rows` (human **11a**).
+**Current Doing (T-*):** **T-237** — owner **ag6 / exe2** (fork từ ag2; human context full).
 
-### START — T-237 (ag1 → Exe1) — 2026-10-18
+### FORK — T-237 (ag1 → ag6 / exe2) — 2026-10-18
+
+**Lý do:** ag2/Exe1 context full → mở tab **ag6** (executor-2 / exe2 / agent6). **Giữ cùng ID T-237**.
+
+ag2/executor-1: **paused_fork** — không làm T-237 nữa.
+
+### START — T-237 (ag1 → Exe2) — tiếp tục DoD gốc (human **11a**)
 
 **Nguồn:** ag5 gap report + `docs/specs/F3_ALERTS.md` §6.2 — bảng ngành F3 hiện chỉ `Mã`|`Cảnh báo`; thiếu **Giá** RT.
 
@@ -219,7 +226,7 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 - Reuse `datasource.live_quotes.load_live_prices_thousands` (pattern sidebar/desk) — **không** nhân bản Redis client
 - Tests: `tests/test_watchlists_page.py` (tạo nếu chưa) hoặc module test gần nhất; mock Redis / inject price map
 
-**Làm:**
+**Làm (ag6 / exe2):**
 1. Thêm cột **`Giá`** (nghìn đồng, 2 chữ số) giữa `Mã` và `Cảnh báo` khi `with_alerts=True` (F3 ngành).
 2. Batch MGET một lần cho list mã ngành; miss Redis → `—` hoặc fallback OHLCV last close (chọn 1, ghi caption nguồn).
 3. Caption ngắn: Giá = Redis quote RT (hoặc fallback) — **không** đổi engine `f3_alerts` / wording.
@@ -360,28 +367,35 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing` 
 | Tab | Alias | Turns | Files this task | Slowing? | Status |
 |-----|-------|------:|----------------:|----------|--------|
 | master | ag1 | — | — | — | **active** |
-| executor-1 | ag2 | 0 | — | no | **active** — T-237 Doing |
-| executor-2 | ag2 | — | — | — | standby (fork) |
+| executor-1 | ag2 | — | — | yes | **paused_fork** — T-237 chuyển exe2 |
+| executor-2 | ag6 / exe2 | 0 | — | no | **active** — T-237 Doing |
 | support-1 | ag3 / sp1 | — | — | yes | **paused_fork** |
 | support-2 | ag5 / sp2 | 1 | 1 | no | idle — S-022 **acked** |
 
 ### Master commands
 
 ```text
-START T-237 — ag2 / Exe1 (human 11a).
-DoD: F3 wl_rows cột Giá RT (live_quotes batch); Mã | Giá | Cảnh báo;
-miss → —/fallback+caption; no Chat/community; no f3_alerts engine change; no deploy.
+🚨 [ACTION REQUIRED]: CONTEXT EXCEEDED on ag2/Exe1.
+Please open a NEW COMPOSER TAB as ag6 (exe2 / Exe2 / executor-2 / agent6),
+load @PROGRESS.md, and continue with Task T-237.
+Reason: human — ag2 full context; fork Executor lane.
+
+START T-237 — owner ag6 / exe2 (human fork).
+DoD unchanged: wl_rows Mã | Giá | Cảnh báo; live_quotes batch;
+miss → —/fallback+caption; no Chat/community; no f3_alerts change; no deploy.
+ag2 paused_fork; Support IDLE.
 ```
 
-### Last Executor state (ag2)
+### Last Executor state (ag6 / exe2)
 
 ```
 task: T-237
 result: Doing
-owner: executor-1
+owner: exe2
 Status: active
 master_ack: pending
 focus: wl_rows Giá RT (F3_ALERTS §6.2)
+forked_from: ag2/Exe1 (context full)
 prior: T-236 acked (cedd90d404a2)
 ```
 
@@ -400,7 +414,12 @@ files: tests/test_f3_alerts.py
 ### Signals
 
 ```
-SIGNAL_NEED_FORK: no
+SIGNAL_NEED_FORK: yes
+lane: T-*
+from: ag2/Exe1
+to: ag6/exe2
+task: T-237
+reason: human — ag2 full context
 ```
 
 ---
@@ -409,6 +428,7 @@ SIGNAL_NEED_FORK: no
 
 | Khi | Thay đổi |
 |-----|----------|
+| 2026-10-18 | **FORK T-237** — ag2→ag6/exe2 (context full); naming ag6=Exe2; Exe1 paused_fork |
 | 2026-10-18 | **START T-237** — human 11a; F3 wl_rows + cột Giá RT; reuse live_quotes |
 | 2026-10-18 | **Master ack T-236 Pass** — human 10; image `cedd90d404a2`; T-237 unlocked |
 | 2026-10-18 | **START T-236** + **Todo T-237** — human 9b; deploy T-235 UI; Giá RT wl_rows sau ack |
