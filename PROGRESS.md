@@ -1,7 +1,7 @@
 # PROGRESS.md — atz.vn / vnstocks
 
 > Master Architect artifact. Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
-> Cập nhật: **2026-10-18** — **Master ack S-021 Pass** — vnstock 5.1.0; bars 180/181; lanes IDLE.
+> Cập nhật: **2026-10-18** — **PR #2 MERGED** → `main` @ `28b555d` (F3 alerts + sector universe).
 
 ### Naming convention (bắt buộc)
 
@@ -39,7 +39,7 @@ Exe2 = executor-2 (standby khi fork) — vẫn dưới nhánh **ag2**, không đ
 | Data | Redis (nóng) + SQLite `data/signals.db` (bền); secrets chỉ env |
 | Deploy | Docker Compose `/opt/vnstocks` — services: `vnstocks`, ingestion, filter-runner, alert, position, index-feed, redis |
 | Auth | Authentik forward-auth; identity = headers; trading prefs = SQLite (ADR 0004); **ADR 0006** cấm OIDC Client Streamlit |
-| Branch / HEAD | `feat/sector-universe-f3` @ `9fd7d69`+ — VPS UI `2f18fd2c75e9` (T-231); main @ `7dbd756` |
+| Branch / HEAD | **`main` @ `28b555d`** (PR #2 F3); VPS UI vẫn `2f18fd2c75e9` (T-231, branch cũ — optional redeploy từ main) |
 | NON-goal | Không đặt lệnh tự động; không SPA/BFF Phase 2; không OIDC client trong app trừ ADR mới |
 | `user_confirmed_infra` | **yes** — T-231 Done; VPS checkout `feat/sector-universe-f3` (UI only) |
 
@@ -281,8 +281,8 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing` 
 ### Master commands
 
 ```
-IDLE — S-021 Pass. PR #2 open: feat/sector-universe-f3 → main.
-Next: human merge PR | idle.
+IDLE — PR #2 MERGED → main @ 28b555d (squash).
+Next: human idle | optional T-232 redeploy UI from main | smoke.
 ```
 
 ### Last Executor state (ag2)
@@ -320,6 +320,7 @@ report: docs/specs/F3_SECTOR_UNIVERSE.md
 
 | Khi | Thay đổi |
 |-----|----------|
+| 2026-10-18 | **PR #2 MERGED** — F3 → `main` @ `28b555d` (squash) |
 | 2026-10-18 | **Master ack S-021 Pass** — 180/181 bars; PDG miss accepted |
 | 2026-10-18 | **S-021 Done** — vnstock 5.1.0; bars 180/181; gap refresh; PDG miss KBS |
 | 2026-10-18 | **NUDGE S-021** — sp1 nhầm “up-to-date” = Done; nhắc làm đủ §6b (human 1a) |
