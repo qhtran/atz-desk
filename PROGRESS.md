@@ -1,7 +1,7 @@
 # PROGRESS.md — atz.vn / vnstocks
 
 > Master Architect artifact. Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
-> Cập nhật: **2026-10-18** — **T-238 Done** (ag6/exe2) — image `1b088cd0325c`; chờ Master ack.
+> Cập nhật: **2026-10-18** — **Master ack T-238 Pass** (image `1b088cd0325c`); lanes idle.
 
 ### Naming convention (bắt buộc)
 
@@ -44,7 +44,7 @@
 | Auth | Authentik forward-auth; identity = headers; trading prefs = SQLite (ADR 0004); **ADR 0006** cấm OIDC Client Streamlit |
 | Branch / HEAD | **`main` @ `37b0d3c`** — VPS UI image `1b088cd0325c` (T-238) |
 | NON-goal | Không đặt lệnh tự động; không SPA/BFF Phase 2; không OIDC client trong app trừ ADR mới |
-| `user_confirmed_infra` | **yes** — T-238 Done; `vnstocks` only |
+| `user_confirmed_infra` | **yes** — T-238 acked; `vnstocks` only |
 
 **Active goals (ưu tiên sản phẩm):**
 1. Giữ pipeline near-realtime ổn định + UI bảng thống nhất (`realtime` / `analytical` / `compact`).
@@ -149,7 +149,7 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 | T-235 | Sidebar Cảnh báo wrap/tooltip (Auditor 1505 P2 #2) | ui, tests | **Master ack Pass** — preview + expander wrap; TextColumn help; pytest Pass (37); no deploy |
 | T-236 | Deploy UI T-235 (`vnstocks` only) | docker | **Master ack Pass** — image `cedd90d404a2`; `main` @ `91aee02`; upstream PASS; health 200; public 302 |
 | T-237 | F3 wl_rows + cột Giá RT | ui, datasource, tests | **Master ack Pass** — `build_wl_symbol_rows` Mã\|Giá\|Cảnh báo; Redis+OHLCV fallback; pytest Pass (15); ship `b12b28a`; no deploy |
-| T-238 | Deploy UI T-237 (`vnstocks` only) | docker | **Done** — chờ Master ack; image `1b088cd0325c` (≠ `cedd90d404a2`); `main` @ `37b0d3c` (≥ `b12b28a`); upstream PASS; health 200; public 302 |
+| T-238 | Deploy UI T-237 (`vnstocks` only) | docker | **Master ack Pass** — image `1b088cd0325c`; `main` @ `37b0d3c`; upstream PASS; health 200; public 302 |
 
 ### Doing (ag2/Exe1 · ag6/Exe2 — `T-*`)
 
@@ -211,14 +211,17 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 ## 6. Handoff to Executor (ag2/Exe1 · ag6/Exe2)
 
-**Current Doing (T-*):** *(trống)* — idle; **T-238 Done** (chờ Master ack).
+**Current Doing (T-*):** *(trống)* — idle; **T-238 Master ack Pass**.
 
-### DONE — T-238 (ag6 / exe2 → ag1) — chờ ack
+### DONE — T-238 (ag6 / exe2 → ag1) — **acked**
 
 - VPS `main` @ `37b0d3c` (≥ `b12b28a`)
 - image `1b088cd0325c` (≠ `cedd90d404a2`); `--no-deps --force-recreate vnstocks` only
 - upstream PASS; health **200**; public **302**
 - Không đụng nginx/sshd/UFW/workers
+
+### Master ack (T-238) — 2026-10-18
+- **Pass** — DoD đủ; human **15a done**; T-237 Giá RT live trên VPS.
 
 ### START — T-238 (ag1 → Exe2) — 2026-10-18 · Phase B GO — **completed by exe2**
 
@@ -228,7 +231,7 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 **Acceptance**
 - [x] image mới trên VPS · health 200 · public 302 · no nginx/sshd/UFW
-- [x] push; `master_ack` chờ ag1
+- [x] push; `master_ack` yes
 
 ### DONE — T-237 (ag6 / exe2 → ag1) — **acked**
 
@@ -391,17 +394,15 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing` 
 |-----|-------|------:|----------------:|----------|--------|
 | master | ag1 | — | — | — | **active** |
 | executor-1 | ag2 | — | — | yes | **paused_fork** — T-237 chuyển exe2 |
-| executor-2 | ag6 / exe2 | 1 | 0 | no | **idle** — T-238 Done; chờ Master ack |
+| executor-2 | ag6 / exe2 | 1 | 0 | no | idle — T-238 **acked** |
 | support-1 | ag3 / sp1 | — | — | yes | **paused_fork** |
 | support-2 | ag5 / sp2 | 1 | 1 | no | idle — S-022 **acked** |
 
 ### Master commands
 
 ```text
-T-238 Done (ag6/exe2) — chờ Master ack.
-image 1b088cd0325c; main @ 37b0d3c (≥ b12b28a);
-upstream PASS; health 200; public 302; vnstocks only.
-Human → ag1: ack / 1a.
+Master ack T-238 Pass — image 1b088cd0325c; health 200; public 302.
+Lanes IDLE. Optional: Chat spark backlog Todo | idle | mentor F1.
 ```
 
 ### Last Executor state (ag6 / exe2)
@@ -411,9 +412,8 @@ task: T-238
 result: Done
 owner: exe2
 Status: idle
-master_ack: pending
+master_ack: yes
 scope: vnstocks only
-user_confirmed_infra: yes
 image: 1b088cd0325c
 vps_main: 37b0d3c
 prior: T-237 acked (b12b28a)
@@ -443,6 +443,7 @@ SIGNAL_NEED_FORK: cleared (T-237 completed by exe2)
 
 | Khi | Thay đổi |
 |-----|----------|
+| 2026-10-18 | **Master ack T-238 Pass** — human 15a; image `1b088cd0325c`; lanes idle |
 | 2026-10-18 | **T-238 Done** — ag6/exe2; image `1b088cd0325c`; `main` @ `37b0d3c`; upstream PASS; health 200; public 302 |
 | 2026-10-18 | **START T-238** — human 14a; deploy T-237 UI vnstocks; owner ag6/exe2 |
 | 2026-10-18 | **Master ack T-237 Pass** — human 13a; pytest 15; ship `b12b28a`; deploy optional |
