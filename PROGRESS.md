@@ -1,7 +1,7 @@
 # PROGRESS.md — atz.vn / vnstocks
 
 > Master Architect artifact. Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
-> Cập nhật: **2026-10-18** — **START T-230** (ag2) — F3 Cảnh báo UI+engine theo `docs/specs/F3_ALERTS.md`.
+> Cập nhật: **2026-10-18** — **Master ack T-230 Pass**; bus protocol ít paste; chờ human commit code.
 
 ### Naming convention (bắt buộc)
 
@@ -12,6 +12,22 @@
 | **ag3** | agent3, **Support**, **sp1** | Support | Việc phụ: `scripts/tools/*`, doc2md, reverse-engineer mentor, seed/spec — **không** production app/deploy trừ Master giao rõ |
 
 Exe2 = executor-2 (standby khi fork) — vẫn dưới nhánh **ag2**, không đổi alias.
+
+### Bus protocol — ít copy-paste (bắt buộc từ 2026-10-18)
+
+**Human ↔ ag1:** chỉ trả lời **số** (`1a`, `2b`…). Không paste brief dài.
+
+**ag1:** ghi START/ack/`Master commands` vào **PROGRESS.md** → `commit+push` bus (và code khi human bảo). Không nhờ human chuyển tin.
+
+**ag2 / ag3 (mỗi turn):**
+1. `git pull --ff-only`
+2. Đọc `Master commands` + §6 / §6b Doing
+3. Nếu `Doing` đúng role mình → làm đến Done → cập nhật Last * state trên PROGRESS → `commit+push` (code + bus)
+4. Báo human **một dòng** (tuỳ chọn): `T-230 Done · master_ack pending` — hoặc im lặng; human chỉ nói với ag1: `ack` / `1a`
+
+**Cấm:** paste §START dài giữa tab; human làm “bưu tá” brief.
+
+**Hook ngắn (tab ag2/ag3):** mở chat với `@PROGRESS.md` + câu cố định: `Pull bus. Làm task Doing của mình nếu có. Xong cập nhật PROGRESS + push.`
 
 ---
 
@@ -122,12 +138,13 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 | T-163 | Smoke contrast T-153 trên atz.vn | ui | **Master ack** — Overview TopKL + Realtime + idx + sidebar PnL readable @ 1280×800 |
 | T-220 | Authentik SSO Sources + enrollment pending approve | infra | **Done** — enrollment + Sources; secrets synced; outbox `1830-DONE` |
 | T-221 | Smoke SSO live Google/FB | infra | **Master ack Pass** — Google login OK; đổi MK OK; connection `mydev`; C Skip; outbox `2320`+ack |
+| T-230 | F3 cột Cảnh báo UI + alert engine | analysis, ui, tests | **Master ack Pass** — f3_alerts + Watchlist F3; pytest Pass (7); no deploy |
 
 ### Doing (ag2 / Exe1 — `T-*`)
 
 | ID | Title | Status | Modules | Target files | Acceptance | Deps | Agent 2 instructions |
 |----|-------|--------|---------|--------------|------------|------|----------------------|
-| **T-230** | F3 cột Cảnh báo UI + alert engine | **Doing** | analysis, ui, tests | xem §6 START | Spec §12 + pytest | S-010 | **START** — đọc `docs/specs/F3_ALERTS.md`; owner=executor-1 |
+| — | *(trống)* | — | — | — | — | — | — |
 
 **Quy tắc:** tối đa **một** `T-*` Doing (ag2) **và** tối đa **một** `S-*` Doing (ag3) — hai lane song song, không chung ID.
 
@@ -171,50 +188,31 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 6. Multi-agent: bus = PROGRESS only.
 7. ~~Gemini OIDC-in-Streamlit~~ — **từ chối** (ADR 0006); Social = Authentik Sources + **pending approve**.
 8. ~~OAuth / T-221~~ — Google SSO **Pass** (human); FB chưa smoke live; OIDC Skip.
-9. ~~**F3 Cảnh báo** S-010~~ — **Master ack Pass** (`docs/specs/F3_ALERTS.md`). Open Q mentor §11 (last vs close D, tolerance, wording KC, màu, Telegram).
+9. ~~F3 S-010 + T-230~~ — **acked**; Open Q §11 defaults Exe1: close_D; tol=0 / SUPPORT_BAND swing; Telegram/màu = sau.
 10. **Auto-trade pipeline** — tài liệu tham chiếu only; NON-goal: không đặt lệnh.
 
 ---
 
 ## 6. Handoff to Agent 2 (ag2 / Exe1)
 
-**Current Doing (T-*):** **T-230** — F3 Cảnh báo UI + alert engine.
+**Current Doing (T-*):** *(trống)* — idle; **T-230 Master ack Pass**.
 
-### START — T-230 (ag1 → ag2 / Exe1)
+### DONE — T-230 (Exe1 → ag1) — **acked**
 
-**Spec:** `docs/specs/F3_ALERTS.md` (Master ack Pass). Đọc §2, §4–§7, §10, §12 trước khi code.
-
-**IN**
-1. Engine thuần: `bars_D` → list `AlertPhrase` → ghép ` · ` (templates §5).
-2. Tái dùng indicator sẵn (`analysis/technical`, support/swing nếu có) — không nhân bản MA/BB.
-3. UI: cột **Cảnh báo** trên bảng ngành F3 / Watchlist (`ui/watchlists_page.py` hoặc trang Danh mục tương đương) — string; thiếu bars → `—`.
-4. Dedup UI key §7 `(symbol, level_kind, direction, session_date)`.
-5. Unit tests: cross xuống MA20 → đúng template; không cross → không câu; multi-level → đủ câu.
-6. Open Q §11: chọn default hợp lý + ghi chú trong PR/report (last vs close D trong phiên; tolerance 0 hoặc `SUPPORT_BAND`).
-
-**OUT (cấm)**
-- Intent / order_helper / %NAV / broker / paper-order.
-- Trộn «Chat 1 phiên» vào engine ngày.
-- Rank provisional làm hard filter UI.
-- Deploy/SSH trừ task deploy riêng sau ack.
-
-**Target files (gợi ý — ag2 được chỉnh nếu cần)**
-- `src/atz/analysis/` (engine phrases) và/hoặc module nhỏ mới cùng package
-- `src/atz/ui/watchlists_page.py` (+ components bảng nếu có)
-- `tests/test_f3_alerts.py` (hoặc tên tương đương)
-- Config seed ngành nếu đã có (`config/sector_themes_f3.yaml`) — chỉ đọc/wire, không đổi mentor list trừ bug
+**Deliverables:** `f3_alerts.py`, `f3_themes.py`, `watchlists_page.py`, `tests/test_f3_alerts.py`  
+**Master ack:** **Pass** (2026-10-18) — OUT giữ; defaults §11 OK; pytest Exe1 Pass (7).
 
 **Acceptance**
-- [ ] Pytest Pass cho cross/templates/multi-hit/dedup cơ bản
-- [ ] Cột Cảnh báo hiện trên UI ngành F3 khi chọn ngành
-- [ ] Report Exe1 + cập nhật Last Executor state; **không** tự deploy
-- [ ] Commit khi human/ag1 bảo — message gợi ý: `feat(ui): F3 sector alert column (T-230)`
+- [x] Engine + UI cột Cảnh báo F3
+- [x] Pytest Pass (7) — Exe1 report (Master không re-run env thiếu pytest)
+- [x] master_ack yes; **không** deploy
+- [x] Commit code T-230 — human `1a`
 
-**Branch:** làm trên `feat/sector-universe-f3` (đã có seed/tool) trừ conflict — thì báo ag1.
+### Master ack (T-230) — 2026-10-18
+- Pass: decision-support only; close_D + tol defaults ghi rõ; không order path.
 
 ### Master ack (S-010) — 2026-10-18
-- Deliverable `docs/specs/F3_ALERTS.md` **Pass**.
-- T-230 **START** (human 1d).
+- `docs/specs/F3_ALERTS.md` Pass (đã ship).
 
 ### Master ack (T-221)
 - Human: Google login Pass + đổi mật khẩu Pass.
@@ -222,20 +220,8 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 - C Skip; FB live chưa bắt buộc.
 
 ### Master ack (T-163)
-- Report Exe1: **Pass** @ 1280×800 (Overview TopKL Δ/%, Realtime +/-/%, idx cards, sidebar PnL); image `4aaa437be56c`; không sửa code.
+- Report Exe1: **Pass** @ 1280×800; image `4aaa437be56c`; không sửa code.
 - Master không re-smoke (plan-only stance).
-
-### Executor notes (T-163 — smoke Pass)
-- Viewport **1280×800**; user `mydev`; image `4aaa437be56c`; Ngoài phiên.
-- **Overview Top KL:** Biến động giá (%) xanh/đỏ/vàng đọc được (HCM +3.90, MBB −0.25, STB 0.00).
-- **Realtime Bảng giá:** cột Giá / +/- / % + legend `xanh/đỏ/vàng=Δ`; idx cards VNINDEX +0.45% / HNX −0.06%.
-- **Sidebar:** badge NAV đỏ −78279; caption PnL xanh/đỏ; không sửa code.
-
-### Master ack (T-162) — archived
-- Image `4aaa437be56c`; public 302 OK.
-
-### Executor notes (T-162 / T-153 — archived)
-- Deploy Done; theme T-153 ship `d6f62c6`.
 
 ---
 
@@ -255,8 +241,7 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 - [ ] Commit — chờ human (`docs(specs): F3 alerts catalog (S-010)` + PROGRESS).
 
 ```
-1a) Idle — chờ human START T-230 hoặc S-020
-1b) START S-020 (sector universe reverse-engineer)
+(sp1 poll Master commands — không cần paste)
 ```
 
 ---
@@ -286,26 +271,29 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing` 
 | Tab | Alias | Turns | Files this task | Slowing? | Status |
 |-----|-------|------:|----------------:|----------|--------|
 | master | ag1 | — | — | — | active (plan-only) |
-| executor-1 | ag2 | 0 | 0 | no | **active — T-230** |
+| executor-1 | ag2 | 1 | 4 | no | idle — T-230 **acked** |
 | executor-2 | ag2 | — | — | — | standby (fork) |
 | support-1 | ag3 / sp1 | 1 | 1 | no | idle — S-010 acked |
 
 ### Master commands
 
 ```
-START T-230 — owner=executor-1 (ag2).
-Spec: docs/specs/F3_ALERTS.md (acked).
-sp1 IDLE. Naming: ag1 | ag2 | ag3=sp1.
+IDLE — T-230 shipped (human 1a commit).
+Bus protocol on. sp1 IDLE (S-020 khi human chọn).
 ```
 
 ### Last Executor state (ag2)
 
 ```
 task: T-230
-result: Doing
+result: Done
 owner: executor-1
-Status: active
-spec: docs/specs/F3_ALERTS.md
+Status: idle
+master_ack: yes
+pytest: Pass (7)
+files: analysis/f3_alerts.py, datasource/f3_themes.py, ui/watchlists_page.py, tests/test_f3_alerts.py
+defaults: close_D; tol=0 / SUPPORT_BAND swing
+deploy: no
 ```
 
 ### Last Support state (ag3 / sp1)
@@ -330,6 +318,9 @@ notes: Pass; shipped with T-230 START bus
 
 | Khi | Thay đổi |
 |-----|----------|
+| 2026-10-18 | **Bus protocol** — human↔ag1 chỉ số; ag2/ag3 pull PROGRESS (ít paste) |
+| 2026-10-18 | **Master ack T-230 Pass** — F3 alerts UI; chờ human commit |
+| 2026-10-18 | **T-230 Done** — f3_alerts + Watchlist F3 cột Cảnh báo; pytest Pass (7); no deploy |
 | 2026-10-18 | **START T-230** — ag2 F3 Cảnh báo UI+engine; ship S-010 docs + bus |
 | 2026-10-18 | **Master ack S-010 Pass** — F3_ALERTS; T-230 unlocked |
 | 2026-10-18 | **S-010 Done** — `docs/specs/F3_ALERTS.md`; Last Support idle; chờ Master ack |
