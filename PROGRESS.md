@@ -1,7 +1,7 @@
 # PROGRESS.md — atz.vn / vnstocks
 
 > Master Architect artifact. Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
-> Cập nhật: **2026-10-18** — **S-020 Done** (sp1) — `docs/specs/F3_SECTOR_UNIVERSE.md`; T-231 Done chờ Master ack.
+> Cập nhật: **2026-10-18** — **Master ack T-231 Pass + S-020 Pass**; lanes IDLE.
 
 ### Naming convention (bắt buộc)
 
@@ -139,7 +139,7 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 | T-220 | Authentik SSO Sources + enrollment pending approve | infra | **Done** — enrollment + Sources; secrets synced; outbox `1830-DONE` |
 | T-221 | Smoke SSO live Google/FB | infra | **Master ack Pass** — Google login OK; đổi MK OK; connection `mydev`; C Skip; outbox `2320`+ack |
 | T-230 | F3 cột Cảnh báo UI + alert engine | analysis, ui, tests | **Master ack Pass** — f3_alerts + Watchlist F3; pytest Pass (7); no deploy |
-| T-231 | Deploy F3 Cảnh báo UI (`vnstocks` only) | docker | **Executor Done** — image `2f18fd2c75e9`; branch `9fd7d69`; upstream PASS; health 200; public 302 |
+| T-231 | Deploy F3 Cảnh báo UI (`vnstocks` only) | docker | **Master ack Pass** — image `2f18fd2c75e9`; upstream PASS; health 200; public 302 |
 
 ### Doing (ag2 / Exe1 — `T-*`)
 
@@ -169,6 +169,7 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 | ID | Title | Status | Notes |
 |----|-------|--------|-------|
+| **S-020** | Sector universe reverse-fit + gap report | **Done** | **Master ack Pass** — `F3_SECTOR_UNIVERSE.md`; 33/181 bars |
 | **S-010** | F3 «Cảnh báo» — catalog rule → spec | **Done** | `docs/specs/F3_ALERTS.md` — **Master ack Pass** |
 
 #### Todo (ag3)
@@ -196,17 +197,18 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 ## 6. Handoff to Agent 2 (ag2 / Exe1)
 
-**Current Doing (T-*):** *(trống)* — T-231 Done; chờ ag1 ack.
+**Current Doing (T-*):** *(trống)* — idle; **T-231 Master ack Pass**.
 
-### DONE — T-231 (Exe1 → ag1) — **awaiting master_ack**
+### DONE — T-231 (Exe1 → ag1) — **acked**
 
-- VPS: `checkout feat/sector-universe-f3` @ `9fd7d69` (≥ `a7882c7`)
-- image `2f18fd2c75e9`; `--no-deps --force-recreate vnstocks` only
-- upstream PASS; `_stcore/health` **200**; public **302** (Authentik)
-- Smoke Watchlist Cảnh báo: skip (cần login session); deploy DoD đủ
-- Không đụng nginx/sshd/UFW/workers
+- VPS: `feat/sector-universe-f3` @ `9fd7d69`; image `2f18fd2c75e9`; vnstocks only
+- upstream PASS; health **200**; public **302**
+- Smoke UI Cảnh báo: skip (login) — chấp nhận cho deploy DoD
 
-### DONE — T-230 (Exe1 → ag1) — **acked** + shipped `a7882c7`
+### Master ack (T-231) — 2026-10-18
+- **Pass** — deploy DoD đủ; không đụng nginx/sshd/UFW; UI smoke = human optional.
+
+### DONE — T-230 — **acked** + shipped `a7882c7`
 
 ### Master ack (T-230) — 2026-10-18
 - Pass: decision-support only; close_D + tol defaults; shipped.
@@ -227,30 +229,22 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 ## 6b. Handoff to Agent 3 (ag3 / sp1)
 
-**Current Doing (S-*):** *(trống)* — idle sau **S-020 Done**.
+**Current Doing (S-*):** *(trống)* — idle; **S-020 Master ack Pass**.
 
-### DONE — S-020 (sp1 → ag1)
+### DONE — S-020 (sp1 → ag1) — **acked**
 
-**Deliverables**
-- `docs/specs/F3_SECTOR_UNIVERSE.md` — bảng recall/precision/gap + fitted params
-- `scripts/tools/sector_universe/report_gap.py` — tái tạo report
-- `config/sector_universe.yaml` — khối `fitted` refreshed
-- README tool trỏ tới spec
-
-**Số liệu (cache hiện có)**
-- Seed 181 · có bars 33 · thiếu bars 148 (vnstock 5.0.1 pull blocker)
-- Macro trên theme có bars: recall **100%** · precision **98%** (10/14 theme)
-- FP mẫu: PDR vào BĐS (peer ICB ngoài seed)
-
-**OUT giữ:** không deploy; không sửa UI T-230; không Phase 2 correlation.
+**Deliverables:** `F3_SECTOR_UNIVERSE.md`, `report_gap.py`, fitted config, README  
+**Số liệu:** 33/181 bars; macro recall 100% / precision 98% (themes có bars); FP PDR  
+**Caveat:** full recall cần `vnstock>=5.1` + pull bars — **không** chặn ack S-020.
 
 **Acceptance**
-- [x] Report bảng tóm tắt
-- [x] Fitted params trong config + spec
-- [x] Last Support = Done; master_ack pending
-- [x] Commit+push (scripts/config/docs)
+- [x] Report + fitted + push
+- [x] master_ack yes
 
-### DONE — S-010 — **acked** (đã ship với T-230 bus)
+### Master ack (S-020) — 2026-10-18
+- **Pass** — gap report đủ; coverage hạn chế đã ghi rõ; Phase 2 = future.
+
+### DONE — S-010 — **acked**
 
 ---
 
@@ -279,15 +273,15 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing` 
 | Tab | Alias | Turns | Files this task | Slowing? | Status |
 |-----|-------|------:|----------------:|----------|--------|
 | master | ag1 | — | — | — | active (plan-only) |
-| executor-1 | ag2 | 1 | 1 | no | **idle — T-231 Done** |
+| executor-1 | ag2 | 1 | 1 | no | idle — T-231 **acked** |
 | executor-2 | ag2 | — | — | — | standby (fork) |
-| support-1 | ag3 / sp1 | 1 | 3 | no | **idle — S-020 Done** |
+| support-1 | ag3 / sp1 | 1 | 3 | no | idle — S-020 **acked** |
 
 ### Master commands
 
 ```
-T-231 Done — master_ack pending.
-S-020 Done — master_ack pending (sp1).
+IDLE — Master ack T-231 Pass + S-020 Pass.
+Next: human chọn (UI smoke / PR merge / S-021 pull bars / idle).
 ```
 
 ### Last Executor state (ag2)
@@ -303,7 +297,7 @@ health: 200
 public: 302
 owner: executor-1
 Status: idle
-master_ack: pending
+master_ack: yes
 ```
 
 ### Last Support state (ag3 / sp1)
@@ -313,7 +307,7 @@ task: S-020
 result: Done
 owner: sp1
 Status: idle
-master_ack: pending
+master_ack: yes
 report: docs/specs/F3_SECTOR_UNIVERSE.md
 bars_coverage: 33/181 seed
 macro_recall: 1.0 (themes with bars)
@@ -330,6 +324,7 @@ macro_precision: 0.98
 
 | Khi | Thay đổi |
 |-----|----------|
+| 2026-10-18 | **Master ack T-231 Pass + S-020 Pass** — deploy UI + sector universe report |
 | 2026-10-18 | **S-020 Done** — F3_SECTOR_UNIVERSE gap report; fitted refresh; 33/181 bars |
 | 2026-10-18 | **Poll idle** — ag2/ag3 không Doing; T-230 ship `a7882c7`; bus header sync |
 | 2026-10-18 | **START T-231 + S-020** — deploy UI vnstocks; sp1 sector universe (human 1d) |
