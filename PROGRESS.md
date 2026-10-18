@@ -1,7 +1,7 @@
 # PROGRESS.md — atz.vn / vnstocks
 
 > Master Architect artifact. Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
-> Cập nhật: **2026-10-18** — **S-022 Done** (ag5/sp2); pytest f3_alerts Pass (10); `master_ack` pending.
+> Cập nhật: **2026-10-18** — **Master ack S-022 Pass** + **START T-235** (sidebar Cảnh báo wrap).
 
 ### Naming convention (bắt buộc)
 
@@ -150,7 +150,7 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 | ID | Title | Status | Modules | Target files | Acceptance | Deps | Agent 2 instructions |
 |----|-------|--------|---------|--------------|------------|------|----------------------|
-| — | *(trống — chờ human / ag1)* | — | — | — | — | — | — |
+| **T-235** | Sidebar Cảnh báo wrap/tooltip (Auditor 1505 P2 #2) | **Doing** | ui, tests | `ui/sidebar_portfolio.py`, `ui/components.py` / `table_theme.py` nếu cần | Đọc hết chuỗi dài @ ~1920px không cuộn ngang; pytest | S-022 | Xem §6 START |
 
 **Quy tắc:** tối đa **một** `T-*` Doing (ag2) **và** tối đa **một** `S-*` Doing (ag3) — hai lane song song, không chung ID.
 
@@ -174,7 +174,7 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 | ID | Title | Status | Notes |
 |----|-------|--------|-------|
-| **S-022** | SWING_HIGH wording unit/snapshot (Auditor P2 #3) | **Done** | ag5/sp2 — compose+UI path; pytest Pass (10); `master_ack` pending |
+| **S-022** | SWING_HIGH wording unit/snapshot (Auditor P2 #3) | **Done** | **Master ack Pass** — compose+UI path; pytest Pass (10) |
 | **S-021** | Nâng vnstock + pull bars + refresh metrics | **Done** | **Master ack Pass** — vnstock 5.1.0; bars 180/181 (PDG miss KBS); recall 100% / prec 99.1% |
 | **S-020** | Sector universe reverse-fit + gap report | **Done** | **Master ack Pass** — 33/181 bars (baseline) |
 | **S-010** | F3 «Cảnh báo» — catalog rule → spec | **Done** | `docs/specs/F3_ALERTS.md` — **Master ack Pass** |
@@ -199,13 +199,33 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 8. ~~OAuth / T-221~~ — Google SSO **Pass** (human); FB chưa smoke live; OIDC Skip.
 9. ~~F3 S-010 + T-230~~ — **acked**; Open Q §11 defaults Exe1: close_D; tol=0 / SUPPORT_BAND swing; Telegram/màu = sau.
 10. **Auto-trade pipeline** — tài liệu tham chiếu only; NON-goal: không đặt lệnh.
-11. ~~**Auditor F3 re-smoke 1505**~~ — **Master ack Pass 9/9**; P2 #3 → **S-022 Doing**; #1/#2 deferred.
+11. ~~**Auditor F3 re-smoke 1505**~~ — Pass 9/9; P2 #3 **S-022 acked**; P2 #2 → **T-235 Doing**; #1 deferred.
 
 ---
 
 ## 6. Handoff to Agent 2 (ag2 / Exe1)
 
-**Current Doing (T-*):** *(trống)* — idle; **T-234 Master ack Pass**. ag2 không Doing (human 3c = S-* only).
+**Current Doing (T-*):** **T-235** — sidebar Cảnh báo wrap/tooltip (human **6b**).
+
+### START — T-235 (ag1 → Exe1) — 2026-10-18
+
+**Nguồn:** Auditor inbox `1505` P2 #2 — cột «Cảnh báo» sidebar «Vị thế hiện tại» bị cắt, phải cuộn ngang; hover không tooltip.
+
+**Target (ưu tiên):**
+- `src/atz/ui/sidebar_portfolio.py` — `render_data_table` positions (`key=sidebar_positions`)
+- Chỉ đụng `components.py` / `table_theme.py` nếu compact CSS chặn wrap
+
+**Làm:**
+1. Cho phép đọc hết chuỗi dài (vd TPB kiểu `xu hướng ngày: tăng · vượt kháng cự 11.9 (MA20, band giữa)`) ở viewport ~1920px **không** cuộn ngang cột — dùng `st.column_config.TextColumn` (width / help = full text) và/hoặc CSS wrap cho compact sidebar; hoặc rút gọn + tooltip full.
+2. Không đổi engine F3 / wording S-022; không CTA đặt lệnh.
+3. Test: thêm/ cập nhật test UI nhỏ nếu có pattern sẵn; hoặc assert column_config/help path — tối thiểu không regress `test_f3_alerts`.
+4. **Không** deploy trong task này (deploy sau khi Master ack + human chọn).
+5. Cập nhật Last Executor + §6 Done → `commit+push`.
+
+**Acceptance**
+- [ ] Chuỗi Cảnh báo dài đọc được @ ~1920px không horizontal scroll (hoặc full text qua tooltip/help)
+- [ ] pytest liên quan Pass; không đụng nginx/SSH
+- [ ] push; `master_ack` chờ ag1
 
 ### DONE — T-234 (Exe1 → ag1) — **acked**
 
@@ -250,9 +270,9 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 ## 6b. Handoff to Support (ag3/sp1 · ag5/sp2)
 
-**Current Doing (S-*):** *(trống)* — idle; **S-022 Done** chờ `master_ack`.
+**Current Doing (S-*):** *(trống)* — idle; **S-022 Master ack Pass**.
 
-### DONE — S-022 (sp2 / ag5 → ag1) — chờ ack
+### DONE — S-022 (sp2 / ag5 → ag1) — **acked**
 
 **Deliverables:** `tests/test_f3_alerts.py` — `test_swing_high_compose_snapshot` (fixture bars → `build_alert_phrases` + `alert_column_for_bars`); giữ `test_swing_high_wording`.  
 **pytest:** `tests/test_f3_alerts.py` **Pass (10)**.  
@@ -261,7 +281,10 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 **Acceptance**
 - [x] pytest f3_alerts Pass (helper + compose/snapshot)
 - [x] chuỗi UI-facing = `giảm thủng vùng đỉnh cũ 25.0`; cấm `hỗ trợ đỉnh` / `vùng hỗ trợ đỉnh`
-- [x] push; `master_ack` chờ ag1
+- [x] push; `master_ack` yes
+
+### Master ack (S-022) — 2026-10-18
+- **Pass** — Master re-verify pytest Pass (10); human **6b**; P2 #3 đóng; unlock T-235.
 
 ### FORK — S-022 (ag1 → sp2 / ag5) — 2026-10-18 *(historical)*
 
@@ -312,33 +335,30 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing` 
 | Tab | Alias | Turns | Files this task | Slowing? | Status |
 |-----|-------|------:|----------------:|----------|--------|
 | master | ag1 | — | — | — | **active** |
-| executor-1 | ag2 | 1 | 1 | no | idle — T-234 **acked** |
+| executor-1 | ag2 | 0 | — | no | **active** — T-235 Doing |
 | executor-2 | ag2 | — | — | — | standby (fork) |
-| support-1 | ag3 / sp1 | — | — | yes | **paused_fork** — S-022 chuyển sp2 |
-| support-2 | ag5 / sp2 | 1 | 1 | no | **idle** — S-022 Done; chờ master_ack |
+| support-1 | ag3 / sp1 | — | — | yes | **paused_fork** |
+| support-2 | ag5 / sp2 | 1 | 1 | no | idle — S-022 **acked** |
 
 ### Master commands
 
 ```text
-S-022 Done (ag5/sp2) — pytest tests/test_f3_alerts.py Pass (10);
-compose+UI path «giảm thủng vùng đỉnh cũ»; cấm «hỗ trợ đỉnh».
-master_ack pending. ag2 IDLE; Support idle.
+Master ack S-022 Pass (pytest 10). START T-235 — ag2 / Exe1 (human 6b).
+DoD: sidebar «Vị thế» cột Cảnh báo — wrap và/hoặc TextColumn help;
+đọc hết chuỗi dài @ ~1920px không cuộn ngang; no deploy; no engine change.
+Support IDLE.
 ```
 
 ### Last Executor state (ag2)
 
 ```
-task: T-234
-result: Done
-image: 65f742a0fda3
-code: 75e2c24
-branch: main
-upstream: PASS
-health: 200
-public: 302
+task: T-235
+result: Doing
 owner: executor-1
-Status: idle
-master_ack: yes
+Status: active
+master_ack: pending
+focus: sidebar Cảnh báo wrap/tooltip (Auditor 1505 P2 #2)
+prior: T-234 Done (image 65f742a0fda3)
 ```
 
 ### Last Support state (ag5 / sp2)
@@ -348,11 +368,9 @@ task: S-022
 result: Done
 owner: sp2
 Status: idle
-master_ack: pending
+master_ack: yes
 pytest: tests/test_f3_alerts.py Pass (10)
 files: tests/test_f3_alerts.py
-focus: SWING_HIGH compose/snapshot (Auditor 1505 P2 #3)
-forked_from: sp1 (context full)
 ```
 
 ### Signals
@@ -367,6 +385,7 @@ SIGNAL_NEED_FORK: no
 
 | Khi | Thay đổi |
 |-----|----------|
+| 2026-10-18 | **Master ack S-022 Pass** + **START T-235** — human 6b; sidebar Cảnh báo wrap; ag2 active |
 | 2026-10-18 | **S-022 Done** — ag5/sp2 compose SWING_HIGH snapshot; pytest Pass (10); master_ack pending |
 | 2026-10-18 | **FORK S-022** — ag3→ag5/sp2 (context full); naming + sessions; sp1 paused_fork |
 | 2026-10-18 | **Master ack Auditor 1505 Pass 9/9** + **START S-022** — human 3c; inbox merge; ag3 SWING_HIGH snapshot |
