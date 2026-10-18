@@ -1,12 +1,12 @@
 # AuditorBot backlog
 
-Cập nhật: **2026-10-17** (T-140). Inbox trống → các brief overnight dưới đây **không** có báo cáo.
+Cập nhật: **2026-10-18** — F3 Cảnh báo smoke.
 
 ## Active (làm tiếp)
 
 | Task file | Priority | Status | Notes |
 |-----------|----------|--------|-------|
-| *(không)* | — | — | Chờ brief mới từ Orchestrator |
+| `tasks/20261018-1425-f3-canh-bao-smoke.md` | P0 | **active** | Post T-232; cột Cảnh báo Watchlist F3; chờ inbox |
 
 ## Done (có inbox)
 

@@ -1,7 +1,7 @@
 # PROGRESS.md — atz.vn / vnstocks
 
 > Master Architect artifact. Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
-> Cập nhật: **2026-10-18** — **Master ack T-232 Pass** — VPS `main` @ `c5d1e6c`; image `2900f583873a`.
+> Cập nhật: **2026-10-18** — Auditor task F3 Cảnh báo smoke `20261018-1425` (chờ inbox).
 
 ### Naming convention (bắt buộc)
 
@@ -286,8 +286,8 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing` 
 ### Master commands
 
 ```
-IDLE — Master ack T-232 Pass (image 2900f583873a, main).
-Next: human idle | smoke Cảnh báo.
+WAIT_AUDITOR — task docs/auditorbot/tasks/20261018-1425-f3-canh-bao-smoke.md
+Smoke Cảnh báo F3 giao AuditorBot (Active). ag2/sp1 IDLE.
 ```
 
 ### Last Executor state (ag2)
@@ -332,6 +332,7 @@ report: docs/specs/F3_SECTOR_UNIVERSE.md
 
 | Khi | Thay đổi |
 |-----|----------|
+| 2026-10-18 | **WAIT_AUDITOR** — task `20261018-1425` F3 Cảnh báo smoke |
 | 2026-10-18 | **Master ack T-232 Pass** — image `2900f583873a`; VPS on main |
 | 2026-10-18 | **START T-232** — redeploy vnstocks from main (human 1b) |
 | 2026-10-18 | **T-232 Done** — VPS `main` @ `c5d1e6c`; image `2900f583873a`; upstream PASS; health 200; public 302 |
