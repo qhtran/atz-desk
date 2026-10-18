@@ -1,7 +1,7 @@
 # PROGRESS.md — atz.vn / vnstocks
 
 > Master Architect artifact. Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
-> Cập nhật: **2026-10-18** — **T-236 Done** — image `cedd90d404a2`; **T-237** Todo (Giá RT).
+> Cập nhật: **2026-10-18** — **Master ack T-236 Pass** (image `cedd90d404a2`); **T-237** Todo sẵn START.
 
 ### Naming convention (bắt buộc)
 
@@ -43,7 +43,7 @@ Exe2 = executor-2 (standby khi fork) — vẫn dưới nhánh **ag2**, không đ
 | Auth | Authentik forward-auth; identity = headers; trading prefs = SQLite (ADR 0004); **ADR 0006** cấm OIDC Client Streamlit |
 | Branch / HEAD | **`main` @ `bb6862c`** — VPS UI image `cedd90d404a2` (T-236) |
 | NON-goal | Không đặt lệnh tự động; không SPA/BFF Phase 2; không OIDC client trong app trừ ADR mới |
-| `user_confirmed_infra` | **yes** — T-236 Done; `vnstocks` only |
+| `user_confirmed_infra` | **yes** — T-236 acked; `vnstocks` only |
 
 **Active goals (ưu tiên sản phẩm):**
 1. Giữ pipeline near-realtime ổn định + UI bảng thống nhất (`realtime` / `analytical` / `compact`).
@@ -146,7 +146,7 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 | T-233 | F3 Cảnh báo P2 polish (Auditor) | analysis, ui, tests | **Master ack Pass** — sidebar F3; merge same-price; SWING_HIGH; pytest Pass (24); no deploy |
 | T-234 | Deploy UI T-233 (`vnstocks` only) | docker | **Master ack Pass** — image `65f742a0fda3`; `main` @ `75e2c24`; health 200; public 302 |
 | T-235 | Sidebar Cảnh báo wrap/tooltip (Auditor 1505 P2 #2) | ui, tests | **Master ack Pass** — preview + expander wrap; TextColumn help; pytest Pass (37); no deploy |
-| T-236 | Deploy UI T-235 (`vnstocks` only) | docker | **Executor Done** — image `cedd90d404a2`; `main` @ `91aee02`; upstream PASS; health 200; public 302 |
+| T-236 | Deploy UI T-235 (`vnstocks` only) | docker | **Master ack Pass** — image `cedd90d404a2`; `main` @ `91aee02`; upstream PASS; health 200; public 302 |
 
 ### Doing (ag2 / Exe1 — `T-*`)
 
@@ -209,14 +209,17 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 ## 6. Handoff to Agent 2 (ag2 / Exe1)
 
-**Current Doing (T-*):** *(trống)* — T-236 Done; chờ ag1 ack / START T-237.
+**Current Doing (T-*):** *(trống)* — idle; **T-236 Master ack Pass**.
 
-### DONE — T-236 (Exe1 → ag1) — **awaiting master_ack**
+### DONE — T-236 (Exe1 → ag1) — **acked**
 
 - VPS `main` @ `91aee02` (≥ `c7352a3`)
 - image `cedd90d404a2` (≠ `65f742a0fda3`); `--no-deps --force-recreate vnstocks` only
 - upstream PASS; health **200**; public **302**
 - Không đụng nginx/sshd/UFW/workers; không T-237
+
+### Master ack (T-236) — 2026-10-18
+- **Pass** — DoD đủ; human **10 done**; T-237 unlocked (chờ human START).
 
 ### DONE — T-235 (Exe1 → ag1) — **acked**
 
@@ -336,7 +339,7 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing` 
 | Tab | Alias | Turns | Files this task | Slowing? | Status |
 |-----|-------|------:|----------------:|----------|--------|
 | master | ag1 | — | — | — | **active** |
-| executor-1 | ag2 | 1 | 1 | no | **idle** — T-236 Done |
+| executor-1 | ag2 | 1 | 1 | no | idle — T-236 **acked** |
 | executor-2 | ag2 | — | — | — | standby (fork) |
 | support-1 | ag3 / sp1 | — | — | yes | **paused_fork** |
 | support-2 | ag5 / sp2 | 1 | 1 | no | idle — S-022 **acked** |
@@ -344,8 +347,8 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing` 
 ### Master commands
 
 ```text
-T-236 Done — master_ack pending.
-T-237 Todo (Giá RT wl_rows) — START sau ack T-236.
+Master ack T-236 Pass — image cedd90d404a2; health 200; public 302.
+Lanes IDLE. Next optional: START T-237 (Giá RT wl_rows) | idle.
 ```
 
 ### Last Executor state (ag2)
@@ -361,7 +364,7 @@ health: 200
 public: 302
 owner: executor-1
 Status: idle
-master_ack: pending
+master_ack: yes
 scope: vnstocks only
 ```
 
@@ -389,6 +392,7 @@ SIGNAL_NEED_FORK: no
 
 | Khi | Thay đổi |
 |-----|----------|
+| 2026-10-18 | **Master ack T-236 Pass** — human 10; image `cedd90d404a2`; T-237 unlocked |
 | 2026-10-18 | **START T-236** + **Todo T-237** — human 9b; deploy T-235 UI; Giá RT wl_rows sau ack |
 | 2026-10-18 | **T-236 Done** — image `cedd90d404a2`; `main` @ `91aee02`; upstream PASS; health 200; public 302 |
 | 2026-10-18 | **Master ack T-235 Pass** — human 7a; pytest 37; ship `c7352a3`; deploy optional |
