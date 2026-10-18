@@ -1,7 +1,7 @@
 # PROGRESS.md — atz.vn / vnstocks
 
 > Master Architect artifact. Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
-> Cập nhật: **2026-10-18** — **START T-231** (ag2 deploy UI) + **START S-020** (sp1 sector universe).
+> Cập nhật: **2026-10-18** — **T-231 Done** (image `2f18fd2c75e9`) · **S-020** vẫn Doing (sp1).
 
 ### Naming convention (bắt buộc)
 
@@ -39,9 +39,9 @@ Exe2 = executor-2 (standby khi fork) — vẫn dưới nhánh **ag2**, không đ
 | Data | Redis (nóng) + SQLite `data/signals.db` (bền); secrets chỉ env |
 | Deploy | Docker Compose `/opt/vnstocks` — services: `vnstocks`, ingestion, filter-runner, alert, position, index-feed, redis |
 | Auth | Authentik forward-auth; identity = headers; trading prefs = SQLite (ADR 0004); **ADR 0006** cấm OIDC Client Streamlit |
-| Branch / HEAD | `main` @ `da418b8`+ — VPS UI `4aaa437be56c`; T-220 SSO pending-approve |
+| Branch / HEAD | `feat/sector-universe-f3` @ `9fd7d69`+ — VPS UI `2f18fd2c75e9` (T-231); main @ `7dbd756` |
 | NON-goal | Không đặt lệnh tự động; không SPA/BFF Phase 2; không OIDC client trong app trừ ADR mới |
-| `user_confirmed_infra` | **yes** — T-231: rebuild/recreate **`vnstocks` only** từ `feat/sector-universe-f3`; **không** stream/sshd/UFW/nginx site |
+| `user_confirmed_infra` | **yes** — T-231 Done; VPS checkout `feat/sector-universe-f3` (UI only) |
 
 **Active goals (ưu tiên sản phẩm):**
 1. Giữ pipeline near-realtime ổn định + UI bảng thống nhất (`realtime` / `analytical` / `compact`).
@@ -139,12 +139,13 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 | T-220 | Authentik SSO Sources + enrollment pending approve | infra | **Done** — enrollment + Sources; secrets synced; outbox `1830-DONE` |
 | T-221 | Smoke SSO live Google/FB | infra | **Master ack Pass** — Google login OK; đổi MK OK; connection `mydev`; C Skip; outbox `2320`+ack |
 | T-230 | F3 cột Cảnh báo UI + alert engine | analysis, ui, tests | **Master ack Pass** — f3_alerts + Watchlist F3; pytest Pass (7); no deploy |
+| T-231 | Deploy F3 Cảnh báo UI (`vnstocks` only) | docker | **Executor Done** — image `2f18fd2c75e9`; branch `9fd7d69`; upstream PASS; health 200; public 302 |
 
 ### Doing (ag2 / Exe1 — `T-*`)
 
 | ID | Title | Status | Modules | Target files | Acceptance | Deps | Agent 2 instructions |
 |----|-------|--------|---------|--------------|------------|------|----------------------|
-| **T-231** | Deploy F3 Cảnh báo UI (`vnstocks` only) | **Doing** | docker | VPS `/opt/vnstocks` | image mới; health 200; 302 public | T-230 | **START** — xem §6 |
+| — | *(trống — chờ human / ag1)* | — | — | — | — | — | — |
 
 **Quy tắc:** tối đa **một** `T-*` Doing (ag2) **và** tối đa **một** `S-*` Doing (ag3) — hai lane song song, không chung ID.
 
@@ -195,26 +196,15 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 ## 6. Handoff to Agent 2 (ag2 / Exe1)
 
-**Current Doing (T-*):** **T-231** — Deploy F3 Cảnh báo UI.
+**Current Doing (T-*):** *(trống)* — T-231 Done; chờ ag1 ack.
 
-### START — T-231 (ag1 → ag2)
+### DONE — T-231 (Exe1 → ag1) — **awaiting master_ack**
 
-**Scope:** `user_confirmed_infra: yes` — rebuild/recreate **`vnstocks` only**.  
-**Branch/commit:** `feat/sector-universe-f3` @ `a7882c7`+ (có T-230). Không merge `main` trừ khi cần cherry-pick — ưu tiên checkout branch này trên VPS build context.
-
-**IN**
-1. Pull branch trên VPS `/opt/vnstocks` (hoặc sync image build từ commit trên).
-2. `docker compose build vnstocks && docker compose up -d vnstocks` (tên service đúng compose hiện có).
-3. Verify: container healthy / stcore 200; public atz.vn → Authentik **302** (forward-auth).
-4. Smoke ngắn (tuỳ): Danh mục → Watchlist → chọn 1 ngành F3 → có cột **Cảnh báo** (không cần full visual report).
-5. Cập nhật Last Executor state + image id; **không** đụng nginx stream / sshd / UFW / Authentik.
-
-**OUT:** ingestion/filter/alert/redis recreate; force-push; merge main bắt buộc.
-
-**Acceptance**
-- [ ] Image id mới trên VPS
-- [ ] Health/upstream OK; public 302
-- [ ] Report Done trên PROGRESS; push bus
+- VPS: `checkout feat/sector-universe-f3` @ `9fd7d69` (≥ `a7882c7`)
+- image `2f18fd2c75e9`; `--no-deps --force-recreate vnstocks` only
+- upstream PASS; `_stcore/health` **200**; public **302** (Authentik)
+- Smoke Watchlist Cảnh báo: skip (cần login session); deploy DoD đủ
+- Không đụng nginx/sshd/UFW/workers
 
 ### DONE — T-230 (Exe1 → ag1) — **acked** + shipped `a7882c7`
 
@@ -283,26 +273,31 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing` 
 | Tab | Alias | Turns | Files this task | Slowing? | Status |
 |-----|-------|------:|----------------:|----------|--------|
 | master | ag1 | — | — | — | active (plan-only) |
-| executor-1 | ag2 | 0 | 0 | no | **active — T-231** |
+| executor-1 | ag2 | 1 | 1 | no | **idle — T-231 Done** |
 | executor-2 | ag2 | — | — | — | standby (fork) |
 | support-1 | ag3 / sp1 | 0 | 0 | no | **active — S-020** |
 
 ### Master commands
 
 ```
-START T-231 — owner=executor-1; vnstocks only; branch feat/sector-universe-f3 @ a7882c7+; user_confirmed_infra=yes.
-START S-020 — owner=sp1; sector_universe reverse-fit report; no src/atz / no deploy.
-Bus protocol on — agents pull; human chỉ trả số cho ag1.
+T-231 Done — master_ack pending.
+S-020 still Doing (sp1).
 ```
 
 ### Last Executor state (ag2)
 
 ```
 task: T-231
-result: Doing
+result: Done
+image: 2f18fd2c75e9
+code: 9fd7d69
+branch: feat/sector-universe-f3
+upstream: PASS
+health: 200
+public: 302
 owner: executor-1
-Status: active
-deps: T-230 @ a7882c7
+Status: idle
+master_ack: pending
 ```
 
 ### Last Support state (ag3 / sp1)
@@ -326,6 +321,7 @@ Status: active
 |-----|----------|
 | 2026-10-18 | **Poll idle** — ag2/ag3 không Doing; T-230 ship `a7882c7`; bus header sync |
 | 2026-10-18 | **START T-231 + S-020** — deploy UI vnstocks; sp1 sector universe (human 1d) |
+| 2026-10-18 | **T-231 Done** — image `2f18fd2c75e9`; VPS `feat/sector-universe-f3` @ `9fd7d69`; upstream PASS; health 200; public 302 |
 | 2026-10-18 | **Bus protocol** — human↔ag1 chỉ số; ag2/ag3 pull PROGRESS (ít paste) |
 | 2026-10-18 | **Master ack T-230 Pass** — F3 alerts UI; chờ human commit |
 | 2026-10-18 | **T-230 Done** — f3_alerts + Watchlist F3 cột Cảnh báo; pytest Pass (7); no deploy |
