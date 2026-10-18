@@ -33,7 +33,8 @@ def main() -> None:
     signal.signal(signal.SIGTERM, _stop)
     signal.signal(signal.SIGINT, _stop)
     log("HEALTH", f"start primary={settings.primary_source} fallback={settings.fallback_source} "
-                  f"symbols={len(settings.symbols)} batch={settings.batch_size} max_rpm={settings.safety_max_rpm}")
+                  f"symbols_mode={settings.symbols_mode} symbols={len(settings.symbols)} "
+                  f"batch={settings.batch_size} max_rpm={settings.safety_max_rpm}")
     while RUNNING:
         try:
             orch.run_cycle()
