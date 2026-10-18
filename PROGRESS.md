@@ -1,7 +1,7 @@
 # PROGRESS.md — atz.vn / vnstocks
 
 > Master Architect artifact. Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
-> Cập nhật: **2026-10-18** — **Master ack T-237 Pass**; lanes idle; deploy optional.
+> Cập nhật: **2026-10-18** — **START T-238** deploy UI T-237 (ag6/exe2; human 14a).
 
 ### Naming convention (bắt buộc)
 
@@ -44,7 +44,7 @@
 | Auth | Authentik forward-auth; identity = headers; trading prefs = SQLite (ADR 0004); **ADR 0006** cấm OIDC Client Streamlit |
 | Branch / HEAD | **`main` @ `bb6862c`** — VPS UI image `cedd90d404a2` (T-236) |
 | NON-goal | Không đặt lệnh tự động; không SPA/BFF Phase 2; không OIDC client trong app trừ ADR mới |
-| `user_confirmed_infra` | **yes** — T-236 acked; `vnstocks` only |
+| `user_confirmed_infra` | **yes** — T-238 Doing; `vnstocks` only |
 
 **Active goals (ưu tiên sản phẩm):**
 1. Giữ pipeline near-realtime ổn định + UI bảng thống nhất (`realtime` / `analytical` / `compact`).
@@ -150,11 +150,11 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 | T-236 | Deploy UI T-235 (`vnstocks` only) | docker | **Master ack Pass** — image `cedd90d404a2`; `main` @ `91aee02`; upstream PASS; health 200; public 302 |
 | T-237 | F3 wl_rows + cột Giá RT | ui, datasource, tests | **Master ack Pass** — `build_wl_symbol_rows` Mã\|Giá\|Cảnh báo; Redis+OHLCV fallback; pytest Pass (15); ship `b12b28a`; no deploy |
 
-### Doing (ag2 / Exe1 — `T-*`)
+### Doing (ag2/Exe1 · ag6/Exe2 — `T-*`)
 
 | ID | Title | Status | Modules | Target files | Acceptance | Deps | Agent 2 instructions |
 |----|-------|--------|---------|--------------|------------|------|----------------------|
-| — | *(trống — chờ human / ag1)* | — | — | — | — | — | — |
+| **T-238** | Deploy UI T-237 (`vnstocks` only) | **Doing** | docker | Compose `/opt/vnstocks` · service `vnstocks` | image mới; upstream PASS; health 200; public 302 | T-237 | Owner **ag6/exe2** — xem §6 START |
 
 **Quy tắc:** tối đa **một** `T-*` Doing (ag2/ag6) **và** tối đa **một** `S-*` Doing (ag3/ag5) — hai lane song song, không chung ID.
 
@@ -210,7 +210,23 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 ## 6. Handoff to Executor (ag2/Exe1 · ag6/Exe2)
 
-**Current Doing (T-*):** *(trống)* — idle; **T-237 Master ack Pass**.
+**Current Doing (T-*):** **T-238** — deploy UI T-237 (human **14a**; owner **ag6/exe2**).
+
+### START — T-238 (ag1 → Exe2) — 2026-10-18 · Phase B GO
+
+**Authorize:** `user_confirmed_infra: yes` · scope **`vnstocks` only** (không rebuild workers / không nginx/sshd/UFW).
+
+**Code kỳ vọng:** `main` ≥ `b12b28a` (T-237) / bus ≥ `ce811b9`.
+
+**Làm (ag6 / exe2):**
+1. VPS: pull `main` → rebuild/recreate **chỉ** service `vnstocks`.
+2. DoD: image ID mới (≠ `cedd90d404a2` trừ bất khả kháng); upstream/health **200**; public atz.vn → Authentik **302**.
+3. Không smoke UI dài; không đụng Chat/community backlog.
+4. Cập nhật Last Executor + §6 Done → `commit+push` PROGRESS.
+
+**Acceptance**
+- [ ] image mới trên VPS · health 200 · public 302 · no nginx/sshd/UFW
+- [ ] push; `master_ack` chờ ag1
 
 ### DONE — T-237 (ag6 / exe2 → ag1) — **acked**
 
@@ -373,30 +389,30 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing` 
 |-----|-------|------:|----------------:|----------|--------|
 | master | ag1 | — | — | — | **active** |
 | executor-1 | ag2 | — | — | yes | **paused_fork** — T-237 chuyển exe2 |
-| executor-2 | ag6 / exe2 | 1 | 2 | no | idle — T-237 **acked** |
+| executor-2 | ag6 / exe2 | 0 | — | no | **active** — T-238 Doing |
 | support-1 | ag3 / sp1 | — | — | yes | **paused_fork** |
 | support-2 | ag5 / sp2 | 1 | 1 | no | idle — S-022 **acked** |
 
 ### Master commands
 
 ```text
-Master ack T-237 Pass (pytest 15; ship b12b28a).
-Lanes IDLE. Optional next: deploy UI T-237 (vnstocks only) | idle | Chat backlog.
+START T-238 — ag6 / exe2 (human 14a).
+Phase B GO: user_confirmed_infra=yes; vnstocks ONLY; code ≥ b12b28a (T-237).
+DoD: new image; health 200; public 302; no nginx/sshd/UFW.
+ag2 remains paused_fork.
 ```
 
 ### Last Executor state (ag6 / exe2)
 
 ```
-task: T-237
-result: Done
+task: T-238
+result: Doing
 owner: exe2
-Status: idle
-master_ack: yes
-deploy: no
-pytest: Pass (15)
-ship: b12b28a
-files: src/atz/ui/watchlists_page.py, tests/test_watchlists_page.py
-forked_from: ag2/Exe1 (context full)
+Status: active
+master_ack: pending
+scope: vnstocks only
+user_confirmed_infra: yes
+prior: T-237 acked (b12b28a)
 ```
 
 ### Last Support state (ag5 / sp2)
@@ -423,6 +439,7 @@ SIGNAL_NEED_FORK: cleared (T-237 completed by exe2)
 
 | Khi | Thay đổi |
 |-----|----------|
+| 2026-10-18 | **START T-238** — human 14a; deploy T-237 UI vnstocks; owner ag6/exe2 |
 | 2026-10-18 | **Master ack T-237 Pass** — human 13a; pytest 15; ship `b12b28a`; deploy optional |
 | 2026-10-18 | **T-237 Done** — ag6/exe2; wl_rows Giá RT; pytest Pass (15); no deploy; master_ack pending |
 | 2026-10-18 | **FORK T-237** — ag2→ag6/exe2 (context full); naming ag6=Exe2; Exe1 paused_fork |
