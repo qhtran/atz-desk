@@ -1,0 +1,148 @@
+paths:
+  themes: config/sector_themes_f3.yaml
+  industry: data/industry_l3.csv
+  bars_dir: data/sector_universe/ohlcv
+  output_dir: data/sector_universe/out
+features:
+  volume_window: 20
+  min_bars: 25
+  atr_window: 14
+defaults:
+  w_log_gtgd: 0.55
+  w_log_vol: 0.35
+  w_atr: 0.1
+  min_vol20: 500000
+  k_ratio: 1.0
+  k_min: 5
+  k_max: 22
+  keep_seed_if_listed: true
+  keep_whitelist: true
+fit_grid:
+  w_log_gtgd:
+  - 0.45
+  - 0.55
+  - 0.65
+  w_log_vol:
+  - 0.25
+  - 0.35
+  - 0.45
+  w_atr:
+  - 0.05
+  - 0.1
+  min_vol20:
+  - 300000
+  - 500000
+  - 800000
+  k_ratio:
+  - 0.9
+  - 1.0
+  - 1.1
+  - 1.25
+fit_objective:
+  recall_weight: 0.7
+  precision_weight: 0.3
+pull:
+  lookback_days: 230
+  sleep_seconds: 0.15
+  max_symbols: 0
+  skip_fresh_days: 3
+fitted:
+  w_log_gtgd: 0.45
+  w_log_vol: 0.25
+  w_atr: 0.05
+  min_vol20: 300000.0
+  k_ratio: 0.9
+  k_min: 5
+  k_max: 22
+  keep_seed_if_listed: true
+  keep_whitelist: true
+  fitted_at: '2026-10-18T03:47:19+00:00'
+  metrics:
+    objective: 0.994
+    macro_recall: 1.0
+    macro_precision: 0.98
+    per_theme:
+      chung_khoan:
+        recall: 1.0
+        precision: 1.0
+        selected_n: 3
+        seed_with_bars: 3
+        hit: 3
+      ngan_hang:
+        recall: 1.0
+        precision: 1.0
+        selected_n: 12
+        seed_with_bars: 12
+        hit: 12
+      bds_nha_o:
+        recall: 1.0
+        precision: 0.8
+        selected_n: 5
+        seed_with_bars: 4
+        hit: 4
+      bds_cong_nghiep:
+        recall: 0.0
+        precision: 0.0
+        selected_n: 1
+        seed_with_bars: 0
+        hit: 0
+      thep:
+        recall: 1.0
+        precision: 1.0
+        selected_n: 1
+        seed_with_bars: 1
+        hit: 1
+      xay_lap:
+        recall: 0.0
+        precision: 0.0
+        selected_n: 0
+        seed_with_bars: 0
+        hit: 0
+      cang_van_tai:
+        recall: 1.0
+        precision: 1.0
+        selected_n: 1
+        seed_with_bars: 1
+        hit: 1
+      ban_le:
+        recall: 1.0
+        precision: 1.0
+        selected_n: 5
+        seed_with_bars: 5
+        hit: 5
+      dau_khi:
+        recall: 1.0
+        precision: 1.0
+        selected_n: 3
+        seed_with_bars: 3
+        hit: 3
+      hoa_chat:
+        recall: 0.0
+        precision: 0.0
+        selected_n: 0
+        seed_with_bars: 0
+        hit: 0
+      hang_khong:
+        recall: 1.0
+        precision: 1.0
+        selected_n: 1
+        seed_with_bars: 1
+        hit: 1
+      nang_luong:
+        recall: 1.0
+        precision: 1.0
+        selected_n: 2
+        seed_with_bars: 2
+        hit: 2
+      nong_nghiep:
+        recall: 0.0
+        precision: 0.0
+        selected_n: 0
+        seed_with_bars: 0
+        hit: 0
+      cong_nghe:
+        recall: 1.0
+        precision: 1.0
+        selected_n: 1
+        seed_with_bars: 1
+        hit: 1

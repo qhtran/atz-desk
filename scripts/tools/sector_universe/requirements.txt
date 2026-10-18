@@ -1,0 +1,4 @@
+# Tool dùng chung deps app: pandas, pyyaml, vnstock
+pandas>=2.0
+pyyaml>=6.0
+vnstock>=5.0
