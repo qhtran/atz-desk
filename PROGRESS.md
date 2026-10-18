@@ -1,7 +1,7 @@
 # PROGRESS.md — atz.vn / vnstocks
 
 > Master Architect artifact. Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
-> Cập nhật: **2026-10-18** — **Master ack T-235 Pass**; lanes idle; deploy optional.
+> Cập nhật: **2026-10-18** — **START T-236** deploy T-235 UI; **T-237** Todo (Giá RT wl_rows) — human 9b.
 
 ### Naming convention (bắt buộc)
 
@@ -43,7 +43,7 @@ Exe2 = executor-2 (standby khi fork) — vẫn dưới nhánh **ag2**, không đ
 | Auth | Authentik forward-auth; identity = headers; trading prefs = SQLite (ADR 0004); **ADR 0006** cấm OIDC Client Streamlit |
 | Branch / HEAD | **`main` @ `75e2c24`+** — VPS UI image `65f742a0fda3` (T-234) |
 | NON-goal | Không đặt lệnh tự động; không SPA/BFF Phase 2; không OIDC client trong app trừ ADR mới |
-| `user_confirmed_infra` | **yes** — T-234 Done; `vnstocks` only |
+| `user_confirmed_infra` | **yes** — T-236 Doing; `vnstocks` only |
 
 **Active goals (ưu tiên sản phẩm):**
 1. Giữ pipeline near-realtime ổn định + UI bảng thống nhất (`realtime` / `analytical` / `compact`).
@@ -151,14 +151,15 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 | ID | Title | Status | Modules | Target files | Acceptance | Deps | Agent 2 instructions |
 |----|-------|--------|---------|--------------|------------|------|----------------------|
-| — | *(trống — chờ human / ag1)* | — | — | — | — | — | — |
+| **T-236** | Deploy UI T-235 (`vnstocks` only) | **Doing** | docker | Compose `/opt/vnstocks` · service `vnstocks` | image mới; upstream PASS; health 200; public 302 | T-235 | Xem §6 START |
 
-**Quy tắc:** tối đa **một** `T-*` Doing (ag2) **và** tối đa **một** `S-*` Doing (ag3) — hai lane song song, không chung ID.
+**Quy tắc:** tối đa **một** `T-*` Doing (ag2) **và** tối đa **một** `S-*` Doing (ag3/ag5) — hai lane song song, không chung ID.
 
 ### Todo (sẵn sàng khi human chọn) — ag2
 
 | ID | Title | Status | Modules | Target files (dự kiến) | Acceptance | Deps | Agent 2 instructions |
 |----|-------|--------|---------|------------------------|------------|------|----------------------|
+| **T-237** | F3 wl_rows + cột Giá RT | Todo | ui, datasource, tests | `ui/watchlists_page.py`, quote Redis helpers | Cột Giá RT trên bảng ngành; không đụng engine F3 alert | T-236 | **Sau T-236 ack** — ag5 gap §6.2; Chat/community backlog riêng |
 | T-200 | F1: enum nến mạnh / TB / yếu gắn filter | Blocked | filters, analysis, ui | `filters/candle.py`, … | Mentor | Mentor | **Blocked.** |
 | T-210 | F1: Bollinger / Ichimoku / phần II | Blocked | filters, analysis | theo mentor | Mentor | Mentor | **Blocked.** |
 | T-222 | Brand CSS Authentik login (optional) | Blocked | infra | Authentik brand CSS | Visual brand | Human | **Blocked** — tách khỏi Sources; optional. |
@@ -201,12 +202,32 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 9. ~~F3 S-010 + T-230~~ — **acked**; Open Q §11 defaults Exe1: close_D; tol=0 / SUPPORT_BAND swing; Telegram/màu = sau.
 10. **Auto-trade pipeline** — tài liệu tham chiếu only; NON-goal: không đặt lệnh.
 11. ~~**Auditor F3 re-smoke 1505**~~ — Pass 9/9; P2 #3 **S-022 acked**; P2 #2 **T-235 Master ack Pass**; #1 deferred.
+12. **F3 wl_rows gap §6.2** — thiếu Giá/Chat/community; **T-237 Todo** (Giá RT); Chat/community backlog; không reopen engine.
 
 ---
 
 ## 6. Handoff to Agent 2 (ag2 / Exe1)
 
-**Current Doing (T-*):** *(trống)* — idle; **T-235 Master ack Pass**.
+**Current Doing (T-*):** **T-236** — deploy UI T-235 (human **9b**).
+
+### START — T-236 (ag1 → Exe1) — 2026-10-18 · Phase B GO
+
+**Authorize:** `user_confirmed_infra: yes` · scope **`vnstocks` only** (không rebuild workers / không nginx/sshd/UFW).
+
+**Code kỳ vọng:** `main` ≥ `c7352a3` (T-235) / bus ≥ `c3e917a`.
+
+**Làm (Exe1):**
+1. VPS: pull `main` → rebuild/recreate **chỉ** service `vnstocks`.
+2. DoD: image ID mới; upstream/health **200**; public atz.vn → Authentik **302** (hoặc 200 nếu đã session — ghi rõ).
+3. Không smoke UI dài (Master/human); không đụng T-237 trong task này.
+4. Cập nhật Last Executor + §6 Done → `commit+push` PROGRESS.
+
+**Acceptance**
+- [ ] image ≠ `65f742a0fda3` (T-234 cũ) trừ khi hash trùng bất khả kháng — ghi image mới
+- [ ] health 200 · public 302 · no nginx/sshd/UFW
+- [ ] push; `master_ack` chờ ag1
+
+**Sau ack T-236:** human có thể START **T-237** (Giá RT `wl_rows`).
 
 ### DONE — T-235 (Exe1 → ag1) — **acked**
 
@@ -326,7 +347,7 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing` 
 | Tab | Alias | Turns | Files this task | Slowing? | Status |
 |-----|-------|------:|----------------:|----------|--------|
 | master | ag1 | — | — | — | **active** |
-| executor-1 | ag2 | 1 | 2 | no | idle — T-235 **acked** |
+| executor-1 | ag2 | 0 | — | no | **active** — T-236 Doing |
 | executor-2 | ag2 | — | — | — | standby (fork) |
 | support-1 | ag3 / sp1 | — | — | yes | **paused_fork** |
 | support-2 | ag5 / sp2 | 1 | 1 | no | idle — S-022 **acked** |
@@ -334,22 +355,23 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing` 
 ### Master commands
 
 ```text
-Master ack T-235 Pass (pytest 37; ship c7352a3).
-Lanes IDLE. Optional next: deploy UI T-235 (vnstocks only) | idle.
+START T-236 — ag2 / Exe1 (human 9b).
+Phase B GO: user_confirmed_infra=yes; vnstocks ONLY; code ≥ c7352a3 (T-235).
+DoD: new image; health 200; public 302; no nginx/sshd/UFW; no T-237 yet.
+T-237 Todo (Giá RT wl_rows) — START sau khi T-236 ack.
 ```
 
 ### Last Executor state (ag2)
 
 ```
-task: T-235
-result: Done
+task: T-236
+result: Doing
 owner: executor-1
-Status: idle
-master_ack: yes
-deploy: no
-pytest: Pass (37)
-ship: c7352a3
-note: preview cell + expander wrap full F3
+Status: active
+master_ack: pending
+scope: vnstocks only
+user_confirmed_infra: yes
+prior: T-235 acked (c7352a3)
 ```
 
 ### Last Support state (ag5 / sp2)
@@ -376,6 +398,7 @@ SIGNAL_NEED_FORK: no
 
 | Khi | Thay đổi |
 |-----|----------|
+| 2026-10-18 | **START T-236** + **Todo T-237** — human 9b; deploy T-235 UI; Giá RT wl_rows sau ack |
 | 2026-10-18 | **Master ack T-235 Pass** — human 7a; pytest 37; ship `c7352a3`; deploy optional |
 | 2026-10-18 | **Master ack S-022 Pass** + **START T-235** — human 6b; sidebar Cảnh báo wrap; ag2 active |
 | 2026-10-18 | **T-235 Done** — preview + expander wrap; TextColumn help; pytest Pass (37); no deploy |
