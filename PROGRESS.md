@@ -1,7 +1,7 @@
 # PROGRESS.md — atz.vn / vnstocks
 
 > Master Architect artifact. Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
-> Cập nhật: **2026-10-18** — **S-021 Done** (sp1) — vnstock 5.1.0; bars **180/181**; gap report refresh; chờ Master ack.
+> Cập nhật: **2026-10-18** — **Master ack S-021 Pass** — vnstock 5.1.0; bars 180/181; lanes IDLE.
 
 ### Naming convention (bắt buộc)
 
@@ -169,7 +169,7 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 | ID | Title | Status | Notes |
 |----|-------|--------|-------|
-| **S-021** | Nâng vnstock + pull bars + refresh metrics | **Done** | vnstock **5.1.0**; bars **180/181** (PDG miss KBS); recall 100% / prec 99.1%; chờ Master ack |
+| **S-021** | Nâng vnstock + pull bars + refresh metrics | **Done** | **Master ack Pass** — vnstock 5.1.0; bars 180/181 (PDG miss KBS); recall 100% / prec 99.1% |
 | **S-020** | Sector universe reverse-fit + gap report | **Done** | **Master ack Pass** — 33/181 bars (baseline) |
 | **S-010** | F3 «Cảnh báo» — catalog rule → spec | **Done** | `docs/specs/F3_ALERTS.md` — **Master ack Pass** |
 
@@ -230,23 +230,19 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 ## 6b. Handoff to Agent 3 (ag3 / sp1)
 
-**Current Doing (S-*):** *(trống)* — idle sau **S-021 Done**.
+**Current Doing (S-*):** *(trống)* — idle; **S-021 Master ack Pass**.
 
-### DONE — S-021 (sp1 → ag1)
+### DONE — S-021 (sp1 → ag1) — **acked**
 
-**Deliverables**
-- vnstock **5.1.0** (extra-index vnstocks.com); `scripts/tools/sector_universe/requirements.txt`
-- `pull_bars.py --force`: ok=180 fail=1 (**PDG** — KBS không có mã)
-- `fit.py --write-config` + `report_gap.py` → `docs/specs/F3_SECTOR_UNIVERSE.md`
-- Coverage **180/181** (baseline 33/181); macro recall **100%** · precision **99.1%** (14/14 theme)
-
-**OUT giữ:** không `src/atz`; không deploy; không commit bulk OHLCV (`data/` gitignore).
+**Deliverables:** vnstock 5.1.0; bars **180/181**; report + fitted refresh  
+**Caveat chấp nhận:** PDG thiếu (KBS không có mã) — không chặn Pass.
 
 **Acceptance**
-- [x] vnstock ≥ 5.1
-- [x] Coverage seed > 33 (**180/181**)
-- [x] Spec/report + fitted refresh
-- [x] Last Support Done; push bus
+- [x] vnstock ≥ 5.1 · coverage 180/181 · report · push
+- [x] master_ack yes
+
+### Master ack (S-021) — 2026-10-18
+- **Pass** — coverage gần đủ; 14/14 theme; OUT giữ.
 
 ### DONE — S-020 — **acked** (baseline 33/181)
 ### DONE — S-010 — **acked**
@@ -280,14 +276,13 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing` 
 | master | ag1 | — | — | — | active (plan-only) |
 | executor-1 | ag2 | 1 | 1 | no | idle — T-231 **acked** |
 | executor-2 | ag2 | — | — | — | standby (fork) |
-| support-1 | ag3 / sp1 | 1 | 3 | no | **idle — S-021 Done** |
+| support-1 | ag3 / sp1 | 1 | 3 | no | idle — S-021 **acked** |
 
 ### Master commands
 
 ```
-S-021 Done — master_ack pending (sp1).
-vnstock 5.1.0; bars 180/181 (PDG miss KBS); recall 100% / prec 99.1%.
-ag2 IDLE. Branch: feat/sector-universe-f3.
+IDLE — Master ack S-021 Pass (180/181 bars; PDG miss OK).
+Next: human (PR merge / UI smoke / idle).
 ```
 
 ### Last Executor state (ag2)
@@ -306,7 +301,7 @@ task: S-021
 result: Done
 owner: sp1
 Status: idle
-master_ack: pending
+master_ack: yes
 vnstock: 5.1.0
 bars_coverage: 180/181
 missing: PDG (KBS)
@@ -325,6 +320,7 @@ report: docs/specs/F3_SECTOR_UNIVERSE.md
 
 | Khi | Thay đổi |
 |-----|----------|
+| 2026-10-18 | **Master ack S-021 Pass** — 180/181 bars; PDG miss accepted |
 | 2026-10-18 | **S-021 Done** — vnstock 5.1.0; bars 180/181; gap refresh; PDG miss KBS |
 | 2026-10-18 | **NUDGE S-021** — sp1 nhầm “up-to-date” = Done; nhắc làm đủ §6b (human 1a) |
 | 2026-10-18 | **START S-021** — sp1 vnstock≥5.1 + pull bars + refresh gap (human 1c) |
