@@ -7,6 +7,7 @@ from pathlib import Path
 
 import yaml
 
+from ingestion.universe import resolve_symbols
 from storage.paths import repo_root
 
 DEFAULT_PATH = repo_root() / "config" / "ingestion.yaml"
@@ -19,6 +20,7 @@ class Settings:
     poll_interval_seconds: float
     batch_size: int
     safety_max_rpm: int
+    symbols_mode: str
     request_timeout_seconds: float
     failure_threshold: int
     recovery_timeout_seconds: float
@@ -53,13 +55,18 @@ def load(path: str | os.PathLike | None = None) -> Settings:
     doc = yaml.safe_load(path.read_text(encoding="utf-8"))
     ing, red = doc["ingestion"], doc["redis"]
     cb = ing["circuit_breaker"]
-    symbols = _env("INGEST_SYMBOLS", doc.get("symbols", []), lambda s: s.split(","))
+    static = _env("INGEST_SYMBOLS", doc.get("symbols", []), lambda s: s.split(","))
+    if isinstance(static, str):
+        static = [p for p in static.split(",") if p.strip()]
+    mode = str(_env("INGEST_SYMBOLS_MODE", ing.get("symbols_mode", "static"), str))
+    symbols = resolve_symbols(mode, list(static or []))
     return Settings(
         primary_source=_env("INGEST_PRIMARY_SOURCE", ing["primary_source"], str).upper(),
         fallback_source=_env("INGEST_FALLBACK_SOURCE", ing["fallback_source"], str).upper(),
         poll_interval_seconds=_env("INGEST_POLL_INTERVAL_SECONDS", ing["poll_interval_seconds"], float),
         batch_size=_env("INGEST_BATCH_SIZE", ing["batch_size"], int),
         safety_max_rpm=_env("INGEST_SAFETY_MAX_RPM", ing["safety_max_rpm"], int),
+        symbols_mode=mode.strip().lower(),
         request_timeout_seconds=_env("INGEST_REQUEST_TIMEOUT_SECONDS", ing["request_timeout_seconds"], float),
         failure_threshold=_env("INGEST_CB_FAILURE_THRESHOLD", cb["failure_threshold"], int),
         recovery_timeout_seconds=_env("INGEST_CB_RECOVERY_TIMEOUT_SECONDS", cb["recovery_timeout_seconds"], float),

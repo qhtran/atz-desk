@@ -3,10 +3,11 @@
 ingestion:
   primary_source: KBS
   fallback_source: VCI
-  poll_interval_seconds: 3                # đo 2026-10-16 (User Manual 6.1): 1 req/chu kỳ = 20 rpm
-  batch_size: 50
-  safety_max_rpm: 350                     # 70% x 500 rpm (vnstock Golden, mức thấp của 500-600/phút; 36K/giờ, 150K/ngày). Probe 2026-10-16: KBS+VCI ok tới 240 rpm
-  request_timeout_seconds: 8
+  poll_interval_seconds: 3                # 1 chu kỳ ≈ 1 price_board khi batch ≥ universe
+  batch_size: 2000                        # 1 shot full board (~1519 stock); không cắt 50
+  safety_max_rpm: 500                     # phanh nội bộ; probe 2026-10-18 off-hours chịu tới 800
+  symbols_mode: board_stocks              # Listing type=stock; YAML symbols = fallback
+  request_timeout_seconds: 15             # full-board 1 call ~0.5s; chừa margin
   circuit_breaker:
     failure_threshold: 5
     recovery_timeout_seconds: 45
@@ -30,5 +31,6 @@ redis:
   stream_maxlen: 100000
   health_key: "ingest:health"
   health_max_age_seconds: 120
+# Fallback khi Listing lỗi / INGEST_SYMBOLS_MODE=static (tests).
 symbols: [ACB, BCM, BID, BVH, CTG, FPT, GAS, GVR, HDB, HPG, LPB, MBB, MSN, MWG, PLX,
           SAB, SHB, SSB, SSI, STB, TCB, TPB, VCB, VHM, VIB, VIC, VJC, VNM, VPB, VRE]

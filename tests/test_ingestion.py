@@ -42,6 +42,8 @@ class FakeClock:
 @pytest.fixture
 def settings(monkeypatch):
     monkeypatch.setenv("REDIS_URL", os.environ.get("REDIS_TEST_URL", "redis://redis:6379/15"))
+    # Tránh gọi Listing mạng trong suite ingestion cổ điển.
+    monkeypatch.setenv("INGEST_SYMBOLS_MODE", "static")
     return config.load()
 
 
