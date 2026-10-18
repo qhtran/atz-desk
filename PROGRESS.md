@@ -318,6 +318,7 @@ notes: Pass; shipped with T-230 START bus
 
 | Khi | Thay đổi |
 |-----|----------|
+| 2026-10-18 | **Poll idle** — ag2/ag3 không Doing; T-230 ship `a7882c7`; bus header sync |
 | 2026-10-18 | **Bus protocol** — human↔ag1 chỉ số; ag2/ag3 pull PROGRESS (ít paste) |
 | 2026-10-18 | **Master ack T-230 Pass** — F3 alerts UI; chờ human commit |
 | 2026-10-18 | **T-230 Done** — f3_alerts + Watchlist F3 cột Cảnh báo; pytest Pass (7); no deploy |
