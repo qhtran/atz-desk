@@ -1,7 +1,7 @@
 # PROGRESS.md — atz.vn / vnstocks
 
 > Master Architect artifact. Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
-> Cập nhật: **2026-10-18** — **PR #2 MERGED** → `main` @ `28b555d` (F3 alerts + sector universe).
+> Cập nhật: **2026-10-18** — **START T-232** (ag2) — redeploy `vnstocks` from `main` @ `1448cf5`+.
 
 ### Naming convention (bắt buộc)
 
@@ -41,7 +41,7 @@ Exe2 = executor-2 (standby khi fork) — vẫn dưới nhánh **ag2**, không đ
 | Auth | Authentik forward-auth; identity = headers; trading prefs = SQLite (ADR 0004); **ADR 0006** cấm OIDC Client Streamlit |
 | Branch / HEAD | **`main` @ `28b555d`** (PR #2 F3); VPS UI vẫn `2f18fd2c75e9` (T-231, branch cũ — optional redeploy từ main) |
 | NON-goal | Không đặt lệnh tự động; không SPA/BFF Phase 2; không OIDC client trong app trừ ADR mới |
-| `user_confirmed_infra` | **yes** — T-231 Done; VPS checkout `feat/sector-universe-f3` (UI only) |
+| `user_confirmed_infra` | **yes** — T-232: checkout **`main`**, rebuild/recreate **`vnstocks` only**; không stream/sshd/UFW |
 
 **Active goals (ưu tiên sản phẩm):**
 1. Giữ pipeline near-realtime ổn định + UI bảng thống nhất (`realtime` / `analytical` / `compact`).
@@ -145,7 +145,7 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 | ID | Title | Status | Modules | Target files | Acceptance | Deps | Agent 2 instructions |
 |----|-------|--------|---------|--------------|------------|------|----------------------|
-| — | *(trống — chờ human / ag1)* | — | — | — | — | — | — |
+| **T-232** | Redeploy UI from `main` (post PR #2) | **Doing** | docker | VPS `/opt/vnstocks` | image mới; health 200; public 302 | PR #2 | **START** — xem §6 |
 
 **Quy tắc:** tối đa **một** `T-*` Doing (ag2) **và** tối đa **một** `S-*` Doing (ag3) — hai lane song song, không chung ID.
 
@@ -198,16 +198,31 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 ## 6. Handoff to Agent 2 (ag2 / Exe1)
 
-**Current Doing (T-*):** *(trống)* — idle; **T-231 Master ack Pass**.
+**Current Doing (T-*):** **T-232** — Redeploy UI từ `main`.
 
-### DONE — T-231 (Exe1 → ag1) — **acked**
+### START — T-232 (ag1 → ag2)
 
-- VPS: `feat/sector-universe-f3` @ `9fd7d69`; image `2f18fd2c75e9`; vnstocks only
-- upstream PASS; health **200**; public **302**
-- Smoke UI Cảnh báo: skip (login) — chấp nhận cho deploy DoD
+**Scope:** `user_confirmed_infra: yes` — **`vnstocks` only**.  
+**Code:** checkout / pull **`main`** @ `1448cf5`+ (sau PR #2 + bus merge note). Không giữ `feat/sector-universe-f3` trên VPS sau deploy này.
+
+**IN**
+1. VPS `/opt/vnstocks`: `git fetch && git checkout main && git pull --ff-only`
+2. `docker compose build vnstocks && docker compose up -d --no-deps --force-recreate vnstocks` (đúng tên service compose)
+3. Verify: health/stcore **200**; public atz.vn → **302** Authentik
+4. Optional smoke: Danh mục → ngành F3 → cột Cảnh báo (nếu có session)
+5. Cập nhật Last Executor (image id, commit); push bus; **không** nginx/sshd/UFW/workers khác
+
+**OUT:** merge conflict tự force; recreate ALL services; Authentik.
+
+**Acceptance**
+- [ ] VPS on `main` @ ≥ `1448cf5`
+- [ ] Image mới; health 200; public 302
+- [ ] Last Executor Done; master_ack pending
+
+### DONE — T-231 — **acked** (image `2f18fd2c75e9`, nhánh feat — sẽ thay bởi T-232)
 
 ### Master ack (T-231) — 2026-10-18
-- **Pass** — deploy DoD đủ; không đụng nginx/sshd/UFW; UI smoke = human optional.
+- **Pass** — deploy DoD đủ.
 
 ### DONE — T-230 — **acked** + shipped `a7882c7`
 
@@ -274,24 +289,24 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing` 
 | Tab | Alias | Turns | Files this task | Slowing? | Status |
 |-----|-------|------:|----------------:|----------|--------|
 | master | ag1 | — | — | — | active (plan-only) |
-| executor-1 | ag2 | 1 | 1 | no | idle — T-231 **acked** |
+| executor-1 | ag2 | 0 | 0 | no | **active — T-232** |
 | executor-2 | ag2 | — | — | — | standby (fork) |
 | support-1 | ag3 / sp1 | 1 | 3 | no | idle — S-021 **acked** |
 
 ### Master commands
 
 ```
-IDLE — PR #2 MERGED → main @ 28b555d (squash).
-Next: human idle | optional T-232 redeploy UI from main | smoke.
+START T-232 — owner=executor-1; vnstocks only; checkout main @ 1448cf5+; user_confirmed_infra=yes.
+sp1 IDLE.
 ```
 
 ### Last Executor state (ag2)
 
 ```
-task: T-231
-result: Done
-master_ack: yes
-Status: idle
+task: T-232
+result: Doing
+owner: executor-1
+Status: active
 ```
 
 ### Last Support state (ag3 / sp1)
@@ -320,6 +335,7 @@ report: docs/specs/F3_SECTOR_UNIVERSE.md
 
 | Khi | Thay đổi |
 |-----|----------|
+| 2026-10-18 | **START T-232** — redeploy vnstocks from main (human 1b) |
 | 2026-10-18 | **PR #2 MERGED** — F3 → `main` @ `28b555d` (squash) |
 | 2026-10-18 | **Master ack S-021 Pass** — 180/181 bars; PDG miss accepted |
 | 2026-10-18 | **S-021 Done** — vnstock 5.1.0; bars 180/181; gap refresh; PDG miss KBS |

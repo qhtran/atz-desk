@@ -28,15 +28,21 @@ Mọi phản hồi của agent **bắt đầu** bằng một dòng tag để d�
 
 ## Khi hỏi user (bắt buộc)
 - User **không** phải gõ tag chi tiết.
-- Mọi câu hỏi đưa **lựa chọn đánh số sẵn**, ví dụ:
+- Mọi câu hỏi đưa **lựa chọn đánh số sẵn**.
+- **Render Cursor:** prose/`\n` thường và list markdown có thể bị **gộp 1 dòng**. Vì vậy block lựa chọn **bắt buộc** nằm trong **fenced code block** (giữ nguyên xuống dòng).
 
+Ví dụ đúng:
+
+````
 ```
 Chọn hướng:
 1a) Chỉ sửa UI realtime
 1b) Sửa ingestion + UI
 1c) Chưa sửa — giải thích thêm
 ```
+````
 
+- **Cấm** viết `Chọn hướng: 1a) … 1b) …` trên một dòng prose.
 - User chỉ cần trả lời ngắn: `1a`, `2b`, `ok 1c`, …
 - Agent map lựa chọn → `modules` / `files` / hành động, rồi ghi rõ trong `[DBG]` của câu tiếp theo.
 
