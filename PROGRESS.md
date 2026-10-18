@@ -1,7 +1,7 @@
 # PROGRESS.md — atz.vn / vnstocks
 
 > Master Architect artifact. Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
-> Cập nhật: **2026-10-18** — **Master ack Auditor F3 smoke Pass 7/7**; P2×3 (chờ human).
+> Cập nhật: **2026-10-18** — **Hotfix vnstock 5.1.0** @ `b68de1b` deploy VPS (image `8559cc9e458e`); health 200 / public 302.
 
 ### Naming convention (bắt buộc)
 
@@ -39,7 +39,7 @@ Exe2 = executor-2 (standby khi fork) — vẫn dưới nhánh **ag2**, không đ
 | Data | Redis (nóng) + SQLite `data/signals.db` (bền); secrets chỉ env |
 | Deploy | Docker Compose `/opt/vnstocks` — services: `vnstocks`, ingestion, filter-runner, alert, position, index-feed, redis |
 | Auth | Authentik forward-auth; identity = headers; trading prefs = SQLite (ADR 0004); **ADR 0006** cấm OIDC Client Streamlit |
-| Branch / HEAD | **`main` @ `c5d1e6c`+** — VPS UI `2900f583873a` (T-232) |
+| Branch / HEAD | **`main` @ `b68de1b`** — VPS UI image `8559cc9e458e` (vnstock 5.1.0) |
 | NON-goal | Không đặt lệnh tự động; không SPA/BFF Phase 2; không OIDC client trong app trừ ADR mới |
 | `user_confirmed_infra` | **yes** — T-232 Done; VPS on `main`; `vnstocks` only |
 
@@ -287,25 +287,24 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing` 
 ### Master commands
 
 ```
-IDLE — Auditor F3 Cảnh báo smoke Pass 7/7 (inbox 20261018-1425).
-P2 backlog: sidebar sync | dedupe same-price levels | wording SWING_HIGH + — caption.
-Next: human chọn P2 / idle.
+Hotfix Done — vnstock 5.1.0 on VPS (b68de1b / 8559cc9e458e); atz-check-upstream PASS.
+P2 backlog vẫn chờ human. ag2/sp1 IDLE.
 ```
 
 ### Last Executor state (ag2)
 
 ```
-task: T-232
+task: hotfix-vnstock-5.1.0
 result: Done
-image: 2900f583873a
-code: c5d1e6c
+commit: b68de1b
+image: 8559cc9e458e
+vnstock: 5.1.0
 branch: main
 upstream: PASS
 health: 200
 public: 302
-owner: executor-1
+services: vnstocks,ingestion,filter-runner,index-feed,alert,position
 Status: idle
-master_ack: yes
 ```
 
 ### Last Support state (ag3 / sp1)
@@ -334,6 +333,7 @@ report: docs/specs/F3_SECTOR_UNIVERSE.md
 
 | Khi | Thay đổi |
 |-----|----------|
+| 2026-10-18 | **Hotfix vnstock 5.1.0** — `b68de1b` deploy VPS image `8559cc9e458e`; scan/refresh unblocked |
 | 2026-10-18 | **Master ack Auditor F3 smoke Pass 7/7** — inbox 1425; P2×3 |
 | 2026-10-18 | **WAIT_AUDITOR** — task `20261018-1425` F3 Cảnh báo smoke |
 | 2026-10-18 | **Master ack T-232 Pass** — image `2900f583873a`; VPS on main |
