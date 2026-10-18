@@ -6,12 +6,13 @@ Cập nhật: **2026-10-18** — F3 Cảnh báo smoke.
 
 | Task file | Priority | Status | Notes |
 |-----------|----------|--------|-------|
-| `tasks/20261018-1425-f3-canh-bao-smoke.md` | P0 | **active** | Post T-232; cột Cảnh báo Watchlist F3; chờ inbox |
+| *(không)* | — | — | — |
 
 ## Done (có inbox)
 
 | Task file | Priority | Inbox | Notes |
 |-----------|----------|-------|-------|
+| `tasks/20261018-1425-f3-canh-bao-smoke.md` | P0 | `inbox/20261018-1425-atz-f3-canh-bao-smoke.md` | **Master ack Pass 7/7**; Auditor `cf8065b` / `auditor/20261018-f3-canh-bao-smoke`; P2×3 |
 | `tasks/20261017-1530-post-ux-wave-retest.md` | P0 | `inbox/20261017-1530-atz-post-ux-wave-retest.md` | Auditor `6932c76` / branch `auditor/20261017-post-ux-wave-retest`; Master → T-150…T-153 |
 
 ## Stale (không làm lại — giữ file, không xóa)

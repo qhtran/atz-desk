@@ -1,7 +1,7 @@
 # PROGRESS.md — atz.vn / vnstocks
 
 > Master Architect artifact. Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
-> Cập nhật: **2026-10-18** — Auditor task F3 Cảnh báo smoke `20261018-1425` (chờ inbox).
+> Cập nhật: **2026-10-18** — **Master ack Auditor F3 smoke Pass 7/7**; P2×3 (chờ human).
 
 ### Naming convention (bắt buộc)
 
@@ -194,6 +194,7 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 8. ~~OAuth / T-221~~ — Google SSO **Pass** (human); FB chưa smoke live; OIDC Skip.
 9. ~~F3 S-010 + T-230~~ — **acked**; Open Q §11 defaults Exe1: close_D; tol=0 / SUPPORT_BAND swing; Telegram/màu = sau.
 10. **Auto-trade pipeline** — tài liệu tham chiếu only; NON-goal: không đặt lệnh.
+11. **Auditor F3 smoke P2** — (a) sidebar Cảnh báo ≠ bảng ngành (TPB); (b) dedupe cùng giá MBB; (c) wording «hỗ trợ đỉnh» + caption `—`.
 
 ---
 
@@ -286,8 +287,9 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing` 
 ### Master commands
 
 ```
-WAIT_AUDITOR — task docs/auditorbot/tasks/20261018-1425-f3-canh-bao-smoke.md
-Smoke Cảnh báo F3 giao AuditorBot (Active). ag2/sp1 IDLE.
+IDLE — Auditor F3 Cảnh báo smoke Pass 7/7 (inbox 20261018-1425).
+P2 backlog: sidebar sync | dedupe same-price levels | wording SWING_HIGH + — caption.
+Next: human chọn P2 / idle.
 ```
 
 ### Last Executor state (ag2)
@@ -332,6 +334,7 @@ report: docs/specs/F3_SECTOR_UNIVERSE.md
 
 | Khi | Thay đổi |
 |-----|----------|
+| 2026-10-18 | **Master ack Auditor F3 smoke Pass 7/7** — inbox 1425; P2×3 |
 | 2026-10-18 | **WAIT_AUDITOR** — task `20261018-1425` F3 Cảnh báo smoke |
 | 2026-10-18 | **Master ack T-232 Pass** — image `2900f583873a`; VPS on main |
 | 2026-10-18 | **START T-232** — redeploy vnstocks from main (human 1b) |
