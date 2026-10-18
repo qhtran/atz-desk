@@ -291,7 +291,7 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing` 
 ### Master commands
 
 ```
-START S-021 — owner=sp1; vnstock>=5.1 + pull_bars + refresh F3_SECTOR_UNIVERSE; no src/atz / no deploy.
+WAIT — human 1a; S-021 Doing (sp1). ag1 IDLE until S-021 Done.
 ag2 IDLE. Branch: feat/sector-universe-f3.
 ```
 
