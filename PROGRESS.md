@@ -242,7 +242,7 @@ ag2/executor-1: **paused_fork** — không làm T-237 nữa.
 - [x] `wl_rows` F3: headers `Mã` | `Giá` | `Cảnh báo`
 - [x] ≥1 mã có số Giá khi mock/Redis; miss → `—` (hoặc fallback có caption)
 - [x] không sửa logic alert phrases; pytest Pass; no deploy
-- [x] push; `master_ack` chờ ag1
+- [x] push; `master_ack` yes
 
 ### DONE — T-236 (Exe1 → ag1) — **acked**
 
@@ -380,10 +380,8 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing` 
 ### Master commands
 
 ```text
-T-237 Done (ag6/exe2) — chờ Master ack.
-DoD: wl_rows Mã | Giá | Cảnh báo; live_quotes batch;
-miss → OHLCV then — + caption; no Chat/community; no f3_alerts; no deploy.
-pytest Pass (15). Human → ag1: ack / 1a.
+Master ack T-237 Pass (pytest 15; ship b12b28a).
+Lanes IDLE. Optional next: deploy UI T-237 (vnstocks only) | idle | Chat backlog.
 ```
 
 ### Last Executor state (ag6 / exe2)
@@ -393,11 +391,12 @@ task: T-237
 result: Done
 owner: exe2
 Status: idle
-master_ack: pending
-pytest: tests/test_watchlists_page.py + test_f3_alerts Pass (15)
+master_ack: yes
+deploy: no
+pytest: Pass (15)
+ship: b12b28a
 files: src/atz/ui/watchlists_page.py, tests/test_watchlists_page.py
 forked_from: ag2/Exe1 (context full)
-prior: T-236 acked (cedd90d404a2)
 ```
 
 ### Last Support state (ag5 / sp2)
