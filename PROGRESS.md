@@ -93,7 +93,7 @@ Target layout dài hạn (ADR 0001): `shared/` / `domain/` / `adapters/` / `serv
 - Debug overlay: `config/debug_overlay.yaml` / `ATZ_DEBUG_OVERLAY`.
 - SSH ops: ưu tiên host `:22`; **cấm** đụng nginx stream / sshd / UFW trừ human confirm.
 - Bot code paused; AuditorBot giữ survey UI; Cursor = code/deploy.
-- **ag1 (Master)** = plan / authorize / ack only — không tự code, không tự smoke/deploy/SSH. **ag2 (Exe1)** execute. **ag3 (sp1)** = việc phụ / tools / mentor analysis. Context đầy / fork → mở **Exe2** (vẫn ag2, tab mới + PROGRESS).
+- **ag1 (Master)** = plan / authorize / ack only — không tự code, không tự smoke/deploy/SSH. **ag2 (Exe1)** execute. **ag3 (sp1)** = Support primary; fork Support → **ag5 (sp2)**. Context đầy Exe → **Exe2** (vẫn ag2).
 
 **Đã ship gần đây (không mở lại trừ bug):**
 - Pin + live pinned strip; flash tick; OAH copy string; vốn/risk per-user.
