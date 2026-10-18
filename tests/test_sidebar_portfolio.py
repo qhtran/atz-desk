@@ -14,7 +14,12 @@ import redis
 
 from datasource.live_quotes import load_live_prices_thousands
 from ui import sidebar_portfolio as sp
-from ui.sidebar_portfolio import desk_position_rows, position_alert
+from ui.sidebar_portfolio import (
+    desk_position_rows,
+    format_sidebar_alert_lines,
+    position_alert,
+    truncate_sidebar_alert,
+)
 
 
 class _FakeRedis:
@@ -162,3 +167,31 @@ def test_alert_bands_and_zones():
     assert position_alert(100.0, 101.0, support=100.0) == "Gần hỗ trợ"
     assert position_alert(100.0, 95.0, support=100.0) == "Dưới hỗ trợ · −5%"
     assert position_alert(100.0, 121.0, resistance=120.0) == "Gần kháng cự · +10%"
+
+
+# --- T-235 sidebar alert wrap helpers --------------------------------------
+
+
+def test_truncate_sidebar_alert_keeps_short():
+    short = "xu hướng ngày: giảm"
+    assert truncate_sidebar_alert(short) == short
+    assert truncate_sidebar_alert("") == "—"
+    assert truncate_sidebar_alert("   ") == "—"
+
+
+def test_truncate_sidebar_alert_long_preview():
+    full = "xu hướng ngày: tăng · vượt kháng cự 11.9 (MA20, band giữa)"
+    preview = truncate_sidebar_alert(full, max_len=40)
+    assert preview.endswith("…")
+    assert len(preview) == 40
+    assert full.startswith(preview[:-1].rstrip()) or preview[:-1] in full
+
+
+def test_format_sidebar_alert_lines_full_text():
+    full = "xu hướng ngày: tăng · vượt kháng cự 11.9 (MA20, band giữa)"
+    lines = format_sidebar_alert_lines(
+        [{"Mã": "TPB", "Cảnh báo": full}, {"Mã": "POW", "Cảnh báo": "xu hướng ngày: giảm"}]
+    )
+    assert lines[0] == f"**TPB:** {full}"
+    assert "11.9" in lines[0]
+    assert lines[1] == "**POW:** xu hướng ngày: giảm"

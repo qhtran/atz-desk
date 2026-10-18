@@ -20,6 +20,28 @@ from ui.trading_desk import _bars, _last_close, _optional, load_desk
 
 ALERT_BANDS = (5.0, 8.0, 10.0)
 NEAR_ZONE_PCT = 2.0
+# T-235: st.dataframe không wrap — preview ngắn trong ô; đủ chuỗi wrap dưới bảng.
+SIDEBAR_ALERT_PREVIEW = 40
+
+
+def truncate_sidebar_alert(text: str, max_len: int = SIDEBAR_ALERT_PREVIEW) -> str:
+    """Rút gọn ô Cảnh báo sidebar; đủ chuỗi xem block wrap bên dưới."""
+    value = (text or "—").strip() or "—"
+    if len(value) <= max_len:
+        return value
+    return value[: max_len - 1].rstrip() + "…"
+
+
+def format_sidebar_alert_lines(positions: list[dict]) -> list[str]:
+    """Markdown lines wrap được — full F3 text, không cuộn ngang cột."""
+    lines: list[str] = []
+    for row in positions:
+        symbol = str(row.get("Mã") or "").strip().upper()
+        alert = str(row.get("Cảnh báo") or "—").strip() or "—"
+        if not symbol:
+            continue
+        lines.append(f"**{symbol}:** {alert}")
+    return lines
 
 
 def position_alert(
@@ -161,7 +183,7 @@ def render_portfolio_overview() -> tuple[float, float]:
                     "Mã": row["Mã"],
                     "Giá mua": row["Giá mua"],
                     "Giá HT": row["Giá hiện tại"],
-                    "Cảnh báo": row["Cảnh báo"],
+                    "Cảnh báo": truncate_sidebar_alert(str(row["Cảnh báo"])),
                 }
                 for row in positions
             ]
@@ -178,14 +200,27 @@ def render_portfolio_overview() -> tuple[float, float]:
             column_config={
                 "Giá mua": st.column_config.NumberColumn(format="%.2f"),
                 "Giá HT": st.column_config.NumberColumn(format="%.2f"),
+                "Cảnh báo": st.column_config.TextColumn(
+                    "Cảnh báo",
+                    width="medium",
+                    help=(
+                        "F3 nến ngày (preview). Chuỗi đủ wrap ở block «Cảnh báo đầy đủ» "
+                        "bên dưới — không cần cuộn ngang."
+                    ),
+                ),
             },
         )
+        alert_lines = format_sidebar_alert_lines(positions)
+        if alert_lines:
+            # Markdown wrap trong sidebar hẹp (~1920 desktop) — thay wrap cell dataframe.
+            with st.expander("Cảnh báo đầy đủ (F3)", expanded=len(positions) <= 4):
+                st.markdown("\n\n".join(alert_lines))
         hits = sum(1 for row in positions if row.get("price_source") == "redis")
         src = f"Redis {hits}/{len(positions)}" if hits else "OHLCV fallback"
         st.caption(f"Giá HT: {src} (nghìn đồng). Tham chiếu: https://rtboard.hsx.vn/")
         st.caption(
             "Cảnh báo: F3 nến ngày (cùng engine Watchlist ngành). "
-            "Thiếu ≥25 nến → —."
+            "Ô bảng = preview; đủ chuỗi ở expander (wrap). Thiếu ≥25 nến → —."
         )
 
         from ui.theme_tokens import DOWN, UP

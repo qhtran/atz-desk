@@ -1,7 +1,7 @@
 # PROGRESS.md — atz.vn / vnstocks
 
 > Master Architect artifact. Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
-> Cập nhật: **2026-10-18** — **Master ack S-022 Pass** + **START T-235** (sidebar Cảnh báo wrap).
+> Cập nhật: **2026-10-18** — **T-235 Done** — sidebar Cảnh báo preview + expander wrap; pytest Pass (37).
 
 ### Naming convention (bắt buộc)
 
@@ -145,12 +145,13 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 | T-232 | Redeploy UI from `main` (post PR #2) | docker | **Master ack Pass** — image `2900f583873a`; `main` @ `c5d1e6c`; health 200; public 302 |
 | T-233 | F3 Cảnh báo P2 polish (Auditor) | analysis, ui, tests | **Master ack Pass** — sidebar F3; merge same-price; SWING_HIGH; pytest Pass (24); no deploy |
 | T-234 | Deploy UI T-233 (`vnstocks` only) | docker | **Master ack Pass** — image `65f742a0fda3`; `main` @ `75e2c24`; health 200; public 302 |
+| T-235 | Sidebar Cảnh báo wrap/tooltip (Auditor 1505 P2 #2) | ui, tests | **Executor Done** — preview + expander wrap; TextColumn help; pytest Pass (37); no deploy |
 
 ### Doing (ag2 / Exe1 — `T-*`)
 
 | ID | Title | Status | Modules | Target files | Acceptance | Deps | Agent 2 instructions |
 |----|-------|--------|---------|--------------|------------|------|----------------------|
-| **T-235** | Sidebar Cảnh báo wrap/tooltip (Auditor 1505 P2 #2) | **Doing** | ui, tests | `ui/sidebar_portfolio.py`, `ui/components.py` / `table_theme.py` nếu cần | Đọc hết chuỗi dài @ ~1920px không cuộn ngang; pytest | S-022 | Xem §6 START |
+| — | *(trống — chờ human / ag1)* | — | — | — | — | — | — |
 
 **Quy tắc:** tối đa **một** `T-*` Doing (ag2) **và** tối đa **một** `S-*` Doing (ag3) — hai lane song song, không chung ID.
 
@@ -199,33 +200,20 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 8. ~~OAuth / T-221~~ — Google SSO **Pass** (human); FB chưa smoke live; OIDC Skip.
 9. ~~F3 S-010 + T-230~~ — **acked**; Open Q §11 defaults Exe1: close_D; tol=0 / SUPPORT_BAND swing; Telegram/màu = sau.
 10. **Auto-trade pipeline** — tài liệu tham chiếu only; NON-goal: không đặt lệnh.
-11. ~~**Auditor F3 re-smoke 1505**~~ — Pass 9/9; P2 #3 **S-022 acked**; P2 #2 → **T-235 Doing**; #1 deferred.
+11. ~~**Auditor F3 re-smoke 1505**~~ — Pass 9/9; P2 #3 **S-022 acked**; P2 #2 **T-235 Done**; #1 deferred.
 
 ---
 
 ## 6. Handoff to Agent 2 (ag2 / Exe1)
 
-**Current Doing (T-*):** **T-235** — sidebar Cảnh báo wrap/tooltip (human **6b**).
+**Current Doing (T-*):** *(trống)* — T-235 Done; chờ ag1 ack / deploy.
 
-### START — T-235 (ag1 → Exe1) — 2026-10-18
+### DONE — T-235 (Exe1 → ag1) — **awaiting master_ack**
 
-**Nguồn:** Auditor inbox `1505` P2 #2 — cột «Cảnh báo» sidebar «Vị thế hiện tại» bị cắt, phải cuộn ngang; hover không tooltip.
-
-**Target (ưu tiên):**
-- `src/atz/ui/sidebar_portfolio.py` — `render_data_table` positions (`key=sidebar_positions`)
-- Chỉ đụng `components.py` / `table_theme.py` nếu compact CSS chặn wrap
-
-**Làm:**
-1. Cho phép đọc hết chuỗi dài (vd TPB kiểu `xu hướng ngày: tăng · vượt kháng cự 11.9 (MA20, band giữa)`) ở viewport ~1920px **không** cuộn ngang cột — dùng `st.column_config.TextColumn` (width / help = full text) và/hoặc CSS wrap cho compact sidebar; hoặc rút gọn + tooltip full.
-2. Không đổi engine F3 / wording S-022; không CTA đặt lệnh.
-3. Test: thêm/ cập nhật test UI nhỏ nếu có pattern sẵn; hoặc assert column_config/help path — tối thiểu không regress `test_f3_alerts`.
-4. **Không** deploy trong task này (deploy sau khi Master ack + human chọn).
-5. Cập nhật Last Executor + §6 Done → `commit+push`.
-
-**Acceptance**
-- [ ] Chuỗi Cảnh báo dài đọc được @ ~1920px không horizontal scroll (hoặc full text qua tooltip/help)
-- [ ] pytest liên quan Pass; không đụng nginx/SSH
-- [ ] push; `master_ack` chờ ag1
+- `st.dataframe` không wrap → ô Cảnh báo = `truncate_sidebar_alert` + `TextColumn(help=…)`
+- Expander **«Cảnh báo đầy đủ (F3)»** markdown wrap full text (vd TPB `…11.9 (MA20, band giữa)`)
+- Không đổi engine F3 / S-022 wording; **no deploy**
+- pytest sidebar+f3+table_theme **Pass (37)**
 
 ### DONE — T-234 (Exe1 → ag1) — **acked**
 
@@ -335,7 +323,7 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing` 
 | Tab | Alias | Turns | Files this task | Slowing? | Status |
 |-----|-------|------:|----------------:|----------|--------|
 | master | ag1 | — | — | — | **active** |
-| executor-1 | ag2 | 0 | — | no | **active** — T-235 Doing |
+| executor-1 | ag2 | 1 | 2 | no | **idle** — T-235 Done |
 | executor-2 | ag2 | — | — | — | standby (fork) |
 | support-1 | ag3 / sp1 | — | — | yes | **paused_fork** |
 | support-2 | ag5 / sp2 | 1 | 1 | no | idle — S-022 **acked** |
@@ -343,9 +331,7 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing` 
 ### Master commands
 
 ```text
-Master ack S-022 Pass (pytest 10). START T-235 — ag2 / Exe1 (human 6b).
-DoD: sidebar «Vị thế» cột Cảnh báo — wrap và/hoặc TextColumn help;
-đọc hết chuỗi dài @ ~1920px không cuộn ngang; no deploy; no engine change.
+T-235 Done — master_ack pending; no deploy.
 Support IDLE.
 ```
 
@@ -353,12 +339,13 @@ Support IDLE.
 
 ```
 task: T-235
-result: Doing
+result: Done
 owner: executor-1
-Status: active
+Status: idle
 master_ack: pending
-focus: sidebar Cảnh báo wrap/tooltip (Auditor 1505 P2 #2)
-prior: T-234 Done (image 65f742a0fda3)
+deploy: no
+pytest: Pass (37)
+note: preview cell + expander wrap full F3
 ```
 
 ### Last Support state (ag5 / sp2)
@@ -386,6 +373,7 @@ SIGNAL_NEED_FORK: no
 | Khi | Thay đổi |
 |-----|----------|
 | 2026-10-18 | **Master ack S-022 Pass** + **START T-235** — human 6b; sidebar Cảnh báo wrap; ag2 active |
+| 2026-10-18 | **T-235 Done** — preview + expander wrap; TextColumn help; pytest Pass (37); no deploy |
 | 2026-10-18 | **S-022 Done** — ag5/sp2 compose SWING_HIGH snapshot; pytest Pass (10); master_ack pending |
 | 2026-10-18 | **FORK S-022** — ag3→ag5/sp2 (context full); naming + sessions; sp1 paused_fork |
 | 2026-10-18 | **Master ack Auditor 1505 Pass 9/9** + **START S-022** — human 3c; inbox merge; ag3 SWING_HIGH snapshot |
