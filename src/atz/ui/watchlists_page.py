@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 from datetime import date
+from typing import Callable
 
 import streamlit as st
 
 from analysis.f3_alerts import alert_column_for_bars
 from config import BARS_DIR, UNIVERSE
 from datasource.f3_themes import load_f3_sector_themes
+from datasource.live_quotes import load_live_prices_thousands
 from datasource.watchlists import (
     add_symbol,
     create_watchlist,
@@ -58,6 +60,73 @@ def _alert_for_symbol(symbol: str) -> str:
     return alert_column_for_bars(symbol, bars, session_date=date.today())
 
 
+def _ohlcv_last_close(symbol: str) -> float | None:
+    """Close nến ngày cuối (nghìn đồng). Thiếu file → None."""
+    try:
+        bars = load_symbol_csv(BARS_DIR, symbol)
+    except Exception:
+        return None
+    if bars is None or getattr(bars, "empty", True):
+        return None
+    try:
+        return round(float(bars["close"].iloc[-1]), 2)
+    except (KeyError, TypeError, ValueError, IndexError, AttributeError):
+        return None
+
+
+def _format_price_cell(value: float | None) -> str | float:
+    """Giá nghìn đồng 2 chữ số; miss → — (chuỗi để không lệch NumberColumn)."""
+    if value is None:
+        return "—"
+    return round(float(value), 2)
+
+
+def build_wl_symbol_rows(
+    symbols: list[str],
+    volumes: dict[str, float] | None = None,
+    *,
+    with_alerts: bool = False,
+    live_prices: dict[str, float] | None = None,
+    alert_fn: Callable[[str], str] | None = None,
+    ohlcv_fn: Callable[[str], float | None] | None = None,
+) -> tuple[list[dict[str, object]], int, int]:
+    """Build wl_rows. Khi with_alerts: Mã | Giá | [KL] | Cảnh báo.
+
+    Returns (rows, redis_hits, priced_count). Giá = Redis RT; miss → OHLCV close; cả hai miss → —.
+    """
+    cleaned = [str(s).strip().upper() for s in symbols if str(s).strip()]
+    prices = live_prices
+    if with_alerts and prices is None:
+        prices = load_live_prices_thousands(cleaned)
+    prices = prices or {}
+    alert = alert_fn or _alert_for_symbol
+    ohlcv = ohlcv_fn or _ohlcv_last_close
+
+    rows: list[dict[str, object]] = []
+    redis_hits = 0
+    priced = 0
+    for symbol in cleaned:
+        row: dict[str, object] = {"Mã": symbol}
+        if with_alerts:
+            live = prices.get(symbol)
+            if live is not None:
+                cell = _format_price_cell(float(live))
+                redis_hits += 1
+                priced += 1
+            else:
+                fb = ohlcv(symbol)
+                cell = _format_price_cell(fb)
+                if fb is not None:
+                    priced += 1
+            row["Giá"] = cell
+        if volumes and symbol in volumes:
+            row["KL TB 10 phiên"] = volumes[symbol]
+        if with_alerts:
+            row["Cảnh báo"] = alert(symbol)
+        rows.append(row)
+    return rows, redis_hits, priced
+
+
 def _show_symbol_table(
     symbols: list[str],
     volumes: dict[str, float] | None = None,
@@ -67,28 +136,38 @@ def _show_symbol_table(
     if not symbols:
         st.caption("Chưa có mã.")
         return
-    rows = []
-    for symbol in symbols:
-        row: dict[str, object] = {"Mã": symbol}
-        if volumes and symbol in volumes:
-            row["KL TB 10 phiên"] = volumes[symbol]
-        if with_alerts:
-            row["Cảnh báo"] = _alert_for_symbol(symbol)
-        rows.append(row)
+    rows, redis_hits, priced = build_wl_symbol_rows(
+        symbols, volumes, with_alerts=with_alerts
+    )
     render_data_table(
         rows,
         variant="analytical",
         pin="Mã",
         key="wl_rows",
         alt="Danh sách mã trong watchlist",
+        column_config=(
+            {"Giá": st.column_config.TextColumn("Giá", width="small")}
+            if with_alerts
+            else None
+        ),
     )
+    if with_alerts:
+        total = len(rows)
+        if redis_hits:
+            src = f"Redis quote RT {redis_hits}/{total}"
+        elif priced:
+            src = f"OHLCV fallback {priced}/{total}"
+        else:
+            src = "không có quote/OHLCV"
+        st.caption(f"Giá: {src} (nghìn đồng). Miss → —.")
 
 
 def _f3_sector_section(sectors: list[dict]) -> None:
     st.subheader("Danh mục theo ngành (F3)")
     st.caption(
-        "Seed mentor F3 — cột **Cảnh báo** theo nến ngày (MA/BB/mây/đáy-đỉnh). "
-        "Chỉ UI decision-support; không đặt lệnh. Thiếu ≥25 nến ngày → —."
+        "Seed mentor F3 — cột **Giá** (Redis RT) + **Cảnh báo** theo nến ngày "
+        "(MA/BB/mây/đáy-đỉnh). Chỉ UI decision-support; không đặt lệnh. "
+        "Thiếu ≥25 nến ngày → —."
     )
     names = [item["name"] for item in sectors]
     chosen = st.selectbox("Ngành", names, key="wl_f3_sector_pick")

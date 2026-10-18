@@ -1,7 +1,7 @@
 # PROGRESS.md — atz.vn / vnstocks
 
 > Master Architect artifact. Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
-> Cập nhật: **2026-10-18** — **FORK T-237** ag2→**ag6/exe2** (context full); DoD Giá RT giữ nguyên.
+> Cập nhật: **2026-10-18** — **T-237 Done** (ag6/exe2) — wl_rows Mã|Giá|Cảnh báo; pytest Pass; chờ Master ack.
 
 ### Naming convention (bắt buộc)
 
@@ -148,14 +148,15 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 | T-234 | Deploy UI T-233 (`vnstocks` only) | docker | **Master ack Pass** — image `65f742a0fda3`; `main` @ `75e2c24`; health 200; public 302 |
 | T-235 | Sidebar Cảnh báo wrap/tooltip (Auditor 1505 P2 #2) | ui, tests | **Master ack Pass** — preview + expander wrap; TextColumn help; pytest Pass (37); no deploy |
 | T-236 | Deploy UI T-235 (`vnstocks` only) | docker | **Master ack Pass** — image `cedd90d404a2`; `main` @ `91aee02`; upstream PASS; health 200; public 302 |
+| T-237 | F3 wl_rows + cột Giá RT | ui, datasource, tests | **Done** — chờ Master ack; `build_wl_symbol_rows` Mã\|Giá\|Cảnh báo; Redis+OHLCV fallback; pytest Pass (5); no deploy |
 
 ### Doing (ag2 / Exe1 — `T-*`)
 
 | ID | Title | Status | Modules | Target files | Acceptance | Deps | Agent 2 instructions |
 |----|-------|--------|---------|--------------|------------|------|----------------------|
-| **T-237** | F3 wl_rows + cột Giá RT | **Doing** | ui, datasource, tests | `ui/watchlists_page.py`, `datasource/live_quotes.py` (reuse) | Cột **Giá** RT giữa Mã và Cảnh báo; pytest | T-236 | Owner **ag6/exe2** — xem §6 |
+| — | *(trống — chờ human / ag1)* | — | — | — | — | — | — |
 
-**Quy tắc:** tối đa **một** `T-*` Doing (ag2) **và** tối đa **một** `S-*` Doing (ag3/ag5) — hai lane song song, không chung ID.
+**Quy tắc:** tối đa **một** `T-*` Doing (ag2/ag6) **và** tối đa **một** `S-*` Doing (ag3/ag5) — hai lane song song, không chung ID.
 
 ### Todo (sẵn sàng khi human chọn) — ag2
 
@@ -203,13 +204,21 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 9. ~~F3 S-010 + T-230~~ — **acked**; Open Q §11 defaults Exe1: close_D; tol=0 / SUPPORT_BAND swing; Telegram/màu = sau.
 10. **Auto-trade pipeline** — tài liệu tham chiếu only; NON-goal: không đặt lệnh.
 11. ~~**Auditor F3 re-smoke 1505**~~ — Pass 9/9; P2 #3 **S-022 acked**; P2 #2 **T-235 Master ack Pass**; #1 deferred.
-12. **F3 wl_rows gap §6.2** — **T-237 Doing** (Giá RT); Chat/community vẫn backlog; không reopen engine.
+12. ~~**F3 wl_rows gap §6.2**~~ — **T-237 Done** (Giá RT); chờ Master ack; Chat/community vẫn backlog; không reopen engine.
 
 ---
 
 ## 6. Handoff to Executor (ag2/Exe1 · ag6/Exe2)
 
-**Current Doing (T-*):** **T-237** — owner **ag6 / exe2** (fork từ ag2; human context full).
+**Current Doing (T-*):** *(trống)* — idle; **T-237 Done** (chờ Master ack).
+
+### DONE — T-237 (ag6 / exe2 → ag1) — chờ ack
+
+- `build_wl_symbol_rows`: headers `Mã` | `Giá` | `Cảnh báo` khi `with_alerts=True`
+- Batch `load_live_prices_thousands` một lần; miss Redis → OHLCV last close; cả hai miss → `—`
+- Caption nguồn: Redis quote RT / OHLCV fallback (nghìn đồng); **không** đổi `f3_alerts`
+- **Cấm giữ:** Chat spark / community / CTA lệnh; **no deploy**
+- pytest `tests/test_watchlists_page.py` + `test_f3_alerts` **Pass (15)** · files: `ui/watchlists_page.py`, `tests/test_watchlists_page.py`
 
 ### FORK — T-237 (ag1 → ag6 / exe2) — 2026-10-18
 
@@ -217,7 +226,7 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 ag2/executor-1: **paused_fork** — không làm T-237 nữa.
 
-### START — T-237 (ag1 → Exe2) — tiếp tục DoD gốc (human **11a**)
+### START — T-237 (ag1 → Exe2) — tiếp tục DoD gốc (human **11a**) — **completed by exe2**
 
 **Nguồn:** ag5 gap report + `docs/specs/F3_ALERTS.md` §6.2 — bảng ngành F3 hiện chỉ `Mã`|`Cảnh báo`; thiếu **Giá** RT.
 
@@ -226,18 +235,11 @@ ag2/executor-1: **paused_fork** — không làm T-237 nữa.
 - Reuse `datasource.live_quotes.load_live_prices_thousands` (pattern sidebar/desk) — **không** nhân bản Redis client
 - Tests: `tests/test_watchlists_page.py` (tạo nếu chưa) hoặc module test gần nhất; mock Redis / inject price map
 
-**Làm (ag6 / exe2):**
-1. Thêm cột **`Giá`** (nghìn đồng, 2 chữ số) giữa `Mã` và `Cảnh báo` khi `with_alerts=True` (F3 ngành).
-2. Batch MGET một lần cho list mã ngành; miss Redis → `—` hoặc fallback OHLCV last close (chọn 1, ghi caption nguồn).
-3. Caption ngắn: Giá = Redis quote RT (hoặc fallback) — **không** đổi engine `f3_alerts` / wording.
-4. **Cấm:** cột Chat spark, community, CTA đặt lệnh; không deploy trong task này.
-5. pytest Pass; cập nhật Last Executor + §6 Done → `commit+push`.
-
 **Acceptance**
-- [ ] `wl_rows` F3: headers `Mã` | `Giá` | `Cảnh báo`
-- [ ] ≥1 mã có số Giá khi mock/Redis; miss → `—` (hoặc fallback có caption)
-- [ ] không sửa logic alert phrases; pytest Pass; no deploy
-- [ ] push; `master_ack` chờ ag1
+- [x] `wl_rows` F3: headers `Mã` | `Giá` | `Cảnh báo`
+- [x] ≥1 mã có số Giá khi mock/Redis; miss → `—` (hoặc fallback có caption)
+- [x] không sửa logic alert phrases; pytest Pass; no deploy
+- [x] push; `master_ack` chờ ag1
 
 ### DONE — T-236 (Exe1 → ag1) — **acked**
 
@@ -368,33 +370,29 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing` 
 |-----|-------|------:|----------------:|----------|--------|
 | master | ag1 | — | — | — | **active** |
 | executor-1 | ag2 | — | — | yes | **paused_fork** — T-237 chuyển exe2 |
-| executor-2 | ag6 / exe2 | 0 | — | no | **active** — T-237 Doing |
+| executor-2 | ag6 / exe2 | 1 | 2 | no | **idle** — T-237 Done; chờ Master ack |
 | support-1 | ag3 / sp1 | — | — | yes | **paused_fork** |
 | support-2 | ag5 / sp2 | 1 | 1 | no | idle — S-022 **acked** |
 
 ### Master commands
 
 ```text
-🚨 [ACTION REQUIRED]: CONTEXT EXCEEDED on ag2/Exe1.
-Please open a NEW COMPOSER TAB as ag6 (exe2 / Exe2 / executor-2 / agent6),
-load @PROGRESS.md, and continue with Task T-237.
-Reason: human — ag2 full context; fork Executor lane.
-
-START T-237 — owner ag6 / exe2 (human fork).
-DoD unchanged: wl_rows Mã | Giá | Cảnh báo; live_quotes batch;
-miss → —/fallback+caption; no Chat/community; no f3_alerts change; no deploy.
-ag2 paused_fork; Support IDLE.
+T-237 Done (ag6/exe2) — chờ Master ack.
+DoD: wl_rows Mã | Giá | Cảnh báo; live_quotes batch;
+miss → OHLCV then — + caption; no Chat/community; no f3_alerts; no deploy.
+pytest Pass (15). Human → ag1: ack / 1a.
 ```
 
 ### Last Executor state (ag6 / exe2)
 
 ```
 task: T-237
-result: Doing
+result: Done
 owner: exe2
-Status: active
+Status: idle
 master_ack: pending
-focus: wl_rows Giá RT (F3_ALERTS §6.2)
+pytest: tests/test_watchlists_page.py + test_f3_alerts Pass (15)
+files: src/atz/ui/watchlists_page.py, tests/test_watchlists_page.py
 forked_from: ag2/Exe1 (context full)
 prior: T-236 acked (cedd90d404a2)
 ```
@@ -414,12 +412,7 @@ files: tests/test_f3_alerts.py
 ### Signals
 
 ```
-SIGNAL_NEED_FORK: yes
-lane: T-*
-from: ag2/Exe1
-to: ag6/exe2
-task: T-237
-reason: human — ag2 full context
+SIGNAL_NEED_FORK: cleared (T-237 completed by exe2)
 ```
 
 ---
@@ -428,6 +421,7 @@ reason: human — ag2 full context
 
 | Khi | Thay đổi |
 |-----|----------|
+| 2026-10-18 | **T-237 Done** — ag6/exe2; wl_rows Giá RT; pytest Pass (15); no deploy; master_ack pending |
 | 2026-10-18 | **FORK T-237** — ag2→ag6/exe2 (context full); naming ag6=Exe2; Exe1 paused_fork |
 | 2026-10-18 | **START T-237** — human 11a; F3 wl_rows + cột Giá RT; reuse live_quotes |
 | 2026-10-18 | **Master ack T-236 Pass** — human 10; image `cedd90d404a2`; T-237 unlocked |
