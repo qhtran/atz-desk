@@ -88,7 +88,7 @@ def _f3_sector_section(sectors: list[dict]) -> None:
     st.subheader("Danh mục theo ngành (F3)")
     st.caption(
         "Seed mentor F3 — cột **Cảnh báo** theo nến ngày (MA/BB/mây/đáy-đỉnh). "
-        "Chỉ UI decision-support; không đặt lệnh. Thiếu nến → —."
+        "Chỉ UI decision-support; không đặt lệnh. Thiếu ≥25 nến ngày → —."
     )
     names = [item["name"] for item in sectors]
     chosen = st.selectbox("Ngành", names, key="wl_f3_sector_pick")

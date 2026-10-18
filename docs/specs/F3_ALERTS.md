@@ -75,7 +75,7 @@ Levels:
 | `CLOUD_upper` | Biên trên mây Ichimoku |
 | `CLOUD_lower` | Biên dưới mây |
 | `SWING_LOW` | Vùng đáy gần nhất (giá cụ thể) |
-| `SWING_HIGH` | Vùng đỉnh dùng như hỗ trợ khi thủng (mentor: «hỗ trợ đáy/đỉnh») |
+| `SWING_HIGH` | Vùng **đỉnh cũ** — khi thủng đóng vai trò hỗ trợ (mentor: «hỗ trợ đáy/đỉnh»; UI: «vùng đỉnh cũ») |
 
 ### 4.3 Kháng cự — khi giá **tăng từ dưới** chạm/vượt level
 
@@ -85,8 +85,8 @@ Cùng tập `level_kind`, chiều ngược:
 
 ### 4.4 Multi-hit
 
-Một mã có thể khớp nhiều level cùng phiên → **liệt kê tất cả** (ag1).  
-Không rank để cắt bớt trên UI cho đến khi mentor chốt.
+Một mã có thể khớp nhiều level cùng phiên → liệt kê.  
+**T-233:** nếu cùng `direction` + cùng mức giá (sau `format_price`) → **gộp 1 câu**, vd. `vượt kháng cự 19.5 (MA20, band giữa, mây)`. Không rank cắt bớt.
 
 ---
 
@@ -119,7 +119,7 @@ Biến thể đã reverse từ mentor (giữ ngữ nghĩa; T-230 normalize số 
 | CLOUD_upper | `thủng biên trên mây (giá đi vào trong mây) 12.2` |
 | CLOUD_lower | `giá đi xuống dưới mây 12.2` |
 | SWING_LOW | `giảm thủng vùng hỗ trợ đáy 12.2` |
-| SWING_HIGH | `giảm thủng vùng hỗ trợ đỉnh 12.2` |
+| SWING_HIGH | `giảm thủng vùng đỉnh cũ 12.2` |
 
 ### 5.3 Kháng cự (tăng vượt)
 
@@ -127,9 +127,13 @@ Biến thể đã reverse từ mentor (giữ ngữ nghĩa; T-230 normalize số 
 vượt kháng cự <loại> <giá>
 ```
 
-Ví dụ: `vượt kháng cự MA50 15.3` · `vượt kháng cự biên trên band 16.0` · `vượt kháng cự vùng đỉnh 16.5`.
+Ví dụ: `vượt kháng cự MA50 15.3` · `vượt kháng cự biên trên band 16.0` · `vượt kháng cự vùng đỉnh cũ 16.5`.
 
-(T-230 giữ parallel naming với bảng hỗ trợ; nếu mentor đưa wording cứng hơn thì cập nhật spec patch.)
+Cùng giá nhiều loại (T-233):
+
+```text
+vượt kháng cự 19.5 (MA20, band giữa, mây)
+```
 
 ### 5.4 Ghép cột UI
 
@@ -144,6 +148,18 @@ xu hướng ngày: giảm · giảm thủng hỗ trợ MA20 12.2 · giảm thủ
 ```
 
 Nếu chỉ có xu hướng: chỉ một cụm xu hướng.
+
+### 5.5 Thuật ngữ nhanh (UI)
+
+| Hiện trên UI | Nghĩa |
+|--------------|--------|
+| `xu hướng ngày: tăng/giảm/sideway` | Close vs MA20 + dốc MA20 |
+| `giảm thủng …` | Cross xuống level (close ngày) |
+| `vượt kháng cự …` | Cross lên level |
+| `vùng đỉnh cũ` | `SWING_HIGH` — đỉnh lookback, thủng = mất hỗ trợ từ đỉnh |
+| `vùng đáy` / `vùng hỗ trợ đáy` | `SWING_LOW` |
+| `—` | Thiếu bars hoặc `< 25` nến ngày (không đủ MA/BB) |
+| Sidebar «Cảnh báo» | Cùng engine F3 Watchlist (T-233); không còn band ±5/8/10% giá mua |
 
 ---
 

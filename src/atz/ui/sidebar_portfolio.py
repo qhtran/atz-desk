@@ -9,6 +9,7 @@ from __future__ import annotations
 import pandas as pd
 import streamlit as st
 
+from analysis.f3_alerts import alert_column_for_bars
 from analysis.session import market_session
 from config import CAPITAL_TRANCHES
 from datasource.capital_ledger import nav_breakdown
@@ -86,8 +87,6 @@ def desk_position_rows(
             current = ohlcv
             source = "ohlcv"
         buy = _optional(item["Giá mua"])
-        support = _optional(item["Vùng hỗ trợ"])
-        resistance = _optional(item["Vùng kháng cự"])
         allocated = _optional(item["Thăm dò 1/4 NAV"]) if "Thăm dò 1/4 NAV" in item.index else None
         if allocated is None:
             allocated = quarter
@@ -100,12 +99,13 @@ def desk_position_rows(
             mkt = cost
             pnl = 0.0
             pnl_pct = 0.0 if buy is None or current is None or not buy else (current - buy) / buy * 100
+        # T-233 P2-a: cột «Cảnh báo» = cùng engine F3 nến ngày (Watchlist).
         rows.append(
             {
                 "Mã": symbol,
                 "Giá mua": buy,
                 "Giá hiện tại": current,
-                "Cảnh báo": position_alert(buy, current, support, resistance),
+                "Cảnh báo": alert_column_for_bars(symbol, frame),
                 "cost": cost,
                 "mkt": mkt,
                 "pnl": pnl,
@@ -183,6 +183,10 @@ def render_portfolio_overview() -> tuple[float, float]:
         hits = sum(1 for row in positions if row.get("price_source") == "redis")
         src = f"Redis {hits}/{len(positions)}" if hits else "OHLCV fallback"
         st.caption(f"Giá HT: {src} (nghìn đồng). Tham chiếu: https://rtboard.hsx.vn/")
+        st.caption(
+            "Cảnh báo: F3 nến ngày (cùng engine Watchlist ngành). "
+            "Thiếu ≥25 nến → —."
+        )
 
         from ui.theme_tokens import DOWN, UP
 

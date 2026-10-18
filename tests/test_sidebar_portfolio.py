@@ -129,7 +129,8 @@ def test_rows_unknown_symbol_without_any_price(ohlcv):
     rows = desk_position_rows(_store({"Mã": "ZZZZ", "Giá mua": 10.0}), 40_000_000, live_prices={})
     row = rows[0]
     assert row["Giá hiện tại"] is None
-    assert row["Cảnh báo"] == "Chưa có giá"
+    # T-233: cột Cảnh báo = F3 engine; fixture bars giả → —
+    assert row["Cảnh báo"] == "—"
     assert row["pnl"] == 0.0
     assert row["mkt"] == row["cost"] == 10_000_000  # 1/4 NAV fallback
 
@@ -147,7 +148,8 @@ def test_rows_pnl_from_live_price(ohlcv):
     assert row["mkt"] == pytest.approx(11_000_000)
     assert row["pnl"] == pytest.approx(1_000_000)
     assert row["pnl_pct"] == pytest.approx(10.0)
-    assert row["Cảnh báo"] == "+10%"
+    # T-233: không còn band ±% giá mua trên cột Cảnh báo
+    assert row["Cảnh báo"] == "—"
 
 
 # --- position_alert --------------------------------------------------------

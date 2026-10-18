@@ -70,6 +70,19 @@ def day_trend(close: pd.Series, ma20: pd.Series) -> str:
     return "sideway"
 
 
+def _kind_short_label(kind: str) -> str:
+    """Nhãn gọn khi gộp nhiều mốc cùng giá (T-233 P2-b)."""
+    return {
+        "BB_upper": "biên trên band",
+        "BB_mid": "band giữa",
+        "BB_lower": "biên dưới band",
+        "CLOUD_upper": "mây",
+        "CLOUD_lower": "mây",
+        "SWING_LOW": "vùng đáy",
+        "SWING_HIGH": "vùng đỉnh cũ",
+    }.get(kind, kind)
+
+
 def _support_text(kind: str, price: float) -> str:
     p = format_price(price)
     if kind.startswith("MA"):
@@ -87,21 +100,16 @@ def _support_text(kind: str, price: float) -> str:
     if kind == "SWING_LOW":
         return f"giảm thủng vùng hỗ trợ đáy {p}"
     if kind == "SWING_HIGH":
-        return f"giảm thủng vùng hỗ trợ đỉnh {p}"
+        # Đỉnh cũ đóng vai trò hỗ trợ khi thủng — tránh «hỗ trợ đỉnh» gây hiểu nhầm.
+        return f"giảm thủng vùng đỉnh cũ {p}"
     return f"giảm thủng hỗ trợ {kind} {p}"
 
 
 def _resist_text(kind: str, price: float) -> str:
     p = format_price(price)
-    label = {
-        "BB_upper": "biên trên band",
-        "BB_mid": "band giữa",
-        "BB_lower": "biên dưới band",
-        "CLOUD_upper": "biên trên mây",
-        "CLOUD_lower": "biên dưới mây",
-        "SWING_LOW": "vùng đáy",
-        "SWING_HIGH": "vùng đỉnh",
-    }.get(kind, kind)
+    label = _kind_short_label(kind)
+    if kind.startswith("CLOUD"):
+        label = "biên trên mây" if kind == "CLOUD_upper" else "biên dưới mây"
     return f"vượt kháng cự {label} {p}"
 
 
@@ -220,17 +228,68 @@ def dedup_phrases(
     return out
 
 
+def merge_same_price_phrases(phrases: Iterable[AlertPhrase]) -> list[AlertPhrase]:
+    """Gộp mệnh đề cùng hướng + cùng mức giá → 1 câu (T-233 P2-b).
+
+    VD: vượt kháng cự MA20/band giữa/mây cùng 19.5
+    → `vượt kháng cự 19.5 (MA20, band giữa, mây)`.
+    """
+    items = list(phrases)
+    buckets: dict[tuple[str, str], list[AlertPhrase]] = {}
+    for phrase in items:
+        if phrase.direction not in ("support", "resist") or phrase.level is None:
+            continue
+        key = (phrase.direction, format_price(float(phrase.level)))
+        buckets.setdefault(key, []).append(phrase)
+
+    emitted: set[tuple[str, str]] = set()
+    out: list[AlertPhrase] = []
+    for phrase in items:
+        if phrase.direction not in ("support", "resist") or phrase.level is None:
+            out.append(phrase)
+            continue
+        key = (phrase.direction, format_price(float(phrase.level)))
+        if key in emitted:
+            continue
+        emitted.add(key)
+        bucket = buckets[key]
+        if len(bucket) == 1:
+            out.append(bucket[0])
+            continue
+        labels: list[str] = []
+        for item in bucket:
+            label = _kind_short_label(item.level_kind)
+            if label not in labels:
+                labels.append(label)
+        price = format_price(float(bucket[0].level))
+        if phrase.direction == "resist":
+            text = f"vượt kháng cự {price} ({', '.join(labels)})"
+        else:
+            text = f"giảm thủng hỗ trợ {price} ({', '.join(labels)})"
+        out.append(
+            AlertPhrase(
+                symbol=bucket[0].symbol,
+                level_kind="MERGED",
+                direction=bucket[0].direction,
+                text=text,
+                level=bucket[0].level,
+                session_date=bucket[0].session_date,
+            )
+        )
+    return out
+
+
 def join_phrases(phrases: Iterable[AlertPhrase]) -> str:
     texts = [p.text for p in phrases if p.text]
     return " · ".join(texts) if texts else "—"
 
 
 def alert_column_for_bars(symbol: str, bars: pd.DataFrame | None, session_date: date | None = None) -> str:
-    """Chuỗi cột UI. Thiếu bars → —."""
-    if bars is None or bars.empty or len(bars) < 25:
+    """Chuỗi cột UI. Thiếu bars (<25 nến) → —."""
+    if not isinstance(bars, pd.DataFrame) or bars.empty or len(bars) < 25:
         return "—"
     # Cần MA200 cho full set; nếu thiếu vẫn cố phát xu hướng + level có sẵn.
     phrases = build_alert_phrases(symbol, bars, session_date=session_date)
     if not phrases:
         return "—"
-    return join_phrases(dedup_phrases(phrases))
+    return join_phrases(merge_same_price_phrases(dedup_phrases(phrases)))

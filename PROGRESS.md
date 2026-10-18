@@ -1,7 +1,7 @@
 # PROGRESS.md — atz.vn / vnstocks
 
 > Master Architect artifact. Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
-> Cập nhật: **2026-10-18** — **START T-233** (ag2) — Auditor P2×3 F3 Cảnh báo polish.
+> Cập nhật: **2026-10-18** — **T-233 Done** — F3 P2 a/b/c; pytest Pass (24); no deploy.
 
 ### Naming convention (bắt buộc)
 
@@ -141,12 +141,13 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 | T-230 | F3 cột Cảnh báo UI + alert engine | analysis, ui, tests | **Master ack Pass** — f3_alerts + Watchlist F3; pytest Pass (7); no deploy |
 | T-231 | Deploy F3 Cảnh báo UI (`vnstocks` only) | docker | **Master ack Pass** — image `2f18fd2c75e9`; upstream PASS; health 200; public 302 |
 | T-232 | Redeploy UI from `main` (post PR #2) | docker | **Master ack Pass** — image `2900f583873a`; `main` @ `c5d1e6c`; health 200; public 302 |
+| T-233 | F3 Cảnh báo P2 polish (Auditor) | analysis, ui, tests | **Executor Done** — sidebar F3; merge same-price; SWING_HIGH wording; pytest Pass (24) |
 
 ### Doing (ag2 / Exe1 — `T-*`)
 
 | ID | Title | Status | Modules | Target files | Acceptance | Deps | Agent 2 instructions |
 |----|-------|--------|---------|--------------|------------|------|----------------------|
-| **T-233** | F3 Cảnh báo P2 polish (Auditor) | **Doing** | analysis, ui, tests | `f3_alerts.py`, sidebar, watchlists | 3 P2 Done + pytest | Auditor 1425 | **START** — §6 |
+| — | *(trống — chờ human / ag1)* | — | — | — | — | — | — |
 
 **Quy tắc:** tối đa **một** `T-*` Doing (ag2) **và** tối đa **một** `S-*` Doing (ag3) — hai lane song song, không chung ID.
 
@@ -194,43 +195,20 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 8. ~~OAuth / T-221~~ — Google SSO **Pass** (human); FB chưa smoke live; OIDC Skip.
 9. ~~F3 S-010 + T-230~~ — **acked**; Open Q §11 defaults Exe1: close_D; tol=0 / SUPPORT_BAND swing; Telegram/màu = sau.
 10. **Auto-trade pipeline** — tài liệu tham chiếu only; NON-goal: không đặt lệnh.
-11. ~~**Auditor F3 smoke P2**~~ — **T-233 Doing** (a/b/c).
+11. ~~**Auditor F3 smoke P2**~~ — **T-233 Done** (a/b/c); master_ack pending.
 
 ---
 
 ## 6. Handoff to Agent 2 (ag2 / Exe1)
 
-**Current Doing (T-*):** **T-233** — F3 Cảnh báo P2 polish.
+**Current Doing (T-*):** *(trống)* — T-233 Done; chờ ag1 ack / deploy.
 
-### START — T-233 (ag1 → ag2)
+### DONE — T-233 (Exe1 → ag1) — **awaiting master_ack**
 
-**Nguồn:** Auditor inbox `20261018-1425-atz-f3-canh-bao-smoke.md` (Pass 7/7; P2×3).  
-**Spec:** `docs/specs/F3_ALERTS.md` (cập nhật wording nếu đổi template).
-
-**IN — cả 3 P2**
-
-1. **P2-a Sidebar sync**  
-   Sidebar «Vị thế hiện tại» cột Cảnh báo đang dùng logic khác (`position_alert` SL/TP-ish) → lệch vs bảng ngành F3 (`f3_alerts`).  
-   **Done khi:** cùng mã → cùng chuỗi F3 (dùng `alert_column_for_bars` / cùng engine) **hoặc** đổi header/caption sidebar rõ «cảnh báo vị thế ≠ F3 ngày» nếu cố ý tách. Ưu tiên **cùng engine F3** cho cột tên «Cảnh báo» nếu vẫn giữ tên đó.  
-   File gợi ý: `ui/sidebar_portfolio.py`, tái dùng `analysis/f3_alerts.py`.
-
-2. **P2-b Dedupe cùng giá**  
-   Ví dụ MBB: 3 mệnh đề «vượt kháng cự … 19.5» (MA20 / band giữa / mây).  
-   **Done khi:** cùng `(direction, price)` gộp 1 câu, vd. `vượt kháng cự 19.5 (MA20, band giữa, mây)`.  
-   File: `analysis/f3_alerts.py` (`join_phrases` / post-process) + unit test.
-
-3. **P2-c Wording + caption `—`**  
-   - Đổi/clarify «giảm thủng vùng hỗ trợ đỉnh» (SWING_HIGH as support) — dễ hiểu hơn (vd. «giảm thủng vùng đỉnh cũ …» hoặc theo mentor).  
-   - Caption/UI khi `—`: giải thích thiếu nến (đã có 1 phần trên Watchlist — đồng bộ sidebar nếu cần).  
-   File: templates trong `f3_alerts.py` + `watchlists_page.py` / sidebar caption.
-
-**OUT:** không deploy trừ human START sau; không Intent/order; không đổi seed F3.
-
-**Acceptance**
-- [ ] Pytest: dedupe same-price; wording SWING_HIGH mới; (tuỳ) sidebar dùng F3 engine
-- [ ] Manual note: MBB-style fixture không còn ≥2 mệnh đề cùng giá cùng hướng
-- [ ] Last Executor Done; master_ack pending; **không** tự deploy
-- [ ] Commit gợi ý: `fix(ui): F3 alert P2 polish sidebar+dedupe+wording (T-233)`
+- **P2-a:** sidebar `Cảnh báo` → `alert_column_for_bars` (+ caption ≥25 nến)
+- **P2-b:** `merge_same_price_phrases` → `vượt kháng cự 19.5 (MA20, band giữa, mây)`
+- **P2-c:** SWING_HIGH → `giảm thủng vùng đỉnh cũ`; spec §5.5 thuật ngữ; Watchlist caption
+- pytest `test_f3_alerts` + `test_sidebar_portfolio` **Pass (24)**; **không deploy**
 
 ### DONE — T-232 — **acked** (sau đó hotfix vnstock `8559cc9e458e`)
 
@@ -307,25 +285,27 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing` 
 | Tab | Alias | Turns | Files this task | Slowing? | Status |
 |-----|-------|------:|----------------:|----------|--------|
 | master | ag1 | — | — | — | active (plan-only) |
-| executor-1 | ag2 | 0 | 0 | no | **active — T-233** |
+| executor-1 | ag2 | 1 | 5 | no | **idle — T-233 Done** |
 | executor-2 | ag2 | — | — | — | standby (fork) |
 | support-1 | ag3 / sp1 | 1 | 3 | no | idle — S-021 **acked** |
 
 ### Master commands
 
 ```
-START T-233 — owner=executor-1; Auditor P2 a+b+c F3 Cảnh báo; no deploy.
-sp1 IDLE. Hotfix vnstock 5.1.0 already on VPS (8559cc9e458e).
+T-233 Done — master_ack pending; no deploy (await human).
+sp1 IDLE.
 ```
 
 ### Last Executor state (ag2)
 
 ```
 task: T-233
-result: Doing
+result: Done
+pytest: Pass (24)
 owner: executor-1
-Status: active
-deps: Auditor inbox 20261018-1425
+Status: idle
+master_ack: pending
+deploy: no
 ```
 
 ### Last Support state (ag3 / sp1)
@@ -355,6 +335,7 @@ report: docs/specs/F3_SECTOR_UNIVERSE.md
 | Khi | Thay đổi |
 |-----|----------|
 | 2026-10-18 | **START T-233** — F3 Cảnh báo P2×3 (human 1c) |
+| 2026-10-18 | **T-233 Done** — sidebar F3 + merge same-price + SWING_HIGH wording; pytest Pass (24); no deploy |
 | 2026-10-18 | **Hotfix vnstock 5.1.0** — `b68de1b` deploy VPS image `8559cc9e458e`; scan/refresh unblocked |
 | 2026-10-18 | **Master ack Auditor F3 smoke Pass 7/7** — inbox 1425; P2×3 |
 | 2026-10-18 | **WAIT_AUDITOR** — task `20261018-1425` F3 Cảnh báo smoke |

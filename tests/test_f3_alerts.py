@@ -13,6 +13,7 @@ from analysis.f3_alerts import (
     build_alert_phrases,
     dedup_phrases,
     join_phrases,
+    merge_same_price_phrases,
 )
 from analysis.technical import sma
 from datasource.f3_themes import load_f3_sector_themes
@@ -104,3 +105,28 @@ def test_resist_cross_up_ma20():
     resist = [p for p in phrases if p.direction == "resist" and p.level_kind == "MA20"]
     assert len(resist) == 1
     assert resist[0].text.startswith("vượt kháng cự")
+
+
+def test_merge_same_price_resist():
+    day = date(2026, 10, 18)
+    phrases = [
+        AlertPhrase("MBB", "TREND", "trend", "xu hướng ngày: tăng", None, day),
+        AlertPhrase("MBB", "MA20", "resist", "vượt kháng cự MA20 19.5", 19.5, day),
+        AlertPhrase("MBB", "BB_mid", "resist", "vượt kháng cự band giữa 19.5", 19.5, day),
+        AlertPhrase("MBB", "CLOUD_lower", "resist", "vượt kháng cự biên dưới mây 19.5", 19.5, day),
+    ]
+    merged = merge_same_price_phrases(phrases)
+    resist = [p for p in merged if p.direction == "resist"]
+    assert len(resist) == 1
+    assert resist[0].text == "vượt kháng cự 19.5 (MA20, band giữa, mây)"
+    joined = join_phrases(merged)
+    assert joined.count("19.5") == 1
+    assert " · " in joined
+
+
+def test_swing_high_wording():
+    from analysis.f3_alerts import _support_text
+
+    text = _support_text("SWING_HIGH", 23.4)
+    assert text == "giảm thủng vùng đỉnh cũ 23.4"
+    assert "hỗ trợ đỉnh" not in text
