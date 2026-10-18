@@ -1,7 +1,7 @@
 # PROGRESS.md — atz.vn / vnstocks
 
 > Master Architect artifact. Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
-> Cập nhật: **2026-10-18** — **WAIT_AUDITOR** F3 P2 re-smoke (`1505`); lanes idle; Master tab mới.
+> Cập nhật: **2026-10-18** — **Master ack Auditor 1505 Pass 9/9** + **START S-022** (ag3 SWING_HIGH snapshot).
 
 ### Naming convention (bắt buộc)
 
@@ -166,7 +166,7 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 | ID | Title | Status | Modules | Target files | Acceptance | Owner |
 |----|-------|--------|---------|--------------|------------|-------|
-| — | *(trống)* | — | — | — | — | — |
+| **S-022** | SWING_HIGH wording unit/snapshot (Auditor P2 #3) | **Doing** | analysis, tests | `tests/test_f3_alerts.py`, `analysis/f3_alerts.py` (chỉ nếu thiếu export) | pytest + chuỗi `vùng đỉnh cũ`; cấm `hỗ trợ đỉnh` | sp1 |
 
 #### Done (ag3 — gần đây)
 
@@ -196,13 +196,13 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 8. ~~OAuth / T-221~~ — Google SSO **Pass** (human); FB chưa smoke live; OIDC Skip.
 9. ~~F3 S-010 + T-230~~ — **acked**; Open Q §11 defaults Exe1: close_D; tol=0 / SUPPORT_BAND swing; Telegram/màu = sau.
 10. **Auto-trade pipeline** — tài liệu tham chiếu only; NON-goal: không đặt lệnh.
-11. ~~**Auditor F3 smoke P2**~~ — **T-233 Master ack Pass** (a/b/c); **WAIT_AUDITOR** re-smoke live post T-234 → task `20261018-1505`.
+11. ~~**Auditor F3 re-smoke 1505**~~ — **Master ack Pass 9/9**; P2 #3 → **S-022 Doing**; #1/#2 deferred.
 
 ---
 
 ## 6. Handoff to Agent 2 (ag2 / Exe1)
 
-**Current Doing (T-*):** *(trống)* — idle; **T-234 Master ack Pass**. **WAIT_AUDITOR** `1505` (không giao T-* mới).
+**Current Doing (T-*):** *(trống)* — idle; **T-234 Master ack Pass**. ag2 không Doing (human 3c = S-* only).
 
 ### DONE — T-234 (Exe1 → ag1) — **acked**
 
@@ -247,7 +247,25 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 ## 6b. Handoff to Agent 3 (ag3 / sp1)
 
-**Current Doing (S-*):** *(trống)* — idle; **S-021 Master ack Pass**.
+**Current Doing (S-*):** **S-022** — SWING_HIGH unit/snapshot (human **3c**).
+
+### START — S-022 (ag1 → sp1) — 2026-10-18
+
+**Vấn đề:** Auditor `1505` Pass wording live nhưng **không quan sát** được nhánh SWING_HIGH/`vùng đỉnh cũ` trên Ngân hàng hôm nay → P2 #3 yêu cầu unit/snapshot trong repo.
+
+**Đã có sẵn (đừng xóa):** `test_swing_high_wording` assert `_support_text("SWING_HIGH", …) == "giảm thủng vùng đỉnh cũ …"`.
+
+**Làm thêm (sp1):**
+1. Bổ sung test **compose**: fixture bars khiến `build_alert_phrases` (hoặc path công khai tương đương) sinh ≥1 phrase `level_kind=SWING_HIGH` / text chứa `vùng đỉnh cũ`.
+2. Assert **không** chứa `hỗ trợ đỉnh` / `vùng hỗ trợ đỉnh`.
+3. Chạy `pytest tests/test_f3_alerts.py -q` → Pass; ghi số test.
+4. **Không** deploy; **không** đổi UI Streamlit trừ khi cần export helper test (ưu tiên chỉ sửa `tests/`).
+5. Cập nhật Last Support state + §6b Done khi xong → `commit+push`.
+
+**Acceptance**
+- [ ] pytest f3_alerts Pass (gồm SWING_HIGH helper + compose/snapshot)
+- [ ] chuỗi UI-facing = `giảm thủng vùng đỉnh cũ <giá>`
+- [ ] push; `master_ack` chờ ag1
 
 ### DONE — S-021 (sp1 → ag1) — **acked**
 
@@ -263,6 +281,9 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 ### DONE — S-020 — **acked** (baseline 33/181)
 ### DONE — S-010 — **acked**
+
+### Master ack (Auditor 1505) — 2026-10-18
+- **Pass 9/9** — human 3c; inbox on `main`; S-022 unlocked.
 
 ---
 
@@ -293,16 +314,16 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing` 
 | master | ag1 | — | — | — | **active** (tab mới post-fork) |
 | executor-1 | ag2 | 1 | 1 | no | idle — T-234 **acked** |
 | executor-2 | ag2 | — | — | — | standby (fork) |
-| support-1 | ag3 / sp1 | 1 | 3 | no | idle — S-021 **acked** |
+| support-1 | ag3 / sp1 | 0 | — | no | **active** — S-022 Doing |
 
 ### Master commands
 
 ```text
-WAIT_AUDITOR — task docs/auditorbot/tasks/20261018-1505-f3-p2-resmoke.md
-(human 1a; T-234 Done; image 65f742a0fda3).
-Verify P2×3 live: sidebar parity · dedupe same-price · wording SWING_HIGH.
-Inbox target: docs/auditorbot/inbox/20261018-1505-atz-f3-p2-resmoke.md
-Lanes IDLE — không START T-* / S-* cho đến khi inbox hoặc human chọn khác.
+START S-022 — ag3 / sp1 (human 3c).
+Auditor 1505 Master ack Pass 9/9; WAIT clear.
+DoD: unit/snapshot SWING_HIGH → text «giảm thủng vùng đỉnh cũ»; cấm «hỗ trợ đỉnh»;
+pytest tests/test_f3_alerts.py Pass; no deploy / no UI polish (T-235 deferred).
+ag2 IDLE.
 ```
 
 ### Last Executor state (ag2)
@@ -324,17 +345,13 @@ master_ack: yes
 ### Last Support state (ag3 / sp1)
 
 ```
-task: S-021
-result: Done
+task: S-022
+result: Doing
 owner: sp1
-Status: idle
-master_ack: yes
-vnstock: 5.1.0
-bars_coverage: 180/181
-missing: PDG (KBS)
-macro_recall: 1.0
-macro_precision: 0.991
-report: docs/specs/F3_SECTOR_UNIVERSE.md
+Status: active
+master_ack: pending
+focus: SWING_HIGH unit/snapshot (Auditor 1505 P2 #3)
+prior: S-021 Done (vnstock 5.1.0; 180/181)
 ```
 
 ### Signals
@@ -347,6 +364,7 @@ report: docs/specs/F3_SECTOR_UNIVERSE.md
 
 | Khi | Thay đổi |
 |-----|----------|
+| 2026-10-18 | **Master ack Auditor 1505 Pass 9/9** + **START S-022** — human 3c; inbox merge; ag3 SWING_HIGH snapshot |
 | 2026-10-18 | **WAIT_AUDITOR** — human 1a; task `1505` F3 P2 re-smoke post T-234; BACKLOG Active; lanes idle |
 | 2026-10-18 | **FORK Master** — paused_fork; T-234 ack Pass; open new ag1 tab |
 | 2026-10-18 | **Master ack T-234 Pass** — image `65f742a0fda3` |

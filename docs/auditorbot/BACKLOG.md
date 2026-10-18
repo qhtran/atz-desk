@@ -1,17 +1,18 @@
 # AuditorBot backlog
 
-Cập nhật: **2026-10-18** — F3 P2 re-smoke post T-234 (human 1a).
+Cập nhật: **2026-10-18** — Master ack Pass `1505` F3 P2 re-smoke; S-022 follow-up.
 
 ## Active (làm tiếp)
 
 | Task file | Priority | Status | Notes |
 |-----------|----------|--------|-------|
-| `tasks/20261018-1505-f3-p2-resmoke.md` | P0 | **active** | Re-smoke F3 P2×3 trên image `65f742a0fda3`; chờ inbox |
+| *(không)* | — | — | — |
 
 ## Done (có inbox)
 
 | Task file | Priority | Inbox | Notes |
 |-----------|----------|-------|-------|
+| `tasks/20261018-1505-f3-p2-resmoke.md` | P0 | `inbox/20261018-1505-atz-f3-p2-resmoke.md` | **Master ack Pass 9/9**; Auditor `666d9b0` / `auditor/20261018-f3-p2-resmoke`; P2×3 follow-up → S-022 |
 | `tasks/20261018-1425-f3-canh-bao-smoke.md` | P0 | `inbox/20261018-1425-atz-f3-canh-bao-smoke.md` | **Master ack Pass 7/7**; Auditor `cf8065b` / `auditor/20261018-f3-canh-bao-smoke`; P2×3 |
 | `tasks/20261017-1530-post-ux-wave-retest.md` | P0 | `inbox/20261017-1530-atz-post-ux-wave-retest.md` | Auditor `6932c76` / branch `auditor/20261017-post-ux-wave-retest`; Master → T-150…T-153 |
 
