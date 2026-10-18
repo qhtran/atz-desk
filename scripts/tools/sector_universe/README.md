@@ -75,6 +75,16 @@ data/sector_universe/
     diff_vs_previous.md  # nếu có run trước
 ```
 
+## Gap report (S-020)
+
+```bash
+.venv/bin/python scripts/tools/sector_universe/fit.py --write-config
+.venv/bin/python scripts/tools/sector_universe/report_gap.py
+```
+
+Báo cáo: [`docs/specs/F3_SECTOR_UNIVERSE.md`](../../../docs/specs/F3_SECTOR_UNIVERSE.md)  
+JSON: `data/sector_universe/out/gap_report.json`
+
 ## Test
 
 ```bash
@@ -83,5 +93,5 @@ data/sector_universe/
 
 ## Ranh giới nhánh
 
-- **Có:** config seed/params, scripts tool, tests, cache/out dưới `data/sector_universe/`
-- **Không (trên nhánh này):** đổi UI watchlist, đổi `src/atz/config.py` UNIVERSE, import vào Streamlit
+- **Có:** config seed/params, scripts tool, tests, cache/out dưới `data/sector_universe/`, spec gap S-020
+- **Không (tool lane):** deploy; Phase 2 correlation (future); đổi UI Cảnh báo T-230

@@ -56,7 +56,7 @@ fitted:
   k_max: 22
   keep_seed_if_listed: true
   keep_whitelist: true
-  fitted_at: '2026-10-18T03:47:19+00:00'
+  fitted_at: '2026-10-18T04:46:55+00:00'
   metrics:
     objective: 0.994
     macro_recall: 1.0
