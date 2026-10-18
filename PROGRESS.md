@@ -1,7 +1,7 @@
 # PROGRESS.md — atz.vn / vnstocks
 
 > Master Architect artifact. Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
-> Cập nhật: **2026-10-18** — **Master ack T-238 Pass** (image `1b088cd0325c`); lanes idle.
+> Cập nhật: **2026-10-18** — **Todo T-239** Chat spark wl_rows (human 16b); lanes idle.
 
 ### Naming convention (bắt buộc)
 
@@ -163,6 +163,7 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 | ID | Title | Status | Modules | Target files (dự kiến) | Acceptance | Deps | Agent 2 instructions |
 |----|-------|--------|---------|------------------------|------------|------|----------------------|
+| **T-239** | F3 wl_rows + cột Chat spark 1 phiên | Todo | ui, ui_realtime, tests | `ui/watchlists_page.py`, spark/intraday helpers | Cột Chat (spark mở→now) giữa Giá và Cảnh báo; **OUT** engine F3 alert | T-238 | §6.2 backlog — **chưa START**; community = task riêng |
 | T-200 | F1: enum nến mạnh / TB / yếu gắn filter | Blocked | filters, analysis, ui | `filters/candle.py`, … | Mentor | Mentor | **Blocked.** |
 | T-210 | F1: Bollinger / Ichimoku / phần II | Blocked | filters, analysis | theo mentor | Mentor | Mentor | **Blocked.** |
 | T-222 | Brand CSS Authentik login (optional) | Blocked | infra | Authentik brand CSS | Visual brand | Human | **Blocked** — tách khỏi Sources; optional. |
@@ -205,7 +206,7 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 9. ~~F3 S-010 + T-230~~ — **acked**; Open Q §11 defaults Exe1: close_D; tol=0 / SUPPORT_BAND swing; Telegram/màu = sau.
 10. **Auto-trade pipeline** — tài liệu tham chiếu only; NON-goal: không đặt lệnh.
 11. ~~**Auditor F3 re-smoke 1505**~~ — Pass 9/9; P2 #3 **S-022 acked**; P2 #2 **T-235 Master ack Pass**; #1 deferred.
-12. ~~**F3 wl_rows gap §6.2 (Giá)**~~ — **T-237 Master ack Pass**; Chat/community vẫn backlog; không reopen engine.
+12. ~~**F3 wl_rows gap §6.2 (Giá)**~~ — **T-237/T-238 Pass**; **T-239 Todo** (Chat spark); community vẫn backlog; không reopen engine.
 
 ---
 
@@ -401,8 +402,9 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing` 
 ### Master commands
 
 ```text
-Master ack T-238 Pass — image 1b088cd0325c; health 200; public 302.
-Lanes IDLE. Optional: Chat spark backlog Todo | idle | mentor F1.
+Master ack T-238 Pass — image 1b088cd0325c.
+Todo T-239 recorded (Chat spark 1 phiên on wl_rows) — NOT started.
+Lanes IDLE. Community column = future task. Optional: START T-239 | idle | mentor F1.
 ```
 
 ### Last Executor state (ag6 / exe2)
@@ -443,6 +445,7 @@ SIGNAL_NEED_FORK: cleared (T-237 completed by exe2)
 
 | Khi | Thay đổi |
 |-----|----------|
+| 2026-10-18 | **Todo T-239** — human 16b; Chat spark wl_rows §6.2; chưa START; lanes idle |
 | 2026-10-18 | **Master ack T-238 Pass** — human 15a; image `1b088cd0325c`; lanes idle |
 | 2026-10-18 | **T-238 Done** — ag6/exe2; image `1b088cd0325c`; `main` @ `37b0d3c`; upstream PASS; health 200; public 302 |
 | 2026-10-18 | **START T-238** — human 14a; deploy T-237 UI vnstocks; owner ag6/exe2 |
