@@ -1,7 +1,7 @@
 # PROGRESS.md — atz.vn / vnstocks
 
 > Master Architect artifact. Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
-> Cập nhật: **2026-10-18** — **Master ack T-234 Pass** + **FORK** Master chat (context).
+> Cập nhật: **2026-10-18** — **WAIT_AUDITOR** F3 P2 re-smoke (`1505`); lanes idle; Master tab mới.
 
 ### Naming convention (bắt buộc)
 
@@ -196,13 +196,13 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 8. ~~OAuth / T-221~~ — Google SSO **Pass** (human); FB chưa smoke live; OIDC Skip.
 9. ~~F3 S-010 + T-230~~ — **acked**; Open Q §11 defaults Exe1: close_D; tol=0 / SUPPORT_BAND swing; Telegram/màu = sau.
 10. **Auto-trade pipeline** — tài liệu tham chiếu only; NON-goal: không đặt lệnh.
-11. ~~**Auditor F3 smoke P2**~~ — **T-233 Master ack Pass** (a/b/c).
+11. ~~**Auditor F3 smoke P2**~~ — **T-233 Master ack Pass** (a/b/c); **WAIT_AUDITOR** re-smoke live post T-234 → task `20261018-1505`.
 
 ---
 
 ## 6. Handoff to Agent 2 (ag2 / Exe1)
 
-**Current Doing (T-*):** *(trống)* — idle; **T-234 Master ack Pass**.
+**Current Doing (T-*):** *(trống)* — idle; **T-234 Master ack Pass**. **WAIT_AUDITOR** `1505` (không giao T-* mới).
 
 ### DONE — T-234 (Exe1 → ag1) — **acked**
 
@@ -290,7 +290,7 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing` 
 
 | Tab | Alias | Turns | Files this task | Slowing? | Status |
 |-----|-------|------:|----------------:|----------|--------|
-| master | ag1 | — | — | — | **paused_fork** (human 1a) |
+| master | ag1 | — | — | — | **active** (tab mới post-fork) |
 | executor-1 | ag2 | 1 | 1 | no | idle — T-234 **acked** |
 | executor-2 | ag2 | — | — | — | standby (fork) |
 | support-1 | ag3 / sp1 | 1 | 3 | no | idle — S-021 **acked** |
@@ -298,12 +298,11 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing` 
 ### Master commands
 
 ```text
-🚨 [ACTION REQUIRED]: CONTEXT EXCEEDED. Please open a NEW COMPOSER TAB,
-load @PROGRESS.md, and continue as ag1 (Master plan-only).
-Reason: long F3/SSO/multi-agent thread; human 1a fork.
-
-IDLE lanes — T-234 Master ack Pass (image 65f742a0fda3).
-Next optional: Auditor re-smoke F3 P2 | mentor F1 | idle.
+WAIT_AUDITOR — task docs/auditorbot/tasks/20261018-1505-f3-p2-resmoke.md
+(human 1a; T-234 Done; image 65f742a0fda3).
+Verify P2×3 live: sidebar parity · dedupe same-price · wording SWING_HIGH.
+Inbox target: docs/auditorbot/inbox/20261018-1505-atz-f3-p2-resmoke.md
+Lanes IDLE — không START T-* / S-* cho đến khi inbox hoặc human chọn khác.
 ```
 
 ### Last Executor state (ag2)
@@ -348,6 +347,7 @@ report: docs/specs/F3_SECTOR_UNIVERSE.md
 
 | Khi | Thay đổi |
 |-----|----------|
+| 2026-10-18 | **WAIT_AUDITOR** — human 1a; task `1505` F3 P2 re-smoke post T-234; BACKLOG Active; lanes idle |
 | 2026-10-18 | **FORK Master** — paused_fork; T-234 ack Pass; open new ag1 tab |
 | 2026-10-18 | **Master ack T-234 Pass** — image `65f742a0fda3` |
 | 2026-10-18 | **START T-234** — deploy UI T-233 vnstocks (human 1b) |

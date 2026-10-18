@@ -1,12 +1,12 @@
 # AuditorBot backlog
 
-Cập nhật: **2026-10-18** — F3 Cảnh báo smoke.
+Cập nhật: **2026-10-18** — F3 P2 re-smoke post T-234 (human 1a).
 
 ## Active (làm tiếp)
 
 | Task file | Priority | Status | Notes |
 |-----------|----------|--------|-------|
-| *(không)* | — | — | — |
+| `tasks/20261018-1505-f3-p2-resmoke.md` | P0 | **active** | Re-smoke F3 P2×3 trên image `65f742a0fda3`; chờ inbox |
 
 ## Done (có inbox)
 
