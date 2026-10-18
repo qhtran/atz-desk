@@ -1,7 +1,7 @@
 # PROGRESS.md — atz.vn / vnstocks
 
 > Master Architect artifact. Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
-> Cập nhật: **2026-10-18** — **START S-021** (sp1) — vnstock≥5.1 + pull bars + refresh gap report.
+> Cập nhật: **2026-10-18** — **S-021 NUDGE** — sp1 chưa Done; `6a5e36f` chỉ là WAIT, không phải deliverable.
 
 ### Naming convention (bắt buộc)
 
@@ -291,8 +291,11 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing` 
 ### Master commands
 
 ```
-WAIT — human 1a; S-021 Doing (sp1). ag1 IDLE until S-021 Done.
-ag2 IDLE. Branch: feat/sector-universe-f3.
+NUDGE S-021 — owner=sp1 (human 1a).
+KHÔNG đủ: git up-to-date @ 6a5e36f (đó là WAIT Master).
+PHẢI: (1) vnstock>=5.1 (2) pull_bars (3) refresh F3_SECTOR_UNIVERSE + fitted
+(4) Last Support = Done + push. Xem §6b START S-021.
+ag2 IDLE.
 ```
 
 ### Last Executor state (ag2)
@@ -324,6 +327,7 @@ baseline_bars: 33/181
 
 | Khi | Thay đổi |
 |-----|----------|
+| 2026-10-18 | **NUDGE S-021** — sp1 nhầm “up-to-date” = Done; nhắc làm đủ §6b (human 1a) |
 | 2026-10-18 | **START S-021** — sp1 vnstock≥5.1 + pull bars + refresh gap (human 1c) |
 | 2026-10-18 | **Master ack T-231 Pass + S-020 Pass** — deploy UI + sector universe report |
 | 2026-10-18 | **S-020 Done** — F3_SECTOR_UNIVERSE gap report; fitted refresh; 33/181 bars |
