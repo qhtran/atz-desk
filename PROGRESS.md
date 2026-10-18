@@ -1,7 +1,7 @@
 # PROGRESS.md — atz.vn / vnstocks
 
 > Master Architect artifact. Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
-> Cập nhật: **2026-10-18** — **T-237 Done** (ag6/exe2) — wl_rows Mã|Giá|Cảnh báo; pytest Pass; chờ Master ack.
+> Cập nhật: **2026-10-18** — **Master ack T-237 Pass**; lanes idle; deploy optional.
 
 ### Naming convention (bắt buộc)
 
@@ -148,7 +148,7 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 | T-234 | Deploy UI T-233 (`vnstocks` only) | docker | **Master ack Pass** — image `65f742a0fda3`; `main` @ `75e2c24`; health 200; public 302 |
 | T-235 | Sidebar Cảnh báo wrap/tooltip (Auditor 1505 P2 #2) | ui, tests | **Master ack Pass** — preview + expander wrap; TextColumn help; pytest Pass (37); no deploy |
 | T-236 | Deploy UI T-235 (`vnstocks` only) | docker | **Master ack Pass** — image `cedd90d404a2`; `main` @ `91aee02`; upstream PASS; health 200; public 302 |
-| T-237 | F3 wl_rows + cột Giá RT | ui, datasource, tests | **Done** — chờ Master ack; `build_wl_symbol_rows` Mã\|Giá\|Cảnh báo; Redis+OHLCV fallback; pytest Pass (5); no deploy |
+| T-237 | F3 wl_rows + cột Giá RT | ui, datasource, tests | **Master ack Pass** — `build_wl_symbol_rows` Mã\|Giá\|Cảnh báo; Redis+OHLCV fallback; pytest Pass (15); ship `b12b28a`; no deploy |
 
 ### Doing (ag2 / Exe1 — `T-*`)
 
@@ -204,21 +204,24 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 9. ~~F3 S-010 + T-230~~ — **acked**; Open Q §11 defaults Exe1: close_D; tol=0 / SUPPORT_BAND swing; Telegram/màu = sau.
 10. **Auto-trade pipeline** — tài liệu tham chiếu only; NON-goal: không đặt lệnh.
 11. ~~**Auditor F3 re-smoke 1505**~~ — Pass 9/9; P2 #3 **S-022 acked**; P2 #2 **T-235 Master ack Pass**; #1 deferred.
-12. ~~**F3 wl_rows gap §6.2**~~ — **T-237 Done** (Giá RT); chờ Master ack; Chat/community vẫn backlog; không reopen engine.
+12. ~~**F3 wl_rows gap §6.2 (Giá)**~~ — **T-237 Master ack Pass**; Chat/community vẫn backlog; không reopen engine.
 
 ---
 
 ## 6. Handoff to Executor (ag2/Exe1 · ag6/Exe2)
 
-**Current Doing (T-*):** *(trống)* — idle; **T-237 Done** (chờ Master ack).
+**Current Doing (T-*):** *(trống)* — idle; **T-237 Master ack Pass**.
 
-### DONE — T-237 (ag6 / exe2 → ag1) — chờ ack
+### DONE — T-237 (ag6 / exe2 → ag1) — **acked**
 
 - `build_wl_symbol_rows`: headers `Mã` | `Giá` | `Cảnh báo` khi `with_alerts=True`
 - Batch `load_live_prices_thousands` một lần; miss Redis → OHLCV last close; cả hai miss → `—`
 - Caption nguồn: Redis quote RT / OHLCV fallback (nghìn đồng); **không** đổi `f3_alerts`
-- **Cấm giữ:** Chat spark / community / CTA lệnh; **no deploy**
-- pytest `tests/test_watchlists_page.py` + `test_f3_alerts` **Pass (15)** · files: `ui/watchlists_page.py`, `tests/test_watchlists_page.py`
+- **Cấm giữ:** Chat spark / community / CTA lệnh; **no deploy** (trong task)
+- pytest `tests/test_watchlists_page.py` + `test_f3_alerts` **Pass (15)** · ship `b12b28a`
+
+### Master ack (T-237) — 2026-10-18
+- **Pass** — Master re-verify pytest Pass (15); human **13a done**; Giá RT §6.2 đóng; deploy = human chọn.
 
 ### FORK — T-237 (ag1 → ag6 / exe2) — 2026-10-18
 
@@ -370,7 +373,7 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing` 
 |-----|-------|------:|----------------:|----------|--------|
 | master | ag1 | — | — | — | **active** |
 | executor-1 | ag2 | — | — | yes | **paused_fork** — T-237 chuyển exe2 |
-| executor-2 | ag6 / exe2 | 1 | 2 | no | **idle** — T-237 Done; chờ Master ack |
+| executor-2 | ag6 / exe2 | 1 | 2 | no | idle — T-237 **acked** |
 | support-1 | ag3 / sp1 | — | — | yes | **paused_fork** |
 | support-2 | ag5 / sp2 | 1 | 1 | no | idle — S-022 **acked** |
 
@@ -421,6 +424,7 @@ SIGNAL_NEED_FORK: cleared (T-237 completed by exe2)
 
 | Khi | Thay đổi |
 |-----|----------|
+| 2026-10-18 | **Master ack T-237 Pass** — human 13a; pytest 15; ship `b12b28a`; deploy optional |
 | 2026-10-18 | **T-237 Done** — ag6/exe2; wl_rows Giá RT; pytest Pass (15); no deploy; master_ack pending |
 | 2026-10-18 | **FORK T-237** — ag2→ag6/exe2 (context full); naming ag6=Exe2; Exe1 paused_fork |
 | 2026-10-18 | **START T-237** — human 11a; F3 wl_rows + cột Giá RT; reuse live_quotes |
