@@ -1,7 +1,7 @@
 # PROGRESS.md — atz.vn / vnstocks
 
 > Master Architect artifact. Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
-> Cập nhật: **2026-10-18** — **T-234 Done** — image `65f742a0fda3`; `main` @ `75e2c24`.
+> Cập nhật: **2026-10-18** — **Master ack T-234 Pass** + **FORK** Master chat (context).
 
 ### Naming convention (bắt buộc)
 
@@ -142,7 +142,7 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 | T-231 | Deploy F3 Cảnh báo UI (`vnstocks` only) | docker | **Master ack Pass** — image `2f18fd2c75e9`; upstream PASS; health 200; public 302 |
 | T-232 | Redeploy UI from `main` (post PR #2) | docker | **Master ack Pass** — image `2900f583873a`; `main` @ `c5d1e6c`; health 200; public 302 |
 | T-233 | F3 Cảnh báo P2 polish (Auditor) | analysis, ui, tests | **Master ack Pass** — sidebar F3; merge same-price; SWING_HIGH; pytest Pass (24); no deploy |
-| T-234 | Deploy UI T-233 (`vnstocks` only) | docker | **Executor Done** — image `65f742a0fda3`; `main` @ `75e2c24`; upstream PASS; health 200; public 302 |
+| T-234 | Deploy UI T-233 (`vnstocks` only) | docker | **Master ack Pass** — image `65f742a0fda3`; `main` @ `75e2c24`; health 200; public 302 |
 
 ### Doing (ag2 / Exe1 — `T-*`)
 
@@ -202,19 +202,19 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 ## 6. Handoff to Agent 2 (ag2 / Exe1)
 
-**Current Doing (T-*):** *(trống)* — T-234 Done; chờ ag1 ack.
+**Current Doing (T-*):** *(trống)* — idle; **T-234 Master ack Pass**.
 
-### DONE — T-234 (Exe1 → ag1) — **awaiting master_ack**
+### DONE — T-234 (Exe1 → ag1) — **acked**
 
-- VPS `main` @ `75e2c24` (≥ `a9809cf`)
-- image `65f742a0fda3`; `--no-deps --force-recreate vnstocks` only
-- upstream PASS; health **200**; public **302**
-- Không đụng nginx/sshd/UFW/workers
+- VPS `main` @ `75e2c24`; image `65f742a0fda3`; health 200; public 302
+
+### Master ack (T-234) — 2026-10-18
+- **Pass** — T-233 UI live trên VPS.
 
 ### DONE — T-233 — **acked** · ship `a9809cf`
 
 ### Master ack (T-233) — 2026-10-18
-- **Pass** — đủ 3 P2; T-234 START (human 1b).
+- **Pass** — đủ 3 P2.
 
 ### DONE — T-232 — **acked** (sau đó hotfix vnstock `8559cc9e458e`)
 
@@ -290,16 +290,20 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing` 
 
 | Tab | Alias | Turns | Files this task | Slowing? | Status |
 |-----|-------|------:|----------------:|----------|--------|
-| master | ag1 | — | — | — | active (plan-only) |
-| executor-1 | ag2 | 1 | 1 | no | **idle — T-234 Done** |
+| master | ag1 | — | — | — | **paused_fork** (human 1a) |
+| executor-1 | ag2 | 1 | 1 | no | idle — T-234 **acked** |
 | executor-2 | ag2 | — | — | — | standby (fork) |
 | support-1 | ag3 / sp1 | 1 | 3 | no | idle — S-021 **acked** |
 
 ### Master commands
 
-```
-T-234 Done — master_ack pending.
-sp1 IDLE.
+```text
+🚨 [ACTION REQUIRED]: CONTEXT EXCEEDED. Please open a NEW COMPOSER TAB,
+load @PROGRESS.md, and continue as ag1 (Master plan-only).
+Reason: long F3/SSO/multi-agent thread; human 1a fork.
+
+IDLE lanes — T-234 Master ack Pass (image 65f742a0fda3).
+Next optional: Auditor re-smoke F3 P2 | mentor F1 | idle.
 ```
 
 ### Last Executor state (ag2)
@@ -315,7 +319,7 @@ health: 200
 public: 302
 owner: executor-1
 Status: idle
-master_ack: pending
+master_ack: yes
 ```
 
 ### Last Support state (ag3 / sp1)
@@ -344,6 +348,8 @@ report: docs/specs/F3_SECTOR_UNIVERSE.md
 
 | Khi | Thay đổi |
 |-----|----------|
+| 2026-10-18 | **FORK Master** — paused_fork; T-234 ack Pass; open new ag1 tab |
+| 2026-10-18 | **Master ack T-234 Pass** — image `65f742a0fda3` |
 | 2026-10-18 | **START T-234** — deploy UI T-233 vnstocks (human 1b) |
 | 2026-10-18 | **T-234 Done** — image `65f742a0fda3`; `main` @ `75e2c24`; upstream PASS; health 200; public 302 |
 | 2026-10-18 | **Master ack T-233 Pass** — P2 a/b/c; ship `a9809cf`; optional deploy |
