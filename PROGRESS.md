@@ -1,7 +1,7 @@
 # PROGRESS.md — atz.vn / vnstocks
 
 > Master Architect artifact. Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
-> Cập nhật: **2026-10-18** — lanes **IDLE** (poll); T-230 shipped `a7882c7` + Master ack Pass; S-020 Todo (chưa START).
+> Cập nhật: **2026-10-18** — **START T-231** (ag2 deploy UI) + **START S-020** (sp1 sector universe).
 
 ### Naming convention (bắt buộc)
 
@@ -41,7 +41,7 @@ Exe2 = executor-2 (standby khi fork) — vẫn dưới nhánh **ag2**, không đ
 | Auth | Authentik forward-auth; identity = headers; trading prefs = SQLite (ADR 0004); **ADR 0006** cấm OIDC Client Streamlit |
 | Branch / HEAD | `main` @ `da418b8`+ — VPS UI `4aaa437be56c`; T-220 SSO pending-approve |
 | NON-goal | Không đặt lệnh tự động; không SPA/BFF Phase 2; không OIDC client trong app trừ ADR mới |
-| `user_confirmed_infra` | **yes** — scope Authentik Sources/blueprints only (plan SSO); **không** stream/sshd/UFW |
+| `user_confirmed_infra` | **yes** — T-231: rebuild/recreate **`vnstocks` only** từ `feat/sector-universe-f3`; **không** stream/sshd/UFW/nginx site |
 
 **Active goals (ưu tiên sản phẩm):**
 1. Giữ pipeline near-realtime ổn định + UI bảng thống nhất (`realtime` / `analytical` / `compact`).
@@ -144,7 +144,7 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 | ID | Title | Status | Modules | Target files | Acceptance | Deps | Agent 2 instructions |
 |----|-------|--------|---------|--------------|------------|------|----------------------|
-| — | *(trống)* | — | — | — | — | — | — |
+| **T-231** | Deploy F3 Cảnh báo UI (`vnstocks` only) | **Doing** | docker | VPS `/opt/vnstocks` | image mới; health 200; 302 public | T-230 | **START** — xem §6 |
 
 **Quy tắc:** tối đa **một** `T-*` Doing (ag2) **và** tối đa **một** `S-*` Doing (ag3) — hai lane song song, không chung ID.
 
@@ -162,19 +162,19 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 | ID | Title | Status | Modules | Target files | Acceptance | Owner |
 |----|-------|--------|---------|--------------|------------|-------|
-| — | *(trống)* | — | — | — | — | — |
+| **S-020** | Sector universe — harden reverse-fit + report | **Doing** | scripts/tools | `scripts/tools/sector_universe/`, config | Report gap mentor; không `src/atz` trừ wire seed đã có | **sp1** |
 
 #### Done (ag3 — gần đây)
 
 | ID | Title | Status | Notes |
 |----|-------|--------|-------|
-| **S-010** | F3 «Cảnh báo» — catalog rule → spec | **Done** | `docs/specs/F3_ALERTS.md` — **Master ack Pass**; UI-only; tip T-230; không `src/atz` |
+| **S-010** | F3 «Cảnh báo» — catalog rule → spec | **Done** | `docs/specs/F3_ALERTS.md` — **Master ack Pass** |
 
 #### Todo (ag3)
 
 | ID | Title | Status | Notes |
 |----|-------|--------|-------|
-| S-020 | Sector universe reverse-engineer (mentor list) | Todo | Seed/tool đã có trên `feat/sector-universe-f3`; tiếp khi human/ag1 START — **không** hai S Doing cùng lúc |
+| — | *(trống)* | — | — |
 
 ---
 
@@ -195,21 +195,31 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 ## 6. Handoff to Agent 2 (ag2 / Exe1)
 
-**Current Doing (T-*):** *(trống)* — idle; **T-230 Master ack Pass**.
+**Current Doing (T-*):** **T-231** — Deploy F3 Cảnh báo UI.
 
-### DONE — T-230 (Exe1 → ag1) — **acked**
+### START — T-231 (ag1 → ag2)
 
-**Deliverables:** `f3_alerts.py`, `f3_themes.py`, `watchlists_page.py`, `tests/test_f3_alerts.py`  
-**Master ack:** **Pass** (2026-10-18) — OUT giữ; defaults §11 OK; pytest Exe1 Pass (7).
+**Scope:** `user_confirmed_infra: yes` — rebuild/recreate **`vnstocks` only**.  
+**Branch/commit:** `feat/sector-universe-f3` @ `a7882c7`+ (có T-230). Không merge `main` trừ khi cần cherry-pick — ưu tiên checkout branch này trên VPS build context.
+
+**IN**
+1. Pull branch trên VPS `/opt/vnstocks` (hoặc sync image build từ commit trên).
+2. `docker compose build vnstocks && docker compose up -d vnstocks` (tên service đúng compose hiện có).
+3. Verify: container healthy / stcore 200; public atz.vn → Authentik **302** (forward-auth).
+4. Smoke ngắn (tuỳ): Danh mục → Watchlist → chọn 1 ngành F3 → có cột **Cảnh báo** (không cần full visual report).
+5. Cập nhật Last Executor state + image id; **không** đụng nginx stream / sshd / UFW / Authentik.
+
+**OUT:** ingestion/filter/alert/redis recreate; force-push; merge main bắt buộc.
 
 **Acceptance**
-- [x] Engine + UI cột Cảnh báo F3
-- [x] Pytest Pass (7) — Exe1 report (Master không re-run env thiếu pytest)
-- [x] master_ack yes; **không** deploy
-- [x] Commit code T-230 — human `1a`
+- [ ] Image id mới trên VPS
+- [ ] Health/upstream OK; public 302
+- [ ] Report Done trên PROGRESS; push bus
+
+### DONE — T-230 (Exe1 → ag1) — **acked** + shipped `a7882c7`
 
 ### Master ack (T-230) — 2026-10-18
-- Pass: decision-support only; close_D + tol defaults ghi rõ; không order path.
+- Pass: decision-support only; close_D + tol defaults; shipped.
 
 ### Master ack (S-010) — 2026-10-18
 - `docs/specs/F3_ALERTS.md` Pass (đã ship).
@@ -227,22 +237,24 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 ## 6b. Handoff to Agent 3 (ag3 / sp1)
 
-**Current Doing (S-*):** *(trống)* — idle; **S-010 Master ack Pass**.
+**Current Doing (S-*):** **S-020** — Sector universe reverse-fit harden + gap report.
 
-### DONE — S-010 (sp1 → ag1) — **acked**
+### START — S-020 (ag1 → sp1)
 
-**Deliverable:** `docs/specs/F3_ALERTS.md`  
-**Master ack:** **Pass** (2026-10-18).
+**IN**
+1. Đọc `scripts/tools/sector_universe/README.md` + config `sector_themes_f3.yaml` / `sector_universe.yaml`.
+2. Chạy / hoàn thiện reverse-fit: document **recall vs mentor list**, tham số `fitted`, gap (mã mentor thiếu / false positive).
+3. Output: cập nhật README hoặc `docs/specs/F3_SECTOR_UNIVERSE.md` (ngắn) + Last Support state.
+4. Commit+push trên `feat/sector-universe-f3` khi xong (chỉ scripts/config/docs — **không** `src/atz` trừ bug seed loader đã có).
+
+**OUT:** không deploy; không đổi UI Cảnh báo T-230; không Phase 2 correlation trừ ghi “future”.
 
 **Acceptance**
-- [x] Spec: inputs, events, templates, UI contract, NON-goals, open Q, ag1 locks.
-- [x] Handoff tip T-230 ≤15 dòng (§12).
-- [x] Last Support state = Done + master_ack yes.
-- [ ] Commit — chờ human (`docs(specs): F3 alerts catalog (S-010)` + PROGRESS).
+- [ ] Report số liệu recall/gap (ít nhất 1 bảng tóm tắt)
+- [ ] Fitted params ghi rõ trong config hoặc spec
+- [ ] PROGRESS Last Support = Done; master_ack pending
 
-```
-(sp1 poll Master commands — không cần paste)
-```
+### DONE — S-010 — **acked** (đã ship với T-230 bus)
 
 ---
 
@@ -271,41 +283,35 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing` 
 | Tab | Alias | Turns | Files this task | Slowing? | Status |
 |-----|-------|------:|----------------:|----------|--------|
 | master | ag1 | — | — | — | active (plan-only) |
-| executor-1 | ag2 | 1 | 4 | no | idle — T-230 **acked** |
+| executor-1 | ag2 | 0 | 0 | no | **active — T-231** |
 | executor-2 | ag2 | — | — | — | standby (fork) |
-| support-1 | ag3 / sp1 | 1 | 1 | no | idle — S-010 acked |
+| support-1 | ag3 / sp1 | 0 | 0 | no | **active — S-020** |
 
 ### Master commands
 
 ```
-IDLE — T-230 shipped (human 1a commit).
-Bus protocol on. sp1 IDLE (S-020 khi human chọn).
+START T-231 — owner=executor-1; vnstocks only; branch feat/sector-universe-f3 @ a7882c7+; user_confirmed_infra=yes.
+START S-020 — owner=sp1; sector_universe reverse-fit report; no src/atz / no deploy.
+Bus protocol on — agents pull; human chỉ trả số cho ag1.
 ```
 
 ### Last Executor state (ag2)
 
 ```
-task: T-230
-result: Done
+task: T-231
+result: Doing
 owner: executor-1
-Status: idle
-master_ack: yes
-pytest: Pass (7)
-files: analysis/f3_alerts.py, datasource/f3_themes.py, ui/watchlists_page.py, tests/test_f3_alerts.py
-defaults: close_D; tol=0 / SUPPORT_BAND swing
-deploy: no
+Status: active
+deps: T-230 @ a7882c7
 ```
 
 ### Last Support state (ag3 / sp1)
 
 ```
-task: S-010
-result: Done
+task: S-020
+result: Doing
 owner: sp1
-target: docs/specs/F3_ALERTS.md
-Status: idle
-master_ack: yes
-notes: Pass; shipped with T-230 START bus
+Status: active
 ```
 
 ### Signals
@@ -319,6 +325,7 @@ notes: Pass; shipped with T-230 START bus
 | Khi | Thay đổi |
 |-----|----------|
 | 2026-10-18 | **Poll idle** — ag2/ag3 không Doing; T-230 ship `a7882c7`; bus header sync |
+| 2026-10-18 | **START T-231 + S-020** — deploy UI vnstocks; sp1 sector universe (human 1d) |
 | 2026-10-18 | **Bus protocol** — human↔ag1 chỉ số; ag2/ag3 pull PROGRESS (ít paste) |
 | 2026-10-18 | **Master ack T-230 Pass** — F3 alerts UI; chờ human commit |
 | 2026-10-18 | **T-230 Done** — f3_alerts + Watchlist F3 cột Cảnh báo; pytest Pass (7); no deploy |
