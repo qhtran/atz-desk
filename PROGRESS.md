@@ -1,7 +1,7 @@
 # PROGRESS.md — atz.vn / vnstocks
 
 > Master Architect artifact. Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
-> Cập nhật: **2026-10-18** — **T-232 Done** — VPS `main` @ `c5d1e6c`; image `2900f583873a`.
+> Cập nhật: **2026-10-18** — **Master ack T-232 Pass** — VPS `main` @ `c5d1e6c`; image `2900f583873a`.
 
 ### Naming convention (bắt buộc)
 
@@ -140,7 +140,7 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 | T-221 | Smoke SSO live Google/FB | infra | **Master ack Pass** — Google login OK; đổi MK OK; connection `mydev`; C Skip; outbox `2320`+ack |
 | T-230 | F3 cột Cảnh báo UI + alert engine | analysis, ui, tests | **Master ack Pass** — f3_alerts + Watchlist F3; pytest Pass (7); no deploy |
 | T-231 | Deploy F3 Cảnh báo UI (`vnstocks` only) | docker | **Master ack Pass** — image `2f18fd2c75e9`; upstream PASS; health 200; public 302 |
-| T-232 | Redeploy UI from `main` (post PR #2) | docker | **Executor Done** — image `2900f583873a`; `main` @ `c5d1e6c`; upstream PASS; health 200; public 302 |
+| T-232 | Redeploy UI from `main` (post PR #2) | docker | **Master ack Pass** — image `2900f583873a`; `main` @ `c5d1e6c`; health 200; public 302 |
 
 ### Doing (ag2 / Exe1 — `T-*`)
 
@@ -199,16 +199,17 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 ## 6. Handoff to Agent 2 (ag2 / Exe1)
 
-**Current Doing (T-*):** *(trống)* — T-232 Done; chờ ag1 ack.
+**Current Doing (T-*):** *(trống)* — idle; **T-232 Master ack Pass**.
 
-### DONE — T-232 (Exe1 → ag1) — **awaiting master_ack**
+### DONE — T-232 (Exe1 → ag1) — **acked**
 
-- VPS: `checkout main` + pull → `c5d1e6c` (≥ `1448cf5`)
-- image `2900f583873a`; `--no-deps --force-recreate vnstocks` only
+- VPS: `main` @ `c5d1e6c`; image `2900f583873a`; vnstocks only
 - upstream PASS; health **200**; public **302**
-- Không đụng nginx/sshd/UFW/workers; không còn `feat/sector-universe-f3` trên VPS
 
-### DONE — T-231 — **acked** (image `2f18fd2c75e9` — superseded by T-232)
+### Master ack (T-232) — 2026-10-18
+- **Pass** — VPS on `main` post PR #2; DoD đủ.
+
+### DONE — T-231 — **acked** (superseded by T-232)
 
 ### Master ack (T-231) — 2026-10-18
 - **Pass** — deploy DoD đủ.
@@ -278,15 +279,15 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing` 
 | Tab | Alias | Turns | Files this task | Slowing? | Status |
 |-----|-------|------:|----------------:|----------|--------|
 | master | ag1 | — | — | — | active (plan-only) |
-| executor-1 | ag2 | 1 | 1 | no | **idle — T-232 Done** |
+| executor-1 | ag2 | 1 | 1 | no | idle — T-232 **acked** |
 | executor-2 | ag2 | — | — | — | standby (fork) |
 | support-1 | ag3 / sp1 | 1 | 3 | no | idle — S-021 **acked** |
 
 ### Master commands
 
 ```
-T-232 Done — master_ack pending.
-sp1 IDLE.
+IDLE — Master ack T-232 Pass (image 2900f583873a, main).
+Next: human idle | smoke Cảnh báo.
 ```
 
 ### Last Executor state (ag2)
@@ -302,7 +303,7 @@ health: 200
 public: 302
 owner: executor-1
 Status: idle
-master_ack: pending
+master_ack: yes
 ```
 
 ### Last Support state (ag3 / sp1)
@@ -331,6 +332,7 @@ report: docs/specs/F3_SECTOR_UNIVERSE.md
 
 | Khi | Thay đổi |
 |-----|----------|
+| 2026-10-18 | **Master ack T-232 Pass** — image `2900f583873a`; VPS on main |
 | 2026-10-18 | **START T-232** — redeploy vnstocks from main (human 1b) |
 | 2026-10-18 | **T-232 Done** — VPS `main` @ `c5d1e6c`; image `2900f583873a`; upstream PASS; health 200; public 302 |
 | 2026-10-18 | **PR #2 MERGED** — F3 → `main` @ `28b555d` (squash) |
