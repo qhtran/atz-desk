@@ -1,8 +1,17 @@
 # PROGRESS.md — atz.vn / vnstocks
 
-> Master Architect artifact. Agent 2 (Code Executor) chỉ làm đúng task `Doing` trong mục Handoff.
-> Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
-> Cập nhật: **2026-10-17** — **Master ack T-221 Pass** — Google SSO login + đổi mật khẩu OK (human).
+> Master Architect artifact. Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
+> Cập nhật: **2026-10-18** — **START T-230** (ag2) — F3 Cảnh báo UI+engine theo `docs/specs/F3_ALERTS.md`.
+
+### Naming convention (bắt buộc)
+
+| Alias | Cũng gọi là | Vai trò | Làm / không làm |
+|-------|-------------|---------|-----------------|
+| **ag1** | agent1, **Master** | Architect / orchestrator | Plan, authorize, ack, brief giao việc — **không code**, không SSH, không smoke dài |
+| **ag2** | agent2, **Exe1**, executor-1 | Code Executor | Code app (`src/atz`), test, deploy khi được authorize — đúng task `Doing` |
+| **ag3** | agent3, **Support**, **sp1** | Support | Việc phụ: `scripts/tools/*`, doc2md, reverse-engineer mentor, seed/spec — **không** production app/deploy trừ Master giao rõ |
+
+Exe2 = executor-2 (standby khi fork) — vẫn dưới nhánh **ag2**, không đổi alias.
 
 ---
 
@@ -66,7 +75,7 @@ Target layout dài hạn (ADR 0001): `shared/` / `domain/` / `adapters/` / `serv
 - Debug overlay: `config/debug_overlay.yaml` / `ATZ_DEBUG_OVERLAY`.
 - SSH ops: ưu tiên host `:22`; **cấm** đụng nginx stream / sshd / UFW trừ human confirm.
 - Bot code paused; AuditorBot giữ survey UI; Cursor = code/deploy.
-- **Master = plan / authorize / ack only** — không tự code, không tự smoke/deploy/SSH. **Exe1** execute. Context đầy / fork → mở **Exe2** (tab mới + PROGRESS).
+- **ag1 (Master)** = plan / authorize / ack only — không tự code, không tự smoke/deploy/SSH. **ag2 (Exe1)** execute. **ag3 (sp1)** = việc phụ / tools / mentor analysis. Context đầy / fork → mở **Exe2** (vẫn ag2, tab mới + PROGRESS).
 
 **Đã ship gần đây (không mở lại trừ bug):**
 - Pin + live pinned strip; flash tick; OAH copy string; vốn/risk per-user.
@@ -114,21 +123,41 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 | T-220 | Authentik SSO Sources + enrollment pending approve | infra | **Done** — enrollment + Sources; secrets synced; outbox `1830-DONE` |
 | T-221 | Smoke SSO live Google/FB | infra | **Master ack Pass** — Google login OK; đổi MK OK; connection `mydev`; C Skip; outbox `2320`+ack |
 
-### Doing
+### Doing (ag2 / Exe1 — `T-*`)
 
 | ID | Title | Status | Modules | Target files | Acceptance | Deps | Agent 2 instructions |
 |----|-------|--------|---------|--------------|------------|------|----------------------|
-| — | *(trống)* | — | — | — | — | — | — |
+| **T-230** | F3 cột Cảnh báo UI + alert engine | **Doing** | analysis, ui, tests | xem §6 START | Spec §12 + pytest | S-010 | **START** — đọc `docs/specs/F3_ALERTS.md`; owner=executor-1 |
 
-**Quy tắc:** luôn tối đa **một** task `Doing`.
+**Quy tắc:** tối đa **một** `T-*` Doing (ag2) **và** tối đa **một** `S-*` Doing (ag3) — hai lane song song, không chung ID.
 
-### Todo (sẵn sàng khi human chọn)
+### Todo (sẵn sàng khi human chọn) — ag2
 
 | ID | Title | Status | Modules | Target files (dự kiến) | Acceptance | Deps | Agent 2 instructions |
 |----|-------|--------|---------|------------------------|------------|------|----------------------|
 | T-200 | F1: enum nến mạnh / TB / yếu gắn filter | Blocked | filters, analysis, ui | `filters/candle.py`, … | Mentor | Mentor | **Blocked.** |
 | T-210 | F1: Bollinger / Ichimoku / phần II | Blocked | filters, analysis | theo mentor | Mentor | Mentor | **Blocked.** |
 | T-222 | Brand CSS Authentik login (optional) | Blocked | infra | Authentik brand CSS | Visual brand | Human | **Blocked** — tách khỏi Sources; optional. |
+
+### Support board (ag3 / sp1 — `S-*`)
+
+#### Doing (ag3)
+
+| ID | Title | Status | Modules | Target files | Acceptance | Owner |
+|----|-------|--------|---------|--------------|------------|-------|
+| — | *(trống)* | — | — | — | — | — |
+
+#### Done (ag3 — gần đây)
+
+| ID | Title | Status | Notes |
+|----|-------|--------|-------|
+| **S-010** | F3 «Cảnh báo» — catalog rule → spec | **Done** | `docs/specs/F3_ALERTS.md` — **Master ack Pass**; UI-only; tip T-230; không `src/atz` |
+
+#### Todo (ag3)
+
+| ID | Title | Status | Notes |
+|----|-------|--------|-------|
+| S-020 | Sector universe reverse-engineer (mentor list) | Todo | Seed/tool đã có trên `feat/sector-universe-f3`; tiếp khi human/ag1 START — **không** hai S Doing cùng lúc |
 
 ---
 
@@ -142,18 +171,50 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 6. Multi-agent: bus = PROGRESS only.
 7. ~~Gemini OIDC-in-Streamlit~~ — **từ chối** (ADR 0006); Social = Authentik Sources + **pending approve**.
 8. ~~OAuth / T-221~~ — Google SSO **Pass** (human); FB chưa smoke live; OIDC Skip.
+9. ~~**F3 Cảnh báo** S-010~~ — **Master ack Pass** (`docs/specs/F3_ALERTS.md`). Open Q mentor §11 (last vs close D, tolerance, wording KC, màu, Telegram).
+10. **Auto-trade pipeline** — tài liệu tham chiếu only; NON-goal: không đặt lệnh.
 
 ---
 
-## 6. Handoff to Agent 2
+## 6. Handoff to Agent 2 (ag2 / Exe1)
 
-**Current Doing:** *(trống)* — T-221 Master ack Pass; chờ mentor F1 / human.
+**Current Doing (T-*):** **T-230** — F3 Cảnh báo UI + alert engine.
 
-```
-1a) Chờ mentor F1
-1b) Smoke Facebook live (tuỳ chọn)
-1c) Chờ
-```
+### START — T-230 (ag1 → ag2 / Exe1)
+
+**Spec:** `docs/specs/F3_ALERTS.md` (Master ack Pass). Đọc §2, §4–§7, §10, §12 trước khi code.
+
+**IN**
+1. Engine thuần: `bars_D` → list `AlertPhrase` → ghép ` · ` (templates §5).
+2. Tái dùng indicator sẵn (`analysis/technical`, support/swing nếu có) — không nhân bản MA/BB.
+3. UI: cột **Cảnh báo** trên bảng ngành F3 / Watchlist (`ui/watchlists_page.py` hoặc trang Danh mục tương đương) — string; thiếu bars → `—`.
+4. Dedup UI key §7 `(symbol, level_kind, direction, session_date)`.
+5. Unit tests: cross xuống MA20 → đúng template; không cross → không câu; multi-level → đủ câu.
+6. Open Q §11: chọn default hợp lý + ghi chú trong PR/report (last vs close D trong phiên; tolerance 0 hoặc `SUPPORT_BAND`).
+
+**OUT (cấm)**
+- Intent / order_helper / %NAV / broker / paper-order.
+- Trộn «Chat 1 phiên» vào engine ngày.
+- Rank provisional làm hard filter UI.
+- Deploy/SSH trừ task deploy riêng sau ack.
+
+**Target files (gợi ý — ag2 được chỉnh nếu cần)**
+- `src/atz/analysis/` (engine phrases) và/hoặc module nhỏ mới cùng package
+- `src/atz/ui/watchlists_page.py` (+ components bảng nếu có)
+- `tests/test_f3_alerts.py` (hoặc tên tương đương)
+- Config seed ngành nếu đã có (`config/sector_themes_f3.yaml`) — chỉ đọc/wire, không đổi mentor list trừ bug
+
+**Acceptance**
+- [ ] Pytest Pass cho cross/templates/multi-hit/dedup cơ bản
+- [ ] Cột Cảnh báo hiện trên UI ngành F3 khi chọn ngành
+- [ ] Report Exe1 + cập nhật Last Executor state; **không** tự deploy
+- [ ] Commit khi human/ag1 bảo — message gợi ý: `feat(ui): F3 sector alert column (T-230)`
+
+**Branch:** làm trên `feat/sector-universe-f3` (đã có seed/tool) trừ conflict — thì báo ag1.
+
+### Master ack (S-010) — 2026-10-18
+- Deliverable `docs/specs/F3_ALERTS.md` **Pass**.
+- T-230 **START** (human 1d).
 
 ### Master ack (T-221)
 - Human: Google login Pass + đổi mật khẩu Pass.
@@ -178,6 +239,28 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 ---
 
+## 6b. Handoff to Agent 3 (ag3 / sp1)
+
+**Current Doing (S-*):** *(trống)* — idle; **S-010 Master ack Pass**.
+
+### DONE — S-010 (sp1 → ag1) — **acked**
+
+**Deliverable:** `docs/specs/F3_ALERTS.md`  
+**Master ack:** **Pass** (2026-10-18).
+
+**Acceptance**
+- [x] Spec: inputs, events, templates, UI contract, NON-goals, open Q, ag1 locks.
+- [x] Handoff tip T-230 ≤15 dòng (§12).
+- [x] Last Support state = Done + master_ack yes.
+- [ ] Commit — chờ human (`docs(specs): F3 alerts catalog (S-010)` + PROGRESS).
+
+```
+1a) Idle — chờ human START T-230 hoặc S-020
+1b) START S-020 (sector universe reverse-engineer)
+```
+
+---
+
 ## 7. Agent sessions / fork
 
 Bus duy nhất giữa tab = file này. Architect commit+push PROGRESS mỗi khi đổi Handoff / fork / bảng sessions.
@@ -198,31 +281,43 @@ load @PROGRESS.md, and continue with Task <TASK-ID>.
 Reason: <…>
 ```
 
-Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing`.
+Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing` **trên cùng lane** (T-* hoặc S-*).
 
-| Tab | Turns | Files this task | Slowing? | Status |
-|-----|------:|----------------:|----------|--------|
-| executor-1 | 0 | 0 | no | idle |
-| executor-2 | — | — | — | standby (mở khi fork / context đầy) |
+| Tab | Alias | Turns | Files this task | Slowing? | Status |
+|-----|-------|------:|----------------:|----------|--------|
+| master | ag1 | — | — | — | active (plan-only) |
+| executor-1 | ag2 | 0 | 0 | no | **active — T-230** |
+| executor-2 | ag2 | — | — | — | standby (fork) |
+| support-1 | ag3 / sp1 | 1 | 1 | no | idle — S-010 acked |
 
 ### Master commands
 
 ```
-IDLE — T-221 Master ack Pass.
-Next: human 1a mentor F1 | 1b FB smoke optional | 1c wait.
+START T-230 — owner=executor-1 (ag2).
+Spec: docs/specs/F3_ALERTS.md (acked).
+sp1 IDLE. Naming: ag1 | ag2 | ag3=sp1.
 ```
 
-### Last Executor state
+### Last Executor state (ag2)
 
 ```
-task: T-221
-result: Pass
-master_ack: yes
-google_login: Pass
-password_change: Pass
-C: Skip
-owner: human+cursor
+task: T-230
+result: Doing
+owner: executor-1
+Status: active
+spec: docs/specs/F3_ALERTS.md
+```
+
+### Last Support state (ag3 / sp1)
+
+```
+task: S-010
+result: Done
+owner: sp1
+target: docs/specs/F3_ALERTS.md
 Status: idle
+master_ack: yes
+notes: Pass; shipped with T-230 START bus
 ```
 
 ### Signals
@@ -235,6 +330,11 @@ Status: idle
 
 | Khi | Thay đổi |
 |-----|----------|
+| 2026-10-18 | **START T-230** — ag2 F3 Cảnh báo UI+engine; ship S-010 docs + bus |
+| 2026-10-18 | **Master ack S-010 Pass** — F3_ALERTS; T-230 unlocked |
+| 2026-10-18 | **S-010 Done** — `docs/specs/F3_ALERTS.md`; Last Support idle; chờ Master ack |
+| 2026-10-18 | **S-010 Doing** — Handoff §6b ag3; T-230 Todo (chờ S-010); lane T-* / S-* song song |
+| 2026-10-18 | **Naming** — ag1=Master; ag2=Exe1; ag3=Support/sp1 (ghi đầu file) |
 | 2026-10-17 | Tạo file; snapshot HEAD `cf68947`; T-010…T-060 Done; Todo T-100…T-140; Blocked T-200…T-220 |
 | 2026-10-17 | **T-100 Done** — sync HANDOFF + PROGRESS; Trading workspace / pin strip / 3 variants = Done |
 | 2026-10-17 | **T-110 Doing** — handoff Agent 2 (audit + regression test; pre-survey sạch) |
