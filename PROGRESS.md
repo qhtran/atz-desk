@@ -1,7 +1,7 @@
 # PROGRESS.md — atz.vn / vnstocks
 
 > Master Architect artifact. Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
-> Cập nhật: **2026-10-18** — **Master ack T-230 Pass**; bus protocol ít paste; chờ human commit code.
+> Cập nhật: **2026-10-18** — lanes **IDLE** (poll); T-230 shipped `a7882c7` + Master ack Pass; S-020 Todo (chưa START).
 
 ### Naming convention (bắt buộc)
 
