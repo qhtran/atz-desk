@@ -1,7 +1,7 @@
 # PROGRESS.md — atz.vn / vnstocks
 
 > Master Architect artifact. Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
-> Cập nhật: **2026-10-18** — **T-235 Done** — sidebar Cảnh báo preview + expander wrap; pytest Pass (37).
+> Cập nhật: **2026-10-18** — **Master ack T-235 Pass**; lanes idle; deploy optional.
 
 ### Naming convention (bắt buộc)
 
@@ -145,7 +145,7 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 | T-232 | Redeploy UI from `main` (post PR #2) | docker | **Master ack Pass** — image `2900f583873a`; `main` @ `c5d1e6c`; health 200; public 302 |
 | T-233 | F3 Cảnh báo P2 polish (Auditor) | analysis, ui, tests | **Master ack Pass** — sidebar F3; merge same-price; SWING_HIGH; pytest Pass (24); no deploy |
 | T-234 | Deploy UI T-233 (`vnstocks` only) | docker | **Master ack Pass** — image `65f742a0fda3`; `main` @ `75e2c24`; health 200; public 302 |
-| T-235 | Sidebar Cảnh báo wrap/tooltip (Auditor 1505 P2 #2) | ui, tests | **Executor Done** — preview + expander wrap; TextColumn help; pytest Pass (37); no deploy |
+| T-235 | Sidebar Cảnh báo wrap/tooltip (Auditor 1505 P2 #2) | ui, tests | **Master ack Pass** — preview + expander wrap; TextColumn help; pytest Pass (37); no deploy |
 
 ### Doing (ag2 / Exe1 — `T-*`)
 
@@ -200,20 +200,23 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 8. ~~OAuth / T-221~~ — Google SSO **Pass** (human); FB chưa smoke live; OIDC Skip.
 9. ~~F3 S-010 + T-230~~ — **acked**; Open Q §11 defaults Exe1: close_D; tol=0 / SUPPORT_BAND swing; Telegram/màu = sau.
 10. **Auto-trade pipeline** — tài liệu tham chiếu only; NON-goal: không đặt lệnh.
-11. ~~**Auditor F3 re-smoke 1505**~~ — Pass 9/9; P2 #3 **S-022 acked**; P2 #2 **T-235 Done**; #1 deferred.
+11. ~~**Auditor F3 re-smoke 1505**~~ — Pass 9/9; P2 #3 **S-022 acked**; P2 #2 **T-235 Master ack Pass**; #1 deferred.
 
 ---
 
 ## 6. Handoff to Agent 2 (ag2 / Exe1)
 
-**Current Doing (T-*):** *(trống)* — T-235 Done; chờ ag1 ack / deploy.
+**Current Doing (T-*):** *(trống)* — idle; **T-235 Master ack Pass**.
 
-### DONE — T-235 (Exe1 → ag1) — **awaiting master_ack**
+### DONE — T-235 (Exe1 → ag1) — **acked**
 
 - `st.dataframe` không wrap → ô Cảnh báo = `truncate_sidebar_alert` + `TextColumn(help=…)`
 - Expander **«Cảnh báo đầy đủ (F3)»** markdown wrap full text (vd TPB `…11.9 (MA20, band giữa)`)
-- Không đổi engine F3 / S-022 wording; **no deploy**
-- pytest sidebar+f3+table_theme **Pass (37)**
+- Không đổi engine F3 / S-022 wording; **no deploy** (trong task)
+- pytest sidebar+f3+table_theme **Pass (37)** · ship `c7352a3`
+
+### Master ack (T-235) — 2026-10-18
+- **Pass** — Master re-verify pytest Pass (37); human **7a done**; P2 #2 đóng; deploy = human chọn.
 
 ### DONE — T-234 (Exe1 → ag1) — **acked**
 
@@ -323,7 +326,7 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing` 
 | Tab | Alias | Turns | Files this task | Slowing? | Status |
 |-----|-------|------:|----------------:|----------|--------|
 | master | ag1 | — | — | — | **active** |
-| executor-1 | ag2 | 1 | 2 | no | **idle** — T-235 Done |
+| executor-1 | ag2 | 1 | 2 | no | idle — T-235 **acked** |
 | executor-2 | ag2 | — | — | — | standby (fork) |
 | support-1 | ag3 / sp1 | — | — | yes | **paused_fork** |
 | support-2 | ag5 / sp2 | 1 | 1 | no | idle — S-022 **acked** |
@@ -331,8 +334,8 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing` 
 ### Master commands
 
 ```text
-T-235 Done — master_ack pending; no deploy.
-Support IDLE.
+Master ack T-235 Pass (pytest 37; ship c7352a3).
+Lanes IDLE. Optional next: deploy UI T-235 (vnstocks only) | idle.
 ```
 
 ### Last Executor state (ag2)
@@ -342,9 +345,10 @@ task: T-235
 result: Done
 owner: executor-1
 Status: idle
-master_ack: pending
+master_ack: yes
 deploy: no
 pytest: Pass (37)
+ship: c7352a3
 note: preview cell + expander wrap full F3
 ```
 
@@ -372,6 +376,7 @@ SIGNAL_NEED_FORK: no
 
 | Khi | Thay đổi |
 |-----|----------|
+| 2026-10-18 | **Master ack T-235 Pass** — human 7a; pytest 37; ship `c7352a3`; deploy optional |
 | 2026-10-18 | **Master ack S-022 Pass** + **START T-235** — human 6b; sidebar Cảnh báo wrap; ag2 active |
 | 2026-10-18 | **T-235 Done** — preview + expander wrap; TextColumn help; pytest Pass (37); no deploy |
 | 2026-10-18 | **S-022 Done** — ag5/sp2 compose SWING_HIGH snapshot; pytest Pass (10); master_ack pending |
