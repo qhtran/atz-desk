@@ -1,0 +1,132 @@
+// Hybrid: keymap IntelliJ (extension) + giữ phím Cursor AI
+[
+    // Gỡ Terminal khỏi Ctrl+` (mặc định VS Code/Cursor)
+    {
+        "key": "ctrl+`",
+        "command": "-workbench.action.terminal.toggleTerminal"
+    },
+    {
+        "key": "ctrl+`",
+        "command": "-workbench.action.terminal.toggleTerminal",
+        "when": "terminal.active"
+    },
+    // Switch Layout đúng lệnh (Agent / Editor / Zen / Browser)
+    {
+        "key": "ctrl+`",
+        "command": "workbench.action.openLayoutSwitcher"
+    },
+    // Terminal: Cmd+J
+    {
+        "key": "cmd+j",
+        "command": "workbench.action.togglePanel"
+    },
+    {
+        "key": "cmd+i",
+        "command": "composerMode.agent"
+    },
+    {
+        "key": "alt+cmd+s",
+        "command": "workbench.action.toggleUnifiedSidebarFromKeyboard",
+        "when": "!isAuxiliaryWindowFocusedContext"
+    },
+    // PyCharm: Double Shift / Find Action ≈ Command Palette
+    {
+        "key": "cmd+shift+a",
+        "command": "workbench.action.showCommands"
+    },
+    // PyCharm: Cmd+E Recent Files
+    {
+        "key": "cmd+e",
+        "command": "workbench.action.openRecent"
+    },
+    // PyCharm: Cmd+Shift+F Find in Files (Cursor mặc định đã có; giữ rõ ràng)
+    {
+        "key": "cmd+shift+f",
+        "command": "workbench.action.findInFiles"
+    },
+    // PyCharm: Shift+F6 Rename
+    {
+        "key": "shift+f6",
+        "command": "editor.action.rename",
+        "when": "editorHasRenameProvider && editorTextFocus && !editorReadonly"
+    },
+    // PyCharm: Ctrl+Shift+F10 Run context / Run current file ≈ Run Task Streamlit
+    {
+        "key": "ctrl+shift+f10",
+        "command": "workbench.action.debug.start"
+    },
+    // PyCharm: Cmd+, Settings
+    {
+        "key": "cmd+,",
+        "command": "workbench.action.openSettings"
+    },
+    // Open current .md in Typora (focus editor → copy path → open)
+    {
+        "key": "cmd+shift+o",
+        "command": "-workbench.action.gotoSymbol"
+    },
+    {
+        "key": "cmd+shift+o",
+        "command": "runCommands",
+        "args": {
+            "commands": [
+                "workbench.action.focusActiveEditorGroup",
+                "copyFilePath",
+                {
+                    "command": "workbench.action.tasks.runTask",
+                    "args": "Open in Typora"
+                }
+            ]
+        },
+        "when": "resourceExtname == .md"
+    },
+    // Windows-like Home/End (override IntelliJ: cursorLineStart/End → smart cursorHome/End)
+    // Verified in Cursor: cursorHome toggles first-non-ws ↔ col 1; cursorEnd is wrap-aware
+    // (view line end → model line end), NOT trailing-whitespace smart End.
+    {
+        "key": "home",
+        "command": "-cursorLineStart"
+    },
+    {
+        "key": "home",
+        "command": "cursorHome",
+        "when": "editorTextFocus"
+    },
+    {
+        "key": "shift+home",
+        "command": "-cursorLineStartSelect"
+    },
+    {
+        "key": "shift+home",
+        "command": "cursorHomeSelect",
+        "when": "editorTextFocus"
+    },
+    {
+        "key": "end",
+        "command": "-cursorLineEnd"
+    },
+    {
+        "key": "end",
+        "command": "cursorEnd",
+        "when": "editorTextFocus"
+    },
+    {
+        "key": "shift+end",
+        "command": "-cursorLineEndSelect"
+    },
+    {
+        "key": "shift+end",
+        "command": "cursorEndSelect",
+        "when": "editorTextFocus"
+    },
+    {
+        "key": "ctrl+home",
+        "command": "cursorTop",
+        "when": "editorTextFocus"
+    },
+    {
+        "key": "ctrl+end",
+        "command": "cursorBottom",
+        "when": "editorTextFocus"
+    }
+]
