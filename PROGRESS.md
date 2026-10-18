@@ -1,7 +1,7 @@
 # PROGRESS.md — atz.vn / vnstocks
 
 > Master Architect artifact. Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
-> Cập nhật: **2026-10-18** — **Open Q** ingestion board_stocks 1-shot (exe2/human 13b); chờ Master ack.
+> Cập nhật: **2026-10-18** — UI+ingestion đồng bộ image `188ead678824` (exe2 human 14b); Open Q §5.13 còn Master ack.
 
 ### Naming convention (bắt buộc)
 
@@ -42,9 +42,9 @@
 | Data | Redis (nóng) + SQLite `data/signals.db` (bền); secrets chỉ env |
 | Deploy | Docker Compose `/opt/vnstocks` — services: `vnstocks`, ingestion, filter-runner, alert, position, index-feed, redis |
 | Auth | Authentik forward-auth; identity = headers; trading prefs = SQLite (ADR 0004); **ADR 0006** cấm OIDC Client Streamlit |
-| Branch / HEAD | **`main` @ `3b7d91e`** — UI image `1b088cd0325c` (T-238); ingestion image `188ead678824` (board_stocks) |
+| Branch / HEAD | **`main` @ `985daa9`** — UI+ingestion image **`188ead678824`** (board_stocks; human 14b) |
 | NON-goal | Không đặt lệnh tự động; không SPA/BFF Phase 2; không OIDC client trong app trừ ADR mới |
-| `user_confirmed_infra` | **yes** — T-238 UI acked; **ingestion** recreate authorized human **13b** (exe2) |
+| `user_confirmed_infra` | **yes** — ingestion **13b** + UI redeploy **14b** (exe2); `vnstocks`+`ingestion` only |
 
 **Active goals (ưu tiên sản phẩm):**
 1. Giữ pipeline near-realtime ổn định + UI bảng thống nhất (`realtime` / `analytical` / `compact`).
@@ -207,7 +207,7 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 10. **Auto-trade pipeline** — tài liệu tham chiếu only; NON-goal: không đặt lệnh.
 11. ~~**Auditor F3 re-smoke 1505**~~ — Pass 9/9; P2 #3 **S-022 acked**; P2 #2 **T-235 Master ack Pass**; #1 deferred.
 12. ~~**F3 wl_rows gap §6.2 (Giá)**~~ — **T-237/T-238 Pass**; **T-239 Todo** (Chat spark); community vẫn backlog; không reopen engine.
-13. **Ingestion board_stocks (exe2 13b) — chờ Master ack** — không redesign kiến trúc (vẫn Redis nóng / workers / Authentik). Đã ship: `symbols_mode=board_stocks`, `batch_size=2000` (1× `price_board`/chu kỳ), `safety_max_rpm=500`; image `188ead678824`; Redis ~916/1519 quotes (miss = KBS thiếu price, không phải RPM). **Open Q:** (a) ack/ghi nhận ship; (b) redeploy UI cùng image?; (c) Vision entitlement UI = epic sau; (d) probe RPM lại **giờ GD**; (e) coverage miss / VCI retry. Chi tiết: iCloud `StockRnD/atz_data_ingrest.md`.
+13. **Ingestion board_stocks (exe2 13b/14b) — chờ Master ack** — không redesign kiến trúc. Ship: `board_stocks` + 1-shot + rpm 500; image **`188ead678824`** trên **cả** `ingestion` + **`vnstocks`** (14b: upstream PASS, health 200, public 302). Redis ~916/1519 quotes. **Open Q còn:** (a) Master ack; (c) Vision entitlement UI = epic sau; (d) probe RPM **giờ GD**; (e) coverage miss / VCI retry. ~~(b) UI redeploy~~ **done**. Chi tiết: iCloud `StockRnD/atz_data_ingrest.md`.
 
 ---
 
@@ -229,6 +229,12 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 **Kiến trúc:** cùng pipeline nguồn → ingestion → Redis → UI; chỉ mở universe + 1-shot API. Vision “RT full + entitlement UI” = hướng sản phẩm; entitlement **chưa** code.
 
 **Commits:** `341b6a9`, `3b7d91e` · image `188ead678824`
+
+### NOTE — UI redeploy đồng bộ image (ag6 / exe2) — human **14b** — 2026-10-18
+
+- `--no-deps --force-recreate vnstocks` only (cùng image `188ead678824` đã build cho board_stocks)
+- Trước: `1b088cd0325c` → Sau: `188ead678824`
+- upstream PASS; health **200**; public **302**; không đụng nginx/sshd/UFW/workers
 
 ### DONE — T-238 (ag6 / exe2 → ag1) — **acked**
 
@@ -411,31 +417,33 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing` 
 |-----|-------|------:|----------------:|----------|--------|
 | master | ag1 | — | — | — | **active** |
 | executor-1 | ag2 | — | — | yes | **paused_fork** — T-237 chuyển exe2 |
-| executor-2 | ag6 / exe2 | 2 | 3 | no | idle — board_stocks note; chờ Master ack |
+| executor-2 | ag6 / exe2 | 3 | 3 | no | idle — 14b UI sync; chờ Master ack §5.13 |
 | support-1 | ag3 / sp1 | — | — | yes | **paused_fork** |
 | support-2 | ag5 / sp2 | 1 | 1 | no | idle — S-022 **acked** |
 
 ### Master commands
 
 ```text
-EXE2 NOTE (human 14a→exe2 self-bus): ingestion board_stocks 1-shot shipped.
-Commits 341b6a9/3b7d91e; image 188ead678824; ingestion recreate only.
-Open Q §5.13 — Master ack / optional UI redeploy / entitlement epic later.
+EXE2 14b Done — vnstocks recreated on image 188ead678824 (same as ingestion).
+upstream PASS; health 200; public 302; no nginx/sshd/UFW.
+Open Q §5.13 — còn Master ack (+ optional GD RPM probe / entitlement epic).
 Todo T-239 still NOT started. Lanes IDLE.
 ```
 
 ### Last Executor state (ag6 / exe2)
 
 ```
-task: (out-of-band) ingestion board_stocks 13b
-result: Done — ship live; bus note
+task: (out-of-band) board_stocks 13b + UI sync 14b
+result: Done — UI+ingestion on 188ead678824
 owner: exe2
 Status: idle
 master_ack: pending (Open Q §5.13)
-files: config/ingestion.yaml, ingestion/universe.py, ingestion/config.py, tests/test_ingestion_universe.py
+image_ui: 188ead678824
 image_ingestion: 188ead678824
+health: 200
+public: 302
 quotes_redis: ~916/1519
-prior: T-238 acked (1b088cd0325c)
+prior: T-238 acked
 ```
 
 ### Last Support state (ag5 / sp2)
@@ -462,6 +470,7 @@ SIGNAL_NEED_FORK: cleared (T-237 completed by exe2)
 
 | Khi | Thay đổi |
 |-----|----------|
+| 2026-10-18 | **14b Done** — exe2 redeploy `vnstocks` → image `188ead678824`; health 200; public 302; Open Q §5.13b clear |
 | 2026-10-18 | **Open Q §5.13** — exe2 self-bus: board_stocks 1-shot + rpm 500 live (`188ead678824`); chờ Master ack |
 | 2026-10-18 | **Todo T-239** — human 16b; Chat spark wl_rows §6.2; chưa START; lanes idle |
 | 2026-10-18 | **Master ack T-238 Pass** — human 15a; image `1b088cd0325c`; lanes idle |
