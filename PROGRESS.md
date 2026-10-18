@@ -281,8 +281,8 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing` 
 ### Master commands
 
 ```
-IDLE — S-021 Pass. Human 1c PR→main BLOCKED: gh chưa auth.
-Next: human gh auth login | mở PR UI | hoặc ủy quyền merge.
+IDLE — S-021 Pass. PR #2 open: feat/sector-universe-f3 → main.
+Next: human merge PR | idle.
 ```
 
 ### Last Executor state (ag2)
