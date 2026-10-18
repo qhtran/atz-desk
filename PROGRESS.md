@@ -1,7 +1,7 @@
 # PROGRESS.md — atz.vn / vnstocks
 
 > Master Architect artifact. Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
-> Cập nhật: **2026-10-18** — **FORK S-022** ag3→**ag5/sp2** (context full); owner support-2.
+> Cập nhật: **2026-10-18** — **S-022 Done** (ag5/sp2); pytest f3_alerts Pass (10); `master_ack` pending.
 
 ### Naming convention (bắt buộc)
 
@@ -168,12 +168,13 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 | ID | Title | Status | Modules | Target files | Acceptance | Owner |
 |----|-------|--------|---------|--------------|------------|-------|
-| **S-022** | SWING_HIGH wording unit/snapshot (Auditor P2 #3) | **Doing** | analysis, tests | `tests/test_f3_alerts.py`, `analysis/f3_alerts.py` (chỉ nếu thiếu export) | pytest + chuỗi `vùng đỉnh cũ`; cấm `hỗ trợ đỉnh` | **sp2 / ag5** |
+| — | *(trống — chờ human / ag1)* | — | — | — | — | — |
 
-#### Done (ag3 — gần đây)
+#### Done (ag3/ag5 — gần đây)
 
 | ID | Title | Status | Notes |
 |----|-------|--------|-------|
+| **S-022** | SWING_HIGH wording unit/snapshot (Auditor P2 #3) | **Done** | ag5/sp2 — compose+UI path; pytest Pass (10); `master_ack` pending |
 | **S-021** | Nâng vnstock + pull bars + refresh metrics | **Done** | **Master ack Pass** — vnstock 5.1.0; bars 180/181 (PDG miss KBS); recall 100% / prec 99.1% |
 | **S-020** | Sector universe reverse-fit + gap report | **Done** | **Master ack Pass** — 33/181 bars (baseline) |
 | **S-010** | F3 «Cảnh báo» — catalog rule → spec | **Done** | `docs/specs/F3_ALERTS.md` — **Master ack Pass** |
@@ -249,31 +250,22 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 ## 6b. Handoff to Support (ag3/sp1 · ag5/sp2)
 
-**Current Doing (S-*):** **S-022** — owner **ag5 / sp2** (fork từ sp1; human context full).
+**Current Doing (S-*):** *(trống)* — idle; **S-022 Done** chờ `master_ack`.
 
-### FORK — S-022 (ag1 → sp2 / ag5) — 2026-10-18
+### DONE — S-022 (sp2 / ag5 → ag1) — chờ ack
 
-**Lý do:** ag3/sp1 context full → mở tab **ag5** (support-2). **Giữ cùng ID S-022** (một S-* Doing).
-
-sp1: **paused_fork** — không làm S-022 nữa.
-
-### START — S-022 (ag1 → sp2) — tiếp tục DoD gốc (human **3c**)
-
-**Vấn đề:** Auditor `1505` Pass wording live nhưng **không quan sát** được nhánh SWING_HIGH/`vùng đỉnh cũ` trên Ngân hàng hôm nay → P2 #3 yêu cầu unit/snapshot trong repo.
-
-**Đã có sẵn (đừng xóa):** `test_swing_high_wording` assert `_support_text("SWING_HIGH", …) == "giảm thủng vùng đỉnh cũ …"`.
-
-**Làm thêm (sp2 / ag5):**
-1. Bổ sung test **compose**: fixture bars khiến `build_alert_phrases` (hoặc path công khai tương đương) sinh ≥1 phrase `level_kind=SWING_HIGH` / text chứa `vùng đỉnh cũ`.
-2. Assert **không** chứa `hỗ trợ đỉnh` / `vùng hỗ trợ đỉnh`.
-3. Chạy `pytest tests/test_f3_alerts.py -q` → Pass; ghi số test.
-4. **Không** deploy; **không** đổi UI Streamlit trừ khi cần export helper test (ưu tiên chỉ sửa `tests/`).
-5. Cập nhật Last Support state + §6b Done khi xong → `commit+push`.
+**Deliverables:** `tests/test_f3_alerts.py` — `test_swing_high_compose_snapshot` (fixture bars → `build_alert_phrases` + `alert_column_for_bars`); giữ `test_swing_high_wording`.  
+**pytest:** `tests/test_f3_alerts.py` **Pass (10)**.  
+**Không** đổi `analysis/f3_alerts.py` / UI / deploy.
 
 **Acceptance**
-- [ ] pytest f3_alerts Pass (gồm SWING_HIGH helper + compose/snapshot)
-- [ ] chuỗi UI-facing = `giảm thủng vùng đỉnh cũ <giá>`
-- [ ] push; `master_ack` chờ ag1
+- [x] pytest f3_alerts Pass (helper + compose/snapshot)
+- [x] chuỗi UI-facing = `giảm thủng vùng đỉnh cũ 25.0`; cấm `hỗ trợ đỉnh` / `vùng hỗ trợ đỉnh`
+- [x] push; `master_ack` chờ ag1
+
+### FORK — S-022 (ag1 → sp2 / ag5) — 2026-10-18 *(historical)*
+
+ag3/sp1 context full → tab ag5; sp1 paused_fork; cùng ID S-022.
 
 ### DONE — S-021 (sp1 → ag1) — **acked**
 
@@ -323,20 +315,14 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing` 
 | executor-1 | ag2 | 1 | 1 | no | idle — T-234 **acked** |
 | executor-2 | ag2 | — | — | — | standby (fork) |
 | support-1 | ag3 / sp1 | — | — | yes | **paused_fork** — S-022 chuyển sp2 |
-| support-2 | ag5 / sp2 | 0 | — | no | **active** — S-022 Doing |
+| support-2 | ag5 / sp2 | 1 | 1 | no | **idle** — S-022 Done; chờ master_ack |
 
 ### Master commands
 
 ```text
-🚨 [ACTION REQUIRED]: CONTEXT EXCEEDED on ag3/sp1.
-Please open a NEW COMPOSER TAB as ag5 (support-2 / sp2 / agent5),
-load @PROGRESS.md, and continue with Task S-022.
-Reason: human — ag3 full context; fork Support lane.
-
-START S-022 — owner ag5 / sp2 (human fork).
-DoD unchanged: compose/snapshot SWING_HIGH → «giảm thủng vùng đỉnh cũ»;
-cấm «hỗ trợ đỉnh»; pytest tests/test_f3_alerts.py Pass; no deploy.
-ag3 paused_fork; ag2 IDLE.
+S-022 Done (ag5/sp2) — pytest tests/test_f3_alerts.py Pass (10);
+compose+UI path «giảm thủng vùng đỉnh cũ»; cấm «hỗ trợ đỉnh».
+master_ack pending. ag2 IDLE; Support idle.
 ```
 
 ### Last Executor state (ag2)
@@ -359,23 +345,20 @@ master_ack: yes
 
 ```
 task: S-022
-result: Doing
+result: Done
 owner: sp2
-Status: active
+Status: idle
 master_ack: pending
-focus: SWING_HIGH unit/snapshot (Auditor 1505 P2 #3)
+pytest: tests/test_f3_alerts.py Pass (10)
+files: tests/test_f3_alerts.py
+focus: SWING_HIGH compose/snapshot (Auditor 1505 P2 #3)
 forked_from: sp1 (context full)
 ```
 
 ### Signals
 
 ```
-SIGNAL_NEED_FORK: yes
-lane: S-*
-from: ag3/sp1
-to: ag5/sp2
-task: S-022
-reason: human — ag3 full context
+SIGNAL_NEED_FORK: no
 ```
 
 ---
@@ -384,6 +367,7 @@ reason: human — ag3 full context
 
 | Khi | Thay đổi |
 |-----|----------|
+| 2026-10-18 | **S-022 Done** — ag5/sp2 compose SWING_HIGH snapshot; pytest Pass (10); master_ack pending |
 | 2026-10-18 | **FORK S-022** — ag3→ag5/sp2 (context full); naming + sessions; sp1 paused_fork |
 | 2026-10-18 | **Master ack Auditor 1505 Pass 9/9** + **START S-022** — human 3c; inbox merge; ag3 SWING_HIGH snapshot |
 | 2026-10-18 | **WAIT_AUDITOR** — human 1a; task `1505` F3 P2 re-smoke post T-234; BACKLOG Active; lanes idle |

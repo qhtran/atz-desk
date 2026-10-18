@@ -130,3 +130,42 @@ def test_swing_high_wording():
     text = _support_text("SWING_HIGH", 23.4)
     assert text == "giảm thủng vùng đỉnh cũ 23.4"
     assert "hỗ trợ đỉnh" not in text
+
+
+def test_swing_high_compose_snapshot():
+    """S-022: fixture bars → build_alert_phrases sinh SWING_HIGH «vùng đỉnh cũ»."""
+    from config import SUPPORT_BAND
+
+    peak = 25.0
+    threshold = peak * (1.0 - SUPPORT_BAND)
+    # 40 phiên đỉnh high=25; prev/last cross xuống qua ngưỡng swing (SUPPORT_BAND).
+    n_flat = 40
+    closes = [24.8] * n_flat + [threshold + 0.01, threshold - 0.01]
+    highs = [peak] * n_flat + [threshold + 0.05, threshold]
+    lows = [24.0] * (n_flat + 2)
+    rows = []
+    for index, close in enumerate(closes):
+        rows.append(
+            {
+                "time": f"2026-01-{(index % 28) + 1:02d}",
+                "open": close,
+                "high": highs[index],
+                "low": lows[index],
+                "close": close,
+                "volume": 1_000_000,
+            }
+        )
+    bars = pd.DataFrame(rows)
+    phrases = build_alert_phrases("TCB", bars, session_date=date(2026, 10, 18))
+    swing = [p for p in phrases if p.level_kind == "SWING_HIGH" and p.direction == "support"]
+    assert len(swing) >= 1
+    assert swing[0].text == "giảm thủng vùng đỉnh cũ 25.0"
+    joined = join_phrases(phrases)
+    assert "vùng đỉnh cũ" in joined
+    assert "hỗ trợ đỉnh" not in joined
+    assert "vùng hỗ trợ đỉnh" not in joined
+    # Path UI cột Cảnh báo cũng giữ wording.
+    col = alert_column_for_bars("TCB", bars, session_date=date(2026, 10, 18))
+    assert "vùng đỉnh cũ" in col
+    assert "hỗ trợ đỉnh" not in col
+    assert "vùng hỗ trợ đỉnh" not in col
