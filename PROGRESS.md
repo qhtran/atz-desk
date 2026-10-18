@@ -281,8 +281,8 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing` 
 ### Master commands
 
 ```
-IDLE — Master ack S-021 Pass (180/181 bars; PDG miss OK).
-Next: human (PR merge / UI smoke / idle).
+IDLE — S-021 Pass. Human 1c PR→main BLOCKED: gh chưa auth.
+Next: human gh auth login | mở PR UI | hoặc ủy quyền merge.
 ```
 
 ### Last Executor state (ag2)
