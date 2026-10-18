@@ -1,7 +1,7 @@
 # PROGRESS.md — atz.vn / vnstocks
 
 > Master Architect artifact. Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
-> Cập nhật: **2026-10-18** — **START T-236** deploy T-235 UI; **T-237** Todo (Giá RT wl_rows) — human 9b.
+> Cập nhật: **2026-10-18** — **T-236 Done** — image `cedd90d404a2`; **T-237** Todo (Giá RT).
 
 ### Naming convention (bắt buộc)
 
@@ -146,12 +146,13 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 | T-233 | F3 Cảnh báo P2 polish (Auditor) | analysis, ui, tests | **Master ack Pass** — sidebar F3; merge same-price; SWING_HIGH; pytest Pass (24); no deploy |
 | T-234 | Deploy UI T-233 (`vnstocks` only) | docker | **Master ack Pass** — image `65f742a0fda3`; `main` @ `75e2c24`; health 200; public 302 |
 | T-235 | Sidebar Cảnh báo wrap/tooltip (Auditor 1505 P2 #2) | ui, tests | **Master ack Pass** — preview + expander wrap; TextColumn help; pytest Pass (37); no deploy |
+| T-236 | Deploy UI T-235 (`vnstocks` only) | docker | **Executor Done** — image `cedd90d404a2`; `main` @ `91aee02`; upstream PASS; health 200; public 302 |
 
 ### Doing (ag2 / Exe1 — `T-*`)
 
 | ID | Title | Status | Modules | Target files | Acceptance | Deps | Agent 2 instructions |
 |----|-------|--------|---------|--------------|------------|------|----------------------|
-| **T-236** | Deploy UI T-235 (`vnstocks` only) | **Doing** | docker | Compose `/opt/vnstocks` · service `vnstocks` | image mới; upstream PASS; health 200; public 302 | T-235 | Xem §6 START |
+| — | *(trống — chờ human / ag1)* | — | — | — | — | — | — |
 
 **Quy tắc:** tối đa **một** `T-*` Doing (ag2) **và** tối đa **một** `S-*` Doing (ag3/ag5) — hai lane song song, không chung ID.
 
@@ -208,26 +209,14 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 ## 6. Handoff to Agent 2 (ag2 / Exe1)
 
-**Current Doing (T-*):** **T-236** — deploy UI T-235 (human **9b**).
+**Current Doing (T-*):** *(trống)* — T-236 Done; chờ ag1 ack / START T-237.
 
-### START — T-236 (ag1 → Exe1) — 2026-10-18 · Phase B GO
+### DONE — T-236 (Exe1 → ag1) — **awaiting master_ack**
 
-**Authorize:** `user_confirmed_infra: yes` · scope **`vnstocks` only** (không rebuild workers / không nginx/sshd/UFW).
-
-**Code kỳ vọng:** `main` ≥ `c7352a3` (T-235) / bus ≥ `c3e917a`.
-
-**Làm (Exe1):**
-1. VPS: pull `main` → rebuild/recreate **chỉ** service `vnstocks`.
-2. DoD: image ID mới; upstream/health **200**; public atz.vn → Authentik **302** (hoặc 200 nếu đã session — ghi rõ).
-3. Không smoke UI dài (Master/human); không đụng T-237 trong task này.
-4. Cập nhật Last Executor + §6 Done → `commit+push` PROGRESS.
-
-**Acceptance**
-- [ ] image ≠ `65f742a0fda3` (T-234 cũ) trừ khi hash trùng bất khả kháng — ghi image mới
-- [ ] health 200 · public 302 · no nginx/sshd/UFW
-- [ ] push; `master_ack` chờ ag1
-
-**Sau ack T-236:** human có thể START **T-237** (Giá RT `wl_rows`).
+- VPS `main` @ `91aee02` (≥ `c7352a3`)
+- image `cedd90d404a2` (≠ `65f742a0fda3`); `--no-deps --force-recreate vnstocks` only
+- upstream PASS; health **200**; public **302**
+- Không đụng nginx/sshd/UFW/workers; không T-237
 
 ### DONE — T-235 (Exe1 → ag1) — **acked**
 
@@ -347,7 +336,7 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing` 
 | Tab | Alias | Turns | Files this task | Slowing? | Status |
 |-----|-------|------:|----------------:|----------|--------|
 | master | ag1 | — | — | — | **active** |
-| executor-1 | ag2 | 0 | — | no | **active** — T-236 Doing |
+| executor-1 | ag2 | 1 | 1 | no | **idle** — T-236 Done |
 | executor-2 | ag2 | — | — | — | standby (fork) |
 | support-1 | ag3 / sp1 | — | — | yes | **paused_fork** |
 | support-2 | ag5 / sp2 | 1 | 1 | no | idle — S-022 **acked** |
@@ -355,23 +344,25 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing` 
 ### Master commands
 
 ```text
-START T-236 — ag2 / Exe1 (human 9b).
-Phase B GO: user_confirmed_infra=yes; vnstocks ONLY; code ≥ c7352a3 (T-235).
-DoD: new image; health 200; public 302; no nginx/sshd/UFW; no T-237 yet.
-T-237 Todo (Giá RT wl_rows) — START sau khi T-236 ack.
+T-236 Done — master_ack pending.
+T-237 Todo (Giá RT wl_rows) — START sau ack T-236.
 ```
 
 ### Last Executor state (ag2)
 
 ```
 task: T-236
-result: Doing
+result: Done
+image: cedd90d404a2
+code: 91aee02
+branch: main
+upstream: PASS
+health: 200
+public: 302
 owner: executor-1
-Status: active
+Status: idle
 master_ack: pending
 scope: vnstocks only
-user_confirmed_infra: yes
-prior: T-235 acked (c7352a3)
 ```
 
 ### Last Support state (ag5 / sp2)
@@ -399,6 +390,7 @@ SIGNAL_NEED_FORK: no
 | Khi | Thay đổi |
 |-----|----------|
 | 2026-10-18 | **START T-236** + **Todo T-237** — human 9b; deploy T-235 UI; Giá RT wl_rows sau ack |
+| 2026-10-18 | **T-236 Done** — image `cedd90d404a2`; `main` @ `91aee02`; upstream PASS; health 200; public 302 |
 | 2026-10-18 | **Master ack T-235 Pass** — human 7a; pytest 37; ship `c7352a3`; deploy optional |
 | 2026-10-18 | **Master ack S-022 Pass** + **START T-235** — human 6b; sidebar Cảnh báo wrap; ag2 active |
 | 2026-10-18 | **T-235 Done** — preview + expander wrap; TextColumn help; pytest Pass (37); no deploy |
