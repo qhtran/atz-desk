@@ -1,4 +1,6 @@
-# Tool dùng chung deps app: pandas, pyyaml, vnstock
+# Tool sector_universe — cài trong venv project
 pandas>=2.0
 pyyaml>=6.0
-vnstock>=5.0
+# API KBS cần >=5.1; index nhà phát hành:
+#   pip install -U --extra-index-url https://vnstocks.com/api/packages 'vnstock>=5.1.0'
+vnstock>=5.1.0

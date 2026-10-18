@@ -24,13 +24,13 @@ Từ root repo (venv project):
 .venv/bin/python -c "import yaml,pandas,vnstock"
 ```
 
-**Lưu ý vnstock:** bản `5.0.1` trên máy có thể đã bị nhà phát hành tắt API. Cần nâng:
+**vnstock ≥ 5.1** (S-021 — index nhà phát hành):
 
 ```bash
-.venv/bin/pip install -U 'vnstock>=5.1.0'
+.venv/bin/python -m pip install -U --extra-index-url https://vnstocks.com/api/packages 'vnstock>=5.1.0'
 ```
 
-Trước khi pull đủ bars, tool vẫn chạy được trên cache sẵn có; recall chỉ tính trên mã **đã có** file OHLCV.
+Coverage seed sau S-021: **180/181** bars (thiếu PDG trên KBS).
 
 ## Quy trình lần đầu
 
