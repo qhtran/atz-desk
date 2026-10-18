@@ -1,7 +1,7 @@
 # PROGRESS.md — atz.vn / vnstocks
 
 > Master Architect artifact. Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
-> Cập nhật: **2026-10-18** — **T-233 Done** — F3 P2 a/b/c; pytest Pass (24); no deploy.
+> Cập nhật: **2026-10-18** — **Master ack T-233 Pass** — F3 P2 a/b/c; pytest Pass (24); chờ deploy optional.
 
 ### Naming convention (bắt buộc)
 
@@ -141,7 +141,7 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 | T-230 | F3 cột Cảnh báo UI + alert engine | analysis, ui, tests | **Master ack Pass** — f3_alerts + Watchlist F3; pytest Pass (7); no deploy |
 | T-231 | Deploy F3 Cảnh báo UI (`vnstocks` only) | docker | **Master ack Pass** — image `2f18fd2c75e9`; upstream PASS; health 200; public 302 |
 | T-232 | Redeploy UI from `main` (post PR #2) | docker | **Master ack Pass** — image `2900f583873a`; `main` @ `c5d1e6c`; health 200; public 302 |
-| T-233 | F3 Cảnh báo P2 polish (Auditor) | analysis, ui, tests | **Executor Done** — sidebar F3; merge same-price; SWING_HIGH wording; pytest Pass (24) |
+| T-233 | F3 Cảnh báo P2 polish (Auditor) | analysis, ui, tests | **Master ack Pass** — sidebar F3; merge same-price; SWING_HIGH; pytest Pass (24); no deploy |
 
 ### Doing (ag2 / Exe1 — `T-*`)
 
@@ -195,20 +195,23 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 8. ~~OAuth / T-221~~ — Google SSO **Pass** (human); FB chưa smoke live; OIDC Skip.
 9. ~~F3 S-010 + T-230~~ — **acked**; Open Q §11 defaults Exe1: close_D; tol=0 / SUPPORT_BAND swing; Telegram/màu = sau.
 10. **Auto-trade pipeline** — tài liệu tham chiếu only; NON-goal: không đặt lệnh.
-11. ~~**Auditor F3 smoke P2**~~ — **T-233 Done** (a/b/c); master_ack pending.
+11. ~~**Auditor F3 smoke P2**~~ — **T-233 Master ack Pass** (a/b/c).
 
 ---
 
 ## 6. Handoff to Agent 2 (ag2 / Exe1)
 
-**Current Doing (T-*):** *(trống)* — T-233 Done; chờ ag1 ack / deploy.
+**Current Doing (T-*):** *(trống)* — idle; **T-233 Master ack Pass**.
 
-### DONE — T-233 (Exe1 → ag1) — **awaiting master_ack**
+### DONE — T-233 (Exe1 → ag1) — **acked**
 
-- **P2-a:** sidebar `Cảnh báo` → `alert_column_for_bars` (+ caption ≥25 nến)
-- **P2-b:** `merge_same_price_phrases` → `vượt kháng cự 19.5 (MA20, band giữa, mây)`
-- **P2-c:** SWING_HIGH → `giảm thủng vùng đỉnh cũ`; spec §5.5 thuật ngữ; Watchlist caption
-- pytest `test_f3_alerts` + `test_sidebar_portfolio` **Pass (24)**; **không deploy**
+- **P2-a:** sidebar → `alert_column_for_bars`
+- **P2-b:** `merge_same_price_phrases`
+- **P2-c:** `giảm thủng vùng đỉnh cũ` + caption
+- pytest Pass (24); ship `a9809cf`; **chưa deploy**
+
+### Master ack (T-233) — 2026-10-18
+- **Pass** — đủ 3 P2 Auditor; optional T-234 deploy UI.
 
 ### DONE — T-232 — **acked** (sau đó hotfix vnstock `8559cc9e458e`)
 
@@ -285,14 +288,14 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing` 
 | Tab | Alias | Turns | Files this task | Slowing? | Status |
 |-----|-------|------:|----------------:|----------|--------|
 | master | ag1 | — | — | — | active (plan-only) |
-| executor-1 | ag2 | 1 | 5 | no | **idle — T-233 Done** |
+| executor-1 | ag2 | 1 | 5 | no | idle — T-233 **acked** |
 | executor-2 | ag2 | — | — | — | standby (fork) |
 | support-1 | ag3 / sp1 | 1 | 3 | no | idle — S-021 **acked** |
 
 ### Master commands
 
 ```
-T-233 Done — master_ack pending; no deploy (await human).
+IDLE — Master ack T-233 Pass (a9809cf). Optional T-234 deploy vnstocks.
 sp1 IDLE.
 ```
 
@@ -304,7 +307,8 @@ result: Done
 pytest: Pass (24)
 owner: executor-1
 Status: idle
-master_ack: pending
+master_ack: yes
+ship: a9809cf
 deploy: no
 ```
 
@@ -334,6 +338,7 @@ report: docs/specs/F3_SECTOR_UNIVERSE.md
 
 | Khi | Thay đổi |
 |-----|----------|
+| 2026-10-18 | **Master ack T-233 Pass** — P2 a/b/c; ship `a9809cf`; optional deploy |
 | 2026-10-18 | **START T-233** — F3 Cảnh báo P2×3 (human 1c) |
 | 2026-10-18 | **T-233 Done** — sidebar F3 + merge same-price + SWING_HIGH wording; pytest Pass (24); no deploy |
 | 2026-10-18 | **Hotfix vnstock 5.1.0** — `b68de1b` deploy VPS image `8559cc9e458e`; scan/refresh unblocked |
