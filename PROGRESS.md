@@ -1,7 +1,7 @@
 # PROGRESS.md — atz.vn / vnstocks
 
 > Master Architect artifact. Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
-> Cập nhật: **2026-10-18** — **Master ack T-233 Pass** — F3 P2 a/b/c; pytest Pass (24); chờ deploy optional.
+> Cập nhật: **2026-10-18** — **START T-234** (ag2) — deploy UI T-233 từ `main`.
 
 ### Naming convention (bắt buộc)
 
@@ -39,9 +39,9 @@ Exe2 = executor-2 (standby khi fork) — vẫn dưới nhánh **ag2**, không đ
 | Data | Redis (nóng) + SQLite `data/signals.db` (bền); secrets chỉ env |
 | Deploy | Docker Compose `/opt/vnstocks` — services: `vnstocks`, ingestion, filter-runner, alert, position, index-feed, redis |
 | Auth | Authentik forward-auth; identity = headers; trading prefs = SQLite (ADR 0004); **ADR 0006** cấm OIDC Client Streamlit |
-| Branch / HEAD | **`main` @ `b68de1b`** — VPS UI image `8559cc9e458e` (vnstock 5.1.0) |
+| Branch / HEAD | **`main` @ `7995bba`+** — VPS UI image `8559cc9e458e` (chờ T-234) |
 | NON-goal | Không đặt lệnh tự động; không SPA/BFF Phase 2; không OIDC client trong app trừ ADR mới |
-| `user_confirmed_infra` | **yes** — T-232 Done; VPS on `main`; `vnstocks` only |
+| `user_confirmed_infra` | **yes** — T-234: rebuild/recreate **`vnstocks` only** từ `main` ≥ `a9809cf`; không stream/sshd/UFW |
 
 **Active goals (ưu tiên sản phẩm):**
 1. Giữ pipeline near-realtime ổn định + UI bảng thống nhất (`realtime` / `analytical` / `compact`).
@@ -147,7 +147,7 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 | ID | Title | Status | Modules | Target files | Acceptance | Deps | Agent 2 instructions |
 |----|-------|--------|---------|--------------|------------|------|----------------------|
-| — | *(trống — chờ human / ag1)* | — | — | — | — | — | — |
+| **T-234** | Deploy UI T-233 (`vnstocks` only) | **Doing** | docker | VPS `/opt/vnstocks` | image mới; health 200; 302 | T-233 | **START** — §6 |
 
 **Quy tắc:** tối đa **một** `T-*` Doing (ag2) **và** tối đa **một** `S-*` Doing (ag3) — hai lane song song, không chung ID.
 
@@ -201,17 +201,26 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 
 ## 6. Handoff to Agent 2 (ag2 / Exe1)
 
-**Current Doing (T-*):** *(trống)* — idle; **T-233 Master ack Pass**.
+**Current Doing (T-*):** **T-234** — Deploy UI T-233.
 
-### DONE — T-233 (Exe1 → ag1) — **acked**
+### START — T-234 (ag1 → ag2)
 
-- **P2-a:** sidebar → `alert_column_for_bars`
-- **P2-b:** `merge_same_price_phrases`
-- **P2-c:** `giảm thủng vùng đỉnh cũ` + caption
-- pytest Pass (24); ship `a9809cf`; **chưa deploy**
+**Scope:** `user_confirmed_infra: yes` — **`vnstocks` only**.  
+**Code:** `main` ≥ **`a9809cf`** (T-233) / pull tới tip (gồm `7995bba` ack).
+
+**IN**
+1. VPS `/opt/vnstocks`: `git fetch && git checkout main && git pull --ff-only`
+2. `docker compose build vnstocks && docker compose up -d --no-deps --force-recreate vnstocks`
+3. Verify: health **200**; public **302**
+4. Optional: Danh mục F3 / sidebar Cảnh báo (dedupe / đỉnh cũ) nếu có session
+5. Last Executor + image id; **không** nginx/sshd/UFW/workers khác
+
+**Acceptance:** image mới · health 200 · public 302 · master_ack pending
+
+### DONE — T-233 — **acked** · ship `a9809cf`
 
 ### Master ack (T-233) — 2026-10-18
-- **Pass** — đủ 3 P2 Auditor; optional T-234 deploy UI.
+- **Pass** — đủ 3 P2; T-234 START (human 1b).
 
 ### DONE — T-232 — **acked** (sau đó hotfix vnstock `8559cc9e458e`)
 
@@ -288,28 +297,25 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing` 
 | Tab | Alias | Turns | Files this task | Slowing? | Status |
 |-----|-------|------:|----------------:|----------|--------|
 | master | ag1 | — | — | — | active (plan-only) |
-| executor-1 | ag2 | 1 | 5 | no | idle — T-233 **acked** |
+| executor-1 | ag2 | 0 | 0 | no | **active — T-234** |
 | executor-2 | ag2 | — | — | — | standby (fork) |
 | support-1 | ag3 / sp1 | 1 | 3 | no | idle — S-021 **acked** |
 
 ### Master commands
 
 ```
-IDLE — Master ack T-233 Pass (a9809cf). Optional T-234 deploy vnstocks.
+START T-234 — owner=executor-1; vnstocks only; main ≥ a9809cf; user_confirmed_infra=yes.
 sp1 IDLE.
 ```
 
 ### Last Executor state (ag2)
 
 ```
-task: T-233
-result: Done
-pytest: Pass (24)
+task: T-234
+result: Doing
 owner: executor-1
-Status: idle
-master_ack: yes
-ship: a9809cf
-deploy: no
+Status: active
+deps: T-233 @ a9809cf
 ```
 
 ### Last Support state (ag3 / sp1)
@@ -338,6 +344,7 @@ report: docs/specs/F3_SECTOR_UNIVERSE.md
 
 | Khi | Thay đổi |
 |-----|----------|
+| 2026-10-18 | **START T-234** — deploy UI T-233 vnstocks (human 1b) |
 | 2026-10-18 | **Master ack T-233 Pass** — P2 a/b/c; ship `a9809cf`; optional deploy |
 | 2026-10-18 | **START T-233** — F3 Cảnh báo P2×3 (human 1c) |
 | 2026-10-18 | **T-233 Done** — sidebar F3 + merge same-price + SWING_HIGH wording; pytest Pass (24); no deploy |
