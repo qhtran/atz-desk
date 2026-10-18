@@ -1,10 +1,14 @@
-"""Tab Watchlist trong Danh mục: ngành mặc định + danh mục riêng của user."""
+"""Tab Watchlist trong Danh mục: ngành F3 (mentor) + danh mục riêng của user."""
 
 from __future__ import annotations
 
+from datetime import date
+
 import streamlit as st
 
-from config import UNIVERSE
+from analysis.f3_alerts import alert_column_for_bars
+from config import BARS_DIR, UNIVERSE
+from datasource.f3_themes import load_f3_sector_themes
 from datasource.watchlists import (
     add_symbol,
     create_watchlist,
@@ -15,6 +19,7 @@ from datasource.watchlists import (
     remove_symbol,
 )
 from engine.identity import current_username
+from engine.runner import load_symbol_csv
 from ui.components import render_data_table
 
 
@@ -44,28 +49,64 @@ def _send_to_desk(symbols: list[str], label: str) -> None:
     st.rerun()
 
 
-def _show_symbol_table(symbols: list[str], volumes: dict[str, float] | None = None) -> None:
+def _alert_for_symbol(symbol: str) -> str:
+    """Cột Cảnh báo F3 — khung ngày; thiếu bars → —."""
+    try:
+        bars = load_symbol_csv(BARS_DIR, symbol)
+    except Exception:
+        return "—"
+    return alert_column_for_bars(symbol, bars, session_date=date.today())
+
+
+def _show_symbol_table(
+    symbols: list[str],
+    volumes: dict[str, float] | None = None,
+    *,
+    with_alerts: bool = False,
+) -> None:
     if not symbols:
         st.caption("Chưa có mã.")
         return
     rows = []
     for symbol in symbols:
-        row = {"Mã": symbol}
+        row: dict[str, object] = {"Mã": symbol}
         if volumes and symbol in volumes:
             row["KL TB 10 phiên"] = volumes[symbol]
+        if with_alerts:
+            row["Cảnh báo"] = _alert_for_symbol(symbol)
         rows.append(row)
     render_data_table(
-        rows, variant="analytical", pin="Mã", key="wl_rows", alt="Danh sách mã trong watchlist"
+        rows,
+        variant="analytical",
+        pin="Mã",
+        key="wl_rows",
+        alt="Danh sách mã trong watchlist",
     )
 
 
-def _sector_section() -> None:
+def _f3_sector_section(sectors: list[dict]) -> None:
+    st.subheader("Danh mục theo ngành (F3)")
+    st.caption(
+        "Seed mentor F3 — cột **Cảnh báo** theo nến ngày (MA/BB/mây/đáy-đỉnh). "
+        "Chỉ UI decision-support; không đặt lệnh. Thiếu nến → —."
+    )
+    names = [item["name"] for item in sectors]
+    chosen = st.selectbox("Ngành", names, key="wl_f3_sector_pick")
+    sector = next(item for item in sectors if item["name"] == chosen)
+    _show_symbol_table(sector["symbols"], with_alerts=True)
+    left, right = st.columns(2)
+    if left.button("Dùng cho Bộ lọc tín hiệu", key="wl_f3_to_filter", width="stretch"):
+        _send_to_filter(sector["symbols"], sector["name"])
+    if right.button("Đưa vào Trạm Trading", key="wl_f3_to_desk", width="stretch"):
+        _send_to_desk(sector["symbols"], sector["name"])
+
+
+def _legacy_sector_section() -> None:
     st.subheader("Danh mục theo ngành")
     industries = load_industry_map()
     if not industries:
         st.info(
-            "Chưa có dữ liệu ngành. "
-            "Danh mục mặc định theo ngành sẽ hiện khi có dữ liệu. "
+            "Chưa có seed F3 và chưa có dữ liệu ngành ICB. "
             "Bạn vẫn tạo được danh mục riêng bên dưới."
         )
         return
@@ -78,18 +119,26 @@ def _sector_section() -> None:
         st.info("Không có mã nào trong danh sách quét khớp ngành đã lưu.")
         return
     st.caption(
-        "Mỗi ngành lấy tối đa 8 mã trong danh sách quét, ưu tiên KL trung bình 10 phiên cao. "
+        "Fallback ICB: mỗi ngành tối đa 8 mã trong danh sách quét, ưu tiên KL TB 10 phiên. "
         "Chỉ đọc nến đã lưu, không gọi mạng."
     )
     names = [item["name"] for item in sectors]
     chosen = st.selectbox("Ngành", names, key="wl_sector_pick")
     sector = next(item for item in sectors if item["name"] == chosen)
-    _show_symbol_table(sector["symbols"], sector.get("volumes"))
+    _show_symbol_table(sector["symbols"], sector.get("volumes"), with_alerts=True)
     left, right = st.columns(2)
     if left.button("Dùng cho Bộ lọc tín hiệu", key="wl_sector_to_filter", width="stretch"):
         _send_to_filter(sector["symbols"], sector["name"])
     if right.button("Đưa vào Trạm Trading", key="wl_sector_to_desk", width="stretch"):
         _send_to_desk(sector["symbols"], sector["name"])
+
+
+def _sector_section() -> None:
+    f3 = load_f3_sector_themes()
+    if f3:
+        _f3_sector_section(f3)
+        return
+    _legacy_sector_section()
 
 
 def _custom_section(username: str) -> None:

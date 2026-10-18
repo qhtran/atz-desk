@@ -1,8 +1,33 @@
 # PROGRESS.md — atz.vn / vnstocks
 
-> Master Architect artifact. Agent 2 (Code Executor) chỉ làm đúng task `Doing` trong mục Handoff.
-> Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
-> Cập nhật: **2026-10-17** — **Master ack T-221 Pass** — Google SSO login + đổi mật khẩu OK (human).
+> Master Architect artifact. Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
+> Cập nhật: **2026-10-18** — **Master ack S-021 Pass** — vnstock 5.1.0; bars 180/181; lanes IDLE.
+
+### Naming convention (bắt buộc)
+
+| Alias | Cũng gọi là | Vai trò | Làm / không làm |
+|-------|-------------|---------|-----------------|
+| **ag1** | agent1, **Master** | Architect / orchestrator | Plan, authorize, ack, brief giao việc — **không code**, không SSH, không smoke dài |
+| **ag2** | agent2, **Exe1**, executor-1 | Code Executor | Code app (`src/atz`), test, deploy khi được authorize — đúng task `Doing` |
+| **ag3** | agent3, **Support**, **sp1** | Support | Việc phụ: `scripts/tools/*`, doc2md, reverse-engineer mentor, seed/spec — **không** production app/deploy trừ Master giao rõ |
+
+Exe2 = executor-2 (standby khi fork) — vẫn dưới nhánh **ag2**, không đổi alias.
+
+### Bus protocol — ít copy-paste (bắt buộc từ 2026-10-18)
+
+**Human ↔ ag1:** chỉ trả lời **số** (`1a`, `2b`…). Không paste brief dài.
+
+**ag1:** ghi START/ack/`Master commands` vào **PROGRESS.md** → `commit+push` bus (và code khi human bảo). Không nhờ human chuyển tin.
+
+**ag2 / ag3 (mỗi turn):**
+1. `git pull --ff-only`
+2. Đọc `Master commands` + §6 / §6b Doing
+3. Nếu `Doing` đúng role mình → làm đến Done → cập nhật Last * state trên PROGRESS → `commit+push` (code + bus)
+4. Báo human **một dòng** (tuỳ chọn): `T-230 Done · master_ack pending` — hoặc im lặng; human chỉ nói với ag1: `ack` / `1a`
+
+**Cấm:** paste §START dài giữa tab; human làm “bưu tá” brief.
+
+**Hook ngắn (tab ag2/ag3):** mở chat với `@PROGRESS.md` + câu cố định: `Pull bus. Làm task Doing của mình nếu có. Xong cập nhật PROGRESS + push.`
 
 ---
 
@@ -14,9 +39,9 @@
 | Data | Redis (nóng) + SQLite `data/signals.db` (bền); secrets chỉ env |
 | Deploy | Docker Compose `/opt/vnstocks` — services: `vnstocks`, ingestion, filter-runner, alert, position, index-feed, redis |
 | Auth | Authentik forward-auth; identity = headers; trading prefs = SQLite (ADR 0004); **ADR 0006** cấm OIDC Client Streamlit |
-| Branch / HEAD | `main` @ `da418b8`+ — VPS UI `4aaa437be56c`; T-220 SSO pending-approve |
+| Branch / HEAD | `feat/sector-universe-f3` @ `9fd7d69`+ — VPS UI `2f18fd2c75e9` (T-231); main @ `7dbd756` |
 | NON-goal | Không đặt lệnh tự động; không SPA/BFF Phase 2; không OIDC client trong app trừ ADR mới |
-| `user_confirmed_infra` | **yes** — scope Authentik Sources/blueprints only (plan SSO); **không** stream/sshd/UFW |
+| `user_confirmed_infra` | **yes** — T-231 Done; VPS checkout `feat/sector-universe-f3` (UI only) |
 
 **Active goals (ưu tiên sản phẩm):**
 1. Giữ pipeline near-realtime ổn định + UI bảng thống nhất (`realtime` / `analytical` / `compact`).
@@ -66,7 +91,7 @@ Target layout dài hạn (ADR 0001): `shared/` / `domain/` / `adapters/` / `serv
 - Debug overlay: `config/debug_overlay.yaml` / `ATZ_DEBUG_OVERLAY`.
 - SSH ops: ưu tiên host `:22`; **cấm** đụng nginx stream / sshd / UFW trừ human confirm.
 - Bot code paused; AuditorBot giữ survey UI; Cursor = code/deploy.
-- **Master = plan / authorize / ack only** — không tự code, không tự smoke/deploy/SSH. **Exe1** execute. Context đầy / fork → mở **Exe2** (tab mới + PROGRESS).
+- **ag1 (Master)** = plan / authorize / ack only — không tự code, không tự smoke/deploy/SSH. **ag2 (Exe1)** execute. **ag3 (sp1)** = việc phụ / tools / mentor analysis. Context đầy / fork → mở **Exe2** (vẫn ag2, tab mới + PROGRESS).
 
 **Đã ship gần đây (không mở lại trừ bug):**
 - Pin + live pinned strip; flash tick; OAH copy string; vốn/risk per-user.
@@ -113,22 +138,46 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 | T-163 | Smoke contrast T-153 trên atz.vn | ui | **Master ack** — Overview TopKL + Realtime + idx + sidebar PnL readable @ 1280×800 |
 | T-220 | Authentik SSO Sources + enrollment pending approve | infra | **Done** — enrollment + Sources; secrets synced; outbox `1830-DONE` |
 | T-221 | Smoke SSO live Google/FB | infra | **Master ack Pass** — Google login OK; đổi MK OK; connection `mydev`; C Skip; outbox `2320`+ack |
+| T-230 | F3 cột Cảnh báo UI + alert engine | analysis, ui, tests | **Master ack Pass** — f3_alerts + Watchlist F3; pytest Pass (7); no deploy |
+| T-231 | Deploy F3 Cảnh báo UI (`vnstocks` only) | docker | **Master ack Pass** — image `2f18fd2c75e9`; upstream PASS; health 200; public 302 |
 
-### Doing
+### Doing (ag2 / Exe1 — `T-*`)
 
 | ID | Title | Status | Modules | Target files | Acceptance | Deps | Agent 2 instructions |
 |----|-------|--------|---------|--------------|------------|------|----------------------|
-| — | *(trống)* | — | — | — | — | — | — |
+| — | *(trống — chờ human / ag1)* | — | — | — | — | — | — |
 
-**Quy tắc:** luôn tối đa **một** task `Doing`.
+**Quy tắc:** tối đa **một** `T-*` Doing (ag2) **và** tối đa **một** `S-*` Doing (ag3) — hai lane song song, không chung ID.
 
-### Todo (sẵn sàng khi human chọn)
+### Todo (sẵn sàng khi human chọn) — ag2
 
 | ID | Title | Status | Modules | Target files (dự kiến) | Acceptance | Deps | Agent 2 instructions |
 |----|-------|--------|---------|------------------------|------------|------|----------------------|
 | T-200 | F1: enum nến mạnh / TB / yếu gắn filter | Blocked | filters, analysis, ui | `filters/candle.py`, … | Mentor | Mentor | **Blocked.** |
 | T-210 | F1: Bollinger / Ichimoku / phần II | Blocked | filters, analysis | theo mentor | Mentor | Mentor | **Blocked.** |
 | T-222 | Brand CSS Authentik login (optional) | Blocked | infra | Authentik brand CSS | Visual brand | Human | **Blocked** — tách khỏi Sources; optional. |
+
+### Support board (ag3 / sp1 — `S-*`)
+
+#### Doing (ag3)
+
+| ID | Title | Status | Modules | Target files | Acceptance | Owner |
+|----|-------|--------|---------|--------------|------------|-------|
+| — | *(trống)* | — | — | — | — | — |
+
+#### Done (ag3 — gần đây)
+
+| ID | Title | Status | Notes |
+|----|-------|--------|-------|
+| **S-021** | Nâng vnstock + pull bars + refresh metrics | **Done** | **Master ack Pass** — vnstock 5.1.0; bars 180/181 (PDG miss KBS); recall 100% / prec 99.1% |
+| **S-020** | Sector universe reverse-fit + gap report | **Done** | **Master ack Pass** — 33/181 bars (baseline) |
+| **S-010** | F3 «Cảnh báo» — catalog rule → spec | **Done** | `docs/specs/F3_ALERTS.md` — **Master ack Pass** |
+
+#### Todo (ag3)
+
+| ID | Title | Status | Notes |
+|----|-------|--------|-------|
+| — | *(trống)* | — | — |
 
 ---
 
@@ -142,18 +191,31 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 6. Multi-agent: bus = PROGRESS only.
 7. ~~Gemini OIDC-in-Streamlit~~ — **từ chối** (ADR 0006); Social = Authentik Sources + **pending approve**.
 8. ~~OAuth / T-221~~ — Google SSO **Pass** (human); FB chưa smoke live; OIDC Skip.
+9. ~~F3 S-010 + T-230~~ — **acked**; Open Q §11 defaults Exe1: close_D; tol=0 / SUPPORT_BAND swing; Telegram/màu = sau.
+10. **Auto-trade pipeline** — tài liệu tham chiếu only; NON-goal: không đặt lệnh.
 
 ---
 
-## 6. Handoff to Agent 2
+## 6. Handoff to Agent 2 (ag2 / Exe1)
 
-**Current Doing:** *(trống)* — T-221 Master ack Pass; chờ mentor F1 / human.
+**Current Doing (T-*):** *(trống)* — idle; **T-231 Master ack Pass**.
 
-```
-1a) Chờ mentor F1
-1b) Smoke Facebook live (tuỳ chọn)
-1c) Chờ
-```
+### DONE — T-231 (Exe1 → ag1) — **acked**
+
+- VPS: `feat/sector-universe-f3` @ `9fd7d69`; image `2f18fd2c75e9`; vnstocks only
+- upstream PASS; health **200**; public **302**
+- Smoke UI Cảnh báo: skip (login) — chấp nhận cho deploy DoD
+
+### Master ack (T-231) — 2026-10-18
+- **Pass** — deploy DoD đủ; không đụng nginx/sshd/UFW; UI smoke = human optional.
+
+### DONE — T-230 — **acked** + shipped `a7882c7`
+
+### Master ack (T-230) — 2026-10-18
+- Pass: decision-support only; close_D + tol defaults; shipped.
+
+### Master ack (S-010) — 2026-10-18
+- `docs/specs/F3_ALERTS.md` Pass (đã ship).
 
 ### Master ack (T-221)
 - Human: Google login Pass + đổi mật khẩu Pass.
@@ -161,20 +223,29 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 - C Skip; FB live chưa bắt buộc.
 
 ### Master ack (T-163)
-- Report Exe1: **Pass** @ 1280×800 (Overview TopKL Δ/%, Realtime +/-/%, idx cards, sidebar PnL); image `4aaa437be56c`; không sửa code.
+- Report Exe1: **Pass** @ 1280×800; image `4aaa437be56c`; không sửa code.
 - Master không re-smoke (plan-only stance).
 
-### Executor notes (T-163 — smoke Pass)
-- Viewport **1280×800**; user `mydev`; image `4aaa437be56c`; Ngoài phiên.
-- **Overview Top KL:** Biến động giá (%) xanh/đỏ/vàng đọc được (HCM +3.90, MBB −0.25, STB 0.00).
-- **Realtime Bảng giá:** cột Giá / +/- / % + legend `xanh/đỏ/vàng=Δ`; idx cards VNINDEX +0.45% / HNX −0.06%.
-- **Sidebar:** badge NAV đỏ −78279; caption PnL xanh/đỏ; không sửa code.
+---
 
-### Master ack (T-162) — archived
-- Image `4aaa437be56c`; public 302 OK.
+## 6b. Handoff to Agent 3 (ag3 / sp1)
 
-### Executor notes (T-162 / T-153 — archived)
-- Deploy Done; theme T-153 ship `d6f62c6`.
+**Current Doing (S-*):** *(trống)* — idle; **S-021 Master ack Pass**.
+
+### DONE — S-021 (sp1 → ag1) — **acked**
+
+**Deliverables:** vnstock 5.1.0; bars **180/181**; report + fitted refresh  
+**Caveat chấp nhận:** PDG thiếu (KBS không có mã) — không chặn Pass.
+
+**Acceptance**
+- [x] vnstock ≥ 5.1 · coverage 180/181 · report · push
+- [x] master_ack yes
+
+### Master ack (S-021) — 2026-10-18
+- **Pass** — coverage gần đủ; 14/14 theme; OUT giữ.
+
+### DONE — S-020 — **acked** (baseline 33/181)
+### DONE — S-010 — **acked**
 
 ---
 
@@ -198,31 +269,45 @@ load @PROGRESS.md, and continue with Task <TASK-ID>.
 Reason: <…>
 ```
 
-Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing`.
+Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing` **trên cùng lane** (T-* hoặc S-*).
 
-| Tab | Turns | Files this task | Slowing? | Status |
-|-----|------:|----------------:|----------|--------|
-| executor-1 | 0 | 0 | no | idle |
-| executor-2 | — | — | — | standby (mở khi fork / context đầy) |
+| Tab | Alias | Turns | Files this task | Slowing? | Status |
+|-----|-------|------:|----------------:|----------|--------|
+| master | ag1 | — | — | — | active (plan-only) |
+| executor-1 | ag2 | 1 | 1 | no | idle — T-231 **acked** |
+| executor-2 | ag2 | — | — | — | standby (fork) |
+| support-1 | ag3 / sp1 | 1 | 3 | no | idle — S-021 **acked** |
 
 ### Master commands
 
 ```
-IDLE — T-221 Master ack Pass.
-Next: human 1a mentor F1 | 1b FB smoke optional | 1c wait.
+IDLE — S-021 Pass. PR #2 open: feat/sector-universe-f3 → main.
+Next: human merge PR | idle.
 ```
 
-### Last Executor state
+### Last Executor state (ag2)
 
 ```
-task: T-221
-result: Pass
+task: T-231
+result: Done
 master_ack: yes
-google_login: Pass
-password_change: Pass
-C: Skip
-owner: human+cursor
 Status: idle
+```
+
+### Last Support state (ag3 / sp1)
+
+```
+task: S-021
+result: Done
+owner: sp1
+Status: idle
+master_ack: yes
+vnstock: 5.1.0
+bars_coverage: 180/181
+missing: PDG (KBS)
+macro_recall: 1.0
+macro_precision: 0.991
+report: docs/specs/F3_SECTOR_UNIVERSE.md
 ```
 
 ### Signals
@@ -235,6 +320,23 @@ Status: idle
 
 | Khi | Thay đổi |
 |-----|----------|
+| 2026-10-18 | **Master ack S-021 Pass** — 180/181 bars; PDG miss accepted |
+| 2026-10-18 | **S-021 Done** — vnstock 5.1.0; bars 180/181; gap refresh; PDG miss KBS |
+| 2026-10-18 | **NUDGE S-021** — sp1 nhầm “up-to-date” = Done; nhắc làm đủ §6b (human 1a) |
+| 2026-10-18 | **START S-021** — sp1 vnstock≥5.1 + pull bars + refresh gap (human 1c) |
+| 2026-10-18 | **Master ack T-231 Pass + S-020 Pass** — deploy UI + sector universe report |
+| 2026-10-18 | **S-020 Done** — F3_SECTOR_UNIVERSE gap report; fitted refresh; 33/181 bars |
+| 2026-10-18 | **Poll idle** — ag2/ag3 không Doing; T-230 ship `a7882c7`; bus header sync |
+| 2026-10-18 | **START T-231 + S-020** — deploy UI vnstocks; sp1 sector universe (human 1d) |
+| 2026-10-18 | **T-231 Done** — image `2f18fd2c75e9`; VPS `feat/sector-universe-f3` @ `9fd7d69`; upstream PASS; health 200; public 302 |
+| 2026-10-18 | **Bus protocol** — human↔ag1 chỉ số; ag2/ag3 pull PROGRESS (ít paste) |
+| 2026-10-18 | **Master ack T-230 Pass** — F3 alerts UI; chờ human commit |
+| 2026-10-18 | **T-230 Done** — f3_alerts + Watchlist F3 cột Cảnh báo; pytest Pass (7); no deploy |
+| 2026-10-18 | **START T-230** — ag2 F3 Cảnh báo UI+engine; ship S-010 docs + bus |
+| 2026-10-18 | **Master ack S-010 Pass** — F3_ALERTS; T-230 unlocked |
+| 2026-10-18 | **S-010 Done** — `docs/specs/F3_ALERTS.md`; Last Support idle; chờ Master ack |
+| 2026-10-18 | **S-010 Doing** — Handoff §6b ag3; T-230 Todo (chờ S-010); lane T-* / S-* song song |
+| 2026-10-18 | **Naming** — ag1=Master; ag2=Exe1; ag3=Support/sp1 (ghi đầu file) |
 | 2026-10-17 | Tạo file; snapshot HEAD `cf68947`; T-010…T-060 Done; Todo T-100…T-140; Blocked T-200…T-220 |
 | 2026-10-17 | **T-100 Done** — sync HANDOFF + PROGRESS; Trading workspace / pin strip / 3 variants = Done |
 | 2026-10-17 | **T-110 Doing** — handoff Agent 2 (audit + regression test; pre-survey sạch) |

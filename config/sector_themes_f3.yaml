@@ -1,0 +1,98 @@
+# Seed mentor F3 — danh mục thematic (đã bỏ trùng VCI/MSB; CTS chỉ giữ ở Chứng khoán).
+# Dùng để fit tham số lọc; không thay UNIVERSE của app.
+
+version: f3-2026-10
+source: mentor-F3
+notes:
+  - Phân nhóm theo chủ đề giao dịch VN, không phải ICB L3 thuần.
+  - Whitelist: mã chiến lược có thể giữ dù thanh khoản thấp hơn ngưỡng.
+  - CTS từng bị dán nhầm sang Năng lượng — đã gỡ.
+
+themes:
+  chung_khoan:
+    label: Chứng khoán
+    symbols: [SSI, HCM, VIX, TCX, VCK, VPX, MBS, VCI, SHS, VND, BSI, CTS, ORS, FTS, BVS, VDS, TVS]
+    icb_names: [Dịch vụ tài chính]
+    whitelist: []
+
+  ngan_hang:
+    label: Ngân hàng
+    symbols: [VCB, BID, CTG, TCB, HDB, MBB, VPB, STB, LPB, EIB, ACB, MSB, VIB, TPB, SHB, SSB, BVB, OCB, VAB, EVF]
+    icb_names: [Ngân hàng]
+    whitelist: [EVF]
+
+  bds_nha_o:
+    label: Bất động sản nhà ở
+    symbols: [VIC, VHM, KDH, PDG, NLG, CEO, HDC, DIG, HQC, IJC, CRV, NTL, ITC, DXG, HTN, NVL, HPX, NHA, ASM, EVG]
+    icb_names: [Bất động sản]
+    whitelist: [ASM, NHA, EVG, PDG]
+
+  bds_cong_nghiep:
+    label: BĐS công nghiệp
+    symbols: [IDC, KBC, GVR, BCM, VGC, SIP, NTC, LHC, TIP, DTD, SZC, SNZ, D2D]
+    icb_names: [Bất động sản, Xây dựng và Vật liệu]
+    whitelist: [GVR, VGC, LHC, SNZ]
+
+  thep:
+    label: Thép
+    symbols: [HPG, HSG, NKG, SMC, VGS]
+    icb_names: [Kim loại]
+    whitelist: []
+
+  xay_lap:
+    label: Xây lắp, hạ tầng
+    symbols: [VCG, DPG, FCN, CTR, LCG, HHV, HTI, HUT, CII, CTD, C4G, KSB]
+    icb_names: [Xây dựng và Vật liệu]
+    whitelist: [HUT]
+
+  cang_van_tai:
+    label: Cảng biển, vận tải
+    symbols: [DVP, GMD, PDN, CDN, TCL, PHP, HAH, VSC, VTP, VOS, VTO, MVN, VIP]
+    icb_names: [Vận tải]
+    whitelist: []
+
+  ban_le:
+    label: Bán lẻ
+    symbols: [MSN, VNM, MWG, QNS, FRT, DGW, HAX, VRE, SAB, TLG]
+    icb_names: [Bán lẻ, Sản xuất thực phẩm, Bia và đồ uống, Hàng gia dụng]
+    whitelist: [VRE, HAX]
+
+  dau_khi:
+    label: Dầu khí
+    symbols: [GAS, PVD, PVS, BSR, PLX, OIL, PVT, CNG, GSP, PVB, PVC, PDV, PVP]
+    icb_names:
+      - Thiết bị, Dịch vụ và Phân phối Dầu khí
+      - Sản xuất Dầu khí
+      - Nước & Khí đốt
+      - Vận tải
+    whitelist: [GAS, CNG, PVT, GSP, PDV, PVP]
+
+  hoa_chat:
+    label: Hóa chất, cao su, nhựa
+    symbols: [DGC, PAT, DCM, DPM, DDV, LAS, BCF, CSV, BMP, NTP, DPR, TRC, DRC, CSM, AAA, HII, APH]
+    icb_names: [Hóa chất, Xây dựng và Vật liệu, Ô tô và phụ tùng]
+    whitelist: [BMP, NTP, DRC, CSM, BCF, APH]
+
+  hang_khong:
+    label: Hàng không
+    symbols: [VJC, HVN, NCT, ACV, NCS, SCS]
+    icb_names: [Du lịch & Giải trí, Vận tải]
+    whitelist: [ACV, NCT, SCS, NCS]
+
+  nang_luong:
+    label: Năng lượng, khai khoáng
+    symbols: [REE, POW, NT2, GEE, SJE, PC1, HDG, GEG, TTA, VSH, CHP, QTP, HND, VPD, NBB, THT, BTP]
+    icb_names: [Sản xuất & Phân phối Điện, Khai khoáng, Điện tử & Thiết bị điện]
+    whitelist: [GEE, SJE, PC1, NBB, THT]
+
+  nong_nghiep:
+    label: Nông nghiệp
+    symbols: [DBC, BAF, HAG, SLS, SBT, LSS, PAN, VHC, ANV, IDI, FMC, MPC]
+    icb_names: [Sản xuất thực phẩm]
+    whitelist: []
+
+  cong_nghe:
+    label: Công nghệ
+    symbols: [FPT, CMG, FOX, VGI, ELC, ICT]
+    icb_names: [Phần mềm & Dịch vụ Máy tính, Viễn thông cố định, Viễn thông di động, Thiết bị và Phần cứng]
+    whitelist: []
