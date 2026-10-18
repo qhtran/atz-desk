@@ -1,0 +1,5 @@
+# Optional deps for scripts/tools/doc2md (not required by the main app).
+# Install:  pip install -r scripts/tools/doc2md/requirements.txt
+markitdown>=0.1.0
+# PDF text is covered by markitdown; Office zip media extraction uses stdlib only.
+# Pandoc binary (https://pandoc.org) is an optional fallback — install via brew/apt.

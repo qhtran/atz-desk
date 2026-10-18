@@ -26,3 +26,5 @@ logs/
 .agents/
 # Scratch copy giữa Cursor / PyCharm / Bot VPS
 agent-reply.md
+# Local doc→md artefacts (scripts/tools/doc2md)
+docs/refs/_converted/
