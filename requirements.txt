@@ -1,4 +1,4 @@
-vnstock==5.0.1
+vnstock==5.1.0
 vnstock-quant==0.2.2
 vnstock-news==3.2.3
 vnstock-pipeline==3.2.2
