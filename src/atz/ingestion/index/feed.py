@@ -126,11 +126,56 @@ class IndexFeed:
         log("BACKFILL", "loaded " + ", ".join(f"{s}={len(self.sparks[s].points)}" for s in self.s.symbols))
         self.write_sparks()
 
+    def stream_healthy(self) -> bool:
+        """True khi atz-ssi-stream đang primary (ADR 0008) — index-feed không ghi đè spot bằng SSI REST."""
+        if not self.s.stream_backup_enabled:
+            return False
+        try:
+            raw = self.r.get(self.s.stream_health_key)
+        except Exception:  # noqa: BLE001
+            return False
+        if not raw:
+            return False
+        try:
+            h = json.loads(raw)
+        except (TypeError, ValueError):
+            return False
+        if not h.get("healthy"):
+            return False
+        age = self.clock() - float(h.get("epoch") or 0)
+        return age <= self.s.stream_max_age
+
+    def _read_redis_quote(self, sym: str):
+        try:
+            raw = self.r.get(self.s.quote_key.format(symbol=sym))
+            if not raw:
+                return None
+            d = json.loads(raw)
+            from ingestion.index.common import IdxQuote
+            return IdxQuote(sym, float(d["value"]), float(d["ref"]), str(d.get("source") or "SSI_WS"),
+                            d.get("data_time"), d.get("contract"))
+        except Exception:  # noqa: BLE001
+            return None
+
     def cycle(self) -> dict:
         self.cycles += 1
         now = self.clock()
         self.maybe_resolve()
-        quotes = self.fetch("quotes", self.s.symbols)
+        stream_ok = self.stream_healthy()
+        spot = set(self.s.stream_spot_symbols)
+        # Khi WS healthy: chỉ REST-fetch futures (+ spot thiếu); không gọi SSI cho spot (tránh đè SSI_WS)
+        if stream_ok:
+            # Spot do ssi-stream ghi; REST chỉ lấy futures (và mã ngoài spot list)
+            fetch_syms = [s for s in self.s.symbols if s not in spot]
+            quotes = self.fetch("quotes", fetch_syms) if fetch_syms else {}
+            for sym in self.s.symbols:
+                if sym in spot and sym not in quotes:
+                    rq = self._read_redis_quote(sym)
+                    if rq:
+                        quotes[sym] = rq
+        else:
+            quotes = self.fetch("quotes", self.s.symbols)
+
         rebackfill = []
         for sym, q in quotes.items():
             sp = self.sparks[sym]
@@ -138,7 +183,9 @@ class IndexFeed:
                 log("ROLLOVER", f"{sym} contract -> {q.contract}, series reset", symbol=sym)
                 rebackfill.append(sym)
             if in_session(now, self.s.timezone, self.s.sessions):
-                sp.add(now, q.value)
+                # Spot đã do stream cập nhật spark — tránh double-add khi đọc lại Redis cùng phút
+                if not (stream_ok and sym in spot and str(q.source).startswith("SSI_WS")):
+                    sp.add(now, q.value)
             self.last[sym] = q
             self.last_ok_epoch[sym] = now
         missing = [s for s in self.s.symbols if s not in quotes]
@@ -151,7 +198,9 @@ class IndexFeed:
         if rebackfill:
             for sym, pts in self.fetch("bars", rebackfill, int(now) - 86400).items():
                 self.sparks[sym].load(pts, self.sparks[sym].contract)
-        self.write(quotes, now)
+        # Không ghi đè spot Redis khi stream đang primary (stream đã SET)
+        to_write = {k: v for k, v in quotes.items() if not (stream_ok and k in spot and str(v.source).startswith("SSI_WS"))}
+        self.write(to_write, now)
         return quotes
 
     def write(self, quotes: dict, now: float) -> None:
@@ -185,6 +234,7 @@ class IndexFeed:
         return {"epoch": now, "ts": datetime.fromtimestamp(now, ZoneInfo(self.s.timezone)).isoformat(timespec="seconds"), "cycles": self.cycles,
                 "fresh": sum(1 for s in self.s.symbols if now - self.last_ok_epoch.get(s, 0) <= self.s.health_max_age),
                 "symbols": len(self.s.symbols),
+                "ssi_stream_primary": self.stream_healthy(),
                 "providers": {e["p"].name: {"enabled": e["p"].enabled, "circuit": e["cb"].state, "errors": e["errors"],
                                             "skipped": e["skipped"], "rpm_granted": e["bucket"].granted,
                                             "latency_ms": e.get("latency_ms")} for e in self.providers},

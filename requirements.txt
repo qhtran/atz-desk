@@ -9,3 +9,4 @@ pandas-ta
 pytest
 redis>=5,<7
 pyyaml
+websocket-client>=1.8,<2

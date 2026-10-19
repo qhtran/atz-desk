@@ -15,6 +15,12 @@ index:
     SSI:     {rpm: 60, timeout: 5, failure_threshold: 3, recovery_seconds: 120, window_seconds: 600}
     ENTRADE: {enabled: false, rpm: 30, burst: 12, timeout: 3, failure_threshold: 3, recovery_seconds: 300, window_seconds: 600}   # 6-12 req/lần (1 req/mã) -> burst 12
     VIETCAP: {rpm: 45, timeout: 6, failure_threshold: 5, recovery_seconds: 45}
+  # ADR 0008: khi atz-ssi-stream healthy → không để SSI REST ghi đè spot (WS primary)
+  ssi_stream_backup:
+    enabled: true
+    health_key: "ssi_stream:health"
+    max_age_seconds: 30
+    spot_symbols: [VNINDEX, HNXINDEX, UPCOMINDEX, VN30]
 redis:
   url: redis://redis:6379/0
   quote_key: "idx:quote:{symbol}"

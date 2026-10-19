@@ -71,12 +71,19 @@ class Settings:
     quote_ttl: int
     health_max_age: float
     env: dict = field(default_factory=dict)
+    # ADR 0008 — defer spot quotes to ssi-stream when healthy
+    stream_backup_enabled: bool = False
+    stream_health_key: str = "ssi_stream:health"
+    stream_max_age: float = 30.0
+    stream_spot_symbols: tuple[str, ...] = ("VNINDEX", "HNXINDEX", "UPCOMINDEX", "VN30")
 
 
 def load(path=None) -> Settings:
     path = Path(path or os.environ.get("IDX_CONFIG") or DEFAULT_PATH)
     doc = yaml.safe_load(path.read_text(encoding="utf-8"))
     i, r = doc["index"], doc["redis"]
+    sb = i.get("ssi_stream_backup") or {}
+    spots = sb.get("spot_symbols") or ["VNINDEX", "HNXINDEX", "UPCOMINDEX", "VN30"]
     return Settings(
         symbols=[s.upper() for s in i["symbols"]], providers=[p.upper() for p in i["providers"]],
         poll_trading=float(i["poll_seconds_trading"]), poll_off=float(i["poll_seconds_off"]),
@@ -86,6 +93,10 @@ def load(path=None) -> Settings:
         redis_url=os.environ.get("REDIS_URL") or r["url"], quote_key=r["quote_key"], spark_key=r["spark_key"],
         health_key=r["health_key"], quote_ttl=int(r["quote_ttl_seconds"]), health_max_age=float(r["health_max_age_seconds"]),
         env={k: os.environ.get(k, "") for k in ("SSI_CONSUMER_ID", "SSI_CONSUMER_SECRET")},
+        stream_backup_enabled=bool(sb.get("enabled", False)),
+        stream_health_key=str(sb.get("health_key") or "ssi_stream:health"),
+        stream_max_age=float(sb.get("max_age_seconds") or 30),
+        stream_spot_symbols=tuple(str(x).upper() for x in spots),
     )
 
 

@@ -134,6 +134,28 @@ services:
       start_period: 60s
       retries: 3
 
+  # --- SSI Market WebSocket primary → idx:quote spot (ADR 0008); REST index-feed = backup ---
+  ssi-stream:
+    image: vnstocks-vnstocks
+    container_name: atz-ssi-stream
+    restart: unless-stopped
+    command: ["python", "-m", "ingestion.ssi_stream"]
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes: ["./logs:/app/logs"]
+    environment:
+      SSI_STREAM_CONFIG: /app/config/ssi_stream.yaml
+      INGEST_LOG_DIR: /app/logs/ssi_stream
+    env_file: [".env"]
+    networks: [default, realtime]
+    healthcheck:
+      test: ["CMD", "python", "-m", "ingestion.ssi_stream.health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 45s
+      retries: 3
+
 secrets:
   vnstock_index:
     file: ./.pip_index

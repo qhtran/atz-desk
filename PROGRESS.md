@@ -1,7 +1,7 @@
 # PROGRESS.md — atz.vn / vnstocks
 
 > Master Architect artifact. Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
-> Cập nhật: **2026-10-20** — SSI **data v3 live** (indexSummary+ohlc); bench+parallel; strategy refresh 1–2s; §5.13 Master ack pending.
+> Cập nhật: **2026-10-20** — **ADR 0008** SSI WebSocket-first Phase 1 (`atz-ssi-stream`); REST backup; §5.13 Master ack pending.
 
 ### Naming convention (bắt buộc)
 
@@ -482,22 +482,21 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing` 
 ### Master commands
 
 ```text
-SSI data v3 shipped (indexSummary+ohlc). Equity stay KBS batch.
-Strategy: UI Redis refresh 1-2s; do NOT SSI-serial full universe.
+ADR 0008 accepted — SSI WS primary Phase 1 shipping (atz-ssi-stream).
+REST index = backup when stream unhealthy. UI Redis contract unchanged.
 §5.13 Master ack still pending. T-239 NOT started.
 ```
 
 ### Last Executor state (ag6 / exe2)
 
 ```
-task: SSI v3 data provider + bench/parallel + strategy
-result: Pass — index SSI live path; equity KBS stays primary
+task: ADR 0008 + ssi-stream Phase 1 (8a–8c)
+result: code+tests; deploy pending in same turn
 owner: exe2
-Status: idle (await Master ack / human UI refresh choice)
-master_ack: pending (§5.13 + §5.14)
-pytest: tests/test_index_feed.py Pass (19)
-files: providers.py, test_index_feed.py, troubleshooting.md, PROGRESS.md, scripts/tools/ssi_v3_bench.py
-focus: optional lower ui_realtime refresh 5→2; SSI WS epic later
+Status: doing_deploy
+master_ack: pending
+pytest: test_ssi_stream + test_index_feed Pass (24)
+files: adr/0008, ssi_stream/*, index feed backup, compose, ssi_stream.yaml
 ```
 
 ### Last Support state (ag5 / sp2)

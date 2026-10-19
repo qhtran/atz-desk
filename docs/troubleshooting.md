@@ -159,6 +159,7 @@ Container `atz-index` (`python -m ingestion.index`, config `config/index.yaml`) 
 - Log: `docker logs atz-index 2>&1 | grep -- '-IDX-'`. Các nhãn: `INGEST-IDX-FETCH` (log mỗi 20 chu kỳ, kèm giá và nguồn), `IDX-BACKFILL`, `IDX-FUTURES`, `IDX-ROLLOVER` (đổi hợp đồng thì xoá chuỗi cũ và nạp lại), `IDX-CB`, `IDX-REDIS`. Ở UI: `UI-INDEX` (ERR-UI-007).
 - Kiểm tra nhanh: `docker exec atz-index python -m ingestion.index.health` (exit 0 nếu heartbeat < 120s); `docker exec atz-redis redis-cli get idx:quote:VNINDEX`.
 - Ghi chú 2026-10-16: từ VPS không kết nối được `services.entrade.com.vn` (bị connect timeout), nên circuit Entrade sẽ OPEN và Vietcap phục vụ toàn bộ. Đây là hành vi đúng thiết kế.
+- SSI WebSocket primary (ADR 0008): service `atz-ssi-stream` (`python -m ingestion.ssi_stream`), health Redis `ssi_stream:health`. Khi healthy=true, `atz-index` không ghi đè spot bằng SSI REST. Log: `docker logs atz-ssi-stream`. Fallback: dừng/stream stale → index REST như cũ.
 - Bật SSI: thêm `SSI_CONSUMER_ID` (= API Key) và `SSI_CONSUMER_SECRET` (= API Secret) vào `/opt/vnstocks/.env`, rồi rebuild image `vnstocks` + `docker compose up -d --no-deps index-feed`. Auth: `POST https://api.ssi.com.vn/api/v3/auth/token`. Data: `GET /api/v3/data/indexSummary`, `GET /api/v3/data/ohlc` (docs developers.ssi.com.vn). **Không** cần Private Key/OTP (Market Data). Rate-limit header data ≈ 20/cửa sổ. Không ghi access token vào `.env`. WebSocket market = bước tiếp theo.
 
 ### Chung

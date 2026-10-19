@@ -1,0 +1,35 @@
+# SSI Market WebSocket primary (ADR 0008 / REFRESH §5). Phase 1 = index spot.
+ssi_stream:
+  enabled: true
+  url: wss://stream.ssi.com.vn
+  mode: websocket_primary          # websocket_primary | rest_only (tắt process stream)
+  auth_url: https://api.ssi.com.vn/api/v3/auth/token
+  # Im lặng quá ngưỡng → health stale → index-feed bật REST backup cho spot
+  silence_seconds_trading: 20
+  silence_seconds_off: 180
+  reconnect_initial_seconds: 2
+  reconnect_max_seconds: 60
+  trading_sessions: [["08:45", "11:30"], ["13:00", "15:00"]]
+  timezone: "Asia/Ho_Chi_Minh"
+  # Topics Phase 1 — chỉ số (docs: indexsummary / trade.index)
+  topics:
+    - indexsummary.VNINDEX
+    - indexsummary.VN30
+    - indexsummary.HNXINDEX
+    - indexsummary.UPCOMINDEX
+    - trade.index.VNINDEX@tick
+    - trade.index.VN30@tick
+    - trade.index.HNXINDEX@tick
+    - trade.index.UPCOMINDEX@tick
+  # Map symbol về key Redis idx:quote (chuẩn atz)
+  symbol_aliases:
+    HNX-INDEX: HNXINDEX
+    HNXIndex: HNXINDEX
+    HNXUpcomIndex: UPCOMINDEX
+  spark_max_points: 300
+redis:
+  url: redis://redis:6379/0
+  quote_key: "idx:quote:{symbol}"
+  spark_key: "spark:{symbol}"
+  health_key: "ssi_stream:health"
+  quote_ttl_seconds: 345600
