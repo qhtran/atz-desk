@@ -478,15 +478,16 @@ Code _auth updated; waiting human for new Market data API URL/docs.
 ### Last Executor state (ag6 / exe2)
 
 ```
-task: SSI FastConnect auth v3 + VPS probe
-result: auth Pass; Market 401 — need data API URL
+task: SSI FastConnect auth v3 + VPS probe + deploy index-feed
+result: auth Pass; Market 401; index uses Vietcap failover
 owner: exe2
 Status: blocked_human (Market endpoint)
 master_ack: pending (§5.13 + §5.14)
 pytest: tests/test_index_feed.py Pass (18)
-files: src/atz/ingestion/index/providers.py, tests/test_index_feed.py, docs/troubleshooting.md, PROGRESS.md
+files: providers.py, test_index_feed.py, troubleshooting.md, PROGRESS.md
+image_index: 81e189e2a9b6 (index-feed only; UI still 188ead678824)
 ssi_env_on_vps: SET (auth Pass)
-focus: human cung cấp Market data URL cho key mới
+focus: human cung cấp Market data URL cho key mới (drop trade)
 ```
 
 ### Last Support state (ag5 / sp2)
