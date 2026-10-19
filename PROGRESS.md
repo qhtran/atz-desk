@@ -1,7 +1,7 @@
 # PROGRESS.md — atz.vn / vnstocks
 
 > Master Architect artifact. Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
-> Cập nhật: **2026-10-18** — UI+ingestion đồng bộ image `188ead678824` (exe2 human 14b); Open Q §5.13 còn Master ack.
+> Cập nhật: **2026-10-19** — **HANDOFF SSI FastConnect** (exe2 → chat mới); Open Q §5.14; §5.13 còn Master ack.
 
 ### Naming convention (bắt buộc)
 
@@ -208,12 +208,46 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 11. ~~**Auditor F3 re-smoke 1505**~~ — Pass 9/9; P2 #3 **S-022 acked**; P2 #2 **T-235 Master ack Pass**; #1 deferred.
 12. ~~**F3 wl_rows gap §6.2 (Giá)**~~ — **T-237/T-238 Pass**; **T-239 Todo** (Chat spark); community vẫn backlog; không reopen engine.
 13. **Ingestion board_stocks (exe2 13b/14b) — chờ Master ack** — không redesign kiến trúc. Ship: `board_stocks` + 1-shot + rpm 500; image **`188ead678824`** trên **cả** `ingestion` + **`vnstocks`** (14b: upstream PASS, health 200, public 302). Redis ~916/1519 quotes. **Open Q còn:** (a) Master ack; (c) Vision entitlement UI = epic sau; (d) probe RPM **giờ GD**; (e) coverage miss / VCI retry. ~~(b) UI redeploy~~ **done**. Chi tiết: iCloud `StockRnD/atz_data_ingrest.md`.
+14. **SSI FastConnect — HANDOFF (exe2 → chat mới) — 2026-10-19** — xem §6 **HANDOFF — SSI FastConnect**. Ưu tiên đích: **SSI trực tiếp → vnstock (KBS>VCI) → khác**. Auth SSI trên VPS hiện **Fail** (`400 This connection is invalid`). Chưa đo latency SSI vs KBS. VPS RAM +1G → **5G** (Pavietnam #2 gia hạn 1 năm) — **chưa** ghi `VPS_NETWORK.md` (chat mới cập nhật).
 
 ---
 
 ## 6. Handoff to Executor (ag2/Exe1 · ag6/Exe2)
 
 **Current Doing (T-*):** *(trống)* — idle; **T-238 Master ack Pass**.
+
+
+### HANDOFF — SSI FastConnect (ag6 / exe2 → chat mới) — 2026-10-19
+
+**Mục tiêu sản phẩm (human):** ưu tiên nguồn **SSI FastConnect (API trực tiếp, key riêng)** → **vnstock Gold** → nguồn khác. Đo kết nối + latency trước khi đổi ingestion/index.
+
+**Đã có sẵn trong repo (chưa bật live vì auth Fail):**
+- Index-feed provider `SSI` — `src/atz/ingestion/index/providers.py` (`AccessToken`, `DailyIndex`, `IntradayOhlc`)
+- Config: `config/index.yaml` providers `[SSI, ENTRADE, VIETCAP]`; SSI tự tắt nếu thiếu env
+- Env VPS `/opt/vnstocks/.env`: `SSI_CONSUMER_ID` + `SSI_CONSUMER_SECRET` **đã SET** (len 32/32); `index-feed` `env_file: [.env]`
+- Doc ops: `docs/troubleshooting.md` (bật SSI + recreate `index-feed`)
+
+**Probe 2026-10-19 (exe2, VPS) — không in secret:**
+| Hạng mục | Kết quả |
+|----------|---------|
+| vnstock 5.1 `price_board source=ssi` | **Unsupported** — chỉ `kbs`, `vci`, `asean` |
+| vnstock dùng SSI FC cho quote board? | **Không** (FC là tích hợp riêng / sponsor; không phải đường Gold `price_board`) |
+| SSI REST `POST .../api/v2/Market/AccessToken` | **400** `This connection is invalid` (mọi biến thể payload ID/Secret) |
+| URL `.../v2.0/Market/AccessToken` | **404** |
+| vnstock **KBS** latency | 1/30/500 mã ≈ p50 **90 / 100 / 279 ms** |
+| vnstock **VCI** latency | 1/30/500 mã ≈ p50 **114 / 632 / 8533 ms** |
+| So SSI vs KBS | **Chưa đo được** (auth Fail) |
+
+**Giả thuyết human (đúng hướng):** wrapper SSI qua vnstock dễ chia sẻ hạ tầng khách → ưu tiên **API SSI trực tiếp** bằng ConsumerID/Secret của repo.
+
+**Việc chat mới làm (gợi ý):**
+1. Human: iBoard SSI — đúng **FastConnect Data** (không nhầm Trading); whitelist IP VPS `112.213.88.230` nếu SSI yêu cầu; gia hạn/kích hoạt.
+2. Probe lại AccessToken → đo latency SSI (index + DailyOHLC/securities nếu có) vs KBS/VCI.
+3. Nếu SSI Pass và nhanh hơn: chốt priority **SSI → KBS → VCI** (index-feed trước; ingestion equity = epic/adapter riêng — hiện SSI provider chỉ index).
+4. Cập nhật `docs/infrastructure/VPS_NETWORK.md` + memory: Pavietnam Cloud VPS #2 gia hạn 1 năm, RAM **5G** (+1G khuyến mãi).
+5. **Cấm:** commit/in secret; đụng nginx/sshd/UFW trừ confirm.
+
+**Hook chat mới:** `@PROGRESS.md` + `Pull bus. Tiếp HANDOFF SSI FastConnect §6 / Open Q §5.14.`
 
 ### NOTE — ingestion board_stocks (ag6 / exe2 → ag1) — 2026-10-18 · **chờ Master ack**
 
@@ -417,33 +451,32 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing` 
 |-----|-------|------:|----------------:|----------|--------|
 | master | ag1 | — | — | — | **active** |
 | executor-1 | ag2 | — | — | yes | **paused_fork** — T-237 chuyển exe2 |
-| executor-2 | ag6 / exe2 | 3 | 3 | no | idle — 14b UI sync; chờ Master ack §5.13 |
+| executor-2 | ag6 / exe2 | 4 | — | no | idle — HANDOFF SSI §5.14; chờ chat mới |
 | support-1 | ag3 / sp1 | — | — | yes | **paused_fork** |
 | support-2 | ag5 / sp2 | 1 | 1 | no | idle — S-022 **acked** |
 
 ### Master commands
 
 ```text
-EXE2 14b Done — vnstocks recreated on image 188ead678824 (same as ingestion).
-upstream PASS; health 200; public 302; no nginx/sshd/UFW.
-Open Q §5.13 — còn Master ack (+ optional GD RPM probe / entitlement epic).
-Todo T-239 still NOT started. Lanes IDLE.
+HANDOFF SSI FastConnect (exe2 → new chat) — see §6 HANDOFF + Open Q §5.14.
+SSI auth Fail 400 on VPS; vnstock quote = kbs/vci/asean only (no ssi).
+Priority target: SSI direct → vnstock KBS>VCI → other.
+Also pending: VPS RAM 5G note in VPS_NETWORK.md; §5.13 Master ack.
+Todo T-239 NOT started. Lanes IDLE.
 ```
 
 ### Last Executor state (ag6 / exe2)
 
 ```
-task: (out-of-band) board_stocks 13b + UI sync 14b
-result: Done — UI+ingestion on 188ead678824
+task: HANDOFF SSI FastConnect (out-of-band)
+result: Done — bus note for next chat
 owner: exe2
 Status: idle
-master_ack: pending (Open Q §5.13)
+master_ack: pending (§5.13 board_stocks + §5.14 SSI)
+focus: SSI auth Fix → latency vs KBS → priority SSI>KBS>VCI
 image_ui: 188ead678824
 image_ingestion: 188ead678824
-health: 200
-public: 302
-quotes_redis: ~916/1519
-prior: T-238 acked
+ssi_env_on_vps: SET (auth Fail 400)
 ```
 
 ### Last Support state (ag5 / sp2)
@@ -470,6 +503,7 @@ SIGNAL_NEED_FORK: cleared (T-237 completed by exe2)
 
 | Khi | Thay đổi |
 |-----|----------|
+| 2026-10-19 | **HANDOFF SSI FastConnect** — exe2 → chat mới; Open Q §5.14; auth Fail 400; priority SSI→KBS→VCI |
 | 2026-10-18 | **14b Done** — exe2 redeploy `vnstocks` → image `188ead678824`; health 200; public 302; Open Q §5.13b clear |
 | 2026-10-18 | **Open Q §5.13** — exe2 self-bus: board_stocks 1-shot + rpm 500 live (`188ead678824`); chờ Master ack |
 | 2026-10-18 | **Todo T-239** — human 16b; Chat spark wl_rows §6.2; chưa START; lanes idle |
