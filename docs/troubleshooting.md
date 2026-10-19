@@ -159,7 +159,7 @@ Container `atz-index` (`python -m ingestion.index`, config `config/index.yaml`) 
 - Log: `docker logs atz-index 2>&1 | grep -- '-IDX-'`. Các nhãn: `INGEST-IDX-FETCH` (log mỗi 20 chu kỳ, kèm giá và nguồn), `IDX-BACKFILL`, `IDX-FUTURES`, `IDX-ROLLOVER` (đổi hợp đồng thì xoá chuỗi cũ và nạp lại), `IDX-CB`, `IDX-REDIS`. Ở UI: `UI-INDEX` (ERR-UI-007).
 - Kiểm tra nhanh: `docker exec atz-index python -m ingestion.index.health` (exit 0 nếu heartbeat < 120s); `docker exec atz-redis redis-cli get idx:quote:VNINDEX`.
 - Ghi chú 2026-10-16: từ VPS không kết nối được `services.entrade.com.vn` (bị connect timeout), nên circuit Entrade sẽ OPEN và Vietcap phục vụ toàn bộ. Đây là hành vi đúng thiết kế.
-- Bật SSI: thêm `SSI_CONSUMER_ID` và `SSI_CONSUMER_SECRET` vào `.env`, rồi chạy `docker compose up -d --no-deps index-feed`. Phần SSI REST (AccessToken, DailyIndex, IntradayOhlc) chưa chạy thử với key thật. Kênh streaming MI là bước tiếp theo.
+- Bật SSI: thêm `SSI_CONSUMER_ID` (= API Key) và `SSI_CONSUMER_SECRET` (= API Secret) vào `/opt/vnstocks/.env`, rồi `docker compose up -d --no-deps index-feed`. Auth: `POST https://api.ssi.com.vn/api/v3/auth/token` body `apiKey`/`apiSecret`. Market data: `fc-data.ssi.com.vn/api/v2/Market` (DailyIndex, IntradayOhlc). **Không** cần Private Key (Trading). Không ghi access token vào `.env`. Kênh streaming MI là bước tiếp theo.
 
 ### Chung
 | Error Code       | Mô tả                              | Cách xử lý                                      |

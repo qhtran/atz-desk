@@ -1,7 +1,7 @@
 # PROGRESS.md — atz.vn / vnstocks
 
 > Master Architect artifact. Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
-> Cập nhật: **2026-10-19** — **HANDOFF SSI FastConnect** (exe2 → chat mới); Open Q §5.14; §5.13 còn Master ack.
+> Cập nhật: **2026-10-19** — SSI auth **v3 Pass** (exe2); Market fc-data còn **401**; Open Q §5.14; §5.13 Master ack pending.
 
 ### Naming convention (bắt buộc)
 
@@ -208,7 +208,7 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 11. ~~**Auditor F3 re-smoke 1505**~~ — Pass 9/9; P2 #3 **S-022 acked**; P2 #2 **T-235 Master ack Pass**; #1 deferred.
 12. ~~**F3 wl_rows gap §6.2 (Giá)**~~ — **T-237/T-238 Pass**; **T-239 Todo** (Chat spark); community vẫn backlog; không reopen engine.
 13. **Ingestion board_stocks (exe2 13b/14b) — chờ Master ack** — không redesign kiến trúc. Ship: `board_stocks` + 1-shot + rpm 500; image **`188ead678824`** trên **cả** `ingestion` + **`vnstocks`** (14b: upstream PASS, health 200, public 302). Redis ~916/1519 quotes. **Open Q còn:** (a) Master ack; (c) Vision entitlement UI = epic sau; (d) probe RPM **giờ GD**; (e) coverage miss / VCI retry. ~~(b) UI redeploy~~ **done**. Chi tiết: iCloud `StockRnD/atz_data_ingrest.md`.
-14. **SSI FastConnect — HANDOFF (exe2 → chat mới) — 2026-10-19** — xem §6 **HANDOFF — SSI FastConnect**. Ưu tiên đích: **SSI trực tiếp → vnstock (KBS>VCI) → khác**. Auth SSI trên VPS hiện **Fail** (`400 This connection is invalid`). Chưa đo latency SSI vs KBS. VPS RAM +1G → **5G** (Pavietnam #2 gia hạn 1 năm) — **chưa** ghi `VPS_NETWORK.md` (chat mới cập nhật).
+14. **SSI FastConnect — 2026-10-19 (exe2 update)** — Auth **Pass**: `POST https://api.ssi.com.vn/api/v3/auth/token` (`apiKey`/`apiSecret` ← `SSI_CONSUMER_ID`/`SSI_CONSUMER_SECRET`). Token shape flat (`accessToken`,`expiresAt`,…). Legacy `fc-data.../AccessToken` vẫn **400** invalid. Market `fc-data.../DailyIndex|IntradayOhlc` với Bearer v3 → body **status 401 Unauthorized**. Endpoint data mới trên `api.ssi.com.vn` **chưa biết** (404). Private Key = Trading — không cần. Code `_auth` đã đổi v3; chờ human URL data API / entitlement. VPS RAM 5G note `VPS_NETWORK.md` còn Todo.
 
 ---
 
@@ -248,6 +248,18 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 5. **Cấm:** commit/in secret; đụng nginx/sshd/UFW trừ confirm.
 
 **Hook chat mới:** `@PROGRESS.md` + `Pull bus. Tiếp HANDOFF SSI FastConnect §6 / Open Q §5.14.`
+
+**UPDATE 2026-10-19 (exe2 chat mới) — human cập nhật `.env` + auth script Pass:**
+| Hạng mục | Kết quả |
+|----------|---------|
+| Auth `api.ssi.com.vn/api/v3/auth/token` (apiKey/apiSecret) | **Pass** HTTP 200, has_token=True (~0.7s) |
+| Legacy `fc-data.../AccessToken` | vẫn **400** This connection is invalid |
+| `fc-data.../DailyIndex` + Bearer v3 | HTTP 200 body **status=401 Unauthorized** |
+| `fc-data.../IntradayOhlc` + Bearer v3 | HTTP 200 body **status=401 Unauthorized** |
+| `api.ssi.com.vn/.../Market/*` candidates | **404** / 403 — chưa tìm đúng path data |
+| Code | `providers.py` `_auth` → v3; tests Pass (18) |
+| Cần human | URL/docs **Market data** cho gói key mới (đã drop trade) |
+
 
 ### NOTE — ingestion board_stocks (ag6 / exe2 → ag1) — 2026-10-18 · **chờ Master ack**
 
@@ -451,32 +463,30 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing` 
 |-----|-------|------:|----------------:|----------|--------|
 | master | ag1 | — | — | — | **active** |
 | executor-1 | ag2 | — | — | yes | **paused_fork** — T-237 chuyển exe2 |
-| executor-2 | ag6 / exe2 | 4 | — | no | idle — HANDOFF SSI §5.14; chờ chat mới |
+| executor-2 | ag6 / exe2 | 5 | 3 | no | **blocked_human** — SSI auth Pass; Market URL |
 | support-1 | ag3 / sp1 | — | — | yes | **paused_fork** |
 | support-2 | ag5 / sp2 | 1 | 1 | no | idle — S-022 **acked** |
 
 ### Master commands
 
 ```text
-HANDOFF SSI FastConnect (exe2 → new chat) — see §6 HANDOFF + Open Q §5.14.
-SSI auth Fail 400 on VPS; vnstock quote = kbs/vci/asean only (no ssi).
-Priority target: SSI direct → vnstock KBS>VCI → other.
-Also pending: VPS RAM 5G note in VPS_NETWORK.md; §5.13 Master ack.
-Todo T-239 NOT started. Lanes IDLE.
+SSI auth v3 Pass on VPS; Market fc-data still 401 with v3 token.
+Code _auth updated; waiting human for new Market data API URL/docs.
+§5.13 Master ack still pending. Todo T-239 NOT started. Lanes: exe2 active SSI.
 ```
 
 ### Last Executor state (ag6 / exe2)
 
 ```
-task: HANDOFF SSI FastConnect (out-of-band)
-result: Done — bus note for next chat
+task: SSI FastConnect auth v3 + VPS probe
+result: auth Pass; Market 401 — need data API URL
 owner: exe2
-Status: idle
-master_ack: pending (§5.13 board_stocks + §5.14 SSI)
-focus: SSI auth Fix → latency vs KBS → priority SSI>KBS>VCI
-image_ui: 188ead678824
-image_ingestion: 188ead678824
-ssi_env_on_vps: SET (auth Fail 400)
+Status: blocked_human (Market endpoint)
+master_ack: pending (§5.13 + §5.14)
+pytest: tests/test_index_feed.py Pass (18)
+files: src/atz/ingestion/index/providers.py, tests/test_index_feed.py, docs/troubleshooting.md, PROGRESS.md
+ssi_env_on_vps: SET (auth Pass)
+focus: human cung cấp Market data URL cho key mới
 ```
 
 ### Last Support state (ag5 / sp2)

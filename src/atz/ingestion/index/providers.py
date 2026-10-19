@@ -207,15 +207,31 @@ class Entrade(Provider):
         return out
 
 
-# ------------------------------------------------------------------ SSI FastConnect Data (chờ key)
+# ------------------------------------------------------------------ SSI FastConnect Data
+# Auth: api.ssi.com.vn v3 (apiKey/apiSecret). Market data vẫn fc-data v2 (probe 2026-10-19).
+SSI_AUTH_URL = "https://api.ssi.com.vn/api/v3/auth/token"
 SSI_BASE = "https://fc-data.ssi.com.vn/api/v2/Market"
 SSI_INDEX = {"VNINDEX": "VNINDEX", "HNXINDEX": "HNXIndex", "UPCOMINDEX": "HNXUpcomIndex", "VN30": "VN30"}
 
 
-class SSI(Provider):
-    """REST FastConnect Data (AccessToken + IntradayOhlc + DailyIndex). Tắt khi thiếu SSI_CONSUMER_ID/SECRET.
+def _ssi_token(body: dict) -> str | None:
+    """Lấy access token từ vài shape response SSI (v3 auth / legacy FC)."""
+    if not isinstance(body, dict):
+        return None
+    data = body.get("data") if isinstance(body.get("data"), dict) else {}
+    for src in (body, data):
+        for k in ("accessToken", "access_token", "token"):
+            v = src.get(k)
+            if v:
+                return str(v)
+    return None
 
-    Chưa chạy thử với key thật (chưa có tài khoản). Kênh streaming MI (SignalR) là bước sau khi có key."""
+
+class SSI(Provider):
+    """REST SSI (auth v3 + Market DailyIndex/IntradayOhlc). Tắt khi thiếu SSI_CONSUMER_ID/SECRET.
+
+    Env map: SSI_CONSUMER_ID→apiKey, SSI_CONSUMER_SECRET→apiSecret. Private Key = Trading — không dùng.
+    Kênh streaming MI (SignalR) là bước sau."""
     name = "SSI"
 
     def __init__(self, settings, session=None):
@@ -232,12 +248,24 @@ class SSI(Provider):
     def _auth(self):
         if self.token and time.time() < self.token_exp:
             return
-        j = self._json("POST", f"{SSI_BASE}/AccessToken",
-                       json={"consumerID": self.s.env["SSI_CONSUMER_ID"], "consumerSecret": self.s.env["SSI_CONSUMER_SECRET"]})
-        tok = (j.get("data") or {}).get("accessToken")
+        j = self._json(
+            "POST",
+            SSI_AUTH_URL,
+            json={
+                "apiKey": self.s.env["SSI_CONSUMER_ID"],
+                "apiSecret": self.s.env["SSI_CONSUMER_SECRET"],
+            },
+        )
+        tok = _ssi_token(j)
         if not tok:
-            raise ProviderDown(f"SSI auth failed status={j.get('status')}")
-        self.token, self.token_exp = tok, time.time() + 6 * 3600
+            raise ProviderDown(f"SSI auth failed status={j.get('status')} msg={j.get('message') or j.get('error')}")
+        exp = j.get("expiresAt")
+        try:
+            exp_ts = float(exp) if exp is not None else time.time() + 6 * 3600
+        except (TypeError, ValueError):
+            exp_ts = time.time() + 6 * 3600
+        # refresh 60s sớm hơn expiresAt
+        self.token, self.token_exp = tok, max(time.time() + 60, exp_ts - 60)
         self.http.headers["Authorization"] = f"Bearer {tok}"
 
     def _today(self):

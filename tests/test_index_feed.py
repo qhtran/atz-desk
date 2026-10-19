@@ -94,6 +94,32 @@ def test_t1_ssi_disabled_without_env(settings):
         ssi.quotes(SYMS)
 
 
+def test_t1_ssi_auth_v3_api_key_secret(settings):
+    """Auth dùng api.ssi.com.vn/v3 + apiKey/apiSecret (không còn fc-data AccessToken)."""
+    settings.env.update(SSI_CONSUMER_ID="id-test", SSI_CONSUMER_SECRET="sec-test")
+    today = datetime.now().strftime("%d/%m/%Y")
+    http = FakeHTTP({
+        "token": {"data": {"accessToken": "tok-hidden"}},
+        "DailyIndex": {"data": [{"IndexValue": 1705.91, "Change": 7.56, "Time": "14:00:00"}]},
+    })
+    ssi = P.SSI(settings, session=http)
+    q = ssi.quotes(["VNINDEX"])
+    assert q["VNINDEX"].value == 1705.91 and q["VNINDEX"].source == "SSI"
+    method, url, _params, body = http.calls[0]
+    assert method == "POST" and url == P.SSI_AUTH_URL
+    assert body == {"apiKey": "id-test", "apiSecret": "sec-test"}
+    assert http.headers.get("Authorization") == "Bearer tok-hidden"
+    assert http.calls[1][0] == "GET" and "DailyIndex" in http.calls[1][1]
+    assert http.calls[1][2]["fromDate"] == today
+
+
+def test_t1_ssi_token_shapes():
+    assert P._ssi_token({"accessToken": "a"}) == "a"
+    assert P._ssi_token({"data": {"access_token": "b"}}) == "b"
+    assert P._ssi_token({"data": {"token": "c"}}) == "c"
+    assert P._ssi_token({"message": "nope"}) is None
+
+
 class Fake:
     def __init__(self, name, data=None, fail=False, enabled=True):
         self.name, self.data, self.fail, self._en, self.calls = name, data or {}, fail, enabled, 0
