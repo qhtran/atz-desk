@@ -1,7 +1,7 @@
 # PROGRESS.md — atz.vn / vnstocks
 
 > Master Architect artifact. Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
-> Cập nhật: **2026-10-19** — SSI auth **v3 Pass** (exe2); Market fc-data còn **401**; Open Q §5.14; §5.13 Master ack pending.
+> Cập nhật: **2026-10-20** — SSI **data v3 live** (indexSummary+ohlc); bench+parallel; strategy refresh 1–2s; §5.13 Master ack pending.
 
 ### Naming convention (bắt buộc)
 
@@ -208,7 +208,7 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 11. ~~**Auditor F3 re-smoke 1505**~~ — Pass 9/9; P2 #3 **S-022 acked**; P2 #2 **T-235 Master ack Pass**; #1 deferred.
 12. ~~**F3 wl_rows gap §6.2 (Giá)**~~ — **T-237/T-238 Pass**; **T-239 Todo** (Chat spark); community vẫn backlog; không reopen engine.
 13. **Ingestion board_stocks (exe2 13b/14b) — chờ Master ack** — không redesign kiến trúc. Ship: `board_stocks` + 1-shot + rpm 500; image **`188ead678824`** trên **cả** `ingestion` + **`vnstocks`** (14b: upstream PASS, health 200, public 302). Redis ~916/1519 quotes. **Open Q còn:** (a) Master ack; (c) Vision entitlement UI = epic sau; (d) probe RPM **giờ GD**; (e) coverage miss / VCI retry. ~~(b) UI redeploy~~ **done**. Chi tiết: iCloud `StockRnD/atz_data_ingrest.md`.
-14. **SSI FastConnect — 2026-10-19 (exe2 update)** — Auth **Pass**: `POST https://api.ssi.com.vn/api/v3/auth/token` (`apiKey`/`apiSecret` ← `SSI_CONSUMER_ID`/`SSI_CONSUMER_SECRET`). Token shape flat (`accessToken`,`expiresAt`,…). Legacy `fc-data.../AccessToken` vẫn **400** invalid. Market `fc-data.../DailyIndex|IntradayOhlc` với Bearer v3 → body **status 401 Unauthorized**. Endpoint data mới trên `api.ssi.com.vn` **chưa biết** (404). Private Key = Trading — không cần. Code `_auth` đã đổi v3; chờ human URL data API / entitlement. VPS RAM 5G note `VPS_NETWORK.md` còn Todo.
+14. **SSI Developer Portal v3 — 2026-10-20** — Auth+data Pass. Provider dùng `indexSummary`/`ohlc` (không fc-data). Bench: ~0.2s/call; header limit data≈20 (cửa sổ nhanh). Parallel 10w@18rps: 60 mã ~3.5s, 300 mã ~17s → **~84s/1500 mã** (không đủ cho UI 1–2s). Equity universe giữ **KBS batch** (vnstock). SSI WS market = epic sau. Strategy: UI đọc Redis 1–2s; ingestion KBS poll ≤2s; index SSI/Vietcap. Chi tiết §6 HANDOFF update.
 
 ---
 
@@ -260,6 +260,18 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 | Code | `providers.py` `_auth` → v3; tests Pass (18) |
 | Cần human | URL/docs **Market data** cho gói key mới (đã drop trade) |
 
+
+
+**UPDATE+ship 2026-10-20 (exe2) — SSI data v3 + bench + parallel:**
+| Hạng mục | Kết quả |
+|----------|---------|
+| Provider | `indexSummary` + `ohlc` trên `api.ssi.com.vn/api/v3/data` |
+| pytest | `tests/test_index_feed.py` Pass (19) |
+| Latency 1 call | indexSummary/ohlc/secSummary p50 **~190–230 ms** |
+| Parallel equity ≤18 rps | 60 mã ~3.5s (10w); 300 mã ~17s; **~84s/1500** |
+| vnstock so sánh | KBS price_board 30 mã **~136 ms**; VCI 30 **~634 ms** |
+| Kết luận | Index → SSI OK; Equity full board → **KBS batch** (SSI REST/mã không đủ cho 1–2s) |
+| Strategy refresh 1–2s | UI fragment Redis 1–2s; ingestion KBS poll 1–2s; index SSI; SSI WS = sau |
 
 ### NOTE — ingestion board_stocks (ag6 / exe2 → ag1) — 2026-10-18 · **chờ Master ack**
 
@@ -463,31 +475,29 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing` 
 |-----|-------|------:|----------------:|----------|--------|
 | master | ag1 | — | — | — | **active** |
 | executor-1 | ag2 | — | — | yes | **paused_fork** — T-237 chuyển exe2 |
-| executor-2 | ag6 / exe2 | 5 | 3 | no | **blocked_human** — SSI auth Pass; Market URL |
+| executor-2 | ag6 / exe2 | 6 | 4 | no | idle — SSI v3 data shipped; strategy noted |
 | support-1 | ag3 / sp1 | — | — | yes | **paused_fork** |
 | support-2 | ag5 / sp2 | 1 | 1 | no | idle — S-022 **acked** |
 
 ### Master commands
 
 ```text
-SSI auth v3 Pass on VPS; Market fc-data still 401 with v3 token.
-Code _auth updated; waiting human for new Market data API URL/docs.
-§5.13 Master ack still pending. Todo T-239 NOT started. Lanes: exe2 active SSI.
+SSI data v3 shipped (indexSummary+ohlc). Equity stay KBS batch.
+Strategy: UI Redis refresh 1-2s; do NOT SSI-serial full universe.
+§5.13 Master ack still pending. T-239 NOT started.
 ```
 
 ### Last Executor state (ag6 / exe2)
 
 ```
-task: SSI FastConnect auth v3 + VPS probe + deploy index-feed
-result: auth Pass; Market 401; index uses Vietcap failover
+task: SSI v3 data provider + bench/parallel + strategy
+result: Pass — index SSI live path; equity KBS stays primary
 owner: exe2
-Status: blocked_human (Market endpoint)
+Status: idle (await Master ack / human UI refresh choice)
 master_ack: pending (§5.13 + §5.14)
-pytest: tests/test_index_feed.py Pass (18)
-files: providers.py, test_index_feed.py, troubleshooting.md, PROGRESS.md
-image_index: 81e189e2a9b6 (index-feed only; UI still 188ead678824)
-ssi_env_on_vps: SET (auth Pass)
-focus: human cung cấp Market data URL cho key mới (drop trade)
+pytest: tests/test_index_feed.py Pass (19)
+files: providers.py, test_index_feed.py, troubleshooting.md, PROGRESS.md, scripts/tools/ssi_v3_bench.py
+focus: optional lower ui_realtime refresh 5→2; SSI WS epic later
 ```
 
 ### Last Support state (ag5 / sp2)

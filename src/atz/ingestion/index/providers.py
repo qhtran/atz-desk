@@ -207,11 +207,12 @@ class Entrade(Provider):
         return out
 
 
-# ------------------------------------------------------------------ SSI FastConnect Data
-# Auth: api.ssi.com.vn v3 (apiKey/apiSecret). Market data vẫn fc-data v2 (probe 2026-10-19).
+# ------------------------------------------------------------------ SSI Developer Portal (api.ssi.com.vn v3)
+# Docs: https://developers.ssi.com.vn/docs/getting-started/first-api-call
 SSI_AUTH_URL = "https://api.ssi.com.vn/api/v3/auth/token"
-SSI_BASE = "https://fc-data.ssi.com.vn/api/v2/Market"
-SSI_INDEX = {"VNINDEX": "VNINDEX", "HNXINDEX": "HNXIndex", "UPCOMINDEX": "HNXUpcomIndex", "VN30": "VN30"}
+SSI_DATA = "https://api.ssi.com.vn/api/v3/data"
+# Chỉ số spot; phái sinh (VN30F*) để provider sau / WebSocket.
+SSI_INDEX = {"VNINDEX", "HNXINDEX", "UPCOMINDEX", "VN30"}
 
 
 def _ssi_token(body: dict) -> str | None:
@@ -227,11 +228,34 @@ def _ssi_token(body: dict) -> str | None:
     return None
 
 
-class SSI(Provider):
-    """REST SSI (auth v3 + Market DailyIndex/IntradayOhlc). Tắt khi thiếu SSI_CONSUMER_ID/SECRET.
+def _ssi_rows(body) -> list:
+    if isinstance(body, list):
+        return body
+    if isinstance(body, dict):
+        data = body.get("data")
+        if isinstance(data, list):
+            return data
+    return []
 
-    Env map: SSI_CONSUMER_ID→apiKey, SSI_CONSUMER_SECRET→apiSecret. Private Key = Trading — không dùng.
-    Kênh streaming MI (SignalR) là bước sau."""
+
+def _ssi_parse_ts(raw: str) -> int | None:
+    """Parse tradingDate SSI: 'YYYY/MM/DD HH:mm:ss' hoặc 'YYYY/MM/DD'."""
+    if not raw:
+        return None
+    raw = str(raw).strip()
+    for fmt in ("%Y/%m/%d %H:%M:%S", "%Y/%m/%d", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d"):
+        try:
+            return int(datetime.strptime(raw, fmt).timestamp())
+        except ValueError:
+            continue
+    return None
+
+
+class SSI(Provider):
+    """REST SSI v3: auth + indexSummary + ohlc. Tắt khi thiếu SSI_CONSUMER_ID/SECRET.
+
+    Env: SSI_CONSUMER_ID→apiKey, SSI_CONSUMER_SECRET→apiSecret. Private Key / OTP = Trading — không dùng.
+    Rate-limit header quan sát: data ≈ 20/cửa sổ (refresh nhanh). WebSocket market = bước sau."""
     name = "SSI"
 
     def __init__(self, settings, session=None):
@@ -243,7 +267,7 @@ class SSI(Provider):
         return bool(self.s.env.get("SSI_CONSUMER_ID") and self.s.env.get("SSI_CONSUMER_SECRET"))
 
     def cost(self, symbols) -> int:
-        return len(symbols) + 1
+        return len([s for s in symbols if s in SSI_INDEX]) + 1
 
     def _auth(self):
         if self.token and time.time() < self.token_exp:
@@ -264,28 +288,29 @@ class SSI(Provider):
             exp_ts = float(exp) if exp is not None else time.time() + 6 * 3600
         except (TypeError, ValueError):
             exp_ts = time.time() + 6 * 3600
-        # refresh 60s sớm hơn expiresAt
         self.token, self.token_exp = tok, max(time.time() + 60, exp_ts - 60)
         self.http.headers["Authorization"] = f"Bearer {tok}"
 
-    def _today(self):
-        return datetime.now().strftime("%d/%m/%Y")
+    def _today(self) -> str:
+        return datetime.now().strftime("%Y/%m/%d")
 
     def quotes(self, symbols) -> dict:
         if not self.enabled:
             raise ProviderDown("SSI disabled (no credentials)")
         self._auth()
         out = {}
+        day = self._today()
         for s in symbols:
             if s not in SSI_INDEX:
-                continue   # phái sinh qua SSI cần kênh X/streaming; để provider sau xử lý
-            j = self._json("GET", f"{SSI_BASE}/DailyIndex", params={"indexId": SSI_INDEX[s], "fromDate": self._today(),
-                                                                    "toDate": self._today(), "pageIndex": 1, "pageSize": 10})
-            rows = j.get("data") or []
-            if rows:
-                row = rows[-1]
-                val, chg = float(row["IndexValue"]), float(row.get("Change") or 0)
-                out[s] = IdxQuote(s, val, round(val - chg, 2), "SSI", row.get("Time"))
+                continue
+            j = self._json("GET", f"{SSI_DATA}/indexSummary", params={"index": s, "tradingDate": day})
+            rows = _ssi_rows(j)
+            if not rows:
+                continue
+            row = rows[-1]
+            val = float(row["indexValue"])
+            chg = float(row.get("indexChange") or 0)
+            out[s] = IdxQuote(s, val, round(val - chg, 2), "SSI", row.get("tradingDate"))
         return out
 
     def bars(self, symbols, since: int) -> dict:
@@ -293,16 +318,28 @@ class SSI(Provider):
             raise ProviderDown("SSI disabled (no credentials)")
         self._auth()
         out = {}
+        day = self._today()
         for s in symbols:
             if s not in SSI_INDEX:
                 continue
-            j = self._json("GET", f"{SSI_BASE}/IntradayOhlc", params={"symbol": SSI_INDEX[s], "fromDate": self._today(),
-                                                                      "toDate": self._today(), "pageIndex": 1, "pageSize": 1000,
-                                                                      "resollution": 1})
+            j = self._json(
+                "GET",
+                f"{SSI_DATA}/ohlc",
+                params={
+                    "symbol": s,
+                    "from": f"{day} 00:00:00",
+                    "to": f"{day} 23:59:59",
+                    "timeFrame": "1m",
+                    "pageIndex": 1,
+                    "pageSize": 1000,
+                },
+            )
             pts = []
-            for row in j.get("data") or []:
-                t = datetime.strptime(f"{row['TradingDate']} {row['Time']}", "%d/%m/%Y %H:%M:%S").timestamp()
-                pts.append((int(t), float(row["Close"])))
+            for row in _ssi_rows(j):
+                t = _ssi_parse_ts(row.get("tradingDate") or "")
+                if t is None or t < since:
+                    continue
+                pts.append((t, float(row["close"])))
             out[s] = pts
         return out
 

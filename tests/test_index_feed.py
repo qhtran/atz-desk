@@ -95,22 +95,39 @@ def test_t1_ssi_disabled_without_env(settings):
 
 
 def test_t1_ssi_auth_v3_api_key_secret(settings):
-    """Auth dùng api.ssi.com.vn/v3 + apiKey/apiSecret (không còn fc-data AccessToken)."""
+    """Auth v3 + quotes qua indexSummary (không còn fc-data DailyIndex)."""
     settings.env.update(SSI_CONSUMER_ID="id-test", SSI_CONSUMER_SECRET="sec-test")
-    today = datetime.now().strftime("%d/%m/%Y")
+    today = datetime.now().strftime("%Y/%m/%d")
     http = FakeHTTP({
-        "token": {"data": {"accessToken": "tok-hidden"}},
-        "DailyIndex": {"data": [{"IndexValue": 1705.91, "Change": 7.56, "Time": "14:00:00"}]},
+        "token": {"accessToken": "tok-hidden", "expiresAt": 9999999999},
+        "indexSummary": [{"indexValue": "1705.91", "indexChange": "7.56", "tradingDate": today}],
     })
     ssi = P.SSI(settings, session=http)
     q = ssi.quotes(["VNINDEX"])
-    assert q["VNINDEX"].value == 1705.91 and q["VNINDEX"].source == "SSI"
+    assert q["VNINDEX"].value == 1705.91 and q["VNINDEX"].ref == 1698.35 and q["VNINDEX"].source == "SSI"
     method, url, _params, body = http.calls[0]
     assert method == "POST" and url == P.SSI_AUTH_URL
     assert body == {"apiKey": "id-test", "apiSecret": "sec-test"}
     assert http.headers.get("Authorization") == "Bearer tok-hidden"
-    assert http.calls[1][0] == "GET" and "DailyIndex" in http.calls[1][1]
-    assert http.calls[1][2]["fromDate"] == today
+    assert http.calls[1][0] == "GET" and http.calls[1][1].endswith("/indexSummary")
+    assert http.calls[1][2] == {"index": "VNINDEX", "tradingDate": today}
+
+
+def test_t1_ssi_bars_ohlc_v3(settings):
+    settings.env.update(SSI_CONSUMER_ID="id-test", SSI_CONSUMER_SECRET="sec-test")
+    today = datetime.now().strftime("%Y/%m/%d")
+    http = FakeHTTP({
+        "token": {"accessToken": "tok-hidden"},
+        "ohlc": {"data": [
+            {"symbol": "VNINDEX", "tradingDate": f"{today} 09:00:00", "close": "1700.0"},
+            {"symbol": "VNINDEX", "tradingDate": f"{today} 09:01:00", "close": "1701.5"},
+        ]},
+    })
+    ssi = P.SSI(settings, session=http)
+    bars = ssi.bars(["VNINDEX"], since=0)
+    assert len(bars["VNINDEX"]) == 2 and bars["VNINDEX"][-1][1] == 1701.5
+    assert http.calls[1][1].endswith("/ohlc")
+    assert http.calls[1][2]["timeFrame"] == "1m"
 
 
 def test_t1_ssi_token_shapes():
@@ -118,6 +135,9 @@ def test_t1_ssi_token_shapes():
     assert P._ssi_token({"data": {"access_token": "b"}}) == "b"
     assert P._ssi_token({"data": {"token": "c"}}) == "c"
     assert P._ssi_token({"message": "nope"}) is None
+    assert P._ssi_rows([{"a": 1}]) == [{"a": 1}]
+    assert P._ssi_rows({"data": [{"a": 1}]}) == [{"a": 1}]
+    assert P._ssi_rows({"code": "400"}) == []
 
 
 class Fake:
