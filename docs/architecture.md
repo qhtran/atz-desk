@@ -218,6 +218,22 @@ Theo dõi vị thế user đã nhập, tính P&L near-realtime, cảnh báo SL/T
 
 **Chi tiết mạng / nginx / Docker networks / SSH-over-443:** [`docs/infrastructure/VPS_NETWORK.md`](infrastructure/VPS_NETWORK.md) (snapshot 2026-10-17).
 
+### 8.1 Priceboard FastAPI / iBoard (song song prod — 2026-10-21)
+
+Stack **dev** trên nhánh `feature/realtime-fastapi`, **không** thay Streamlit `:8501` / `atz-redis` prod.
+
+| Thành phần | Chi tiết |
+|------------|----------|
+| Compose | `docker-compose.dev.yml` · project name **`atz_priceboard`** · containers `atz-priceboard-api-dev`, `atz-redis-dev`, `atz-ssi-worker-dev` |
+| Bind | Host `127.0.0.1:8000` (API+WS+UI) · `127.0.0.1:6380` (Redis dev) |
+| Data path | Worker → Redis Hash `priceboard:quotes` + Pub/Sub `priceboard_ticks` → FastAPI WS `/ws/priceboard` → `frontend/index.html` |
+| Nguồn | `PRICEBOARD_SOURCE=mock\|ssi` · live: `wss://stream.ssi.com.vn/ws/v3` (không ghi `idx:quote:*`) |
+| Liquidity | `min_volume: 500000` (`backend/volume_filter.py`) — index luôn giữ; equity `vol==0` hiện tạm; dưới ngưỡng bị ẩn |
+| UI | YSVN-style: search + settings · index cards · market tabs HOSE/VN30/HNX/UPCOM · sticky pins |
+| Public | Scaffold Authentik ForwardAuth: `deploy/nginx_dev.conf` — **chưa** gắn `/opt/nginx` / `dev.atz.vn` |
+
+Handoff vận hành chat-to-chat: [`docs/bots/HANDOFF_NEXT_CHAT.md`](bots/HANDOFF_NEXT_CHAT.md).
+
 ---
 
-*Tài liệu này tổng hợp toàn bộ thiết kế từ phiên làm việc 2026-10-16. Dùng làm nguồn chân lý cho triển khai.*
+*Tài liệu này tổng hợp thiết kế từ 2026-10-16; §8.1 bổ sung priceboard FastAPI (2026-10-21). Dùng làm nguồn chân lý cho triển khai.*

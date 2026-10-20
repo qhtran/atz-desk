@@ -93,12 +93,17 @@ Compose nginx host path: `/opt/nginx` (không nằm trong repo app).
 | `nginx` (`/opt/nginx`) | nginx-reverse-proxy | TLS, SNI, SSH-over-443, auth_request |
 | `authentik` (`/opt/authentik`) | authentik-server/worker/postgresql | SSO |
 | `vnstocks` (`/opt/vnstocks`) | vnstocks, atz-ingestion, atz-index, atz-filter-runner, atz-alert, atz-position, atz-redis | App + realtime |
+| `atz_priceboard` (`/opt/vnstocks` · `docker-compose.dev.yml`) | atz-priceboard-api-dev, atz-redis-dev, atz-ssi-worker-dev | iBoard FastAPI · bind `127.0.0.1:8000` / `:6380` · **tách** Redis prod (compose `name: atz_priceboard`) |
 | (độc lập) | portainer | UI Docker, localhost:9443 |
 | Di sản | n8n, certbot (Exited) | Chờ dọn; **giữ** volume nginx + `n8n_proxy-network` |
 
-Deploy app:  
+Deploy app (prod Streamlit):  
 `cd /opt/vnstocks && DOCKER_BUILDKIT=1 docker compose build <svc> && docker compose up -d --no-deps <svc>`  
 rồi `/usr/local/bin/atz-check-upstream` (kiểm tra tên container `vnstocks` + resolve nginx).
+
+Deploy priceboard (dev, song song):  
+`cd /opt/vnstocks && PRICEBOARD_SOURCE=ssi docker compose -f docker-compose.dev.yml up -d --build`  
+— **không** dùng `--remove-orphans`; **không** chạy compose.dev khi thiếu `name: atz_priceboard` (đã từng đụng `atz-redis` prod). Nginx `dev.atz.vn`: scaffold `deploy/nginx_dev.conf`, chỉ apply khi `user_confirmed_infra: yes`.
 
 ## 6. Dữ liệu
 
