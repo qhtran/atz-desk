@@ -1,7 +1,7 @@
 # PROGRESS.md — atz.vn / vnstocks
 
 > Master Architect artifact. Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
-> Cập nhật: **2026-10-20** — **ADR 0008** SSI WebSocket-first Phase 1 (`atz-ssi-stream`); REST backup; §5.13 Master ack pending.
+> Cập nhật: **2026-10-20** — **HANDOFF SSI WS Phase 1** (exe2 → chat mới); ADR 0008; Open Q §5.14; §5.13 Master ack pending.
 
 ### Naming convention (bắt buộc)
 
@@ -208,7 +208,7 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 11. ~~**Auditor F3 re-smoke 1505**~~ — Pass 9/9; P2 #3 **S-022 acked**; P2 #2 **T-235 Master ack Pass**; #1 deferred.
 12. ~~**F3 wl_rows gap §6.2 (Giá)**~~ — **T-237/T-238 Pass**; **T-239 Todo** (Chat spark); community vẫn backlog; không reopen engine.
 13. **Ingestion board_stocks (exe2 13b/14b) — chờ Master ack** — không redesign kiến trúc. Ship: `board_stocks` + 1-shot + rpm 500; image **`188ead678824`** trên **cả** `ingestion` + **`vnstocks`** (14b: upstream PASS, health 200, public 302). Redis ~916/1519 quotes. **Open Q còn:** (a) Master ack; (c) Vision entitlement UI = epic sau; (d) probe RPM **giờ GD**; (e) coverage miss / VCI retry. ~~(b) UI redeploy~~ **done**. Chi tiết: iCloud `StockRnD/atz_data_ingrest.md`.
-14. **SSI Developer Portal v3 — 2026-10-20** — Auth+data Pass. Provider dùng `indexSummary`/`ohlc` (không fc-data). Bench: ~0.2s/call; header limit data≈20 (cửa sổ nhanh). Parallel 10w@18rps: 60 mã ~3.5s, 300 mã ~17s → **~84s/1500 mã** (không đủ cho UI 1–2s). Equity universe giữ **KBS batch** (vnstock). SSI WS market = epic sau. Strategy: UI đọc Redis 1–2s; ingestion KBS poll ≤2s; index SSI/Vietcap. Chi tiết §6 HANDOFF update.
+14. **SSI WS Phase 1 — HANDOFF 2026-10-20** — ADR 0008 live: `atz-ssi-stream` `/ws/v3` subscribed; REST backup off-hours. **Còn:** verify tick giờ GD → `SSI_WS`; UI anti-jank epic; Phase 2 watchlist. Chi tiết §6 HANDOFF SSI WS.
 
 ---
 
@@ -272,6 +272,37 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 | vnstock so sánh | KBS price_board 30 mã **~136 ms**; VCI 30 **~634 ms** |
 | Kết luận | Index → SSI OK; Equity full board → **KBS batch** (SSI REST/mã không đủ cho 1–2s) |
 | Strategy refresh 1–2s | UI fragment Redis 1–2s; ingestion KBS poll 1–2s; index SSI; SSI WS = sau |
+
+
+### HANDOFF — SSI WebSocket-first Phase 1 (ag6 / exe2 → chat mới) — 2026-10-20
+
+**Chốt kiến trúc:** ADR `docs/adr/0008-ssi-websocket-primary.md` + `docs/REFRESH_1_2S_STRATEGY.md` §5 — **WS primary**, REST **backup**. UI chỉ đọc Redis (MVC giữ nguyên).
+
+**Đã ship (main):**
+- Service `atz-ssi-stream` (`python -m ingestion.ssi_stream`) — URL **`wss://stream.ssi.com.vn/ws/v3`** (SDK default; docs connect thiếu path)
+- Config `config/ssi_stream.yaml`; compose service `ssi-stream`
+- `atz-index`: khi `ssi_stream:health.healthy=true` → không ghi đè spot; ngoài giờ / chưa có quote WS → REST backup (SSI/Vietcap)
+- Tests: `tests/test_ssi_stream.py` + `test_index_feed` **Pass (24)**
+- Commits neo: `e02c926` / `de65e1c` / `a8cf97f` (+ bus handoff này)
+
+**VPS runtime (verify 2026-10-20 ~07:16 +07):**
+| Mục | Kết quả |
+|-----|---------|
+| `atz-ssi-stream` / `atz-index` | Up (healthy) |
+| WS | **connected + subscribed** topics Phase 1 index |
+| `ssi_stream:health` | `connected=true`, `healthy=false` ngoài phiên (đúng — REST owns spots) |
+| `idx:quote:VNINDEX` | Có giá (REST/Vietcap) — **site không trống** |
+| Tick WS | Chưa thấy ngoài giờ (expected); **cần verify trong giờ GD** |
+
+**Việc chat mới làm (ưu tiên):**
+1. Giờ GD: xác nhận tick → parse → `source=SSI_WS`, `healthy=true`, index-feed không đè spot.
+2. Nếu parse miss schema message thật: sửa `ssi_stream/parse.py` + log sample (không in token).
+3. Epic UI giảm giật fragment (WS chữa data; DOM rebuild vẫn có thể giật) — xem REFRESH §5.6.
+4. Phase 2 (sau): WS watchlist/VN30; equity full board vẫn KBS.
+5. Proper `docker compose build vnstocks` khi tiện (deploy hiện inject src+config + websocket-client; tránh 2 build song song).
+6. **Cấm:** commit secret; đụng nginx/sshd/UFW trừ confirm.
+
+**Hook chat mới:** `@PROGRESS.md` + `Pull bus. Tiếp HANDOFF SSI WS Phase 1 §6 / ADR 0008.`
 
 ### NOTE — ingestion board_stocks (ag6 / exe2 → ag1) — 2026-10-18 · **chờ Master ack**
 
@@ -475,29 +506,28 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing` 
 |-----|-------|------:|----------------:|----------|--------|
 | master | ag1 | — | — | — | **active** |
 | executor-1 | ag2 | — | — | yes | **paused_fork** — T-237 chuyển exe2 |
-| executor-2 | ag6 / exe2 | 6 | 4 | no | idle — SSI v3 data shipped; strategy noted |
+| executor-2 | ag6 / exe2 | 7 | — | no | idle — HANDOFF SSI WS Phase 1; chờ chat mới |
 | support-1 | ag3 / sp1 | — | — | yes | **paused_fork** |
 | support-2 | ag5 / sp2 | 1 | 1 | no | idle — S-022 **acked** |
 
 ### Master commands
 
 ```text
-ADR 0008 accepted — SSI WS primary Phase 1 shipping (atz-ssi-stream).
-REST index = backup when stream unhealthy. UI Redis contract unchanged.
-§5.13 Master ack still pending. T-239 NOT started.
+HANDOFF SSI WS Phase 1 (exe2 → new chat) — ADR 0008.
+WS /ws/v3 connected+subscribed; REST backup off-hours; verify ticks in session.
+UI Redis contract unchanged. §5.13 Master ack still pending. T-239 NOT started.
 ```
 
 ### Last Executor state (ag6 / exe2)
 
 ```
-task: ADR 0008 + ssi-stream Phase 1 (8a–8c)
-result: Done — WS connect /ws/v3 subscribed; REST backup off-hours; site quotes via index REST until market ticks
+task: HANDOFF SSI WS Phase 1 (out-of-band)
+result: Done — bus note for next chat
 owner: exe2
 Status: idle
-master_ack: pending
+master_ack: pending (§5.13 + §5.14)
+focus: next chat verify WS ticks in trading hours
 pytest: Pass (24)
-note: WS URL fixed to wss://stream.ssi.com.vn/ws/v3; no ticks off-hours (expected)
-image: inject src+config on vnstocks-vnstocks (+ websocket-client)
 ```
 
 ### Last Support state (ag5 / sp2)
