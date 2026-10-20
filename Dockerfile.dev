@@ -17,6 +17,7 @@ RUN pip install --no-cache-dir -r /app/backend/requirements.txt
 
 COPY backend /app/backend
 COPY frontend /app/frontend
+COPY config/priceboard.yaml /app/config/priceboard.yaml
 
 EXPOSE 8000
 

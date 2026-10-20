@@ -1,7 +1,7 @@
-"""Mock SSI FastConnect worker for local / dev.atz.vn.
+"""Priceboard SSI worker — hybrid mock | live FastConnect.
 
-Publishes sample ticks to Redis Hash + Pub/Sub. Does NOT call SSI APIs.
-Replace this module with a real FastConnect client in a later phase.
+PRICEBOARD_SOURCE=mock|ssi (default mock).
+ssi mode requires SSI_CONSUMER_ID + SSI_CONSUMER_SECRET; otherwise falls back to mock.
 """
 
 from __future__ import annotations
@@ -13,9 +13,12 @@ import os
 import random
 import signal
 import time
-from datetime import datetime, timezone, timedelta
+from pathlib import Path
+from typing import Any, Protocol
 
 import redis.asyncio as aioredis
+
+from backend.tick_contract import build_tick
 
 logging.basicConfig(
     level=os.getenv("LOG_LEVEL", "INFO"),
@@ -28,10 +31,8 @@ CHANNEL = os.getenv("PRICEBOARD_CHANNEL", "priceboard_ticks")
 HASH_KEY = os.getenv("PRICEBOARD_HASH", "priceboard:quotes")
 TICK_INTERVAL_MS = int(os.getenv("MOCK_TICK_INTERVAL_MS", "120"))
 TICKS_PER_BURST = int(os.getenv("MOCK_TICKS_PER_BURST", "3"))
-MOCK_EQUITY_COUNT = int(os.getenv("MOCK_EQUITY_COUNT", "70"))  # target equities (50–80)
-TZ_VN = timezone(timedelta(hours=7))
+MOCK_EQUITY_COUNT = int(os.getenv("MOCK_EQUITY_COUNT", "70"))
 
-# VN30 + common HOSE names (approx basket for UI realism).
 VN30_AND_BLUECHIPS: list[tuple[str, int]] = [
     ("ACB", 24850), ("BCM", 68500), ("BID", 45200), ("BVH", 51200), ("CTG", 34500),
     ("FPT", 118500), ("GAS", 78500), ("GVR", 31200), ("HDB", 26800), ("HPG", 27800),
@@ -39,14 +40,50 @@ VN30_AND_BLUECHIPS: list[tuple[str, int]] = [
     ("SAB", 58200), ("SHB", 11200), ("SSB", 19800), ("SSI", 34200), ("STB", 35600),
     ("TCB", 24500), ("TPB", 17800), ("VCB", 92500), ("VHM", 41200), ("VIB", 19850),
     ("VIC", 41500), ("VJC", 98500), ("VNM", 62500), ("VPB", 19800), ("VRE", 18600),
-    # extra liquid names beyond VN30
     ("DGC", 92500), ("DIG", 18500), ("DXG", 15200), ("HCM", 28500), ("KDH", 31200),
     ("NLG", 34500), ("PNJ", 92500), ("POW", 12850), ("REE", 65200), ("TCH", 12500),
 ]
 
 
+class Stoppable(Protocol):
+    def request_stop(self) -> None: ...
+    async def run(self) -> None: ...
+
+
+def _load_yaml_source_default() -> str:
+    path = Path(os.getenv("PRICEBOARD_CONFIG", "/app/config/priceboard.yaml"))
+    if not path.is_file():
+        alt = Path(__file__).resolve().parent.parent / "config" / "priceboard.yaml"
+        path = alt if alt.is_file() else path
+    if not path.is_file():
+        return "mock"
+    try:
+        import yaml
+
+        doc = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        src = ((doc.get("priceboard") or {}).get("source") or "mock")
+        return str(src).strip().lower()
+    except Exception:  # noqa: BLE001
+        return "mock"
+
+
+def resolve_source() -> str:
+    """Return 'ssi' only when explicitly requested and credentials exist."""
+    env = (os.getenv("PRICEBOARD_SOURCE") or "").strip().lower()
+    src = env or _load_yaml_source_default() or "mock"
+    if src != "ssi":
+        return "mock"
+    cid = (os.getenv("SSI_CONSUMER_ID") or os.getenv("SSI_API_KEY") or "").strip()
+    secret = (os.getenv("SSI_CONSUMER_SECRET") or os.getenv("SSI_API_SECRET") or "").strip()
+    if cid and secret:
+        return "ssi"
+    logger.warning(
+        "DBG-PRICEBOARD-SOURCE-FALLBACK wanted=ssi reason=missing_SSI_CONSUMER_* → mock"
+    )
+    return "mock"
+
+
 def _synthetic_symbol(i: int) -> str:
-    """AAA, AAB, AAC … then BAA, BAB … (base-26 style, A–Z)."""
     n = i
     chars = []
     for _ in range(3):
@@ -67,17 +104,14 @@ def _equity_row(symbol: str, ref: int, exchange: str = "HOSE") -> dict:
 
 
 def build_seed(equity_count: int | None = None) -> list[dict]:
-    """Build index + 50–80 equities for scroll / sticky header stress tests."""
     target = equity_count if equity_count is not None else MOCK_EQUITY_COUNT
     target = max(50, min(80, target))
-
     seed: list[dict] = [
         {"symbol": "VNINDEX", "exchange": "HOSE", "kind": "index", "ref": 1285.4, "last": 1285.4, "volume": 0},
         {"symbol": "VN30", "exchange": "HOSE", "kind": "index", "ref": 1342.1, "last": 1342.1, "volume": 0},
         {"symbol": "HNXINDEX", "exchange": "HNX", "kind": "index", "ref": 238.6, "last": 238.6, "volume": 0},
         {"symbol": "UPCOMINDEX", "exchange": "UPCOM", "kind": "index", "ref": 95.2, "last": 95.2, "volume": 0},
     ]
-
     seen: set[str] = set()
     for sym, ref in VN30_AND_BLUECHIPS:
         if len(seen) >= target:
@@ -86,8 +120,6 @@ def build_seed(equity_count: int | None = None) -> list[dict]:
             continue
         seen.add(sym)
         seed.append(_equity_row(sym, ref))
-
-    # Fill remaining with synthetic tickers AAA, AAB, …
     i = 0
     while len(seen) < target:
         sym = _synthetic_symbol(i)
@@ -95,31 +127,19 @@ def build_seed(equity_count: int | None = None) -> list[dict]:
         if sym in seen or len(sym) != 3:
             continue
         seen.add(sym)
-        # Deterministic-ish price from symbol hash
         ref = 5_000 + (sum(ord(c) for c in sym) * 137) % 180_000
         ref = int(round(ref / 50) * 50)
         seed.append(_equity_row(sym, max(ref, 5_050)))
-
     return seed
 
 
-SEED: list[dict] = build_seed()
-
-
-def _now_iso() -> str:
-    return datetime.now(TZ_VN).isoformat()
-
-
 def _tick_row(row: dict) -> dict:
-    """Apply a small random move; equity ±1 tick-ish, index ± few points."""
     is_index = row["kind"] == "index"
     step = random.choice([-2, -1, 0, 0, 1, 2]) if is_index else random.choice(
         [-100, -50, 0, 0, 50, 100]
     )
     if is_index:
         last = round(float(row["last"]) + step * 0.1, 2)
-        ceil = round(float(row["ref"]) * 1.07, 2)
-        floor = round(float(row["ref"]) * 0.93, 2)
     else:
         last = int(row["last"]) + step
         ref = int(row["ref"])
@@ -135,30 +155,21 @@ def _tick_row(row: dict) -> dict:
         row["high"] = int(row["high"])
         row["low"] = int(row["low"])
 
-    ref = float(row["ref"])
-    change = float(last) - ref
-    change_pct = (change / ref * 100.0) if ref else 0.0
-    return {
-        "type": "tick",
-        "symbol": row["symbol"],
-        "exchange": row["exchange"],
-        "kind": row["kind"],
-        "last": last,
-        "ref": row["ref"],
-        "change": round(change, 2) if is_index else int(change),
-        "change_pct": round(change_pct, 2),
-        "volume": int(row.get("volume", 0)),
-        "high": row["high"],
-        "low": row["low"],
-        "ceil": ceil if is_index else int(ceil),
-        "floor": floor if is_index else int(floor),
-        "ts": _now_iso(),
-        "source": "MOCK_SSI",
-    }
+    return build_tick(
+        symbol=row["symbol"],
+        last=row["last"],
+        ref=row["ref"],
+        kind=row["kind"],
+        exchange=row.get("exchange", "HOSE"),
+        volume=row.get("volume", 0),
+        high=row.get("high"),
+        low=row.get("low"),
+        source="MOCK_SSI",
+    )
 
 
 class MockSsiWorker:
-    """Reconnect-aware mock publisher (simulates SSI session lifecycle)."""
+    """Reconnect-aware mock publisher (50–80 symbols for UI stress)."""
 
     def __init__(self) -> None:
         self._stop = asyncio.Event()
@@ -193,12 +204,10 @@ class MockSsiWorker:
     async def _session(self) -> None:
         redis = aioredis.from_url(REDIS_URL, decode_responses=True)
         try:
-            # Reset hash so removed symbols from older seeds do not linger.
             await redis.delete(HASH_KEY)
             pipe = redis.pipeline()
             for row in self._state:
                 payload = _tick_row(dict(row))
-                # restore seed last without random walk on first write
                 payload["last"] = row["last"]
                 payload["change"] = 0
                 payload["change_pct"] = 0.0
@@ -234,12 +243,22 @@ class MockSsiWorker:
             logger.info("DBG-PRICEBOARD-SSI-MOCK-SESSION-END t=%s", int(time.time()))
 
 
+def create_worker() -> Stoppable:
+    source = resolve_source()
+    logger.info("DBG-PRICEBOARD-WORKER-BOOT source=%s", source)
+    if source == "ssi":
+        from backend.ssi_live import RealSsiWorker
+
+        return RealSsiWorker()
+    return MockSsiWorker()
+
+
 async def _amain() -> None:
-    worker = MockSsiWorker()
+    worker = create_worker()
     loop = asyncio.get_running_loop()
 
     def _handle_sig(*_args: object) -> None:
-        logger.info("DBG-PRICEBOARD-SSI-MOCK-SIGNAL stopping")
+        logger.info("DBG-PRICEBOARD-WORKER-SIGNAL stopping")
         worker.request_stop()
 
     for sig in (signal.SIGINT, signal.SIGTERM):

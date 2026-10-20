@@ -1,0 +1,36 @@
+# Priceboard FastAPI worker (dev / feature/realtime-fastapi)
+# Override runtime bằng ENV: PRICEBOARD_SOURCE, SSI_*, REDIS_URL, …
+
+priceboard:
+  # mock | ssi — ENV PRICEBOARD_SOURCE thắng file này
+  source: mock
+  redis:
+    channel: priceboard_ticks
+    hash: priceboard:quotes
+  mock:
+    equity_count: 70
+    tick_interval_ms: 250
+    ticks_per_burst: 3
+  ssi:
+    ws_url: wss://stream.ssi.com.vn/ws/v3
+    auth_url: https://api.ssi.com.vn/api/v3/auth/token
+    # Market DATA (atz-ssi-stream) + kênh legacy FastConnect user yêu cầu
+    channels:
+      - DATA
+      - X-Quote
+      - X-Trade
+      - MI
+    # Topics DATA — index + quote/trade VN30 (không subscribe cả sàn ngày 1)
+    index_topics:
+      - indexsummary.VNINDEX
+      - indexsummary.VN30
+      - indexsummary.HNXINDEX
+      - indexsummary.UPCOMINDEX
+      - trade.index.VNINDEX@tick
+      - trade.index.VN30@tick
+      - trade.index.HNXINDEX@tick
+      - trade.index.UPCOMINDEX@tick
+    # Nếu rỗng: dùng danh sách VN30 hardcode trong worker
+    symbols: []
+    reconnect_initial_seconds: 2
+    reconnect_max_seconds: 60
