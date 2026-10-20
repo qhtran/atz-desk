@@ -4,6 +4,8 @@
 # API: http://127.0.0.1:8000  |  WS: ws://127.0.0.1:8000/ws/priceboard
 #
 # Does NOT replace production docker-compose.yml / atz-redis.
+# Project name isolates this stack from prod compose (same dir /opt/vnstocks).
+name: atz_priceboard
 
 services:
   redis:
