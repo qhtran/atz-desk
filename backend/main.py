@@ -1,4 +1,4 @@
-"""FastAPI entry: static frontend + WebSocket /ws/priceboard."""
+"""FastAPI entry: static frontend + WebSocket /ws/priceboard + screener API."""
 
 from __future__ import annotations
 
@@ -7,13 +7,16 @@ import logging
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Any
 
 import redis.asyncio as aioredis
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel, Field
 
 from backend.redis_listener import HASH_KEY, REDIS_URL, RedisTickListener, load_snapshot
+from backend.screener import PRESETS, FilterEngine, build_compose_rules
 from backend.websocket_manager import ConnectionManager
 
 logging.basicConfig(
@@ -53,6 +56,72 @@ async def healthz() -> dict:
         "ok": ok,
         "clients": manager.client_count,
         "hash": HASH_KEY,
+    }
+
+
+class ScreenerRule(BaseModel):
+    field: str
+    op: str
+    value: Any = None
+
+
+class ScreenerRequest(BaseModel):
+    """Screen Redis snapshot (or optional inline rows) with composite rules."""
+
+    mode: str = "and"
+    include_index: bool = False
+    rules: list[ScreenerRule] = Field(default_factory=list)
+    # Convenience compose (merged as AND with rules)
+    volume_min: float | None = None
+    change_pct_min: float | None = None
+    change_pct_max: float | None = None
+    flags: list[str] = Field(default_factory=list)
+    rows: list[dict[str, Any]] | None = None
+
+
+@app.get("/api/screener/presets")
+async def screener_presets() -> dict:
+    return {"presets": PRESETS, "ops": sorted(["gte", "gt", "lte", "lt", "eq", "neq", "in", "contains"])}
+
+
+@app.post("/api/screener")
+async def screener_run(body: ScreenerRequest) -> dict:
+    compose_rules, _ = build_compose_rules(
+        volume_min=body.volume_min,
+        change_pct_min=body.change_pct_min,
+        change_pct_max=body.change_pct_max,
+        flags=body.flags,
+    )
+    merged = [r.model_dump() for r in body.rules] + compose_rules
+    engine = FilterEngine(merged, mode=body.mode, include_index=body.include_index)
+
+    if body.rows is not None:
+        source_rows = body.rows
+        source = "inline"
+    else:
+        redis = aioredis.from_url(REDIS_URL, decode_responses=True)
+        try:
+            source_rows = await load_snapshot(redis)
+            source = "redis_hash"
+        finally:
+            await redis.aclose()
+
+    matched = engine.filter_rows(source_rows)
+    logger.info(
+        "DBG-PRICEBOARD-SCREENER matched=%s total=%s mode=%s rules=%s source=%s",
+        len(matched),
+        len(source_rows),
+        engine.mode,
+        len(engine.rules),
+        source,
+    )
+    return {
+        "ok": True,
+        "source": source,
+        "engine": engine.to_dict(),
+        "total": len(source_rows),
+        "matched": len(matched),
+        "rows": matched,
     }
 
 

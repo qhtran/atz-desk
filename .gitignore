@@ -17,6 +17,7 @@ venv/
 *.log
 .DS_Store
 *.bak*
+.rollback/
 .env.ingestion
 redis_data/
 logs/

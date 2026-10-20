@@ -512,19 +512,37 @@
     </div>
   </section>
 
-  <!-- ===== Panel: Signals ===== -->
+  <!-- ===== Panel: Signals (compose FilterEngine) ===== -->
   <section id="panel-signals" class="panel" data-panel="signals" role="tabpanel" hidden>
-    <div class="panel-toolbar">
-      <label for="signal-preset">Bộ lọc</label>
-      <select id="signal-preset">
-        <option value="up2">Tăng ≥ 2%</option>
-        <option value="down2">Giảm ≤ -2%</option>
-        <option value="volhi">KL ≥ 1M</option>
-        <option value="ceil">Gần trần</option>
-        <option value="floor">Gần sàn</option>
-        <option value="all">Tất cả equity (WS)</option>
+    <div class="panel-toolbar" id="screener-toolbar">
+      <label for="scr-vol-min">KL min</label>
+      <input id="scr-vol-min" type="number" min="0" step="10000" value="500000" style="width:110px" title="Volume tối thiểu" />
+      <label for="scr-pct-min">% ≥</label>
+      <input id="scr-pct-min" type="number" step="0.1" value="" placeholder="vd 2" style="width:72px" title="change_pct min" />
+      <label for="scr-pct-max">% ≤</label>
+      <input id="scr-pct-max" type="number" step="0.1" value="" placeholder="vd -2" style="width:72px" title="change_pct max" />
+      <label class="inline-flex items-center gap-1 text-[11px] text-gray-400">
+        <input type="checkbox" id="scr-flag-up2" /> Tăng ≥2%
+      </label>
+      <label class="inline-flex items-center gap-1 text-[11px] text-gray-400">
+        <input type="checkbox" id="scr-flag-down2" /> Giảm ≤-2%
+      </label>
+      <label class="inline-flex items-center gap-1 text-[11px] text-gray-400">
+        <input type="checkbox" id="scr-flag-volhi" /> KL ≥1M
+      </label>
+      <label class="inline-flex items-center gap-1 text-[11px] text-gray-400">
+        <input type="checkbox" id="scr-flag-ceil" /> Trần
+      </label>
+      <label class="inline-flex items-center gap-1 text-[11px] text-gray-400">
+        <input type="checkbox" id="scr-flag-floor" /> Sàn
+      </label>
+      <label for="scr-mode" class="text-[11px] text-gray-500">Ghép</label>
+      <select id="scr-mode" title="AND = tất cả điều kiện · OR = bất kỳ">
+        <option value="and" selected>AND</option>
+        <option value="or">OR</option>
       </select>
-      <span class="text-[11px] text-gray-500">Realtime từ cùng WS · cập nhật khi tick</span>
+      <button type="button" class="btn-quiet" id="scr-reset">Reset</button>
+      <span class="text-[11px] text-gray-500" id="scr-status">WS live · FilterEngine</span>
     </div>
     <div class="atz-table-wrap panel-tall">
       <table class="atz-table" id="signals-table">
@@ -542,7 +560,7 @@
         </thead>
         <tbody id="signals-body"></tbody>
       </table>
-      <div id="signals-empty" class="empty-hint" hidden>Chưa có mã khớp bộ lọc — chờ tick WS hoặc đổi preset.</div>
+      <div id="signals-empty" class="empty-hint" hidden>Chưa có mã khớp bộ lọc — chỉnh toolbar hoặc chờ tick WS.</div>
     </div>
   </section>
 
@@ -643,7 +661,14 @@
       ? localStorage.getItem(APP_TAB_KEY)
       : "iboard";
     let indexStatsTimer = null;
-    let signalPreset = "up2";
+    /** Composite screener (mirrors backend.screener.FilterEngine) */
+    let screenerSpec = {
+      mode: "and",
+      volume_min: 500000,
+      change_pct_min: null,
+      change_pct_max: null,
+      flags: [],
+    };
     let portfolio = loadPortfolio();
 
     const elConnDot = document.getElementById("conn-dot");
@@ -1189,7 +1214,76 @@
       applyEquity(row, opts);
     }
 
-    /* ===== Signals (shared table + WS) ===== */
+    /* ===== Screener / Signals (FilterEngine mirror + WS fan-out) ===== */
+    function safeNum(v) {
+      if (v == null || v === "") return null;
+      const n = Number(String(v).replace(/,/g, ""));
+      return Number.isFinite(n) ? n : null;
+    }
+
+    function buildScreenerRules(spec) {
+      const rules = [];
+      const vol = safeNum(spec.volume_min);
+      if (vol != null && vol > 0) rules.push({ field: "volume", op: "gte", value: vol });
+      const pmin = safeNum(spec.change_pct_min);
+      if (pmin != null) rules.push({ field: "change_pct", op: "gte", value: pmin });
+      const pmax = safeNum(spec.change_pct_max);
+      if (pmax != null) rules.push({ field: "change_pct", op: "lte", value: pmax });
+      (spec.flags || []).forEach((f) => {
+        if (f === "up2") rules.push({ field: "change_pct", op: "gte", value: 2 });
+        if (f === "down2") rules.push({ field: "change_pct", op: "lte", value: -2 });
+        if (f === "volhi") rules.push({ field: "volume", op: "gte", value: 1e6 });
+        if (f === "ceil") rules.push({ field: "_near_ceil", op: "eq", value: 1 });
+        if (f === "floor") rules.push({ field: "_near_floor", op: "eq", value: 1 });
+      });
+      return rules;
+    }
+
+    function annotateNearLimits(row) {
+      const last = safeNum(row.last);
+      const ceil = safeNum(row.ceil);
+      const floor = safeNum(row.floor);
+      row._near_ceil = last != null && ceil != null && last === ceil ? 1 : 0;
+      row._near_floor = last != null && floor != null && last === floor ? 1 : 0;
+      return row;
+    }
+
+    function evalScreenerRule(row, rule) {
+      const field = rule.field;
+      let left = row[field];
+      if (field === "pct" || field === "vol") left = row[field === "pct" ? "change_pct" : "volume"];
+      const op = rule.op;
+      const right = rule.value;
+      if (op === "contains") return String(left || "").toUpperCase().includes(String(right || "").toUpperCase());
+      const lf = safeNum(left);
+      const rf = safeNum(right);
+      if (lf == null && (op === "gte" || op === "gt" || op === "lte" || op === "lt" || op === "eq")) return false;
+      if (lf != null && rf != null) {
+        if (op === "gte") return lf >= rf;
+        if (op === "gt") return lf > rf;
+        if (op === "lte") return lf <= rf;
+        if (op === "lt") return lf < rf;
+        if (op === "eq") return lf === rf;
+        if (op === "neq") return lf !== rf;
+      }
+      const ls = String(left ?? "").toUpperCase();
+      const rs = String(right ?? "").toUpperCase();
+      if (op === "eq") return ls === rs;
+      if (op === "neq") return ls !== rs;
+      return false;
+    }
+
+    function matchesScreener(row) {
+      if (!row || INDEX_SYMBOLS.has(row.symbol)) return false;
+      const q = searchQuery.trim().toUpperCase();
+      if (q && !String(row.symbol).includes(q)) return false;
+      const rules = buildScreenerRules(screenerSpec);
+      if (!rules.length) return true;
+      const work = annotateNearLimits({ ...row });
+      if (screenerSpec.mode === "or") return rules.some((r) => evalScreenerRule(work, r));
+      return rules.every((r) => evalScreenerRule(work, r));
+    }
+
     function signalLabel(row) {
       const last = Number(row.last);
       const pct = Number(row.change_pct) || 0;
@@ -1204,27 +1298,33 @@
       return "TC";
     }
 
-    function matchesSignalPreset(row) {
-      if (!row || INDEX_SYMBOLS.has(row.symbol)) return false;
-      const q = searchQuery.trim().toUpperCase();
-      if (q && !row.symbol.includes(q)) return false;
-      const last = Number(row.last);
-      const pct = Number(row.change_pct) || 0;
-      const vol = Number(row.volume) || 0;
-      switch (signalPreset) {
-        case "up2": return pct >= 2;
-        case "down2": return pct <= -2;
-        case "volhi": return vol >= 1e6;
-        case "ceil": return row.ceil != null && Number.isFinite(last) && last === Number(row.ceil);
-        case "floor": return row.floor != null && Number.isFinite(last) && last === Number(row.floor);
-        case "all": return true;
-        default: return true;
-      }
+    function updateScreenerStatus(n) {
+      const el = document.getElementById("scr-status");
+      if (!el) return;
+      const nRules = buildScreenerRules(screenerSpec).length;
+      el.textContent = `WS live · ${screenerSpec.mode.toUpperCase()} · ${nRules} rule · ${n} mã`;
+    }
+
+    function readScreenerToolbar() {
+      const flags = [];
+      if (document.getElementById("scr-flag-up2").checked) flags.push("up2");
+      if (document.getElementById("scr-flag-down2").checked) flags.push("down2");
+      if (document.getElementById("scr-flag-volhi").checked) flags.push("volhi");
+      if (document.getElementById("scr-flag-ceil").checked) flags.push("ceil");
+      if (document.getElementById("scr-flag-floor").checked) flags.push("floor");
+      screenerSpec = {
+        mode: document.getElementById("scr-mode").value === "or" ? "or" : "and",
+        volume_min: safeNum(document.getElementById("scr-vol-min").value),
+        change_pct_min: safeNum(document.getElementById("scr-pct-min").value),
+        change_pct_max: safeNum(document.getElementById("scr-pct-max").value),
+        flags,
+      };
+      renderSignalsTable();
     }
 
     function renderSignalsTable() {
       const rows = [...state.values()]
-        .filter(matchesSignalPreset)
+        .filter(matchesScreener)
         .sort((a, b) => Math.abs(Number(b.change_pct) || 0) - Math.abs(Number(a.change_pct) || 0));
       elSignalsBody.innerHTML = "";
       elSignalsEmpty.hidden = rows.length > 0;
@@ -1244,17 +1344,19 @@
           <td class="num tabular-nums text-gray-400">${resolveExchange(row)}</td>`;
         elSignalsBody.appendChild(tr);
       });
+      updateScreenerStatus(rows.length);
     }
 
     function patchSignalRow(symbol, { flash = false } = {}) {
       if (appTab !== "signals") return;
       const row = state.get(symbol);
       if (!row || INDEX_SYMBOLS.has(symbol)) return;
-      const match = matchesSignalPreset(row);
+      const match = matchesScreener(row);
       let tr = document.getElementById("sig-" + symbol);
       if (!match) {
         if (tr) tr.remove();
         elSignalsEmpty.hidden = elSignalsBody.children.length > 0;
+        updateScreenerStatus(elSignalsBody.children.length);
         return;
       }
       if (!tr) {
@@ -1280,10 +1382,29 @@
       }
     }
 
-    document.getElementById("signal-preset").addEventListener("change", (ev) => {
-      signalPreset = ev.target.value;
-      renderSignalsTable();
-    });
+    function wireScreenerToolbar() {
+      const ids = [
+        "scr-vol-min", "scr-pct-min", "scr-pct-max", "scr-mode",
+        "scr-flag-up2", "scr-flag-down2", "scr-flag-volhi", "scr-flag-ceil", "scr-flag-floor",
+      ];
+      ids.forEach((id) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener("change", readScreenerToolbar);
+        el.addEventListener("input", readScreenerToolbar);
+      });
+      document.getElementById("scr-reset").addEventListener("click", () => {
+        document.getElementById("scr-vol-min").value = "500000";
+        document.getElementById("scr-pct-min").value = "";
+        document.getElementById("scr-pct-max").value = "";
+        document.getElementById("scr-mode").value = "and";
+        ["scr-flag-up2", "scr-flag-down2", "scr-flag-volhi", "scr-flag-ceil", "scr-flag-floor"].forEach((id) => {
+          document.getElementById(id).checked = false;
+        });
+        readScreenerToolbar();
+      });
+    }
+    wireScreenerToolbar();
 
     /* ===== Portfolio (shared table + WS) ===== */
     function loadPortfolio() {
