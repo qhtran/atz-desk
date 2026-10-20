@@ -1,8 +1,8 @@
 # Handoff — chat tiếp theo (priceboard FastAPI / iBoard)
 
-**Ngày:** 2026-10-21 (docs: public ForwardAuth confirmed + P1 plan)  
+**Ngày:** 2026-10-21 (P0 browser Pass ngoài phiên · tick BLOCKED)  
 **Branch:** `feature/realtime-fastapi`  
-**HEAD (đã push):** `4879f82`  
+**HEAD (đã push):** `3c0e7f4`  
 **Orchestrator:** Cursor · Bot code paused · **cấm** sửa nginx `stream.d` / sshd / UFW trừ `user_confirmed_infra: yes`.
 
 Đọc trước: `AGENTS.md`, `docs/architecture.md` §8.1, `docs/infrastructure/VPS_NETWORK.md`, `docs/adr/0008-ssi-websocket-primary.md`, `config/priceboard.yaml`, `docs/specs/PRICEBOARD_P1_DEPTH_NN.md`, file này.
@@ -38,15 +38,15 @@
 | Containers | `atz-priceboard-api-dev` · `atz-redis-dev` · `atz-ssi-worker-dev` (healthy) |
 | Source | `PRICEBOARD_SOURCE=ssi` |
 | Public health | `GET https://dev.atz.vn/healthz` → **200** |
-| Public auth | `GET https://dev.atz.vn/` → **302** Authentik (`/outpost.goauthentik.io/start?rd=https://dev.atz.vn/`) — **ForwardAuth đang hoạt động** |
-| Local tunnel | vẫn `127.0.0.1:8000` (volume FE) |
+| Public auth | Authentik ForwardAuth · login browser **Pass** (2026-10-21 ~02:30 ICT) |
+| Local OrbStack | **đã stop** (tránh chiếm `:8000`) — không còn tunnel local |
 | Prod | `atz-redis` + Streamlit stack **song song**, không đụng |
 
 ```bash
 # Soi public (sau login Authentik)
 open https://dev.atz.vn
 
-# Tunnel dự phòng
+# Tunnel dự phòng (khi local không bind 8000)
 ssh -L 8000:127.0.0.1:8000 root@112.213.88.230
 ```
 
@@ -79,21 +79,34 @@ docker compose -f docker-compose.dev.yml logs -f ssi-worker
 
 ## Việc chat sau (ưu tiên)
 
-### P0 — Browser + giờ giao dịch (còn lại)
+### P0 — Browser + giờ giao dịch
 
-1. Login https://dev.atz.vn qua Authentik → board load · WS `wss://dev.atz.vn/ws/priceboard` connected.  
-2. Nếu kẹt callback chỉ về `atz.vn`: cân nhắc Proxy Provider riêng cho `dev.atz.vn` (hiện dựa `forward_domain`).  
-3. Giờ mở cửa: tick `source=SSI_WS` · volume gate · search/tabs/pin.  
-   *(Ngoài phiên: tick ghi BLOCKED — chỉ verify auth/WS.)*
+#### Kết quả verify 2026-10-21 ~02:30 ICT (`https://dev.atz.vn`)
 
-**Đã xác nhận (curl 2026-10-21 ~02:12 ICT):** healthz 200 · `/` 302 Authentik — Nginx + ForwardAuth OK.
+| Case | Kết quả |
+|------|---------|
+| Login Authentik → board load | **Pass** |
+| WS `wss://dev.atz.vn/ws/priceboard` · UI `connected` · VPS `WS-CONNECT` · `healthz clients≥1` | **Pass** |
+| Index cards (VNINDEX/VN30/HNX/UPCOM seed `SSI_WS`) | **Pass** |
+| Tab VN30 | **Pass** |
+| Search mã (vd SSI) | **Pass** |
+| Tick live `source=SSI_WS` · volume gate · depth thật | **BLOCKED** — ngoài phiên (~02:30); Redis equity `last=0`; FE `enrichDepth` fake |
+
+**Đã xác nhận sớm (curl ~02:12):** healthz 200 · `/` 302 Authentik.  
+**Ops:** phiên theo dõi `docker logs -f` VPS **đã dừng** — bật lại lúc giờ mở cửa.
+
+#### Còn lại (giờ mở cửa)
+
+1. Tick `source=SSI_WS` đổi giá/KL · volume gate `min_volume=500000`.  
+2. Capture schema X-Quote/X-Trade/MI → điền [`PRICEBOARD_P1_DEPTH_NN.md`](../specs/PRICEBOARD_P1_DEPTH_NN.md) §4.  
+3. Nếu kẹt callback chỉ về `atz.vn`: cân nhắc Proxy Provider riêng `dev.atz.vn` (hiện `forward_domain` đã Pass browser).
 
 ### P1 — Data chất lượng (plan sẵn)
 
 Chi tiết: [`docs/specs/PRICEBOARD_P1_DEPTH_NN.md`](../specs/PRICEBOARD_P1_DEPTH_NN.md).
 
 1. Capture schema giờ mở cửa → điền bảng map.  
-2. Partial parse (không bắt buộc `last`) + alias X-Quote/X-Trade/MI → `bid*`/`ask*`/`foreign*`.  
+2. Partial parse (không bắt buộc `last`) + alias → `bid*`/`ask*`/`foreign*`.  
 3. Index card GT (Tỷ): `tradeValue` khi schema rõ.  
 4. Tắt/gate `enrichDepth` fake; test `tests/test_tick_contract.py`.
 
@@ -101,7 +114,7 @@ Chi tiết: [`docs/specs/PRICEBOARD_P1_DEPTH_NN.md`](../specs/PRICEBOARD_P1_DEPT
 
 - Song song vs gộp `atz-ssi-stream` (chỉ `priceboard:*`).  
 - Throttle fan-out nếu >100 client.  
-- PR: `feature/realtime-fastapi` → `main` khi P0 Pass.
+- PR: `feature/realtime-fastapi` → `main` khi P0 tick giờ mở cửa Pass.
 
 ---
 
@@ -115,7 +128,7 @@ Chi tiết: [`docs/specs/PRICEBOARD_P1_DEPTH_NN.md`](../specs/PRICEBOARD_P1_DEPT
 
 ## Câu mở chat mới (copy)
 
-> Tiếp `feature/realtime-fastapi` @ `4879f82` + `docs/bots/HANDOFF_NEXT_CHAT.md` + `docs/specs/PRICEBOARD_P1_DEPTH_NN.md`.  
-> Public: `https://dev.atz.vn` (Authentik ForwardAuth OK — `/` 302 login). Stack VPS `atz_priceboard`, `PRICEBOARD_SOURCE=ssi`, UI YSVN, `min_volume=500000`.  
-> Việc tiếp: P0 browser login + WS + tick giờ giao dịch; P1 theo plan depth/NN (capture rồi code).  
+> Tiếp `feature/realtime-fastapi` @ tip + `docs/bots/HANDOFF_NEXT_CHAT.md` + `docs/specs/PRICEBOARD_P1_DEPTH_NN.md`.  
+> Public: `https://dev.atz.vn` — P0 Pass (login/WS/index/tabs/search); tick **BLOCKED** ngoài phiên. Stack VPS `atz_priceboard` SSI, `min_volume=500000`. Local OrbStack priceboard đã stop.  
+> Việc tiếp: P0 tick giờ mở cửa + P1 capture depth/NN rồi code.  
 > **Không** đụng `stream.d` / sshd / UFW / `atz-redis` prod.
