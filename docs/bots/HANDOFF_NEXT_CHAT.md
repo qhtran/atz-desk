@@ -2,7 +2,7 @@
 
 **Ngày:** 2026-10-21 (docs: public ForwardAuth confirmed + P1 plan)  
 **Branch:** `feature/realtime-fastapi`  
-**HEAD (đã push):** `11d85e5`  
+**HEAD (đã push):** `4879f82`  
 **Orchestrator:** Cursor · Bot code paused · **cấm** sửa nginx `stream.d` / sshd / UFW trừ `user_confirmed_infra: yes`.
 
 Đọc trước: `AGENTS.md`, `docs/architecture.md` §8.1, `docs/infrastructure/VPS_NETWORK.md`, `docs/adr/0008-ssi-websocket-primary.md`, `config/priceboard.yaml`, `docs/specs/PRICEBOARD_P1_DEPTH_NN.md`, file này.
@@ -115,7 +115,7 @@ Chi tiết: [`docs/specs/PRICEBOARD_P1_DEPTH_NN.md`](../specs/PRICEBOARD_P1_DEPT
 
 ## Câu mở chat mới (copy)
 
-> Tiếp `feature/realtime-fastapi` @ `11d85e5` + `docs/bots/HANDOFF_NEXT_CHAT.md` + `docs/specs/PRICEBOARD_P1_DEPTH_NN.md`.  
+> Tiếp `feature/realtime-fastapi` @ `4879f82` + `docs/bots/HANDOFF_NEXT_CHAT.md` + `docs/specs/PRICEBOARD_P1_DEPTH_NN.md`.  
 > Public: `https://dev.atz.vn` (Authentik ForwardAuth OK — `/` 302 login). Stack VPS `atz_priceboard`, `PRICEBOARD_SOURCE=ssi`, UI YSVN, `min_volume=500000`.  
 > Việc tiếp: P0 browser login + WS + tick giờ giao dịch; P1 theo plan depth/NN (capture rồi code).  
 > **Không** đụng `stream.d` / sshd / UFW / `atz-redis` prod.
