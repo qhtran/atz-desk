@@ -56,44 +56,187 @@
       0% { background-color: rgba(185, 28, 28, 0.5); }
       100% { background-color: transparent; }
     }
-    #board-wrap {
-      overflow: auto;
-      max-height: calc(100vh - 148px);
-      border: 1px solid #2a2a2a;
-    }
-    .nav-tab {
-      display: inline-flex;
-      align-items: center;
-      padding: 4px 10px;
-      border-radius: 2px;
-      font-size: 12px;
-      font-weight: 500;
-      letter-spacing: -0.01em;
+
+    .link-quiet {
       color: #a3a3a3;
       text-decoration: none;
-      border: 1px solid transparent;
-      background: transparent;
-      cursor: pointer;
-      line-height: 1.25;
+      font-size: 12px;
+      font-weight: 500;
+      padding: 4px 8px;
+      border-radius: 2px;
     }
-    .nav-tab:hover { color: #e5e5e5; background: rgba(255,255,255,0.04); }
-    .nav-tab.is-active {
-      color: #ffd900;
-      border-color: #3a3a3a;
+    .link-quiet:hover { color: #fff; background: rgba(255,255,255,0.04); }
+
+    .search-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+    .search-wrap svg {
+      position: absolute;
+      left: 8px;
+      width: 14px;
+      height: 14px;
+      color: #737373;
+      pointer-events: none;
+    }
+    .search-wrap input {
+      width: 200px;
+      max-width: 36vw;
+      height: 28px;
+      padding: 0 10px 0 28px;
+      border: 1px solid #2a2a2a;
+      border-radius: 3px;
+      background: #111;
+      color: #e5e5e5;
+      font-size: 12px;
+      outline: none;
+    }
+    .search-wrap input:focus {
+      border-color: #525252;
       background: #141414;
     }
+    .search-wrap input::placeholder { color: #525252; }
+
+    .icon-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border: 1px solid #2a2a2a;
+      border-radius: 3px;
+      background: #111;
+      color: #a3a3a3;
+      cursor: pointer;
+      padding: 0;
+    }
+    .icon-btn:hover { color: #fff; border-color: #3a3a3a; }
+    .icon-btn svg { width: 14px; height: 14px; }
+
+    .settings-menu {
+      position: absolute;
+      right: 0;
+      top: calc(100% + 4px);
+      min-width: 180px;
+      background: #111;
+      border: 1px solid #2a2a2a;
+      border-radius: 3px;
+      padding: 6px;
+      z-index: 50;
+      display: none;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+    }
+    .settings-menu.open { display: block; }
+    .settings-menu button {
+      display: block;
+      width: 100%;
+      text-align: left;
+      background: transparent;
+      border: 0;
+      color: #d4d4d4;
+      font-size: 12px;
+      padding: 6px 8px;
+      cursor: pointer;
+      border-radius: 2px;
+    }
+    .settings-menu button:hover { background: #1a1a1a; color: #fff; }
+
+    #index-bar {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+      padding: 8px 10px;
+      border-bottom: 1px solid #2a2a2a;
+      background: #0a0a0a;
+    }
+    @media (max-width: 1100px) {
+      #index-bar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 640px) {
+      #index-bar { grid-template-columns: 1fr; }
+    }
+
+    .idx-card {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      border: 1px solid #2a2a2a;
+      background: linear-gradient(180deg, #121212 0%, #0d0d0d 100%);
+      padding: 8px 10px;
+      min-width: 0;
+      border-radius: 2px;
+    }
+    .idx-card-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .idx-card .spark {
+      width: 88px;
+      height: 36px;
+      display: block;
+      flex-shrink: 0;
+    }
+    .idx-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px 10px;
+      font-size: 10px;
+      color: #737373;
+      border-top: 1px solid #1f1f1f;
+      padding-top: 6px;
+    }
+    .idx-meta .k { color: #525252; margin-right: 3px; }
+    .idx-breadth span { font-variant-numeric: tabular-nums; font-weight: 600; }
+
+    .market-bar {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 6px 10px;
+      border-bottom: 1px solid #2a2a2a;
+      background: #0c0c0c;
+    }
+    .mkt-tab {
+      display: inline-flex;
+      align-items: center;
+      height: 26px;
+      padding: 0 12px;
+      border: 1px solid #2a2a2a;
+      border-radius: 2px;
+      background: #111;
+      color: #a3a3a3;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      cursor: pointer;
+    }
+    .mkt-tab:hover { color: #e5e5e5; border-color: #3a3a3a; }
+    .mkt-tab.is-active {
+      color: #0a0a0a;
+      background: #ffd900;
+      border-color: #ffd900;
+    }
+
+    #board-wrap {
+      overflow: auto;
+      max-height: calc(100vh - 210px);
+      border: 1px solid #2a2a2a;
+      border-top: 0;
+    }
     #board-table {
-      border-collapse: separate; /* sticky left cần separate, không dùng collapse */
+      border-collapse: separate;
       border-spacing: 0;
       min-width: 1480px;
       width: 100%;
     }
     #board-table th,
     #board-table td {
-      /* border-separate: chỉ right+bottom để tránh viền nhân đôi 2px */
       border-bottom: 1px solid #2a2a2a;
       border-right: 1px solid #2a2a2a;
-      padding: 0.125rem 0.375rem; /* py-0.5 px-1.5 */
+      padding: 0.125rem 0.375rem;
       white-space: nowrap;
       line-height: 1.25;
       font-size: 13px;
@@ -109,13 +252,11 @@
     #board-table thead tr:nth-child(1) th { top: 0; }
     #board-table thead tr:nth-child(2) th { top: 24px; }
     #board-table tbody tr:hover { background-color: rgba(42, 42, 42, 0.55); }
-
     #board-table td.num {
       text-align: right;
       font-variant-numeric: tabular-nums;
     }
 
-    /* Pin col sticky leftmost */
     #board-table th.th-pin,
     #board-table td.pin-cell {
       position: sticky;
@@ -129,13 +270,10 @@
       background: #0a0a0a;
       z-index: 12;
     }
-    /* Header ★ + Mã CK: sticky 2 chiều, luôn trên body khi cuộn chéo */
     #board-table thead th.th-pin {
       background: #111111;
       z-index: 40;
     }
-
-    /* Mã CK sticky next to pin */
     #board-table th.th-sym,
     #board-table td.sym {
       position: sticky;
@@ -157,15 +295,13 @@
       background-color: #1a1a1a;
     }
 
-    /* Pinned rows: sticky dọc ngay dưới thead (top gán bằng JS) */
     #board-table tbody tr.is-pinned td {
       position: sticky;
-      z-index: 25; /* thấp hơn thead (30), cao hơn dòng thường */
+      z-index: 25;
       background-color: #12100a;
       border-bottom-color: #ffd900;
       box-shadow: inset 0 -1px 0 rgba(255, 217, 0, 0.55);
     }
-    /* Góc giao nhau: cột pin + Mã CK của dòng ghim */
     #board-table tbody tr.is-pinned td.pin-cell,
     #board-table tbody tr.is-pinned td.sym {
       z-index: 26;
@@ -201,40 +337,51 @@
     .grp-buy { background: rgba(0, 255, 0, 0.03); }
     .grp-match { background: rgba(255, 217, 0, 0.04); }
     .grp-sell { background: rgba(255, 0, 0, 0.03); }
-    .spark { width: 72px; height: 28px; display: block; }
-    .idx-card {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      border: 1px solid #2a2a2a;
-      background: #111;
-      padding: 6px 10px;
-      min-width: 200px;
-      flex: 1 1 0;
-    }
   </style>
 </head>
 <body class="bg-[#0a0a0a] font-sans text-[13px] antialiased tracking-tight leading-tight">
   <header class="border-b border-[#2a2a2a] bg-[#0a0a0a]">
-    <div class="flex items-center justify-between gap-3 px-3 py-1.5">
-      <div class="flex items-center gap-2 min-w-0">
-        <span class="text-[13px] font-semibold tracking-tight text-white shrink-0">atz · iBoard Realtime</span>
+    <div class="flex items-center justify-between gap-3 px-3 py-2">
+      <div class="flex items-center gap-1 min-w-0 flex-wrap">
+        <span class="text-[13px] font-semibold tracking-tight text-white shrink-0 pr-2">atz · iBoard Realtime</span>
+        <a class="link-quiet" href="https://atz.vn" target="_blank" rel="noopener noreferrer">Stock Rating</a>
+        <a class="link-quiet" href="https://atz.vn" target="_blank" rel="noopener noreferrer">Tín hiệu giao dịch</a>
       </div>
-      <div class="flex items-center gap-3 text-[11px] tracking-tight text-gray-400 shrink-0">
-        <span id="conn-dot" class="inline-block h-2 w-2 rounded-full bg-[#ff0000]"></span>
-        <span id="conn-label">connecting…</span>
-        <span id="clock" class="tabular-nums text-gray-500"></span>
+      <div class="flex items-center gap-2 shrink-0">
+        <label class="search-wrap" title="Tìm mã / ngành">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <circle cx="11" cy="11" r="7"></circle>
+            <path d="M20 20l-3.5-3.5" stroke-linecap="round"></path>
+          </svg>
+          <input id="search-input" type="search" placeholder="Tìm mã CK…" autocomplete="off" spellcheck="false" />
+        </label>
+        <div class="relative" id="settings-wrap">
+          <button type="button" class="icon-btn" id="btn-settings" aria-label="Cài đặt" aria-expanded="false" title="Cài đặt">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9c0 .7.4 1.3 1 1.5H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"></path>
+            </svg>
+          </button>
+          <div class="settings-menu" id="settings-menu" role="menu">
+            <button type="button" id="btn-clear-pins" role="menuitem">Xóa tất cả ghim</button>
+            <button type="button" id="btn-focus-search" role="menuitem">Focus ô tìm kiếm</button>
+          </div>
+        </div>
+        <span id="conn-dot" class="inline-block h-2 w-2 rounded-full bg-[#ff0000]" title="Trạng thái WS"></span>
+        <span id="conn-label" class="text-[11px] text-gray-400 hidden sm:inline">connecting…</span>
+        <span id="clock" class="tabular-nums text-[11px] text-gray-500"></span>
       </div>
     </div>
-    <nav class="flex flex-wrap items-center gap-1 px-2 pb-1.5" aria-label="Chức năng">
-      <button type="button" class="nav-tab is-active" data-nav="board" id="nav-board">Bảng giá (iBoard)</button>
-      <button type="button" class="nav-tab" data-nav="vn30" id="nav-vn30">VN30</button>
-      <a class="nav-tab" href="https://atz.vn" target="_blank" rel="noopener noreferrer">Stock Rating</a>
-      <a class="nav-tab" href="https://atz.vn" target="_blank" rel="noopener noreferrer">Tín hiệu giao dịch</a>
-    </nav>
   </header>
 
-  <section id="index-bar" class="flex flex-wrap gap-2 border-b border-[#2a2a2a] bg-[#0a0a0a] px-2 py-2"></section>
+  <section id="index-bar" aria-label="Chỉ số thị trường"></section>
+
+  <div class="market-bar" role="tablist" aria-label="Rổ thị trường">
+    <button type="button" class="mkt-tab is-active" data-market="HOSE" role="tab" aria-selected="true">HOSE</button>
+    <button type="button" class="mkt-tab" data-market="VN30" role="tab" aria-selected="false">VN30</button>
+    <button type="button" class="mkt-tab" data-market="HNX" role="tab" aria-selected="false">HNX</button>
+    <button type="button" class="mkt-tab" data-market="UPCOM" role="tab" aria-selected="false">UPCOM</button>
+  </div>
 
   <div id="board-wrap" class="bg-[#0a0a0a]">
     <table id="board-table" class="border-separate" style="border-spacing: 0;">
@@ -276,7 +423,7 @@
   </div>
 
   <script>
-    /* ===== State & WS plumbing (giữ nguyên connect / reconnect / ping) ===== */
+    /* ===== State & WS (giữ reconnect / ping / pin / volume remove) ===== */
     const INDEX_SYMBOLS = new Set(["VNINDEX", "VN30", "HNXINDEX", "UPCOMINDEX"]);
     const INDEX_LABEL = {
       VNINDEX: "VN-INDEX",
@@ -284,63 +431,35 @@
       HNXINDEX: "HNX",
       UPCOMINDEX: "UPCOM",
     };
-    /** Rổ VN30 (đồng bộ watchlist worker DEFAULT_SYMBOLS). */
+    const INDEX_ORDER = ["VNINDEX", "VN30", "HNXINDEX", "UPCOMINDEX"];
     const VN30_SET = new Set([
       "ACB", "BCM", "BID", "BVH", "CTG", "FPT", "GAS", "GVR", "HDB", "HPG",
       "LPB", "MBB", "MSN", "MWG", "PLX", "SAB", "SHB", "SSB", "SSI", "STB",
       "TCB", "TPB", "VCB", "VHM", "VIB", "VIC", "VJC", "VNM", "VPB", "VRE",
     ]);
     const PIN_KEY = "atz.iboard.pinned";
-    const NAV_KEY = "atz.iboard.nav";
+    const MARKET_KEY = "atz.iboard.market";
+    const VALID_MARKETS = new Set(["HOSE", "VN30", "HNX", "UPCOM"]);
+
     const state = new Map();
     const sparkHist = new Map();
     let ws = null;
     let retryMs = 1000;
     let pingTimer = null;
-    /** "board" | "vn30" */
-    let boardView = (localStorage.getItem(NAV_KEY) === "vn30") ? "vn30" : "board";
+    let searchQuery = "";
+    let marketTab = VALID_MARKETS.has(localStorage.getItem(MARKET_KEY))
+      ? localStorage.getItem(MARKET_KEY)
+      : "HOSE";
+    let indexStatsTimer = null;
 
     const elConnDot = document.getElementById("conn-dot");
     const elConnLabel = document.getElementById("conn-label");
     const elIndexBar = document.getElementById("index-bar");
     const elBody = document.getElementById("board-body");
     const elClock = document.getElementById("clock");
-    const elNavBoard = document.getElementById("nav-board");
-    const elNavVn30 = document.getElementById("nav-vn30");
-
-    function setNavActive(view) {
-      boardView = view === "vn30" ? "vn30" : "board";
-      localStorage.setItem(NAV_KEY, boardView);
-      elNavBoard.classList.toggle("is-active", boardView === "board");
-      elNavVn30.classList.toggle("is-active", boardView === "vn30");
-      applyBoardFilter();
-    }
-
-    function rowVisibleInView(symbol) {
-      if (boardView !== "vn30") return true;
-      return VN30_SET.has(symbol);
-    }
-
-    function applyBoardFilter() {
-      elBody.querySelectorAll("tr[id^='row-']").forEach((tr) => {
-        const sym = tr.id.slice(4);
-        tr.style.display = rowVisibleInView(sym) ? "" : "none";
-      });
-      updatePinnedPositions();
-    }
-
-    function removeEquityRow(symbol) {
-      state.delete(symbol);
-      const tr = document.getElementById("row-" + symbol);
-      if (tr) tr.remove();
-      const pins = loadPins().filter((s) => s !== symbol);
-      savePins(pins);
-      updatePinnedPositions();
-    }
-
-    elNavBoard.addEventListener("click", () => setNavActive("board"));
-    elNavVn30.addEventListener("click", () => setNavActive("vn30"));
-    setNavActive(boardView);
+    const elSearch = document.getElementById("search-input");
+    const elSettingsBtn = document.getElementById("btn-settings");
+    const elSettingsMenu = document.getElementById("settings-menu");
 
     function setConn(status) {
       const map = {
@@ -353,7 +472,154 @@
       elConnLabel.textContent = label;
     }
 
-    /* ===== Pin (DOM move only — không re-render bảng) ===== */
+    function resolveExchange(row) {
+      const ex = String(row.exchange || "").toUpperCase();
+      if (ex === "HOSE" || ex === "HSX") return "HOSE";
+      if (ex === "HNX") return "HNX";
+      if (ex === "UPCOM" || ex === "UPX") return "UPCOM";
+      if (VN30_SET.has(row.symbol)) return "HOSE";
+      return "HOSE";
+    }
+
+    function inIndexBasket(indexSym, row) {
+      const sym = row.symbol;
+      if (INDEX_SYMBOLS.has(sym)) return false;
+      if (indexSym === "VN30") return VN30_SET.has(sym);
+      const ex = resolveExchange(row);
+      if (indexSym === "VNINDEX") return ex === "HOSE";
+      if (indexSym === "HNXINDEX") return ex === "HNX";
+      if (indexSym === "UPCOMINDEX") return ex === "UPCOM";
+      return false;
+    }
+
+    function computeBasketStats(indexSym) {
+      let up = 0, down = 0, ref = 0, ceil = 0, floor = 0;
+      let volSum = 0;
+      let valueSum = 0;
+      for (const row of state.values()) {
+        if (!inIndexBasket(indexSym, row)) continue;
+        const last = Number(row.last);
+        const r = Number(row.ref);
+        const c = Number(row.ceil);
+        const f = Number(row.floor);
+        const vol = Number(row.volume) || 0;
+        volSum += vol;
+        if (Number.isFinite(last) && vol > 0) valueSum += last * vol;
+        if (Number.isFinite(c) && Number.isFinite(last) && last >= c && c > 0) ceil += 1;
+        else if (Number.isFinite(f) && Number.isFinite(last) && last <= f && f > 0) floor += 1;
+        else if (Number.isFinite(last) && Number.isFinite(r)) {
+          if (last > r) up += 1;
+          else if (last < r) down += 1;
+          else ref += 1;
+        } else ref += 1;
+      }
+      const idx = state.get(indexSym);
+      const idxVol = Number(idx && idx.volume) || 0;
+      const idxValue = Number(
+        (idx && (idx.tradeValue || idx.value || idx.totalValue)) || 0
+      );
+      return {
+        up, down, ref, ceil, floor,
+        volume: idxVol > 0 ? idxVol : volSum,
+        valueTy: idxValue > 0
+          ? (idxValue > 1e6 ? idxValue / 1e9 : idxValue)
+          : valueSum / 1e9,
+      };
+    }
+
+    function fmtVolShort(v) {
+      const n = Number(v);
+      if (!Number.isFinite(n) || n <= 0) return "—";
+      if (n >= 1e6) return (n / 1e6).toFixed(2) + "M";
+      if (n >= 1e3) return (n / 1e3).toFixed(1) + "K";
+      return Math.round(n).toLocaleString("en-US");
+    }
+
+    function fmtValueTy(v) {
+      const n = Number(v);
+      if (!Number.isFinite(n) || n <= 0) return "—";
+      return n.toFixed(2);
+    }
+
+    /* ===== Filters: market tab + search ===== */
+    function rowVisible(symbol) {
+      const row = state.get(symbol);
+      if (!row || INDEX_SYMBOLS.has(symbol)) return false;
+      if (marketTab === "VN30") {
+        if (!VN30_SET.has(symbol)) return false;
+      } else {
+        if (resolveExchange(row) !== marketTab) return false;
+      }
+      if (searchQuery) {
+        const q = searchQuery.toUpperCase();
+        if (!String(symbol).toUpperCase().includes(q)) return false;
+      }
+      return true;
+    }
+
+    function applyBoardFilter() {
+      elBody.querySelectorAll("tr[id^='row-']").forEach((tr) => {
+        const sym = tr.id.slice(4);
+        tr.style.display = rowVisible(sym) ? "" : "none";
+      });
+      updatePinnedPositions();
+    }
+
+    function setMarketTab(tab) {
+      if (!VALID_MARKETS.has(tab)) tab = "HOSE";
+      marketTab = tab;
+      localStorage.setItem(MARKET_KEY, marketTab);
+      document.querySelectorAll(".mkt-tab").forEach((btn) => {
+        const on = btn.getAttribute("data-market") === marketTab;
+        btn.classList.toggle("is-active", on);
+        btn.setAttribute("aria-selected", on ? "true" : "false");
+      });
+      applyBoardFilter();
+    }
+
+    document.querySelectorAll(".mkt-tab").forEach((btn) => {
+      btn.addEventListener("click", () => setMarketTab(btn.getAttribute("data-market")));
+    });
+    setMarketTab(marketTab);
+
+    elSearch.addEventListener("input", () => {
+      searchQuery = String(elSearch.value || "").trim();
+      applyBoardFilter();
+    });
+
+    elSettingsBtn.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      const open = !elSettingsMenu.classList.contains("open");
+      elSettingsMenu.classList.toggle("open", open);
+      elSettingsBtn.setAttribute("aria-expanded", open ? "true" : "false");
+    });
+    document.addEventListener("click", () => {
+      elSettingsMenu.classList.remove("open");
+      elSettingsBtn.setAttribute("aria-expanded", "false");
+    });
+    document.getElementById("btn-clear-pins").addEventListener("click", () => {
+      savePins([]);
+      elBody.querySelectorAll("tr.is-pinned").forEach((tr) => applyPinVisual(tr, false));
+      updatePinnedPositions();
+      elSettingsMenu.classList.remove("open");
+    });
+    document.getElementById("btn-focus-search").addEventListener("click", () => {
+      elSearch.focus();
+      elSearch.select();
+      elSettingsMenu.classList.remove("open");
+    });
+
+    function removeEquityRow(symbol) {
+      state.delete(symbol);
+      const tr = document.getElementById("row-" + symbol);
+      if (tr) tr.remove();
+      const pins = loadPins().filter((s) => s !== symbol);
+      savePins(pins);
+      scheduleIndexStatsRefresh();
+      updatePinnedPositions();
+    }
+
+    /* ===== Pin (DOM move only) ===== */
     function loadPins() {
       try {
         const raw = JSON.parse(localStorage.getItem(PIN_KEY) || "[]");
@@ -393,7 +659,6 @@
       return last;
     }
 
-    /** Sticky top xếp chồng dưới thead theo thứ tự các dòng ghim. */
     function updatePinnedPositions() {
       const thead = document.querySelector("#board-table thead");
       if (!thead || !elBody) return;
@@ -401,8 +666,7 @@
       const rows = elBody.querySelectorAll("tr.is-pinned");
       let offset = 0;
       rows.forEach((row) => {
-        // Tương đương baseTop + index * rowHeight khi các hàng đồng cao;
-        // dùng cộng dồn offsetHeight để đúng khi chiều cao lệch nhau.
+        if (row.style.display === "none") return;
         const top = baseTop + offset;
         row.querySelectorAll("td").forEach((td) => {
           td.style.top = top + "px";
@@ -411,16 +675,13 @@
       });
     }
 
-    /** Nhấc dòng lên đầu tbody (dưới header) — không destroy/recreate node. */
     function moveRowToPinnedTop(tr) {
       elBody.insertBefore(tr, elBody.firstChild);
     }
 
     function moveRowAfterPins(tr) {
       const last = lastPinnedRow();
-      if (last) {
-        elBody.insertBefore(tr, last.nextSibling);
-      }
+      if (last) elBody.insertBefore(tr, last.nextSibling);
     }
 
     function togglePin(symbol) {
@@ -428,7 +689,6 @@
       if (!tr) return;
       let pins = loadPins().filter((s) => s !== symbol);
       const wasPinned = tr.classList.contains("is-pinned");
-
       if (wasPinned) {
         savePins(pins);
         applyPinVisual(tr, false);
@@ -436,7 +696,6 @@
         updatePinnedPositions();
         return;
       }
-
       pins.unshift(symbol);
       savePins(pins);
       applyPinVisual(tr, true);
@@ -444,7 +703,6 @@
       updatePinnedPositions();
     }
 
-    /** Sau khi snapshot gen đủ dòng: đưa các mã đã ghim lên đầu theo thứ tự localStorage. */
     function restorePinnedRows() {
       const pins = loadPins();
       for (let i = pins.length - 1; i >= 0; i--) {
@@ -506,14 +764,14 @@
     function pushSpark(symbol, value) {
       const arr = sparkHist.get(symbol) || [];
       arr.push(Number(value));
-      while (arr.length > 32) arr.shift();
+      while (arr.length > 40) arr.shift();
       sparkHist.set(symbol, arr);
       return arr;
     }
 
     function sparkPath(values) {
       if (!values.length) return "";
-      const w = 72, h = 28, pad = 2;
+      const w = 88, h = 36, pad = 2;
       const min = Math.min(...values);
       const max = Math.max(...values);
       const span = max - min || 1;
@@ -597,31 +855,76 @@
       return tr;
     }
 
-    function renderIndexBar() {
-      const order = ["VNINDEX", "VN30", "HNXINDEX", "UPCOMINDEX"];
-      const idxs = order.map((s) => state.get(s)).filter(Boolean);
-      elIndexBar.innerHTML = idxs
-        .map((row) => {
-          const hist = sparkHist.get(row.symbol) || [Number(row.last)];
-          const tone = changeTone(row.change);
-          const stroke = row.change > 0 ? "#00ff00" : row.change < 0 ? "#ff0000" : "#ffd900";
-          const label = INDEX_LABEL[row.symbol] || row.symbol;
-          return `
-            <div class="idx-card" data-idx="${row.symbol}">
-              <svg class="spark" viewBox="0 0 72 28" aria-hidden="true">
-                <path d="${sparkPath(hist)}" fill="none" stroke="${stroke}" stroke-width="1.5" />
-              </svg>
-              <div class="min-w-0">
-                <div class="text-[10px] tracking-tight text-gray-500">${label}</div>
-                <div class="flex items-baseline gap-2">
-                  <span class="tabular-nums text-[15px] font-semibold ${tone}" data-f="last">${fmtPrice(row.last, "index")}</span>
-                  <span class="tabular-nums text-[11px] ${tone}" data-f="chg">${fmtChange(row.change)}</span>
-                  <span class="tabular-nums text-[11px] ${tone}" data-f="pct">${row.change_pct > 0 ? "+" : ""}${Number(row.change_pct).toFixed(2)}%</span>
-                </div>
+    function idxCardHtml(row) {
+      const hist = sparkHist.get(row.symbol) || [Number(row.last)];
+      const tone = changeTone(row.change);
+      const stroke = row.change > 0 ? "#00ff00" : row.change < 0 ? "#ff0000" : "#ffd900";
+      const label = INDEX_LABEL[row.symbol] || row.symbol;
+      const st = computeBasketStats(row.symbol);
+      return `
+        <div class="idx-card" data-idx="${row.symbol}">
+          <div class="idx-card-top">
+            <div class="min-w-0">
+              <div class="text-[10px] tracking-wide text-gray-500 font-medium">${label}</div>
+              <div class="flex items-baseline gap-2 mt-0.5">
+                <span class="tabular-nums text-[20px] font-semibold leading-none ${tone}" data-f="last">${fmtPrice(row.last, "index")}</span>
               </div>
-            </div>`;
-        })
-        .join("");
+              <div class="flex items-baseline gap-2 mt-1">
+                <span class="tabular-nums text-[12px] font-medium ${tone}" data-f="chg">${fmtChange(row.change)}</span>
+                <span class="tabular-nums text-[12px] font-medium ${tone}" data-f="pct">${row.change_pct > 0 ? "+" : ""}${Number(row.change_pct || 0).toFixed(2)}%</span>
+              </div>
+            </div>
+            <svg class="spark" viewBox="0 0 88 36" aria-hidden="true">
+              <path d="${sparkPath(hist)}" fill="none" stroke="${stroke}" stroke-width="1.6" />
+            </svg>
+          </div>
+          <div class="idx-meta">
+            <span><span class="k">KL</span><span data-f="ivol">${fmtVolShort(st.volume)}</span> CP</span>
+            <span><span class="k">GT</span><span data-f="ival">${fmtValueTy(st.valueTy)}</span> Tỷ</span>
+            <span class="idx-breadth">
+              <span class="text-[#00ff00]" data-f="up">${st.up}</span>/
+              <span class="text-[#ff0000]" data-f="down">${st.down}</span>/
+              <span class="text-[#ffd900]" data-f="refn">${st.ref}</span>/
+              <span class="text-[#ff00ff]" data-f="ceiln">${st.ceil}</span>/
+              <span class="text-[#00ffff]" data-f="floorn">${st.floor}</span>
+            </span>
+          </div>
+        </div>`;
+    }
+
+    function renderIndexBar() {
+      const idxs = INDEX_ORDER.map((s) => state.get(s)).filter(Boolean);
+      elIndexBar.innerHTML = idxs.map(idxCardHtml).join("");
+    }
+
+    function patchIndexCardStats(card, indexSym) {
+      const st = computeBasketStats(indexSym);
+      const set = (sel, val) => {
+        const el = card.querySelector(sel);
+        if (el) el.textContent = val;
+      };
+      set('[data-f="ivol"]', fmtVolShort(st.volume));
+      set('[data-f="ival"]', fmtValueTy(st.valueTy));
+      set('[data-f="up"]', String(st.up));
+      set('[data-f="down"]', String(st.down));
+      set('[data-f="refn"]', String(st.ref));
+      set('[data-f="ceiln"]', String(st.ceil));
+      set('[data-f="floorn"]', String(st.floor));
+    }
+
+    function refreshAllIndexStats() {
+      INDEX_ORDER.forEach((sym) => {
+        const card = elIndexBar.querySelector(`[data-idx="${sym}"]`);
+        if (card) patchIndexCardStats(card, sym);
+      });
+    }
+
+    function scheduleIndexStatsRefresh() {
+      if (indexStatsTimer) return;
+      indexStatsTimer = setTimeout(() => {
+        indexStatsTimer = null;
+        refreshAllIndexStats();
+      }, 200);
     }
 
     function applyIndex(row, { flash = false } = {}) {
@@ -644,15 +947,16 @@
       const path = card.querySelector("path");
 
       lastEl.textContent = fmtPrice(row.last, "index");
-      lastEl.className = "tabular-nums text-[15px] font-semibold " + tone;
+      lastEl.className = "tabular-nums text-[20px] font-semibold leading-none " + tone;
       chgEl.textContent = fmtChange(row.change);
-      chgEl.className = "tabular-nums text-[11px] " + tone;
-      pctEl.textContent = (row.change_pct > 0 ? "+" : "") + Number(row.change_pct).toFixed(2) + "%";
-      pctEl.className = "tabular-nums text-[11px] " + tone;
+      chgEl.className = "tabular-nums text-[12px] font-medium " + tone;
+      pctEl.textContent = (row.change_pct > 0 ? "+" : "") + Number(row.change_pct || 0).toFixed(2) + "%";
+      pctEl.className = "tabular-nums text-[12px] font-medium " + tone;
       if (path) {
         path.setAttribute("d", sparkPath(sparkHist.get(row.symbol) || []));
         path.setAttribute("stroke", stroke);
       }
+      patchIndexCardStats(card, row.symbol);
       if (flash && prev && prev.last !== row.last) {
         flashCell(card, row.change || (row.last > prev.last ? 1 : -1));
       }
@@ -666,10 +970,12 @@
     function applyEquity(row, { flash = false } = {}) {
       const prev = state.get(row.symbol);
       row = enrichDepth({ ...row });
+      if (!row.exchange) row.exchange = resolveExchange(row);
       state.set(row.symbol, row);
 
       const tr = ensureEquityRow(row.symbol);
-      tr.style.display = rowVisibleInView(row.symbol) ? "" : "none";
+      tr.dataset.exchange = resolveExchange(row);
+      tr.style.display = rowVisible(row.symbol) ? "" : "none";
       tr.querySelector('[data-f="symbol"]').textContent = row.symbol;
       tr.querySelector('[data-f="ceil"]').textContent = fmtPrice(row.ceil);
       tr.querySelector('[data-f="floor"]').textContent = fmtPrice(row.floor);
@@ -704,6 +1010,7 @@
       if (flash && prev && prev.last !== row.last) {
         flashCell(lastEl, row.change || (row.last > prev.last ? 1 : -1));
       }
+      scheduleIndexStatsRefresh();
     }
 
     function applyRow(row, opts = {}) {
@@ -738,6 +1045,7 @@
         });
         restorePinnedRows();
         applyBoardFilter();
+        refreshAllIndexStats();
         return;
       }
       if (msg.type === "remove" && msg.symbol) {
@@ -748,7 +1056,6 @@
         applyRow(msg, { flash: true });
         return;
       }
-      // Live ticks arrive as bare quote objects (no type) from Redis pub/sub
       if (msg.symbol && (msg.last != null || msg.kind)) {
         applyRow(msg, { flash: true });
         return;
