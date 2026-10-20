@@ -1,0 +1,24 @@
+# Dev image: FastAPI priceboard + mock SSI worker (Python 3.11, auto-reload)
+FROM python:3.11-slim-bookworm
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    FRONTEND_DIR=/app/frontend
+
+WORKDIR /app
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY backend/requirements.txt /app/backend/requirements.txt
+RUN pip install --no-cache-dir -r /app/backend/requirements.txt
+
+COPY backend /app/backend
+COPY frontend /app/frontend
+
+EXPOSE 8000
+
+# Default: API with reload. Override command for ssi-worker service.
+CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-dir", "/app/backend", "--reload-dir", "/app/frontend"]

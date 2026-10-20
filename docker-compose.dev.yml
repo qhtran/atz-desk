@@ -1,0 +1,90 @@
+# Dev stack for priceboard FastAPI + Redis (dev.atz.vn / localhost)
+# Usage:
+#   docker compose -f docker-compose.dev.yml up --build
+# API: http://127.0.0.1:8000  |  WS: ws://127.0.0.1:8000/ws/priceboard
+#
+# Does NOT replace production docker-compose.yml / atz-redis.
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: atz-redis-dev
+    restart: unless-stopped
+    command:
+      [
+        "redis-server",
+        "--appendonly",
+        "yes",
+        "--maxmemory",
+        "128mb",
+        "--maxmemory-policy",
+        "volatile-lru",
+      ]
+    ports:
+      - "127.0.0.1:6380:6379"
+    volumes:
+      - redis_dev_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - priceboard_dev
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: atz-priceboard-api-dev
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      PRICEBOARD_CHANNEL: priceboard_ticks
+      PRICEBOARD_HASH: priceboard:quotes
+      FRONTEND_DIR: /app/frontend
+      LOG_LEVEL: INFO
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - ./backend:/app/backend
+      - ./frontend:/app/frontend
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/healthz"]
+      interval: 15s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+    networks:
+      - priceboard_dev
+
+  ssi-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: atz-ssi-worker-dev
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      PRICEBOARD_CHANNEL: priceboard_ticks
+      PRICEBOARD_HASH: priceboard:quotes
+      MOCK_TICK_INTERVAL_MS: "250"
+      LOG_LEVEL: INFO
+    command: ["python", "-m", "backend.ssi_worker"]
+    volumes:
+      - ./backend:/app/backend
+    networks:
+      - priceboard_dev
+
+networks:
+  priceboard_dev:
+    name: atz_priceboard_dev
+
+volumes:
+  redis_dev_data:

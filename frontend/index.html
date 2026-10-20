@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="vi" class="h-full">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>atz Radar · Priceboard (dev)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            board: {
+              bg: "#0b0f14",
+              panel: "#121820",
+              line: "#1e2936",
+              mute: "#8b9bb0",
+              text: "#e8eef6",
+              up: "#22c55e",
+              down: "#ef4444",
+              ref: "#fbbf24",
+              accent: "#38bdf8",
+            },
+          },
+          fontFamily: {
+            mono: ['"JetBrains Mono"', "ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
+            sans: ['"IBM Plex Sans"', "system-ui", "sans-serif"],
+          },
+        },
+      },
+    };
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root { color-scheme: dark; }
+    body { background: radial-gradient(1200px 600px at 20% -10%, #152033 0%, #0b0f14 55%); }
+    .flash-up { animation: flashUp 0.55s ease-out; }
+    .flash-down { animation: flashDown 0.55s ease-out; }
+    @keyframes flashUp {
+      0% { background-color: rgba(34, 197, 94, 0.45); }
+      100% { background-color: transparent; }
+    }
+    @keyframes flashDown {
+      0% { background-color: rgba(239, 68, 68, 0.45); }
+      100% { background-color: transparent; }
+    }
+    #board-table th, #board-table td { border-color: #1e2936; }
+    #board-table tbody tr:hover { background: rgba(56, 189, 248, 0.04); }
+  </style>
+</head>
+<body class="h-full font-sans text-board-text antialiased">
+  <div class="min-h-full flex flex-col">
+    <header class="border-b border-board-line bg-board-panel/80 backdrop-blur px-4 py-3 flex items-center justify-between gap-4">
+      <div class="flex items-baseline gap-3">
+        <span class="text-xl font-semibold tracking-tight text-board-accent">atz</span>
+        <span class="text-sm text-board-mute">Radar · Priceboard <span class="text-board-ref">DEV</span></span>
+      </div>
+      <div class="flex items-center gap-3 text-xs font-mono">
+        <span id="conn-dot" class="inline-block h-2 w-2 rounded-full bg-board-down"></span>
+        <span id="conn-label" class="text-board-mute">connecting…</span>
+        <span id="clock" class="text-board-mute tabular-nums"></span>
+      </div>
+    </header>
+
+    <!-- Index bar -->
+    <section id="index-bar" class="grid grid-cols-2 md:grid-cols-4 gap-2 px-3 py-3 border-b border-board-line bg-board-panel/40">
+      <!-- filled by JS -->
+    </section>
+
+    <main class="flex-1 overflow-auto px-3 py-3">
+      <div class="rounded-sm border border-board-line overflow-hidden bg-board-panel/50">
+        <table id="board-table" class="w-full text-sm font-mono border-collapse">
+          <thead class="bg-board-panel text-board-mute text-xs uppercase tracking-wide sticky top-0">
+            <tr>
+              <th class="text-left px-3 py-2 border-b">Mã</th>
+              <th class="text-right px-3 py-2 border-b">Giá</th>
+              <th class="text-right px-3 py-2 border-b">+/-</th>
+              <th class="text-right px-3 py-2 border-b">%</th>
+              <th class="text-right px-3 py-2 border-b hidden sm:table-cell">Cao</th>
+              <th class="text-right px-3 py-2 border-b hidden sm:table-cell">Thấp</th>
+              <th class="text-right px-3 py-2 border-b">KL</th>
+            </tr>
+          </thead>
+          <tbody id="board-body"></tbody>
+        </table>
+      </div>
+      <p class="mt-3 text-[11px] text-board-mute">
+        Mock ticks · Redis Pub/Sub <code class="text-board-accent">priceboard_ticks</code> · không gọi SSI thật.
+      </p>
+    </main>
+  </div>
+
+  <script>
+    const INDEX_SYMBOLS = new Set(["VNINDEX", "VN30", "HNXINDEX", "UPCOMINDEX"]);
+    const state = new Map(); // symbol -> row
+    let ws = null;
+    let retryMs = 1000;
+    let pingTimer = null;
+
+    const elConnDot = document.getElementById("conn-dot");
+    const elConnLabel = document.getElementById("conn-label");
+    const elIndexBar = document.getElementById("index-bar");
+    const elBody = document.getElementById("board-body");
+    const elClock = document.getElementById("clock");
+
+    function setConn(status) {
+      const map = {
+        open: ["bg-board-up", "connected"],
+        connecting: ["bg-board-ref", "connecting…"],
+        closed: ["bg-board-down", "disconnected · retrying"],
+      };
+      const [cls, label] = map[status] || map.closed;
+      elConnDot.className = "inline-block h-2 w-2 rounded-full " + cls;
+      elConnLabel.textContent = label;
+    }
+
+    function colorClass(change) {
+      if (change > 0) return "text-board-up";
+      if (change < 0) return "text-board-down";
+      return "text-board-ref";
+    }
+
+    function fmtPrice(row) {
+      if (row.kind === "index") return Number(row.last).toFixed(2);
+      return Number(row.last).toLocaleString("vi-VN");
+    }
+
+    function fmtVol(v) {
+      const n = Number(v) || 0;
+      if (n >= 1e6) return (n / 1e6).toFixed(2) + "M";
+      if (n >= 1e3) return (n / 1e3).toFixed(1) + "K";
+      return String(n);
+    }
+
+    function flashCell(el, change) {
+      if (!el || !change) return;
+      el.classList.remove("flash-up", "flash-down");
+      // force reflow
+      void el.offsetWidth;
+      el.classList.add(change > 0 ? "flash-up" : "flash-down");
+    }
+
+    function ensureEquityRow(symbol) {
+      let tr = document.getElementById("row-" + symbol);
+      if (tr) return tr;
+      tr = document.createElement("tr");
+      tr.id = "row-" + symbol;
+      tr.innerHTML = `
+        <td class="px-3 py-1.5 border-b font-medium text-board-accent" data-f="symbol"></td>
+        <td class="px-3 py-1.5 border-b text-right tabular-nums" data-f="last"></td>
+        <td class="px-3 py-1.5 border-b text-right tabular-nums" data-f="change"></td>
+        <td class="px-3 py-1.5 border-b text-right tabular-nums" data-f="pct"></td>
+        <td class="px-3 py-1.5 border-b text-right tabular-nums hidden sm:table-cell" data-f="high"></td>
+        <td class="px-3 py-1.5 border-b text-right tabular-nums hidden sm:table-cell" data-f="low"></td>
+        <td class="px-3 py-1.5 border-b text-right tabular-nums text-board-mute" data-f="vol"></td>
+      `;
+      elBody.appendChild(tr);
+      return tr;
+    }
+
+    function renderIndexBar() {
+      const idxs = [...INDEX_SYMBOLS].map((s) => state.get(s)).filter(Boolean);
+      elIndexBar.innerHTML = idxs.map((row) => {
+        const cls = colorClass(row.change);
+        return `
+          <div class="rounded-sm border border-board-line bg-board-bg/60 px-3 py-2" data-idx="${row.symbol}">
+            <div class="text-[11px] text-board-mute tracking-wide">${row.symbol}</div>
+            <div class="flex items-baseline justify-between gap-2 mt-0.5">
+              <span class="font-mono text-lg tabular-nums ${cls}" data-f="last">${fmtPrice(row)}</span>
+              <span class="font-mono text-xs tabular-nums ${cls}" data-f="pct">${row.change_pct > 0 ? "+" : ""}${Number(row.change_pct).toFixed(2)}%</span>
+            </div>
+          </div>`;
+      }).join("");
+    }
+
+    function applyRow(row, { flash = false } = {}) {
+      const prev = state.get(row.symbol);
+      state.set(row.symbol, row);
+
+      if (INDEX_SYMBOLS.has(row.symbol)) {
+        let card = elIndexBar.querySelector(`[data-idx="${row.symbol}"]`);
+        if (!card) {
+          renderIndexBar();
+          card = elIndexBar.querySelector(`[data-idx="${row.symbol}"]`);
+        }
+        if (card) {
+          const lastEl = card.querySelector('[data-f="last"]');
+          const pctEl = card.querySelector('[data-f="pct"]');
+          const cls = colorClass(row.change);
+          lastEl.textContent = fmtPrice(row);
+          lastEl.className = "font-mono text-lg tabular-nums " + cls;
+          pctEl.textContent = (row.change_pct > 0 ? "+" : "") + Number(row.change_pct).toFixed(2) + "%";
+          pctEl.className = "font-mono text-xs tabular-nums " + cls;
+          if (flash && prev && prev.last !== row.last) {
+            flashCell(card, row.change);
+          }
+        }
+        return;
+      }
+
+      const tr = ensureEquityRow(row.symbol);
+      const cls = colorClass(row.change);
+      tr.querySelector('[data-f="symbol"]').textContent = row.symbol;
+      const lastEl = tr.querySelector('[data-f="last"]');
+      lastEl.textContent = fmtPrice(row);
+      lastEl.className = "px-3 py-1.5 border-b text-right tabular-nums " + cls;
+      tr.querySelector('[data-f="change"]').textContent =
+        (row.change > 0 ? "+" : "") + Number(row.change).toLocaleString("vi-VN");
+      tr.querySelector('[data-f="change"]').className =
+        "px-3 py-1.5 border-b text-right tabular-nums " + cls;
+      tr.querySelector('[data-f="pct"]').textContent =
+        (row.change_pct > 0 ? "+" : "") + Number(row.change_pct).toFixed(2);
+      tr.querySelector('[data-f="pct"]').className =
+        "px-3 py-1.5 border-b text-right tabular-nums " + cls;
+      tr.querySelector('[data-f="high"]').textContent = fmtPrice({ ...row, last: row.high });
+      tr.querySelector('[data-f="low"]').textContent = fmtPrice({ ...row, last: row.low });
+      tr.querySelector('[data-f="vol"]').textContent = fmtVol(row.volume);
+
+      if (flash && prev && prev.last !== row.last) {
+        flashCell(lastEl, row.change || (row.last > prev.last ? 1 : -1));
+      }
+    }
+
+    function handleMessage(raw) {
+      let msg;
+      try { msg = JSON.parse(raw); } catch { return; }
+      if (msg.type === "snapshot" && Array.isArray(msg.rows)) {
+        elBody.innerHTML = "";
+        elIndexBar.innerHTML = "";
+        state.clear();
+        msg.rows.forEach((r) => applyRow(r, { flash: false }));
+        renderIndexBar();
+        // re-apply equities already inserted; indices need bar
+        msg.rows.forEach((r) => {
+          if (!INDEX_SYMBOLS.has(r.symbol)) applyRow(r, { flash: false });
+        });
+        return;
+      }
+      if (msg.type === "tick" && msg.symbol) {
+        applyRow(msg, { flash: true });
+        return;
+      }
+      if (msg.type === "pong") return;
+    }
+
+    function wsUrl() {
+      const proto = location.protocol === "https:" ? "wss:" : "ws:";
+      return `${proto}//${location.host}/ws/priceboard`;
+    }
+
+    function connect() {
+      setConn("connecting");
+      ws = new WebSocket(wsUrl());
+      ws.onopen = () => {
+        setConn("open");
+        retryMs = 1000;
+        clearInterval(pingTimer);
+        pingTimer = setInterval(() => {
+          if (ws && ws.readyState === WebSocket.OPEN) ws.send("ping");
+        }, 25000);
+      };
+      ws.onmessage = (ev) => handleMessage(ev.data);
+      ws.onclose = () => {
+        setConn("closed");
+        clearInterval(pingTimer);
+        setTimeout(connect, retryMs);
+        retryMs = Math.min(retryMs * 1.7, 15000);
+      };
+      ws.onerror = () => {
+        try { ws.close(); } catch (_) {}
+      };
+    }
+
+    setInterval(() => {
+      elClock.textContent = new Date().toLocaleTimeString("vi-VN", { hour12: false });
+    }, 1000);
+
+    connect();
+  </script>
+</body>
+</html>
