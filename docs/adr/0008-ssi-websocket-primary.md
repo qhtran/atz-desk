@@ -1,7 +1,7 @@
 # ADR 0008 — SSI Market WebSocket primary (REST backup)
 
 - **Status:** Accepted (human 2026-10-20; exe2 implement Phase 1)
-- **Context:** UX giật khi UI fragment poll; REST poll chậm hơn push. SSI Developer Portal cung cấp Market WebSocket (`wss://stream.ssi.com.vn`, channel `DATA`) **không cần OTP**. Human chốt WebSocket-first; REST giữ backup. Chi tiết: `docs/REFRESH_1_2S_STRATEGY.md` §5.
+- **Context:** UX giật khi UI fragment poll; REST poll chậm hơn push. SSI Developer Portal cung cấp Market WebSocket (`wss://stream.ssi.com.vn/ws/v3`, channel `DATA`) **không cần OTP**. Human chốt WebSocket-first; REST giữ backup. Chi tiết: `docs/REFRESH_1_2S_STRATEGY.md` §5.
 
 ## Quyết định
 

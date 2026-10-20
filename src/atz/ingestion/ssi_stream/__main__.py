@@ -93,7 +93,15 @@ def main() -> None:
         silence = s.silence_trading if trading else s.silence_off
         last = client.last_msg_at or 0.0
         age = (now - last) if last else 1e9
-        healthy = bool(client.connected and age <= silence)
+        # Primary chỉ khi đã parse được quote thật (tránh subscribe-ack làm tắt REST)
+        has_quotes = bool(writer.last)
+        last_q = getattr(writer, "last_quote_at", 0.0) or 0.0
+        q_age = (now - last_q) if last_q else 1e9
+        if trading:
+            healthy = bool(client.connected and has_quotes and q_age <= silence)
+        else:
+            # Ngoài giờ: REST backup cập nhật snapshot ngày; WS giữ kết nối nhưng không khóa REST
+            healthy = False
         try:
             r.set(
                 s.health_key,
@@ -106,8 +114,10 @@ def main() -> None:
                     "msg_count": client.msg_count,
                     "err_count": client.err_count,
                     "last_msg_age_sec": None if not last else round(age, 1),
+                    "last_quote_age_sec": None if not last_q else round(q_age, 1),
                     "quotes": {k: v.value for k, v in writer.last.items()},
                     "source": "SSI_WS",
+                    "trading_session": trading,
                 }),
                 ex=3600,
             )

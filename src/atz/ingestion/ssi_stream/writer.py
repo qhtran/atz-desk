@@ -20,6 +20,7 @@ class RedisWriter:
             for sym in ("VNINDEX", "HNXINDEX", "UPCOMINDEX", "VN30")
         }
         self.last: dict[str, IdxQuote] = {}
+        self.last_quote_at = 0.0
 
     def upsert_quote(self, parsed: dict[str, Any]) -> IdxQuote | None:
         sym = parsed["symbol"]
@@ -36,6 +37,7 @@ class RedisWriter:
         if in_session(now, self.s.timezone, self.s.sessions):
             self.sparks[sym].add(now, q.value)
         self.last[sym] = q
+        self.last_quote_at = now
         pipe = self.r.pipeline()
         pipe.set(
             self.s.quote_key.format(symbol=sym),

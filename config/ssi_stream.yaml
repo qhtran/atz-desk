@@ -1,7 +1,7 @@
 # SSI Market WebSocket primary (ADR 0008 / REFRESH §5). Phase 1 = index spot.
 ssi_stream:
   enabled: true
-  url: wss://stream.ssi.com.vn
+  url: wss://stream.ssi.com.vn/ws/v3   # SDK default (docs connect page thiếu path)/ws/v3   # SDK default (docs connect page thiếu path)
   mode: websocket_primary          # websocket_primary | rest_only (tắt process stream)
   auth_url: https://api.ssi.com.vn/api/v3/auth/token
   # Im lặng quá ngưỡng → health stale → index-feed bật REST backup cho spot

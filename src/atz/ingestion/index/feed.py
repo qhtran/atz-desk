@@ -199,7 +199,7 @@ class IndexFeed:
             for sym, pts in self.fetch("bars", rebackfill, int(now) - 86400).items():
                 self.sparks[sym].load(pts, self.sparks[sym].contract)
         # Không ghi đè spot Redis khi stream đang primary (stream đã SET)
-        to_write = {k: v for k, v in quotes.items() if not (stream_ok and k in spot and str(v.source).startswith("SSI_WS"))}
+        to_write = {k: v for k, v in quotes.items() if not (stream_ok and k in spot)}
         self.write(to_write, now)
         return quotes
 
