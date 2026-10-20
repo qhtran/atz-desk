@@ -491,12 +491,13 @@ REST index = backup when stream unhealthy. UI Redis contract unchanged.
 
 ```
 task: ADR 0008 + ssi-stream Phase 1 (8a–8c)
-result: code+tests; deploy pending in same turn
+result: Done — WS connect /ws/v3 subscribed; REST backup off-hours; site quotes via index REST until market ticks
 owner: exe2
-Status: doing_deploy
+Status: idle
 master_ack: pending
-pytest: test_ssi_stream + test_index_feed Pass (24)
-files: adr/0008, ssi_stream/*, index feed backup, compose, ssi_stream.yaml
+pytest: Pass (24)
+note: WS URL fixed to wss://stream.ssi.com.vn/ws/v3; no ticks off-hours (expected)
+image: inject src+config on vnstocks-vnstocks (+ websocket-client)
 ```
 
 ### Last Support state (ag5 / sp2)
