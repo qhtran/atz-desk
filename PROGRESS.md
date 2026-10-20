@@ -1,7 +1,7 @@
 # PROGRESS.md — atz.vn / vnstocks
 
 > Master Architect artifact. Bus duy nhất giữa tab: **file này** (không dùng bus file khác).
-> Cập nhật: **2026-10-20** — **HANDOFF SSI WS Phase 1** (exe2 → chat mới); ADR 0008; Open Q §5.14; §5.13 Master ack pending.
+> Cập nhật: **2026-10-20 ~18:05** — **SSI WS Phase 1 verify 1a** (exe2): Pass có điều kiện; Safari iPhone stale-session deferred; §5.13 Master ack pending.
 
 ### Naming convention (bắt buộc)
 
@@ -208,7 +208,8 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 11. ~~**Auditor F3 re-smoke 1505**~~ — Pass 9/9; P2 #3 **S-022 acked**; P2 #2 **T-235 Master ack Pass**; #1 deferred.
 12. ~~**F3 wl_rows gap §6.2 (Giá)**~~ — **T-237/T-238 Pass**; **T-239 Todo** (Chat spark); community vẫn backlog; không reopen engine.
 13. **Ingestion board_stocks (exe2 13b/14b) — chờ Master ack** — không redesign kiến trúc. Ship: `board_stocks` + 1-shot + rpm 500; image **`188ead678824`** trên **cả** `ingestion` + **`vnstocks`** (14b: upstream PASS, health 200, public 302). Redis ~916/1519 quotes. **Open Q còn:** (a) Master ack; (c) Vision entitlement UI = epic sau; (d) probe RPM **giờ GD**; (e) coverage miss / VCI retry. ~~(b) UI redeploy~~ **done**. Chi tiết: iCloud `StockRnD/atz_data_ingrest.md`.
-14. **SSI WS Phase 1 — HANDOFF 2026-10-20** — ADR 0008 live: `atz-ssi-stream` `/ws/v3` subscribed; REST backup off-hours. **Còn:** verify tick giờ GD → `SSI_WS`; UI anti-jank epic; Phase 2 watchlist. Chi tiết §6 HANDOFF SSI WS.
+14. **SSI WS Phase 1 — verify 2026-10-20 ~18:01 (exe2)** — ADR 0008: WS chạy trong phiên (`msg_count≈22k`, health.quotes đủ 4 chỉ số); reconnect×9 tự resub. Ngoài giờ `healthy=false`, Redis spot `source=SSI` REST (đúng). **Chưa** bắt snapshot live `source=SSI_WS`+`healthy=true` (timer 09:05 miss). **Còn:** optional chụp lại giờ GD; UI anti-jank; Phase 2 watchlist. Human: giữ SSI WS trực tiếp; vnstock WS chỉ dự phòng sau.
+15. **Safari iPhone stale session (deferred)** — vào site từ iPhone Safari, hôm sau mở lại → error; refresh OK. **Chrome không lỗi.** Khả năng BFCache/WebKit + Authentik/Streamlit session chết — **chưa** mở task; không phải SSI/Redis.
 
 ---
 
@@ -294,15 +295,26 @@ Status ∈ `Todo` | `Doing` | `Done` | `Blocked`.
 | `idx:quote:VNINDEX` | Có giá (REST/Vietcap) — **site không trống** |
 | Tick WS | Chưa thấy ngoài giờ (expected); **cần verify trong giờ GD** |
 
-**Việc chat mới làm (ưu tiên):**
-1. Giờ GD: xác nhận tick → parse → `source=SSI_WS`, `healthy=true`, index-feed không đè spot.
-2. Nếu parse miss schema message thật: sửa `ssi_stream/parse.py` + log sample (không in token).
-3. Epic UI giảm giật fragment (WS chữa data; DOM rebuild vẫn có thể giật) — xem REFRESH §5.6.
-4. Phase 2 (sau): WS watchlist/VN30; equity full board vẫn KBS.
-5. Proper `docker compose build vnstocks` khi tiện (deploy hiện inject src+config + websocket-client; tránh 2 build song song).
+**VERIFY 1a (exe2, 2026-10-20 ~18:01 +07 — sau phiên) — Pass có điều kiện:**
+| Mục | Kết quả |
+|-----|---------|
+| Services | `atz-ssi-stream` / `atz-index` / `atz-redis` Up healthy (~11h) |
+| WS | `connected=true`, `phase=subscribed`, `msg_count=22681`, `err_count=9` |
+| Quotes trong phiên | health.quotes có VNINDEX/VN30/HNXINDEX/UPCOMINDEX (parse OK) |
+| Reconnect | 9× `ERR-SSISTREAM-001` (lost/reset) → resubscribe ~1–3s |
+| Redis spot @18:01 | `source=SSI` (REST) — đúng khi `healthy=false` ngoài giờ |
+| Snapshot live `SSI_WS`+`healthy=true` | **Miss** (chat nghỉ qua cửa sổ 09:05) |
+| Product chốt | SSI Market WS **trực tiếp** = primary; vnstock lib WS = dự phòng sau (không option runtime site) |
+
+**Việc còn (ưu tiên thấp / epic):**
+1. Optional: giờ GD chụp lại `source=SSI_WS` + `healthy=true` + index không đè.
+2. Epic UI giảm giật fragment — REFRESH §5.6.
+3. Phase 2: WS watchlist/VN30; equity full board vẫn KBS.
+4. Proper `docker compose build vnstocks` khi tiện.
+5. Safari iPhone stale-session — Open Q §5.15; deferred (Chrome OK).
 6. **Cấm:** commit secret; đụng nginx/sshd/UFW trừ confirm.
 
-**Hook chat mới:** `@PROGRESS.md` + `Pull bus. Tiếp HANDOFF SSI WS Phase 1 §6 / ADR 0008.`
+**Hook (nếu cần chụp lại giờ GD):** `@PROGRESS.md` + `Pull bus. SSI WS 1a live snapshot giờ GD.`
 
 ### NOTE — ingestion board_stocks (ag6 / exe2 → ag1) — 2026-10-18 · **chờ Master ack**
 
@@ -506,28 +518,28 @@ Sau đó: session cũ `Status=paused_fork`; **giữ đúng một** task `Doing` 
 |-----|-------|------:|----------------:|----------|--------|
 | master | ag1 | — | — | — | **active** |
 | executor-1 | ag2 | — | — | yes | **paused_fork** — T-237 chuyển exe2 |
-| executor-2 | ag6 / exe2 | 7 | — | no | idle — HANDOFF SSI WS Phase 1; chờ chat mới |
+| executor-2 | ag6 / exe2 | — | — | no | idle — SSI WS 1a verify Done (Pass có điều kiện); bus updated |
 | support-1 | ag3 / sp1 | — | — | yes | **paused_fork** |
 | support-2 | ag5 / sp2 | 1 | 1 | no | idle — S-022 **acked** |
 
 ### Master commands
 
 ```text
-HANDOFF SSI WS Phase 1 (exe2 → new chat) — ADR 0008.
-WS /ws/v3 connected+subscribed; REST backup off-hours; verify ticks in session.
-UI Redis contract unchanged. §5.13 Master ack still pending. T-239 NOT started.
+SSI WS Phase 1 verify 1a Done (exe2) — Pass có điều kiện (msg≈22k, quotes×4).
+Live SSI_WS+healthy=true snapshot optional next session. Safari iPhone deferred (§5.15).
+§5.13 Master ack still pending. T-239 NOT started.
 ```
 
 ### Last Executor state (ag6 / exe2)
 
 ```
-task: HANDOFF SSI WS Phase 1 (out-of-band)
-result: Done — bus note for next chat
+task: HANDOFF SSI WS Phase 1 / verify 1a (out-of-band)
+result: Done — Pass có điều kiện (WS ticks+parse trong phiên; REST off-hours OK)
 owner: exe2
 Status: idle
-master_ack: pending (§5.13 + §5.14)
-focus: next chat verify WS ticks in trading hours
-pytest: Pass (24)
+master_ack: pending (§5.13; §5.14 updated)
+focus: optional live SSI_WS snapshot next session; Safari deferred
+pytest: Pass (24) — không đổi code
 ```
 
 ### Last Support state (ag5 / sp2)
@@ -554,6 +566,7 @@ SIGNAL_NEED_FORK: cleared (T-237 completed by exe2)
 
 | Khi | Thay đổi |
 |-----|----------|
+| 2026-10-20 | **SSI WS 1a verify** — exe2 Pass có điều kiện; msg≈22k; Safari iPhone deferred (Chrome OK); vnstock WS = backup later |
 | 2026-10-19 | **HANDOFF SSI FastConnect** — exe2 → chat mới; Open Q §5.14; auth Fail 400; priority SSI→KBS→VCI |
 | 2026-10-18 | **14b Done** — exe2 redeploy `vnstocks` → image `188ead678824`; health 200; public 302; Open Q §5.13b clear |
 | 2026-10-18 | **Open Q §5.13** — exe2 self-bus: board_stocks 1-shot + rpm 500 live (`188ead678824`); chờ Master ack |
