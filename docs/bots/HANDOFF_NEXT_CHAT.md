@@ -2,7 +2,7 @@
 
 **Ngày:** 2026-10-21 (SPA 4 tab + Screener trên VPS)  
 **Branch:** `feature/realtime-fastapi`  
-**HEAD (đã push):** `a01ea91`  
+**HEAD (đã push):** `5208cb7`  
 **Orchestrator:** Cursor · Bot code paused · **cấm** sửa nginx `stream.d` / sshd / UFW trừ `user_confirmed_infra: yes`.
 
 **Trigger chat mới:** user chỉ cần gõ **`call progress`** (hoặc `progress`) → agent đọc file này + làm mục **Next** bên dưới, không hỏi lại context dài.
@@ -84,6 +84,6 @@ docker compose -f docker-compose.dev.yml logs -f --tail=100 ssi-worker
 call progress
 
 @docs/bots/HANDOFF_NEXT_CHAT.md
-feature/realtime-fastapi @ a01ea91 · https://dev.atz.vn
+feature/realtime-fastapi @ 5208cb7 · https://dev.atz.vn
 Không đụng stream.d / sshd / UFW / atz-redis prod.
 ```
