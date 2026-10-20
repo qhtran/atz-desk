@@ -4,6 +4,9 @@
 priceboard:
   # mock | ssi — ENV PRICEBOARD_SOURCE thắng file này
   source: mock
+  # Equity volume filter (ENV PRICEBOARD_MIN_VOLUME thắng). Index luôn giữ.
+  # volume==0 (đầu ngày) vẫn hiện; 0 < volume < min_volume thì ẩn.
+  min_volume: 500000
   redis:
     channel: priceboard_ticks
     hash: priceboard:quotes

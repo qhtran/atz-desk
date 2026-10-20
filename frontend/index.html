@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>atz · iBoard (dev)</title>
+  <title>atz · iBoard Realtime</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -58,8 +58,29 @@
     }
     #board-wrap {
       overflow: auto;
-      max-height: calc(100vh - 118px);
+      max-height: calc(100vh - 148px);
       border: 1px solid #2a2a2a;
+    }
+    .nav-tab {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 10px;
+      border-radius: 2px;
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: -0.01em;
+      color: #a3a3a3;
+      text-decoration: none;
+      border: 1px solid transparent;
+      background: transparent;
+      cursor: pointer;
+      line-height: 1.25;
+    }
+    .nav-tab:hover { color: #e5e5e5; background: rgba(255,255,255,0.04); }
+    .nav-tab.is-active {
+      color: #ffd900;
+      border-color: #3a3a3a;
+      background: #141414;
     }
     #board-table {
       border-collapse: separate; /* sticky left cần separate, không dùng collapse */
@@ -194,16 +215,23 @@
   </style>
 </head>
 <body class="bg-[#0a0a0a] font-sans text-[13px] antialiased tracking-tight leading-tight">
-  <header class="flex items-center justify-between gap-3 border-b border-[#2a2a2a] bg-[#0a0a0a] px-3 py-1.5">
-    <div class="flex items-center gap-3">
-      <span class="text-[13px] font-semibold tracking-tight text-white">iBoard</span>
-      <span class="text-[11px] tracking-tight text-gray-500">atz · DEV · mock SSI</span>
+  <header class="border-b border-[#2a2a2a] bg-[#0a0a0a]">
+    <div class="flex items-center justify-between gap-3 px-3 py-1.5">
+      <div class="flex items-center gap-2 min-w-0">
+        <span class="text-[13px] font-semibold tracking-tight text-white shrink-0">atz · iBoard Realtime</span>
+      </div>
+      <div class="flex items-center gap-3 text-[11px] tracking-tight text-gray-400 shrink-0">
+        <span id="conn-dot" class="inline-block h-2 w-2 rounded-full bg-[#ff0000]"></span>
+        <span id="conn-label">connecting…</span>
+        <span id="clock" class="tabular-nums text-gray-500"></span>
+      </div>
     </div>
-    <div class="flex items-center gap-3 text-[11px] tracking-tight text-gray-400">
-      <span id="conn-dot" class="inline-block h-2 w-2 rounded-full bg-[#ff0000]"></span>
-      <span id="conn-label">connecting…</span>
-      <span id="clock" class="tabular-nums text-gray-500"></span>
-    </div>
+    <nav class="flex flex-wrap items-center gap-1 px-2 pb-1.5" aria-label="Chức năng">
+      <button type="button" class="nav-tab is-active" data-nav="board" id="nav-board">Bảng giá (iBoard)</button>
+      <button type="button" class="nav-tab" data-nav="vn30" id="nav-vn30">VN30</button>
+      <a class="nav-tab" href="https://atz.vn" target="_blank" rel="noopener noreferrer">Stock Rating</a>
+      <a class="nav-tab" href="https://atz.vn" target="_blank" rel="noopener noreferrer">Tín hiệu giao dịch</a>
+    </nav>
   </header>
 
   <section id="index-bar" class="flex flex-wrap gap-2 border-b border-[#2a2a2a] bg-[#0a0a0a] px-2 py-2"></section>
@@ -256,18 +284,63 @@
       HNXINDEX: "HNX",
       UPCOMINDEX: "UPCOM",
     };
+    /** Rổ VN30 (đồng bộ watchlist worker DEFAULT_SYMBOLS). */
+    const VN30_SET = new Set([
+      "ACB", "BCM", "BID", "BVH", "CTG", "FPT", "GAS", "GVR", "HDB", "HPG",
+      "LPB", "MBB", "MSN", "MWG", "PLX", "SAB", "SHB", "SSB", "SSI", "STB",
+      "TCB", "TPB", "VCB", "VHM", "VIB", "VIC", "VJC", "VNM", "VPB", "VRE",
+    ]);
     const PIN_KEY = "atz.iboard.pinned";
+    const NAV_KEY = "atz.iboard.nav";
     const state = new Map();
     const sparkHist = new Map();
     let ws = null;
     let retryMs = 1000;
     let pingTimer = null;
+    /** "board" | "vn30" */
+    let boardView = (localStorage.getItem(NAV_KEY) === "vn30") ? "vn30" : "board";
 
     const elConnDot = document.getElementById("conn-dot");
     const elConnLabel = document.getElementById("conn-label");
     const elIndexBar = document.getElementById("index-bar");
     const elBody = document.getElementById("board-body");
     const elClock = document.getElementById("clock");
+    const elNavBoard = document.getElementById("nav-board");
+    const elNavVn30 = document.getElementById("nav-vn30");
+
+    function setNavActive(view) {
+      boardView = view === "vn30" ? "vn30" : "board";
+      localStorage.setItem(NAV_KEY, boardView);
+      elNavBoard.classList.toggle("is-active", boardView === "board");
+      elNavVn30.classList.toggle("is-active", boardView === "vn30");
+      applyBoardFilter();
+    }
+
+    function rowVisibleInView(symbol) {
+      if (boardView !== "vn30") return true;
+      return VN30_SET.has(symbol);
+    }
+
+    function applyBoardFilter() {
+      elBody.querySelectorAll("tr[id^='row-']").forEach((tr) => {
+        const sym = tr.id.slice(4);
+        tr.style.display = rowVisibleInView(sym) ? "" : "none";
+      });
+      updatePinnedPositions();
+    }
+
+    function removeEquityRow(symbol) {
+      state.delete(symbol);
+      const tr = document.getElementById("row-" + symbol);
+      if (tr) tr.remove();
+      const pins = loadPins().filter((s) => s !== symbol);
+      savePins(pins);
+      updatePinnedPositions();
+    }
+
+    elNavBoard.addEventListener("click", () => setNavActive("board"));
+    elNavVn30.addEventListener("click", () => setNavActive("vn30"));
+    setNavActive(boardView);
 
     function setConn(status) {
       const map = {
@@ -596,6 +669,7 @@
       state.set(row.symbol, row);
 
       const tr = ensureEquityRow(row.symbol);
+      tr.style.display = rowVisibleInView(row.symbol) ? "" : "none";
       tr.querySelector('[data-f="symbol"]').textContent = row.symbol;
       tr.querySelector('[data-f="ceil"]').textContent = fmtPrice(row.ceil);
       tr.querySelector('[data-f="floor"]').textContent = fmtPrice(row.floor);
@@ -663,9 +737,19 @@
           if (INDEX_SYMBOLS.has(r.symbol)) applyIndex(r, { flash: false });
         });
         restorePinnedRows();
+        applyBoardFilter();
+        return;
+      }
+      if (msg.type === "remove" && msg.symbol) {
+        removeEquityRow(msg.symbol);
         return;
       }
       if (msg.type === "tick" && msg.symbol) {
+        applyRow(msg, { flash: true });
+        return;
+      }
+      // Live ticks arrive as bare quote objects (no type) from Redis pub/sub
+      if (msg.symbol && (msg.last != null || msg.kind)) {
         applyRow(msg, { flash: true });
         return;
       }

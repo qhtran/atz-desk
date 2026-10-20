@@ -22,12 +22,14 @@ import websockets
 from websockets.exceptions import ConnectionClosed
 
 from backend.tick_contract import build_tick, parse_ssi_envelope
+from backend.volume_filter import load_min_volume, passes_volume_filter
 
 logger = logging.getLogger("atz.priceboard.ssi_live")
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
 CHANNEL = os.getenv("PRICEBOARD_CHANNEL", "priceboard_ticks")
 HASH_KEY = os.getenv("PRICEBOARD_HASH", "priceboard:quotes")
+MIN_VOLUME = load_min_volume()
 
 DEFAULT_WS = "wss://stream.ssi.com.vn/ws/v3"
 DEFAULT_AUTH = "https://api.ssi.com.vn/api/v3/auth/token"
@@ -177,16 +179,27 @@ class RealSsiWorker:
             pipe.hset(HASH_KEY, sym, json.dumps(tick, separators=(",", ":")))
         await pipe.execute()
         logger.info(
-            "DBG-PRICEBOARD-SSI-LIVE-SEED indexes=%s equities=%s",
+            "DBG-PRICEBOARD-SSI-LIVE-SEED indexes=%s equities=%s min_volume=%s",
             len(INDEX_SEED),
             len(self.symbols),
+            MIN_VOLUME,
         )
 
     async def _publish(self, redis: aioredis.Redis, tick: dict) -> None:
+        sym = tick["symbol"]
+        self._board[sym] = tick
+        if not passes_volume_filter(tick, MIN_VOLUME):
+            await redis.hdel(HASH_KEY, sym)
+            remove = json.dumps(
+                {"type": "remove", "symbol": sym},
+                ensure_ascii=False,
+                separators=(",", ":"),
+            )
+            await redis.publish(CHANNEL, remove)
+            return
         body = json.dumps(tick, ensure_ascii=False, separators=(",", ":"))
-        await redis.hset(HASH_KEY, tick["symbol"], body)
+        await redis.hset(HASH_KEY, sym, body)
         await redis.publish(CHANNEL, body)
-        self._board[tick["symbol"]] = tick
 
     def _merge_tick(self, parsed: dict[str, Any]) -> dict[str, Any]:
         sym = parsed["symbol"]

@@ -19,6 +19,7 @@ from typing import Any, Protocol
 import redis.asyncio as aioredis
 
 from backend.tick_contract import build_tick
+from backend.volume_filter import load_min_volume, passes_volume_filter
 
 logging.basicConfig(
     level=os.getenv("LOG_LEVEL", "INFO"),
@@ -32,6 +33,24 @@ HASH_KEY = os.getenv("PRICEBOARD_HASH", "priceboard:quotes")
 TICK_INTERVAL_MS = int(os.getenv("MOCK_TICK_INTERVAL_MS", "120"))
 TICKS_PER_BURST = int(os.getenv("MOCK_TICKS_PER_BURST", "3"))
 MOCK_EQUITY_COUNT = int(os.getenv("MOCK_EQUITY_COUNT", "70"))
+MIN_VOLUME = load_min_volume()
+
+
+async def _publish_or_hide(redis: aioredis.Redis, tick: dict) -> None:
+    """Publish tick to hash+channel, or remove when equity fails volume gate."""
+    sym = tick["symbol"]
+    if not passes_volume_filter(tick, MIN_VOLUME):
+        await redis.hdel(HASH_KEY, sym)
+        remove = json.dumps(
+            {"type": "remove", "symbol": sym},
+            ensure_ascii=False,
+            separators=(",", ":"),
+        )
+        await redis.publish(CHANNEL, remove)
+        return
+    body = json.dumps(tick, ensure_ascii=False, separators=(",", ":"))
+    await redis.hset(HASH_KEY, sym, body)
+    await redis.publish(CHANNEL, body)
 
 VN30_AND_BLUECHIPS: list[tuple[str, int]] = [
     ("ACB", 24850), ("BCM", 68500), ("BID", 45200), ("BVH", 51200), ("CTG", 34500),
@@ -205,7 +224,7 @@ class MockSsiWorker:
         redis = aioredis.from_url(REDIS_URL, decode_responses=True)
         try:
             await redis.delete(HASH_KEY)
-            pipe = redis.pipeline()
+            published = 0
             for row in self._state:
                 payload = _tick_row(dict(row))
                 payload["last"] = row["last"]
@@ -213,13 +232,21 @@ class MockSsiWorker:
                 payload["change_pct"] = 0.0
                 payload["high"] = row["last"]
                 payload["low"] = row["last"]
-                pipe.hset(HASH_KEY, row["symbol"], json.dumps(payload, separators=(",", ":")))
-            await pipe.execute()
+                if passes_volume_filter(payload, MIN_VOLUME):
+                    await redis.hset(
+                        HASH_KEY,
+                        row["symbol"],
+                        json.dumps(payload, separators=(",", ":")),
+                    )
+                    published += 1
             n_eq = sum(1 for r in self._state if r["kind"] == "equity")
             logger.info(
-                "DBG-PRICEBOARD-SSI-MOCK-READY symbols=%s equities=%s interval_ms=%s burst=%s",
+                "DBG-PRICEBOARD-SSI-MOCK-READY symbols=%s equities=%s published=%s "
+                "min_volume=%s interval_ms=%s burst=%s",
                 len(self._state),
                 n_eq,
+                published,
+                MIN_VOLUME,
                 TICK_INTERVAL_MS,
                 TICKS_PER_BURST,
             )
@@ -234,9 +261,7 @@ class MockSsiWorker:
                     row["volume"] = tick["volume"]
                     row["high"] = tick["high"]
                     row["low"] = tick["low"]
-                    body = json.dumps(tick, ensure_ascii=False, separators=(",", ":"))
-                    await redis.hset(HASH_KEY, tick["symbol"], body)
-                    await redis.publish(CHANNEL, body)
+                    await _publish_or_hide(redis, tick)
                 await asyncio.sleep(interval)
         finally:
             await redis.aclose()

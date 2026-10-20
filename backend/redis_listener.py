@@ -10,6 +10,8 @@ from typing import TYPE_CHECKING
 
 import redis.asyncio as aioredis
 
+from backend.volume_filter import load_min_volume, passes_volume_filter
+
 if TYPE_CHECKING:
     from backend.websocket_manager import ConnectionManager
 
@@ -18,6 +20,7 @@ logger = logging.getLogger("atz.priceboard.redis_listener")
 REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
 CHANNEL = os.getenv("PRICEBOARD_CHANNEL", "priceboard_ticks")
 HASH_KEY = os.getenv("PRICEBOARD_HASH", "priceboard:quotes")
+MIN_VOLUME = load_min_volume()
 
 
 async def load_snapshot(redis: aioredis.Redis) -> list[dict]:
@@ -26,9 +29,11 @@ async def load_snapshot(redis: aioredis.Redis) -> list[dict]:
     rows: list[dict] = []
     for _symbol, payload in raw.items():
         try:
-            rows.append(json.loads(payload))
+            row = json.loads(payload)
         except (TypeError, json.JSONDecodeError):
             continue
+        if passes_volume_filter(row, MIN_VOLUME):
+            rows.append(row)
     rows.sort(key=lambda r: r.get("symbol", ""))
     return rows
 
