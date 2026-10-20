@@ -3,21 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>atz · iBoard Realtime</title>
+  <title>atz · Realtime</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
       theme: {
         extend: {
           fontFamily: {
-            sans: [
-              "Inter",
-              "IBM Plex Sans",
-              "system-ui",
-              "-apple-system",
-              "Segoe UI",
-              "sans-serif",
-            ],
+            sans: ["Inter", "IBM Plex Sans", "system-ui", "-apple-system", "Segoe UI", "sans-serif"],
           },
           colors: {
             ssi: {
@@ -57,15 +50,25 @@
       100% { background-color: transparent; }
     }
 
-    .link-quiet {
+    .app-tab {
+      display: inline-flex;
+      align-items: center;
+      height: 28px;
+      padding: 0 12px;
+      border: 0;
+      border-bottom: 2px solid transparent;
+      background: transparent;
       color: #a3a3a3;
-      text-decoration: none;
       font-size: 12px;
-      font-weight: 500;
-      padding: 4px 8px;
-      border-radius: 2px;
+      font-weight: 600;
+      cursor: pointer;
+      border-radius: 0;
     }
-    .link-quiet:hover { color: #fff; background: rgba(255,255,255,0.04); }
+    .app-tab:hover { color: #fff; }
+    .app-tab.is-active {
+      color: #ffd900;
+      border-bottom-color: #ffd900;
+    }
 
     .search-wrap {
       position: relative;
@@ -220,20 +223,24 @@
       border-color: #ffd900;
     }
 
-    #board-wrap {
+    /* ===== Shared table component (.atz-table) ===== */
+    .atz-table-wrap {
       overflow: auto;
       max-height: calc(100vh - 210px);
       border: 1px solid #2a2a2a;
       border-top: 0;
+      background: #0a0a0a;
     }
-    #board-table {
+    .atz-table-wrap.panel-tall { max-height: calc(100vh - 140px); border-top: 1px solid #2a2a2a; }
+    .atz-table {
       border-collapse: separate;
       border-spacing: 0;
-      min-width: 1480px;
       width: 100%;
+      min-width: 720px;
     }
-    #board-table th,
-    #board-table td {
+    .atz-table.iboard { min-width: 1480px; }
+    .atz-table th,
+    .atz-table td {
       border-bottom: 1px solid #2a2a2a;
       border-right: 1px solid #2a2a2a;
       padding: 0.125rem 0.375rem;
@@ -241,24 +248,32 @@
       line-height: 1.25;
       font-size: 13px;
     }
-    #board-table thead th {
+    .atz-table thead th {
       background: #111111;
       color: #a3a3a3;
       font-weight: 500;
       text-align: right;
       position: sticky;
       z-index: 30;
+      top: 0;
     }
-    #board-table thead tr:nth-child(1) th { top: 0; }
-    #board-table thead tr:nth-child(2) th { top: 24px; }
-    #board-table tbody tr:hover { background-color: rgba(42, 42, 42, 0.55); }
-    #board-table td.num {
+    .atz-table.iboard thead tr:nth-child(1) th { top: 0; }
+    .atz-table.iboard thead tr:nth-child(2) th { top: 24px; }
+    .atz-table tbody tr:hover { background-color: rgba(42, 42, 42, 0.55); }
+    .atz-table td.num,
+    .atz-table th.num {
       text-align: right;
       font-variant-numeric: tabular-nums;
     }
+    .atz-table td.sym,
+    .atz-table th.th-sym {
+      text-align: left;
+      font-weight: 700;
+      color: #fff;
+    }
 
-    #board-table th.th-pin,
-    #board-table td.pin-cell {
+    .atz-table.iboard th.th-pin,
+    .atz-table.iboard td.pin-cell {
       position: sticky;
       left: 0;
       width: 28px;
@@ -270,50 +285,32 @@
       background: #0a0a0a;
       z-index: 12;
     }
-    #board-table thead th.th-pin {
-      background: #111111;
-      z-index: 40;
-    }
-    #board-table th.th-sym,
-    #board-table td.sym {
+    .atz-table.iboard thead th.th-pin { background: #111111; z-index: 40; }
+    .atz-table.iboard th.th-sym,
+    .atz-table.iboard td.sym {
       position: sticky;
       left: 28px;
       z-index: 11;
-      text-align: left;
       background: #0a0a0a;
     }
-    #board-table thead th.th-sym {
-      background: #111111;
-      z-index: 40;
-    }
-    #board-table td.sym {
-      font-weight: 700;
-      color: #ffffff;
-    }
-    #board-table tbody tr:hover td.pin-cell,
-    #board-table tbody tr:hover td.sym {
-      background-color: #1a1a1a;
-    }
-
-    #board-table tbody tr.is-pinned td {
+    .atz-table.iboard thead th.th-sym { background: #111111; z-index: 40; }
+    .atz-table.iboard tbody tr:hover td.pin-cell,
+    .atz-table.iboard tbody tr:hover td.sym { background-color: #1a1a1a; }
+    .atz-table.iboard tbody tr.is-pinned td {
       position: sticky;
       z-index: 25;
       background-color: #12100a;
       border-bottom-color: #ffd900;
       box-shadow: inset 0 -1px 0 rgba(255, 217, 0, 0.55);
     }
-    #board-table tbody tr.is-pinned td.pin-cell,
-    #board-table tbody tr.is-pinned td.sym {
+    .atz-table.iboard tbody tr.is-pinned td.pin-cell,
+    .atz-table.iboard tbody tr.is-pinned td.sym {
       z-index: 26;
       background-color: #12100a;
     }
-    #board-table tbody tr.is-pinned:hover td {
-      background-color: #1c180c;
-    }
-    #board-table tbody tr.is-pinned:hover td.pin-cell,
-    #board-table tbody tr.is-pinned:hover td.sym {
-      background-color: #1c180c;
-    }
+    .atz-table.iboard tbody tr.is-pinned:hover td { background-color: #1c180c; }
+    .atz-table.iboard tbody tr.is-pinned:hover td.pin-cell,
+    .atz-table.iboard tbody tr.is-pinned:hover td.sym { background-color: #1c180c; }
 
     .pin-btn {
       display: inline-flex;
@@ -337,18 +334,110 @@
     .grp-buy { background: rgba(0, 255, 0, 0.03); }
     .grp-match { background: rgba(255, 217, 0, 0.04); }
     .grp-sell { background: rgba(255, 0, 0, 0.03); }
+
+    .panel { display: none; }
+    .panel.is-active { display: block; }
+
+    .panel-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      border-bottom: 1px solid #2a2a2a;
+      background: #0c0c0c;
+    }
+    .panel-toolbar label {
+      font-size: 11px;
+      color: #737373;
+    }
+    .panel-toolbar select,
+    .panel-toolbar input[type="text"],
+    .panel-toolbar input[type="number"] {
+      height: 28px;
+      border: 1px solid #2a2a2a;
+      border-radius: 3px;
+      background: #111;
+      color: #e5e5e5;
+      font-size: 12px;
+      padding: 0 8px;
+      outline: none;
+    }
+    .panel-toolbar select:focus,
+    .panel-toolbar input:focus { border-color: #525252; }
+    .btn-quiet {
+      height: 28px;
+      padding: 0 10px;
+      border: 1px solid #2a2a2a;
+      border-radius: 3px;
+      background: #111;
+      color: #d4d4d4;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .btn-quiet:hover { color: #fff; border-color: #3a3a3a; }
+    .btn-quiet.primary {
+      background: #ffd900;
+      color: #0a0a0a;
+      border-color: #ffd900;
+      font-weight: 600;
+    }
+
+    .news-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 10px;
+      padding: 12px 10px;
+    }
+    .news-card {
+      border: 1px solid #2a2a2a;
+      background: linear-gradient(180deg, #121212 0%, #0d0d0d 100%);
+      border-radius: 2px;
+      padding: 12px;
+      min-height: 120px;
+    }
+    .news-card h3 {
+      margin: 0 0 6px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #fff;
+    }
+    .news-card p {
+      margin: 0;
+      font-size: 12px;
+      color: #a3a3a3;
+      line-height: 1.45;
+    }
+    .news-card .tag {
+      display: inline-block;
+      margin-top: 10px;
+      font-size: 10px;
+      color: #737373;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .empty-hint {
+      padding: 24px 12px;
+      text-align: center;
+      color: #737373;
+      font-size: 12px;
+    }
   </style>
 </head>
 <body class="bg-[#0a0a0a] font-sans text-[13px] antialiased tracking-tight leading-tight">
   <header class="border-b border-[#2a2a2a] bg-[#0a0a0a]">
     <div class="flex items-center justify-between gap-3 px-3 py-2">
       <div class="flex items-center gap-1 min-w-0 flex-wrap">
-        <span class="text-[13px] font-semibold tracking-tight text-white shrink-0 pr-2">atz · iBoard Realtime</span>
-        <a class="link-quiet" href="https://atz.vn" target="_blank" rel="noopener noreferrer">Stock Rating</a>
-        <a class="link-quiet" href="https://atz.vn" target="_blank" rel="noopener noreferrer">Tín hiệu giao dịch</a>
+        <span class="text-[13px] font-semibold tracking-tight text-white shrink-0 pr-3">atz · Realtime</span>
+        <nav class="flex items-center gap-0" role="tablist" aria-label="Chức năng">
+          <button type="button" class="app-tab is-active" data-app="iboard" role="tab" aria-selected="true">Giao dịch iBoard</button>
+          <button type="button" class="app-tab" data-app="signals" role="tab" aria-selected="false">Bộ lọc tín hiệu</button>
+          <button type="button" class="app-tab" data-app="portfolio" role="tab" aria-selected="false">Danh mục</button>
+          <button type="button" class="app-tab" data-app="news" role="tab" aria-selected="false">Tin tức / Nghiên cứu</button>
+        </nav>
       </div>
       <div class="flex items-center gap-2 shrink-0">
-        <label class="search-wrap" title="Tìm mã / ngành">
+        <label class="search-wrap" title="Tìm mã / ngành" id="global-search-wrap">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <circle cx="11" cy="11" r="7"></circle>
             <path d="M20 20l-3.5-3.5" stroke-linecap="round"></path>
@@ -374,56 +463,153 @@
     </div>
   </header>
 
-  <section id="index-bar" aria-label="Chỉ số thị trường"></section>
+  <!-- ===== Panel: iBoard ===== -->
+  <section id="panel-iboard" class="panel is-active" data-panel="iboard" role="tabpanel">
+    <section id="index-bar" aria-label="Chỉ số thị trường"></section>
+    <div class="market-bar" role="tablist" aria-label="Rổ thị trường">
+      <button type="button" class="mkt-tab is-active" data-market="HOSE" role="tab" aria-selected="true">HOSE</button>
+      <button type="button" class="mkt-tab" data-market="VN30" role="tab" aria-selected="false">VN30</button>
+      <button type="button" class="mkt-tab" data-market="HNX" role="tab" aria-selected="false">HNX</button>
+      <button type="button" class="mkt-tab" data-market="UPCOM" role="tab" aria-selected="false">UPCOM</button>
+    </div>
+    <div id="board-wrap" class="atz-table-wrap">
+      <table id="board-table" class="atz-table iboard">
+        <thead>
+          <tr>
+            <th rowspan="2" class="th-pin" title="Ghim">★</th>
+            <th rowspan="2" class="th-sym">Mã CK</th>
+            <th rowspan="2" class="num">Trần</th>
+            <th rowspan="2" class="num">Sàn</th>
+            <th rowspan="2" class="num">TC</th>
+            <th colspan="6" class="grp-buy text-[#00ff00]">Bên Mua</th>
+            <th colspan="3" class="grp-match text-[#ffd900]">Khớp lệnh</th>
+            <th colspan="6" class="grp-sell text-[#ff0000]">Bên Bán</th>
+            <th rowspan="2" class="num">Tổng KL</th>
+            <th colspan="2">Nước ngoài</th>
+          </tr>
+          <tr>
+            <th class="grp-buy num">G3</th>
+            <th class="grp-buy num">KL3</th>
+            <th class="grp-buy num">G2</th>
+            <th class="grp-buy num">KL2</th>
+            <th class="grp-buy num">G1</th>
+            <th class="grp-buy num">KL1</th>
+            <th class="grp-match num">Giá</th>
+            <th class="grp-match num">KL</th>
+            <th class="grp-match num">+/-</th>
+            <th class="grp-sell num">G1</th>
+            <th class="grp-sell num">KL1</th>
+            <th class="grp-sell num">G2</th>
+            <th class="grp-sell num">KL2</th>
+            <th class="grp-sell num">G3</th>
+            <th class="grp-sell num">KL3</th>
+            <th class="num">Mua</th>
+            <th class="num">Bán</th>
+          </tr>
+        </thead>
+        <tbody id="board-body"></tbody>
+      </table>
+    </div>
+  </section>
 
-  <div class="market-bar" role="tablist" aria-label="Rổ thị trường">
-    <button type="button" class="mkt-tab is-active" data-market="HOSE" role="tab" aria-selected="true">HOSE</button>
-    <button type="button" class="mkt-tab" data-market="VN30" role="tab" aria-selected="false">VN30</button>
-    <button type="button" class="mkt-tab" data-market="HNX" role="tab" aria-selected="false">HNX</button>
-    <button type="button" class="mkt-tab" data-market="UPCOM" role="tab" aria-selected="false">UPCOM</button>
-  </div>
+  <!-- ===== Panel: Signals ===== -->
+  <section id="panel-signals" class="panel" data-panel="signals" role="tabpanel" hidden>
+    <div class="panel-toolbar">
+      <label for="signal-preset">Bộ lọc</label>
+      <select id="signal-preset">
+        <option value="up2">Tăng ≥ 2%</option>
+        <option value="down2">Giảm ≤ -2%</option>
+        <option value="volhi">KL ≥ 1M</option>
+        <option value="ceil">Gần trần</option>
+        <option value="floor">Gần sàn</option>
+        <option value="all">Tất cả equity (WS)</option>
+      </select>
+      <span class="text-[11px] text-gray-500">Realtime từ cùng WS · cập nhật khi tick</span>
+    </div>
+    <div class="atz-table-wrap panel-tall">
+      <table class="atz-table" id="signals-table">
+        <thead>
+          <tr>
+            <th class="th-sym">Mã</th>
+            <th class="num">Giá</th>
+            <th class="num">+/-</th>
+            <th class="num">%</th>
+            <th class="num">KL</th>
+            <th class="num">TC</th>
+            <th>Tín hiệu</th>
+            <th class="num">Sàn</th>
+          </tr>
+        </thead>
+        <tbody id="signals-body"></tbody>
+      </table>
+      <div id="signals-empty" class="empty-hint" hidden>Chưa có mã khớp bộ lọc — chờ tick WS hoặc đổi preset.</div>
+    </div>
+  </section>
 
-  <div id="board-wrap" class="bg-[#0a0a0a]">
-    <table id="board-table" class="border-separate" style="border-spacing: 0;">
-      <thead>
-        <tr>
-          <th rowspan="2" class="th-pin" title="Ghim">★</th>
-          <th rowspan="2" class="th-sym">Mã CK</th>
-          <th rowspan="2">Trần</th>
-          <th rowspan="2">Sàn</th>
-          <th rowspan="2">TC</th>
-          <th colspan="6" class="grp-buy text-[#00ff00]">Bên Mua</th>
-          <th colspan="3" class="grp-match text-[#ffd900]">Khớp lệnh</th>
-          <th colspan="6" class="grp-sell text-[#ff0000]">Bên Bán</th>
-          <th rowspan="2">Tổng KL</th>
-          <th colspan="2">Nước ngoài</th>
-        </tr>
-        <tr>
-          <th class="grp-buy">G3</th>
-          <th class="grp-buy">KL3</th>
-          <th class="grp-buy">G2</th>
-          <th class="grp-buy">KL2</th>
-          <th class="grp-buy">G1</th>
-          <th class="grp-buy">KL1</th>
-          <th class="grp-match">Giá</th>
-          <th class="grp-match">KL</th>
-          <th class="grp-match">+/-</th>
-          <th class="grp-sell">G1</th>
-          <th class="grp-sell">KL1</th>
-          <th class="grp-sell">G2</th>
-          <th class="grp-sell">KL2</th>
-          <th class="grp-sell">G3</th>
-          <th class="grp-sell">KL3</th>
-          <th>Mua</th>
-          <th>Bán</th>
-        </tr>
-      </thead>
-      <tbody id="board-body"></tbody>
-    </table>
-  </div>
+  <!-- ===== Panel: Portfolio ===== -->
+  <section id="panel-portfolio" class="panel" data-panel="portfolio" role="tabpanel" hidden>
+    <div class="panel-toolbar">
+      <label for="pf-symbol">Thêm mã</label>
+      <input id="pf-symbol" type="text" placeholder="VD: FPT" maxlength="12" style="width:88px;text-transform:uppercase" />
+      <label for="pf-qty">SL</label>
+      <input id="pf-qty" type="number" min="0" step="100" value="100" style="width:96px" />
+      <label for="pf-avg">Giá TB</label>
+      <input id="pf-avg" type="number" min="0" step="100" value="0" style="width:112px" />
+      <button type="button" class="btn-quiet primary" id="pf-add">Thêm</button>
+      <span class="text-[11px] text-gray-500 ml-auto" id="pf-summary">NAV —</span>
+    </div>
+    <div class="atz-table-wrap panel-tall">
+      <table class="atz-table" id="portfolio-table">
+        <thead>
+          <tr>
+            <th class="th-sym">Mã</th>
+            <th class="num">SL</th>
+            <th class="num">Giá TB</th>
+            <th class="num">Giá TT</th>
+            <th class="num">+/-</th>
+            <th class="num">%</th>
+            <th class="num">P/L</th>
+            <th class="num">KL ngày</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="portfolio-body"></tbody>
+      </table>
+      <div id="portfolio-empty" class="empty-hint">Chưa có mã trong danh mục — thêm mã để theo dõi realtime.</div>
+    </div>
+  </section>
+
+  <!-- ===== Panel: News ===== -->
+  <section id="panel-news" class="panel" data-panel="news" role="tabpanel" hidden>
+    <div class="panel-toolbar">
+      <span class="text-[12px] text-gray-400">Tin tức / Nghiên cứu — nội dung trong app (không điều hướng site cũ)</span>
+    </div>
+    <div class="news-grid" id="news-grid">
+      <article class="news-card">
+        <h3>Realtime priceboard</h3>
+        <p>Bảng iBoard kết nối WebSocket <code class="text-gray-300">/ws/priceboard</code>. Snapshot + tick cập nhật mọi tab đang mở.</p>
+        <span class="tag">Hạ tầng</span>
+      </article>
+      <article class="news-card">
+        <h3>Bộ lọc tín hiệu (client)</h3>
+        <p>Lọc theo % / KL / trần–sàn trên dữ liệu đang live trong bộ nhớ. Sẵn sàng gắn API tín hiệu khi backend sẵn sàng.</p>
+        <span class="tag">Tín hiệu</span>
+      </article>
+      <article class="news-card">
+        <h3>Danh mục cá nhân</h3>
+        <p>Lưu localStorage trên trình duyệt; giá / P/L cập nhật theo tick SSI (hoặc mock) cùng kênh WS.</p>
+        <span class="tag">Danh mục</span>
+      </article>
+      <article class="news-card">
+        <h3>Giờ mở cửa — P1 depth</h3>
+        <p>Map X-Quote / X-Trade / MI → bid/ask/NN theo plan <span class="text-gray-300">PRICEBOARD_P1_DEPTH_NN</span>.</p>
+        <span class="tag">Roadmap</span>
+      </article>
+    </div>
+  </section>
 
   <script>
-    /* ===== State & WS (giữ reconnect / ping / pin / volume remove) ===== */
+    /* ===== Constants ===== */
     const INDEX_SYMBOLS = new Set(["VNINDEX", "VN30", "HNXINDEX", "UPCOMINDEX"]);
     const INDEX_LABEL = {
       VNINDEX: "VN-INDEX",
@@ -439,7 +625,10 @@
     ]);
     const PIN_KEY = "atz.iboard.pinned";
     const MARKET_KEY = "atz.iboard.market";
+    const APP_TAB_KEY = "atz.app.tab";
+    const PORTFOLIO_KEY = "atz.app.portfolio";
     const VALID_MARKETS = new Set(["HOSE", "VN30", "HNX", "UPCOM"]);
+    const VALID_APP_TABS = new Set(["iboard", "signals", "portfolio", "news"]);
 
     const state = new Map();
     const sparkHist = new Map();
@@ -450,7 +639,12 @@
     let marketTab = VALID_MARKETS.has(localStorage.getItem(MARKET_KEY))
       ? localStorage.getItem(MARKET_KEY)
       : "HOSE";
+    let appTab = VALID_APP_TABS.has(localStorage.getItem(APP_TAB_KEY))
+      ? localStorage.getItem(APP_TAB_KEY)
+      : "iboard";
     let indexStatsTimer = null;
+    let signalPreset = "up2";
+    let portfolio = loadPortfolio();
 
     const elConnDot = document.getElementById("conn-dot");
     const elConnLabel = document.getElementById("conn-label");
@@ -460,7 +654,39 @@
     const elSearch = document.getElementById("search-input");
     const elSettingsBtn = document.getElementById("btn-settings");
     const elSettingsMenu = document.getElementById("settings-menu");
+    const elSignalsBody = document.getElementById("signals-body");
+    const elSignalsEmpty = document.getElementById("signals-empty");
+    const elPortfolioBody = document.getElementById("portfolio-body");
+    const elPortfolioEmpty = document.getElementById("portfolio-empty");
+    const elPfSummary = document.getElementById("pf-summary");
 
+    /* ===== App tabs (SPA) ===== */
+    function setAppTab(tab) {
+      if (!VALID_APP_TABS.has(tab)) tab = "iboard";
+      appTab = tab;
+      localStorage.setItem(APP_TAB_KEY, tab);
+      document.querySelectorAll(".app-tab").forEach((btn) => {
+        const on = btn.dataset.app === tab;
+        btn.classList.toggle("is-active", on);
+        btn.setAttribute("aria-selected", on ? "true" : "false");
+      });
+      document.querySelectorAll(".panel").forEach((panel) => {
+        const on = panel.dataset.panel === tab;
+        panel.classList.toggle("is-active", on);
+        if (on) panel.removeAttribute("hidden");
+        else panel.setAttribute("hidden", "");
+      });
+      const showSearch = tab === "iboard" || tab === "signals";
+      document.getElementById("global-search-wrap").style.display = showSearch ? "" : "none";
+      if (tab === "signals") renderSignalsTable();
+      if (tab === "portfolio") renderPortfolioTable();
+    }
+
+    document.querySelectorAll(".app-tab").forEach((btn) => {
+      btn.addEventListener("click", () => setAppTab(btn.dataset.app));
+    });
+
+    /* ===== Connection ===== */
     function setConn(status) {
       const map = {
         open: ["bg-[#00ff00]", "connected"],
@@ -482,85 +708,61 @@
     }
 
     function inIndexBasket(indexSym, row) {
-      const sym = row.symbol;
-      if (INDEX_SYMBOLS.has(sym)) return false;
-      if (indexSym === "VN30") return VN30_SET.has(sym);
+      if (!row || INDEX_SYMBOLS.has(row.symbol)) return false;
       const ex = resolveExchange(row);
       if (indexSym === "VNINDEX") return ex === "HOSE";
+      if (indexSym === "VN30") return VN30_SET.has(row.symbol);
       if (indexSym === "HNXINDEX") return ex === "HNX";
       if (indexSym === "UPCOMINDEX") return ex === "UPCOM";
       return false;
     }
 
     function computeBasketStats(indexSym) {
-      let up = 0, down = 0, ref = 0, ceil = 0, floor = 0;
-      let volSum = 0;
-      let valueSum = 0;
+      let volume = 0, valueTy = 0, up = 0, down = 0, ref = 0, ceil = 0, floor = 0;
       for (const row of state.values()) {
         if (!inIndexBasket(indexSym, row)) continue;
-        const last = Number(row.last);
-        const r = Number(row.ref);
-        const c = Number(row.ceil);
-        const f = Number(row.floor);
+        const last = Number(row.last) || 0;
         const vol = Number(row.volume) || 0;
-        volSum += vol;
-        if (Number.isFinite(last) && vol > 0) valueSum += last * vol;
-        if (Number.isFinite(c) && Number.isFinite(last) && last >= c && c > 0) ceil += 1;
-        else if (Number.isFinite(f) && Number.isFinite(last) && last <= f && f > 0) floor += 1;
-        else if (Number.isFinite(last) && Number.isFinite(r)) {
-          if (last > r) up += 1;
-          else if (last < r) down += 1;
-          else ref += 1;
-        } else ref += 1;
+        volume += vol;
+        valueTy += (last * vol) / 1e9;
+        const ch = Number(row.change);
+        if (row.ceil != null && last === Number(row.ceil)) ceil += 1;
+        else if (row.floor != null && last === Number(row.floor)) floor += 1;
+        else if (ch > 0) up += 1;
+        else if (ch < 0) down += 1;
+        else ref += 1;
       }
-      const idx = state.get(indexSym);
-      const idxVol = Number(idx && idx.volume) || 0;
-      const idxValue = Number(
-        (idx && (idx.tradeValue || idx.value || idx.totalValue)) || 0
-      );
-      return {
-        up, down, ref, ceil, floor,
-        volume: idxVol > 0 ? idxVol : volSum,
-        valueTy: idxValue > 0
-          ? (idxValue > 1e6 ? idxValue / 1e9 : idxValue)
-          : valueSum / 1e9,
-      };
+      return { volume, valueTy, up, down, ref, ceil, floor };
     }
 
     function fmtVolShort(v) {
-      const n = Number(v);
-      if (!Number.isFinite(n) || n <= 0) return "—";
+      const n = Number(v) || 0;
       if (n >= 1e6) return (n / 1e6).toFixed(2) + "M";
       if (n >= 1e3) return (n / 1e3).toFixed(1) + "K";
-      return Math.round(n).toLocaleString("en-US");
+      return String(Math.round(n));
     }
-
     function fmtValueTy(v) {
-      const n = Number(v);
-      if (!Number.isFinite(n) || n <= 0) return "—";
+      const n = Number(v) || 0;
       return n.toFixed(2);
     }
 
-    /* ===== Filters: market tab + search ===== */
+    /* ===== Market filter (iBoard) ===== */
     function rowVisible(symbol) {
       const row = state.get(symbol);
       if (!row || INDEX_SYMBOLS.has(symbol)) return false;
-      if (marketTab === "VN30") {
-        if (!VN30_SET.has(symbol)) return false;
-      } else {
-        if (resolveExchange(row) !== marketTab) return false;
-      }
-      if (searchQuery) {
-        const q = searchQuery.toUpperCase();
-        if (!String(symbol).toUpperCase().includes(q)) return false;
-      }
+      const q = searchQuery.trim().toUpperCase();
+      if (q && !symbol.includes(q)) return false;
+      const ex = resolveExchange(row);
+      if (marketTab === "VN30") return VN30_SET.has(symbol);
+      if (marketTab === "HOSE") return ex === "HOSE";
+      if (marketTab === "HNX") return ex === "HNX";
+      if (marketTab === "UPCOM") return ex === "UPCOM";
       return true;
     }
 
     function applyBoardFilter() {
-      elBody.querySelectorAll("tr[id^='row-']").forEach((tr) => {
-        const sym = tr.id.slice(4);
-        tr.style.display = rowVisible(sym) ? "" : "none";
+      elBody.querySelectorAll("tr[data-symbol]").forEach((tr) => {
+        tr.style.display = rowVisible(tr.dataset.symbol) ? "" : "none";
       });
       updatePinnedPositions();
     }
@@ -568,9 +770,9 @@
     function setMarketTab(tab) {
       if (!VALID_MARKETS.has(tab)) tab = "HOSE";
       marketTab = tab;
-      localStorage.setItem(MARKET_KEY, marketTab);
+      localStorage.setItem(MARKET_KEY, tab);
       document.querySelectorAll(".mkt-tab").forEach((btn) => {
-        const on = btn.getAttribute("data-market") === marketTab;
+        const on = btn.dataset.market === tab;
         btn.classList.toggle("is-active", on);
         btn.setAttribute("aria-selected", on ? "true" : "false");
       });
@@ -578,13 +780,13 @@
     }
 
     document.querySelectorAll(".mkt-tab").forEach((btn) => {
-      btn.addEventListener("click", () => setMarketTab(btn.getAttribute("data-market")));
+      btn.addEventListener("click", () => setMarketTab(btn.dataset.market));
     });
-    setMarketTab(marketTab);
 
     elSearch.addEventListener("input", () => {
-      searchQuery = String(elSearch.value || "").trim();
+      searchQuery = elSearch.value || "";
       applyBoardFilter();
+      if (appTab === "signals") renderSignalsTable();
     });
 
     elSettingsBtn.addEventListener("click", (ev) => {
@@ -601,161 +803,136 @@
       savePins([]);
       elBody.querySelectorAll("tr.is-pinned").forEach((tr) => applyPinVisual(tr, false));
       updatePinnedPositions();
-      elSettingsMenu.classList.remove("open");
     });
     document.getElementById("btn-focus-search").addEventListener("click", () => {
       elSearch.focus();
       elSearch.select();
-      elSettingsMenu.classList.remove("open");
     });
 
     function removeEquityRow(symbol) {
       state.delete(symbol);
       const tr = document.getElementById("row-" + symbol);
       if (tr) tr.remove();
-      const pins = loadPins().filter((s) => s !== symbol);
-      savePins(pins);
+      const sig = document.getElementById("sig-" + symbol);
+      if (sig) sig.remove();
+      if (appTab === "signals") renderSignalsTable();
+      if (appTab === "portfolio") renderPortfolioTable();
       scheduleIndexStatsRefresh();
       updatePinnedPositions();
     }
 
-    /* ===== Pin (DOM move only) ===== */
+    /* ===== Pins ===== */
     function loadPins() {
       try {
         const raw = JSON.parse(localStorage.getItem(PIN_KEY) || "[]");
         return Array.isArray(raw) ? raw.map(String) : [];
-      } catch (_) {
+      } catch {
         return [];
       }
     }
-
     function savePins(arr) {
-      localStorage.setItem(PIN_KEY, JSON.stringify(arr));
+      localStorage.setItem(PIN_KEY, JSON.stringify([...new Set(arr)]));
     }
-
     function applyPinVisual(tr, pinned) {
-      const btn = tr.querySelector("[data-pin]");
-      if (pinned) {
-        tr.classList.add("is-pinned");
-        if (btn) {
-          btn.classList.add("pinned");
-          btn.setAttribute("aria-pressed", "true");
-          btn.title = "Bỏ ghim";
-        }
-      } else {
-        tr.classList.remove("is-pinned");
-        tr.querySelectorAll("td").forEach((td) => { td.style.top = ""; });
-        if (btn) {
-          btn.classList.remove("pinned");
-          btn.setAttribute("aria-pressed", "false");
-          btn.title = "Ghim mã";
-        }
+      tr.classList.toggle("is-pinned", pinned);
+      const btn = tr.querySelector(".pin-btn");
+      if (btn) {
+        btn.classList.toggle("pinned", pinned);
+        btn.setAttribute("aria-pressed", pinned ? "true" : "false");
       }
     }
-
     function lastPinnedRow() {
-      let last = null;
-      elBody.querySelectorAll("tr.is-pinned").forEach((r) => { last = r; });
-      return last;
+      const pinned = elBody.querySelectorAll("tr.is-pinned");
+      return pinned.length ? pinned[pinned.length - 1] : null;
     }
-
     function updatePinnedPositions() {
       const thead = document.querySelector("#board-table thead");
-      if (!thead || !elBody) return;
-      const baseTop = thead.offsetHeight;
-      const rows = elBody.querySelectorAll("tr.is-pinned");
-      let offset = 0;
-      rows.forEach((row) => {
-        if (row.style.display === "none") return;
-        const top = baseTop + offset;
-        row.querySelectorAll("td").forEach((td) => {
+      const headH = thead ? thead.getBoundingClientRect().height : 48;
+      let top = headH;
+      elBody.querySelectorAll("tr.is-pinned").forEach((tr) => {
+        tr.querySelectorAll("td").forEach((td) => {
           td.style.top = top + "px";
         });
-        offset += row.offsetHeight || 22;
+        top += tr.getBoundingClientRect().height || 22;
       });
     }
-
     function moveRowToPinnedTop(tr) {
-      elBody.insertBefore(tr, elBody.firstChild);
+      const last = lastPinnedRow();
+      if (last && last !== tr) last.after(tr);
+      else elBody.prepend(tr);
     }
-
     function moveRowAfterPins(tr) {
       const last = lastPinnedRow();
-      if (last) elBody.insertBefore(tr, last.nextSibling);
+      if (last) last.after(tr);
     }
-
     function togglePin(symbol) {
+      const pins = loadPins();
+      const i = pins.indexOf(symbol);
       const tr = document.getElementById("row-" + symbol);
       if (!tr) return;
-      let pins = loadPins().filter((s) => s !== symbol);
-      const wasPinned = tr.classList.contains("is-pinned");
-      if (wasPinned) {
-        savePins(pins);
+      if (i >= 0) {
+        pins.splice(i, 1);
         applyPinVisual(tr, false);
         moveRowAfterPins(tr);
-        updatePinnedPositions();
-        return;
+      } else {
+        pins.push(symbol);
+        applyPinVisual(tr, true);
+        moveRowToPinnedTop(tr);
       }
-      pins.unshift(symbol);
       savePins(pins);
-      applyPinVisual(tr, true);
-      moveRowToPinnedTop(tr);
       updatePinnedPositions();
     }
-
     function restorePinnedRows() {
       const pins = loadPins();
-      for (let i = pins.length - 1; i >= 0; i--) {
-        const tr = document.getElementById("row-" + pins[i]);
-        if (!tr) continue;
+      pins.forEach((sym) => {
+        const tr = document.getElementById("row-" + sym);
+        if (!tr) return;
         applyPinVisual(tr, true);
-        elBody.insertBefore(tr, elBody.firstChild);
-      }
+        moveRowToPinnedTop(tr);
+      });
       updatePinnedPositions();
     }
 
-    window.addEventListener("resize", updatePinnedPositions);
-
-    /* ===== SSI color helpers ===== */
+    /* ===== Format / tone / flash ===== */
     function priceTone(price, ref, ceil, floor) {
-      const p = Number(price);
-      const r = Number(ref);
-      const c = Number(ceil);
-      const f = Number(floor);
-      if (!Number.isFinite(p) || !Number.isFinite(r)) return "text-[#ffd900]";
-      if (Number.isFinite(c) && p >= c) return "text-[#ff00ff]";
-      if (Number.isFinite(f) && p <= f) return "text-[#00ffff]";
-      if (p > r) return "text-[#00ff00]";
-      if (p < r) return "text-[#ff0000]";
-      return "text-[#ffd900]";
+      const p = Number(price), r = Number(ref), c = Number(ceil), f = Number(floor);
+      if (!Number.isFinite(p)) return "text-gray-400";
+      if (Number.isFinite(c) && p === c) return "text-[#ff00ff]";
+      if (Number.isFinite(f) && p === f) return "text-[#00ffff]";
+      if (Number.isFinite(r)) {
+        if (p > r) return "text-[#00ff00]";
+        if (p < r) return "text-[#ff0000]";
+        return "text-[#ffd900]";
+      }
+      return "text-gray-200";
     }
-
     function changeTone(change) {
-      if (change > 0) return "text-[#00ff00]";
-      if (change < 0) return "text-[#ff0000]";
+      const c = Number(change);
+      if (c > 0) return "text-[#00ff00]";
+      if (c < 0) return "text-[#ff0000]";
       return "text-[#ffd900]";
     }
-
     function fmtPrice(v, kind) {
-      if (v == null || v === "" || Number.isNaN(Number(v))) return "";
-      if (kind === "index") return Number(v).toFixed(2);
-      return Number(v).toLocaleString("en-US");
-    }
-
-    function fmtVol(v) {
+      if (v == null || v === "" || Number.isNaN(Number(v))) return "—";
       const n = Number(v);
-      if (!Number.isFinite(n) || n === 0) return "";
+      if (kind === "index") return n.toFixed(2);
       return Math.round(n).toLocaleString("en-US");
     }
-
-    function fmtChange(v) {
-      if (v == null || Number.isNaN(Number(v))) return "";
-      const n = Number(v);
-      return (n > 0 ? "+" : "") + Number(n).toLocaleString("en-US");
+    function fmtVol(v) {
+      if (v == null || v === "") return "—";
+      return Math.round(Number(v) || 0).toLocaleString("en-US");
     }
-
+    function fmtChange(v) {
+      if (v == null || v === "") return "0";
+      const n = Number(v);
+      return (n > 0 ? "+" : "") + Math.round(n).toLocaleString("en-US");
+    }
+    function fmtPct(v) {
+      const n = Number(v) || 0;
+      return (n > 0 ? "+" : "") + n.toFixed(2) + "%";
+    }
     function flashCell(el, change) {
-      if (!el || !change) return;
+      if (!el) return;
       el.classList.remove("flash-up", "flash-down");
       void el.offsetWidth;
       el.classList.add(change > 0 ? "flash-up" : "flash-down");
@@ -763,22 +940,19 @@
 
     function pushSpark(symbol, value) {
       const arr = sparkHist.get(symbol) || [];
-      arr.push(Number(value));
+      arr.push(Number(value) || 0);
       while (arr.length > 40) arr.shift();
       sparkHist.set(symbol, arr);
-      return arr;
     }
-
     function sparkPath(values) {
       if (!values.length) return "";
-      const w = 88, h = 36, pad = 2;
       const min = Math.min(...values);
       const max = Math.max(...values);
       const span = max - min || 1;
       return values
         .map((v, i) => {
-          const x = pad + (i / Math.max(values.length - 1, 1)) * (w - pad * 2);
-          const y = h - pad - ((v - min) / span) * (h - pad * 2);
+          const x = (i / Math.max(values.length - 1, 1)) * 88;
+          const y = 34 - ((v - min) / span) * 32;
           return (i === 0 ? "M" : "L") + x.toFixed(1) + " " + y.toFixed(1);
         })
         .join(" ");
@@ -794,7 +968,6 @@
       const seed = (row.symbol || "").split("").reduce((a, c) => a + c.charCodeAt(0), 0);
       const rnd = (n) => ((seed * 17 + n * 31) % 97) + 3;
       const clamp = (p) => Math.max(floor || p, Math.min(ceil || p, p));
-
       row.bid1 = row.bid1 ?? clamp(last - step);
       row.bid2 = row.bid2 ?? clamp(last - step * 2);
       row.bid3 = row.bid3 ?? clamp(last - step * 3);
@@ -813,19 +986,19 @@
       return row;
     }
 
+    /* ===== iBoard rows ===== */
     function ensureEquityRow(symbol) {
       let tr = document.getElementById("row-" + symbol);
       if (tr) return tr;
       tr = document.createElement("tr");
       tr.id = "row-" + symbol;
+      tr.dataset.symbol = symbol;
       tr.innerHTML = `
-        <td class="pin-cell">
-          <button type="button" class="pin-btn" data-pin="${symbol}" aria-pressed="false" title="Ghim mã">★</button>
-        </td>
+        <td class="pin-cell"><button type="button" class="pin-btn" aria-label="Ghim ${symbol}" aria-pressed="false">★</button></td>
         <td class="sym" data-f="symbol"></td>
-        <td class="num text-[#ff00ff]" data-f="ceil"></td>
-        <td class="num text-[#00ffff]" data-f="floor"></td>
-        <td class="num text-[#ffd900]" data-f="ref"></td>
+        <td class="num tabular-nums text-[#ff00ff]" data-f="ceil"></td>
+        <td class="num tabular-nums text-[#00ffff]" data-f="floor"></td>
+        <td class="num tabular-nums text-[#ffd900]" data-f="ref"></td>
         <td class="num tabular-nums grp-buy" data-f="bid3"></td>
         <td class="num tabular-nums grp-buy text-gray-300" data-f="bidVol3"></td>
         <td class="num tabular-nums grp-buy" data-f="bid2"></td>
@@ -841,12 +1014,10 @@
         <td class="num tabular-nums grp-sell text-gray-300" data-f="askVol2"></td>
         <td class="num tabular-nums grp-sell" data-f="ask3"></td>
         <td class="num tabular-nums grp-sell text-gray-300" data-f="askVol3"></td>
-        <td class="num tabular-nums text-gray-200" data-f="vol"></td>
-        <td class="num tabular-nums text-[#00ff00]" data-f="fbuy"></td>
-        <td class="num tabular-nums text-[#ff0000]" data-f="fsell"></td>
-      `;
-      const btn = tr.querySelector("[data-pin]");
-      btn.addEventListener("click", (ev) => {
+        <td class="num tabular-nums" data-f="vol"></td>
+        <td class="num tabular-nums" data-f="fbuy"></td>
+        <td class="num tabular-nums" data-f="fsell"></td>`;
+      tr.querySelector(".pin-btn").addEventListener("click", (ev) => {
         ev.preventDefault();
         ev.stopPropagation();
         togglePin(symbol);
@@ -871,7 +1042,7 @@
               </div>
               <div class="flex items-baseline gap-2 mt-1">
                 <span class="tabular-nums text-[12px] font-medium ${tone}" data-f="chg">${fmtChange(row.change)}</span>
-                <span class="tabular-nums text-[12px] font-medium ${tone}" data-f="pct">${row.change_pct > 0 ? "+" : ""}${Number(row.change_pct || 0).toFixed(2)}%</span>
+                <span class="tabular-nums text-[12px] font-medium ${tone}" data-f="pct">${fmtPct(row.change_pct)}</span>
               </div>
             </div>
             <svg class="spark" viewBox="0 0 88 36" aria-hidden="true">
@@ -931,26 +1102,23 @@
       const prev = state.get(row.symbol);
       pushSpark(row.symbol, row.last);
       state.set(row.symbol, row);
-
       let card = elIndexBar.querySelector(`[data-idx="${row.symbol}"]`);
       if (!card) {
         renderIndexBar();
         card = elIndexBar.querySelector(`[data-idx="${row.symbol}"]`);
       }
       if (!card) return;
-
       const tone = changeTone(row.change);
       const stroke = row.change > 0 ? "#00ff00" : row.change < 0 ? "#ff0000" : "#ffd900";
       const lastEl = card.querySelector('[data-f="last"]');
       const chgEl = card.querySelector('[data-f="chg"]');
       const pctEl = card.querySelector('[data-f="pct"]');
       const path = card.querySelector("path");
-
       lastEl.textContent = fmtPrice(row.last, "index");
       lastEl.className = "tabular-nums text-[20px] font-semibold leading-none " + tone;
       chgEl.textContent = fmtChange(row.change);
       chgEl.className = "tabular-nums text-[12px] font-medium " + tone;
-      pctEl.textContent = (row.change_pct > 0 ? "+" : "") + Number(row.change_pct || 0).toFixed(2) + "%";
+      pctEl.textContent = fmtPct(row.change_pct);
       pctEl.className = "tabular-nums text-[12px] font-medium " + tone;
       if (path) {
         path.setAttribute("d", sparkPath(sparkHist.get(row.symbol) || []));
@@ -990,7 +1158,6 @@
 
       const lastEl = tr.querySelector('[data-f="last"]');
       setPriceCell(lastEl, row.last, row, "grp-match font-semibold");
-
       tr.querySelector('[data-f="matchVol"]').textContent = fmtVol(row.matchVol);
       const chgEl = tr.querySelector('[data-f="change"]');
       chgEl.textContent = fmtChange(row.change);
@@ -1011,6 +1178,7 @@
         flashCell(lastEl, row.change || (row.last > prev.last ? 1 : -1));
       }
       scheduleIndexStatsRefresh();
+      fanOutRealtime(row.symbol, { flash });
     }
 
     function applyRow(row, opts = {}) {
@@ -1021,6 +1189,223 @@
       applyEquity(row, opts);
     }
 
+    /* ===== Signals (shared table + WS) ===== */
+    function signalLabel(row) {
+      const last = Number(row.last);
+      const pct = Number(row.change_pct) || 0;
+      const vol = Number(row.volume) || 0;
+      if (row.ceil != null && last === Number(row.ceil)) return "Trần";
+      if (row.floor != null && last === Number(row.floor)) return "Sàn";
+      if (pct >= 2) return "Tăng mạnh";
+      if (pct <= -2) return "Giảm mạnh";
+      if (vol >= 1e6) return "KL lớn";
+      if (pct > 0) return "Tăng";
+      if (pct < 0) return "Giảm";
+      return "TC";
+    }
+
+    function matchesSignalPreset(row) {
+      if (!row || INDEX_SYMBOLS.has(row.symbol)) return false;
+      const q = searchQuery.trim().toUpperCase();
+      if (q && !row.symbol.includes(q)) return false;
+      const last = Number(row.last);
+      const pct = Number(row.change_pct) || 0;
+      const vol = Number(row.volume) || 0;
+      switch (signalPreset) {
+        case "up2": return pct >= 2;
+        case "down2": return pct <= -2;
+        case "volhi": return vol >= 1e6;
+        case "ceil": return row.ceil != null && Number.isFinite(last) && last === Number(row.ceil);
+        case "floor": return row.floor != null && Number.isFinite(last) && last === Number(row.floor);
+        case "all": return true;
+        default: return true;
+      }
+    }
+
+    function renderSignalsTable() {
+      const rows = [...state.values()]
+        .filter(matchesSignalPreset)
+        .sort((a, b) => Math.abs(Number(b.change_pct) || 0) - Math.abs(Number(a.change_pct) || 0));
+      elSignalsBody.innerHTML = "";
+      elSignalsEmpty.hidden = rows.length > 0;
+      rows.forEach((row) => {
+        const tr = document.createElement("tr");
+        tr.dataset.symbol = row.symbol;
+        tr.id = "sig-" + row.symbol;
+        const tone = changeTone(row.change);
+        tr.innerHTML = `
+          <td class="sym">${row.symbol}</td>
+          <td class="num tabular-nums ${priceTone(row.last, row.ref, row.ceil, row.floor)}" data-f="last">${fmtPrice(row.last)}</td>
+          <td class="num tabular-nums ${tone}" data-f="change">${fmtChange(row.change)}</td>
+          <td class="num tabular-nums ${tone}" data-f="pct">${fmtPct(row.change_pct)}</td>
+          <td class="num tabular-nums" data-f="vol">${fmtVol(row.volume)}</td>
+          <td class="num tabular-nums text-[#ffd900]" data-f="ref">${fmtPrice(row.ref)}</td>
+          <td data-f="sig">${signalLabel(row)}</td>
+          <td class="num tabular-nums text-gray-400">${resolveExchange(row)}</td>`;
+        elSignalsBody.appendChild(tr);
+      });
+    }
+
+    function patchSignalRow(symbol, { flash = false } = {}) {
+      if (appTab !== "signals") return;
+      const row = state.get(symbol);
+      if (!row || INDEX_SYMBOLS.has(symbol)) return;
+      const match = matchesSignalPreset(row);
+      let tr = document.getElementById("sig-" + symbol);
+      if (!match) {
+        if (tr) tr.remove();
+        elSignalsEmpty.hidden = elSignalsBody.children.length > 0;
+        return;
+      }
+      if (!tr) {
+        renderSignalsTable();
+        return;
+      }
+      const prevLast = tr.querySelector('[data-f="last"]')?.textContent;
+      const tone = changeTone(row.change);
+      const lastEl = tr.querySelector('[data-f="last"]');
+      lastEl.textContent = fmtPrice(row.last);
+      lastEl.className = "num tabular-nums " + priceTone(row.last, row.ref, row.ceil, row.floor);
+      const chg = tr.querySelector('[data-f="change"]');
+      chg.textContent = fmtChange(row.change);
+      chg.className = "num tabular-nums " + tone;
+      const pct = tr.querySelector('[data-f="pct"]');
+      pct.textContent = fmtPct(row.change_pct);
+      pct.className = "num tabular-nums " + tone;
+      tr.querySelector('[data-f="vol"]').textContent = fmtVol(row.volume);
+      tr.querySelector('[data-f="ref"]').textContent = fmtPrice(row.ref);
+      tr.querySelector('[data-f="sig"]').textContent = signalLabel(row);
+      if (flash && prevLast !== fmtPrice(row.last)) {
+        flashCell(lastEl, row.change || 1);
+      }
+    }
+
+    document.getElementById("signal-preset").addEventListener("change", (ev) => {
+      signalPreset = ev.target.value;
+      renderSignalsTable();
+    });
+
+    /* ===== Portfolio (shared table + WS) ===== */
+    function loadPortfolio() {
+      try {
+        const raw = JSON.parse(localStorage.getItem(PORTFOLIO_KEY) || "[]");
+        return Array.isArray(raw) ? raw : [];
+      } catch {
+        return [];
+      }
+    }
+    function savePortfolio() {
+      localStorage.setItem(PORTFOLIO_KEY, JSON.stringify(portfolio));
+    }
+
+    function renderPortfolioTable() {
+      elPortfolioBody.innerHTML = "";
+      elPortfolioEmpty.hidden = portfolio.length > 0;
+      let nav = 0;
+      let cost = 0;
+      portfolio.forEach((item) => {
+        const row = state.get(item.symbol);
+        const last = row ? Number(row.last) || 0 : 0;
+        const qty = Number(item.qty) || 0;
+        const avg = Number(item.avg) || 0;
+        const mkt = last * qty;
+        const pl = (last - avg) * qty;
+        nav += mkt;
+        cost += avg * qty;
+        const tone = changeTone(row ? row.change : last - avg);
+        const tr = document.createElement("tr");
+        tr.id = "pf-" + item.symbol;
+        tr.dataset.symbol = item.symbol;
+        tr.innerHTML = `
+          <td class="sym">${item.symbol}</td>
+          <td class="num tabular-nums" data-f="qty">${qty.toLocaleString("en-US")}</td>
+          <td class="num tabular-nums" data-f="avg">${fmtPrice(avg)}</td>
+          <td class="num tabular-nums ${row ? priceTone(last, row.ref, row.ceil, row.floor) : "text-gray-400"}" data-f="last">${row ? fmtPrice(last) : "—"}</td>
+          <td class="num tabular-nums ${tone}" data-f="change">${row ? fmtChange(row.change) : "—"}</td>
+          <td class="num tabular-nums ${tone}" data-f="pct">${row ? fmtPct(row.change_pct) : "—"}</td>
+          <td class="num tabular-nums ${changeTone(pl)}" data-f="pl">${Math.round(pl).toLocaleString("en-US")}</td>
+          <td class="num tabular-nums" data-f="vol">${row ? fmtVol(row.volume) : "—"}</td>
+          <td><button type="button" class="btn-quiet" data-rm="${item.symbol}">Xóa</button></td>`;
+        elPortfolioBody.appendChild(tr);
+      });
+      const plAll = nav - cost;
+      elPfSummary.textContent = portfolio.length
+        ? `NAV ${Math.round(nav).toLocaleString("en-US")} · P/L ${Math.round(plAll).toLocaleString("en-US")}`
+        : "NAV —";
+      elPortfolioBody.querySelectorAll("[data-rm]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          portfolio = portfolio.filter((p) => p.symbol !== btn.dataset.rm);
+          savePortfolio();
+          renderPortfolioTable();
+        });
+      });
+    }
+
+    function patchPortfolioSymbol(symbol, { flash = false } = {}) {
+      if (appTab !== "portfolio") return;
+      if (!portfolio.some((p) => p.symbol === symbol)) return;
+      const item = portfolio.find((p) => p.symbol === symbol);
+      const row = state.get(symbol);
+      const tr = document.getElementById("pf-" + symbol);
+      if (!tr || !item) {
+        renderPortfolioTable();
+        return;
+      }
+      const last = row ? Number(row.last) || 0 : 0;
+      const qty = Number(item.qty) || 0;
+      const avg = Number(item.avg) || 0;
+      const pl = (last - avg) * qty;
+      const tone = changeTone(row ? row.change : 0);
+      const lastEl = tr.querySelector('[data-f="last"]');
+      const prev = lastEl.textContent;
+      lastEl.textContent = row ? fmtPrice(last) : "—";
+      lastEl.className = "num tabular-nums " + (row ? priceTone(last, row.ref, row.ceil, row.floor) : "text-gray-400");
+      const chg = tr.querySelector('[data-f="change"]');
+      chg.textContent = row ? fmtChange(row.change) : "—";
+      chg.className = "num tabular-nums " + tone;
+      const pct = tr.querySelector('[data-f="pct"]');
+      pct.textContent = row ? fmtPct(row.change_pct) : "—";
+      pct.className = "num tabular-nums " + tone;
+      const plEl = tr.querySelector('[data-f="pl"]');
+      plEl.textContent = Math.round(pl).toLocaleString("en-US");
+      plEl.className = "num tabular-nums " + changeTone(pl);
+      tr.querySelector('[data-f="vol"]').textContent = row ? fmtVol(row.volume) : "—";
+      if (flash && row && prev !== fmtPrice(last)) flashCell(lastEl, row.change || 1);
+      // refresh NAV strip
+      let nav = 0, cost = 0;
+      portfolio.forEach((it) => {
+        const r = state.get(it.symbol);
+        const l = r ? Number(r.last) || 0 : 0;
+        nav += l * (Number(it.qty) || 0);
+        cost += (Number(it.avg) || 0) * (Number(it.qty) || 0);
+      });
+      elPfSummary.textContent = `NAV ${Math.round(nav).toLocaleString("en-US")} · P/L ${Math.round(nav - cost).toLocaleString("en-US")}`;
+    }
+
+    document.getElementById("pf-add").addEventListener("click", () => {
+      const symbol = String(document.getElementById("pf-symbol").value || "").trim().toUpperCase();
+      const qty = Number(document.getElementById("pf-qty").value) || 0;
+      const avg = Number(document.getElementById("pf-avg").value) || 0;
+      if (!symbol || qty <= 0) return;
+      const existing = portfolio.find((p) => p.symbol === symbol);
+      if (existing) {
+        existing.qty = qty;
+        existing.avg = avg;
+      } else {
+        portfolio.push({ symbol, qty, avg });
+      }
+      savePortfolio();
+      document.getElementById("pf-symbol").value = "";
+      renderPortfolioTable();
+    });
+
+    /** Fan-out tick → bảng tín hiệu + danh mục (DOM nếu tab đang mở; state đã cập nhật trước đó) */
+    function fanOutRealtime(symbol, opts = {}) {
+      patchSignalRow(symbol, opts);
+      patchPortfolioSymbol(symbol, opts);
+    }
+
+    /* ===== WS ===== */
     function handleMessage(raw) {
       let msg;
       try { msg = JSON.parse(raw); } catch { return; }
@@ -1046,6 +1431,8 @@
         restorePinnedRows();
         applyBoardFilter();
         refreshAllIndexStats();
+        renderSignalsTable();
+        renderPortfolioTable();
         return;
       }
       if (msg.type === "remove" && msg.symbol) {
@@ -1095,6 +1482,8 @@
       elClock.textContent = new Date().toLocaleTimeString("vi-VN", { hour12: false });
     }, 1000);
 
+    setMarketTab(marketTab);
+    setAppTab(appTab);
     connect();
   </script>
 </body>
