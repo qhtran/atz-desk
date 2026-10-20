@@ -1,11 +1,11 @@
 # Handoff — chat tiếp theo (priceboard FastAPI / iBoard)
 
-**Ngày:** 2026-10-21 (cuối phiên: public `dev.atz.vn` + ForwardAuth)  
+**Ngày:** 2026-10-21 (docs: public ForwardAuth confirmed + P1 plan)  
 **Branch:** `feature/realtime-fastapi`  
-**HEAD (đã push):** `df422a6`  
+**HEAD (đã push):** `11d85e5`  
 **Orchestrator:** Cursor · Bot code paused · **cấm** sửa nginx `stream.d` / sshd / UFW trừ `user_confirmed_infra: yes`.
 
-Đọc trước: `AGENTS.md`, `docs/architecture.md` §8.1, `docs/infrastructure/VPS_NETWORK.md`, `docs/adr/0008-ssi-websocket-primary.md`, `config/priceboard.yaml`, file này.
+Đọc trước: `AGENTS.md`, `docs/architecture.md` §8.1, `docs/infrastructure/VPS_NETWORK.md`, `docs/adr/0008-ssi-websocket-primary.md`, `config/priceboard.yaml`, `docs/specs/PRICEBOARD_P1_DEPTH_NN.md`, file này.
 
 ---
 
@@ -23,20 +23,22 @@
 | Cert renew | Host hook `/etc/letsencrypt/renewal-hooks/deploy/sync-nginx-volume-certs.sh` copy sang volume LE Docker |
 | Authentik | Proxy Provider `atz.vn` mode **`forward_domain`**, cookie `atz.vn` (subdomain dùng chung) |
 | Secret | Chỉ `SSI_CONSUMER_*` từ `.env` — **không** paste chat / không commit |
+| P1 plan | [`docs/specs/PRICEBOARD_P1_DEPTH_NN.md`](../specs/PRICEBOARD_P1_DEPTH_NN.md) — draft map depth/NN, **chưa** code |
 
 **Không ghi** `idx:quote:*` (tránh dual-writer với `atz-ssi-stream`).
 
 ---
 
-## VPS hiện tại (verify 2026-10-21 ~02:10 ICT)
+## VPS hiện tại (verify 2026-10-21)
 
 | Mục | Giá trị |
 |-----|---------|
-| Path / branch | `/opt/vnstocks` · `feature/realtime-fastapi` @ `df422a6` |
+| Path / branch | `/opt/vnstocks` · `feature/realtime-fastapi` (kéo tới HEAD mới khi deploy docs) |
 | Compose project | `atz_priceboard` |
 | Containers | `atz-priceboard-api-dev` · `atz-redis-dev` · `atz-ssi-worker-dev` (healthy) |
 | Source | `PRICEBOARD_SOURCE=ssi` |
-| Public | `GET https://dev.atz.vn/healthz` → 200 · `/` → 302 Authentik |
+| Public health | `GET https://dev.atz.vn/healthz` → **200** |
+| Public auth | `GET https://dev.atz.vn/` → **302** Authentik (`/outpost.goauthentik.io/start?rd=https://dev.atz.vn/`) — **ForwardAuth đang hoạt động** |
 | Local tunnel | vẫn `127.0.0.1:8000` (volume FE) |
 | Prod | `atz-redis` + Streamlit stack **song song**, không đụng |
 
@@ -59,7 +61,7 @@ git checkout feature/realtime-fastapi && git pull
 export PATH="/Applications/OrbStack.app/Contents/MacOS/xbin:$PATH"
 docker compose -f docker-compose.dev.yml up --build -d
 
-# VPS — chỉ HTML
+# VPS — chỉ HTML / docs
 cd /opt/vnstocks && git pull --ff-only
 
 # VPS — rebuild worker/api (giữ project name trong compose)
@@ -77,17 +79,23 @@ docker compose -f docker-compose.dev.yml logs -f ssi-worker
 
 ## Việc chat sau (ưu tiên)
 
-### P0 — Browser + giờ giao dịch
+### P0 — Browser + giờ giao dịch (còn lại)
 
 1. Login https://dev.atz.vn qua Authentik → board load · WS `wss://dev.atz.vn/ws/priceboard` connected.  
 2. Nếu kẹt callback chỉ về `atz.vn`: cân nhắc Proxy Provider riêng cho `dev.atz.vn` (hiện dựa `forward_domain`).  
-3. Giờ mở cửa: tick `source=SSI_WS` · volume gate · search/tabs/pin.
+3. Giờ mở cửa: tick `source=SSI_WS` · volume gate · search/tabs/pin.  
+   *(Ngoài phiên: tick ghi BLOCKED — chỉ verify auth/WS.)*
 
-### P1 — Data chất lượng
+**Đã xác nhận (curl 2026-10-21 ~02:12 ICT):** healthz 200 · `/` 302 Authentik — Nginx + ForwardAuth OK.
 
-1. Map depth X-Quote/X-Trade/MI → `bid*`/`ask*`/`foreign*` (che token trong log).  
-2. Index card GT (Tỷ): enrich `tradeValue` từ SSI khi schema rõ.  
-3. Test: `tests/test_volume_filter.py` (+ tick contract khi có).
+### P1 — Data chất lượng (plan sẵn)
+
+Chi tiết: [`docs/specs/PRICEBOARD_P1_DEPTH_NN.md`](../specs/PRICEBOARD_P1_DEPTH_NN.md).
+
+1. Capture schema giờ mở cửa → điền bảng map.  
+2. Partial parse (không bắt buộc `last`) + alias X-Quote/X-Trade/MI → `bid*`/`ask*`/`foreign*`.  
+3. Index card GT (Tỷ): `tradeValue` khi schema rõ.  
+4. Tắt/gate `enrichDepth` fake; test `tests/test_tick_contract.py`.
 
 ### P2 — Merge / hệ sinh thái
 
@@ -107,7 +115,7 @@ docker compose -f docker-compose.dev.yml logs -f ssi-worker
 
 ## Câu mở chat mới (copy)
 
-> Tiếp `feature/realtime-fastapi` @ `df422a6` + `docs/bots/HANDOFF_NEXT_CHAT.md`.  
-> Public: `https://dev.atz.vn` (Authentik ForwardAuth, TLS OK). Stack VPS `atz_priceboard`, `PRICEBOARD_SOURCE=ssi`, UI YSVN, `min_volume=500000`.  
-> Việc tiếp: P0 verify login browser + WS + tick giờ giao dịch; P1 depth/NN map.  
+> Tiếp `feature/realtime-fastapi` @ `11d85e5` + `docs/bots/HANDOFF_NEXT_CHAT.md` + `docs/specs/PRICEBOARD_P1_DEPTH_NN.md`.  
+> Public: `https://dev.atz.vn` (Authentik ForwardAuth OK — `/` 302 login). Stack VPS `atz_priceboard`, `PRICEBOARD_SOURCE=ssi`, UI YSVN, `min_volume=500000`.  
+> Việc tiếp: P0 browser login + WS + tick giờ giao dịch; P1 theo plan depth/NN (capture rồi code).  
 > **Không** đụng `stream.d` / sshd / UFW / `atz-redis` prod.

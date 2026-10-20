@@ -230,9 +230,10 @@ Stack **dev** trên nhánh `feature/realtime-fastapi`, **không** thay Streamlit
 | Nguồn | `PRICEBOARD_SOURCE=mock\|ssi` · live: `wss://stream.ssi.com.vn/ws/v3` (không ghi `idx:quote:*`) |
 | Liquidity | `min_volume: 500000` (`backend/volume_filter.py`) — index luôn giữ; equity `vol==0` hiện tạm; dưới ngưỡng bị ẩn |
 | UI | YSVN-style: search + settings · index cards · market tabs HOSE/VN30/HNX/UPCOM · sticky pins |
-| Public | Scaffold Authentik ForwardAuth: `deploy/nginx_dev.conf` — **chưa** gắn `/opt/nginx` / `dev.atz.vn` |
+| Public | **`https://dev.atz.vn`** — TLS LE · Authentik ForwardAuth (cookie domain `atz.vn`) · `/healthz` + `/outpost…` bypass · `/` + `/ws/` yêu cầu login · conf: `deploy/nginx_dev.conf` → volume `n8n_nginx_config` `conf.d/dev.atz.vn.conf` (listen **8443 ssl proxy_protocol**; **không** sửa `stream.d`) |
 
-Handoff vận hành chat-to-chat: [`docs/bots/HANDOFF_NEXT_CHAT.md`](bots/HANDOFF_NEXT_CHAT.md).
+Handoff vận hành chat-to-chat: [`docs/bots/HANDOFF_NEXT_CHAT.md`](bots/HANDOFF_NEXT_CHAT.md).  
+Plan P1 depth/NN: [`docs/specs/PRICEBOARD_P1_DEPTH_NN.md`](specs/PRICEBOARD_P1_DEPTH_NN.md).
 
 ---
 
