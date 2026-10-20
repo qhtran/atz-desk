@@ -1,11 +1,11 @@
 # Handoff — chat tiếp theo (priceboard FastAPI / iBoard)
 
-**Ngày:** 2026-10-21 (cập nhật sau UI YSVN + deploy VPS SSI)  
+**Ngày:** 2026-10-21 (cuối phiên: public `dev.atz.vn` + ForwardAuth)  
 **Branch:** `feature/realtime-fastapi`  
-**HEAD (đã push):** `06c43a2` — YSVN header / index cards / market tabs / search  
-**Orchestrator:** Cursor · Bot code paused · **cấm** sửa nginx stream/sshd/UFW trừ `user_confirmed_infra: yes`.
+**HEAD (đã push):** `df422a6`  
+**Orchestrator:** Cursor · Bot code paused · **cấm** sửa nginx `stream.d` / sshd / UFW trừ `user_confirmed_infra: yes`.
 
-Đọc trước: `AGENTS.md`, `docs/architecture.md` §8.1, `docs/adr/0008-ssi-websocket-primary.md`, `config/priceboard.yaml`, file này.
+Đọc trước: `AGENTS.md`, `docs/architecture.md` §8.1, `docs/infrastructure/VPS_NETWORK.md`, `docs/adr/0008-ssi-websocket-primary.md`, `config/priceboard.yaml`, file này.
 
 ---
 
@@ -13,102 +13,101 @@
 
 | Hạng mục | Chi tiết |
 |----------|----------|
-| Stack | `docker-compose.dev.yml` + `Dockerfile.dev` · **`name: atz_priceboard`** (tách project — **không** đụng `atz-redis` prod) · Redis `:6380` · API `:8000` |
-| FE | `frontend/index.html` — style YSVN/SSI: header (brand + Stock Rating/Tín hiệu → atz.vn · search kính lúp · settings) · Index Cards (điểm + sparkline + KL/GT + Tăng/Giảm/TC/Trần/Sàn) · Market tabs **HOSE / VN30 / HNX / UPCOM** · live search · sticky pin ★ · WS reconnect |
-| BE | FastAPI `/` → `index.html` · `/ws/priceboard` · Redis Pub/Sub `priceboard_ticks` + Hash `priceboard:quotes` |
-| Volume gate | `backend/volume_filter.py` · `min_volume: 500000` · index luôn giữ · equity `vol==0` hiện · `0<vol<500K` → `hdel` + `{type:remove}` · snapshot cũng lọc |
-| Worker | `PRICEBOARD_SOURCE=mock\|ssi` · mock mặc định file; **VPS đang `ssi`** |
-| Live SSI | `backend/ssi_live.py` — token REST → `wss://stream.ssi.com.vn/ws/v3` · `DATA,X-Quote,X-Trade,MI` · index + VN30 quote/trade |
-| Nginx public | `dev.atz.vn` **đã apply** (2026-10-21): volume `n8n_nginx_config` → `conf.d/dev.atz.vn.conf` · TLS LE · ForwardAuth (`/`+`/ws/` auth; `/healthz`+`/outpost` bypass) · **không** sửa `stream.d` · API gắn `vnstocks_default` |
-| Secret | Chỉ `SSI_CONSUMER_*` từ host `.env` — **không** paste chat / không commit |
+| Stack | `docker-compose.dev.yml` + `Dockerfile.dev` · **`name: atz_priceboard`** (tách Redis prod) · Redis `:6380` · API `:8000` · API cũng join **`vnstocks_default`** (nginx DNS) |
+| FE | `frontend/index.html` — YSVN/SSI: header (brand + Stock Rating/Tín hiệu → atz.vn · search · settings) · Index Cards (điểm + sparkline + KL/GT + Tăng/Giảm/TC/Trần/Sàn) · Market tabs **HOSE / VN30 / HNX / UPCOM** · live search · sticky pin ★ · WS reconnect |
+| BE | FastAPI `/` → `index.html` · `/ws/priceboard` · Redis `priceboard_ticks` + Hash `priceboard:quotes` |
+| Volume gate | `backend/volume_filter.py` · `min_volume: 500000` · index luôn giữ · equity `vol==0` hiện · `0<vol<500K` → `hdel` + `{type:remove}` |
+| Worker | `PRICEBOARD_SOURCE=mock\|ssi` · **VPS đang `ssi`** · `ssi_live.py` → `wss://stream.ssi.com.vn/ws/v3` |
+| Public | **`https://dev.atz.vn`** — TLS LE · Authentik ForwardAuth · `/healthz` + `/outpost…` bypass · `/` + `/ws/` auth |
+| Nginx path | Volume `n8n_nginx_config` → `conf.d/dev.atz.vn.conf` (repo: `deploy/nginx_dev.conf`) · listen **8443 ssl proxy_protocol** · **không** sửa `stream.d` |
+| Cert renew | Host hook `/etc/letsencrypt/renewal-hooks/deploy/sync-nginx-volume-certs.sh` copy sang volume LE Docker |
+| Authentik | Proxy Provider `atz.vn` mode **`forward_domain`**, cookie `atz.vn` (subdomain dùng chung) |
+| Secret | Chỉ `SSI_CONSUMER_*` từ `.env` — **không** paste chat / không commit |
 
 **Không ghi** `idx:quote:*` (tránh dual-writer với `atz-ssi-stream`).
 
 ---
 
-## VPS (dev stack — localhost only)
+## VPS hiện tại (verify 2026-10-21 ~02:10 ICT)
 
 | Mục | Giá trị |
 |-----|---------|
-| Path | `/opt/vnstocks` · branch `feature/realtime-fastapi` |
-| Compose | `docker compose -f docker-compose.dev.yml …` (project `atz_priceboard`) |
-| Containers | `atz-priceboard-api-dev` · `atz-redis-dev` · `atz-ssi-worker-dev` |
-| Bind | `127.0.0.1:8000` · `127.0.0.1:6380` — **chưa** public `dev.atz.vn` |
-| Source | `.env` → `PRICEBOARD_SOURCE=ssi` · `SSI_CONSUMER_*` đã có |
-| FE sync | `./frontend` volume-mount → **`git pull` đủ**, không cần rebuild cho HTML |
-| Prod | Stack `vnstocks` + `atz-redis` **song song**, healthy |
-
-Soi UI từ Mac:
+| Path / branch | `/opt/vnstocks` · `feature/realtime-fastapi` @ `df422a6` |
+| Compose project | `atz_priceboard` |
+| Containers | `atz-priceboard-api-dev` · `atz-redis-dev` · `atz-ssi-worker-dev` (healthy) |
+| Source | `PRICEBOARD_SOURCE=ssi` |
+| Public | `GET https://dev.atz.vn/healthz` → 200 · `/` → 302 Authentik |
+| Local tunnel | vẫn `127.0.0.1:8000` (volume FE) |
+| Prod | `atz-redis` + Streamlit stack **song song**, không đụng |
 
 ```bash
+# Soi public (sau login Authentik)
+open https://dev.atz.vn
+
+# Tunnel dự phòng
 ssh -L 8000:127.0.0.1:8000 root@112.213.88.230
-# http://127.0.0.1:8000  (hard-refresh)
 ```
 
 ---
 
-## HEAD / verify local
+## Lệnh hay dùng
 
 ```bash
 git checkout feature/realtime-fastapi && git pull
+
+# Local OrbStack
 export PATH="/Applications/OrbStack.app/Contents/MacOS/xbin:$PATH"
-# BẮT BUỘC có name: atz_priceboard trong compose (tránh đụng redis prod trên VPS)
 docker compose -f docker-compose.dev.yml up --build -d
-# UI: http://127.0.0.1:8000
-```
 
-Log mock: `DBG-PRICEBOARD-SSI-MOCK-READY`  
-SSI:
-
-```bash
-PRICEBOARD_SOURCE=ssi docker compose -f docker-compose.dev.yml up -d --build ssi-worker
-docker compose -f docker-compose.dev.yml logs -f ssi-worker
-# kỳ vọng: WORKER-BOOT source=ssi · LIVE-SEED … min_volume=500000 · LIVE-CONNECT · LIVE-SUBSCRIBED
-```
-
-VPS recreate (an toàn):
-
-```bash
+# VPS — chỉ HTML
 cd /opt/vnstocks && git pull --ff-only
-# chỉ HTML: đủ
-# full rebuild worker/api:
+
+# VPS — rebuild worker/api (giữ project name trong compose)
+cd /opt/vnstocks
 PRICEBOARD_SOURCE=ssi docker compose -f docker-compose.dev.yml up -d --build
+
+# Log SSI
+docker compose -f docker-compose.dev.yml logs -f ssi-worker
+# kỳ vọng: WORKER-BOOT source=ssi · LIVE-SEED min_volume=500000 · LIVE-CONNECT · LIVE-SUBSCRIBED
 ```
+
+**Cấm:** `docker compose … --remove-orphans` trên file.dev · chạy compose.dev **thiếu** `name: atz_priceboard` (đã từng thay nhầm `atz-redis` prod).
 
 ---
 
 ## Việc chat sau (ưu tiên)
 
-### P0 — Verify SSI live (giờ giao dịch)
+### P0 — Browser + giờ giao dịch
 
-1. Tunnel soi board: tick `source=SSI_WS`, search + market tabs, pin.  
-2. Confirm volume gate: mã `0<vol<500K` biến mất (`type=remove`); đầu ngày `vol=0` vẫn hiện.  
-3. Depth/NN: map X-Quote/X-Trade/MI → `bid*`/`ask*`/`foreign*` khi có sample log (che token).  
-4. Index card GT (Tỷ): enrich `tradeValue` từ SSI khi schema rõ (hiện suy từ board equities).
+1. Login https://dev.atz.vn qua Authentik → board load · WS `wss://dev.atz.vn/ws/priceboard` connected.  
+2. Nếu kẹt callback chỉ về `atz.vn`: cân nhắc Proxy Provider riêng cho `dev.atz.vn` (hiện dựa `forward_domain`).  
+3. Giờ mở cửa: tick `source=SSI_WS` · volume gate · search/tabs/pin.
 
-### P1 — Public `dev.atz.vn`
+### P1 — Data chất lượng
 
-- Apply `deploy/nginx_dev.conf` + DNS/TLS — **chỉ** khi `user_confirmed_infra: yes`.  
-- Authentik outpost allowlist host `dev.atz.vn`.  
-- Không đụng stream `rd.atz.vn` / UFW / sshd.
+1. Map depth X-Quote/X-Trade/MI → `bid*`/`ask*`/`foreign*` (che token trong log).  
+2. Index card GT (Tỷ): enrich `tradeValue` từ SSI khi schema rõ.  
+3. Test: `tests/test_volume_filter.py` (+ tick contract khi có).
 
-### P2 — Hệ sinh thái / chất lượng
+### P2 — Merge / hệ sinh thái
 
-- Song song vs gộp dần với `atz-ssi-stream` (chỉ `priceboard:*`).  
-- Test: `tests/test_volume_filter.py` (+ contract tick khi có).  
+- Song song vs gộp `atz-ssi-stream` (chỉ `priceboard:*`).  
 - Throttle fan-out nếu >100 client.  
-- PR: `feature/realtime-fastapi` → `main` khi live verify Pass.
+- PR: `feature/realtime-fastapi` → `main` khi P0 Pass.
 
 ---
 
 ## Lệnh tắt / giữ
 
-- **Giữ** stack priceboard trên VPS khi đang soi.  
-- Dừng **chỉ** priceboard: `cd /opt/vnstocks && docker compose -f docker-compose.dev.yml down`  
-  (không `down` compose prod; không `--remove-orphans` bừa).
+- **Giữ** stack priceboard trên VPS.  
+- Dừng chỉ priceboard: `cd /opt/vnstocks && docker compose -f docker-compose.dev.yml down`  
+  (không `down` compose prod).
 
 ---
 
 ## Câu mở chat mới (copy)
 
-> Tiếp `feature/realtime-fastapi` @ `06c43a2` + `docs/bots/HANDOFF_NEXT_CHAT.md`. VPS: project `atz_priceboard`, `PRICEBOARD_SOURCE=ssi`, UI YSVN (search/settings, index cards, HOSE/VN30/HNX/UPCOM), `min_volume=500000`. Việc tiếp: verify tick giờ giao dịch + depth map; nginx `dev.atz.vn` chỉ khi `user_confirmed_infra: yes`. Không đụng nginx stream/prod redis.
+> Tiếp `feature/realtime-fastapi` @ `df422a6` + `docs/bots/HANDOFF_NEXT_CHAT.md`.  
+> Public: `https://dev.atz.vn` (Authentik ForwardAuth, TLS OK). Stack VPS `atz_priceboard`, `PRICEBOARD_SOURCE=ssi`, UI YSVN, `min_volume=500000`.  
+> Việc tiếp: P0 verify login browser + WS + tick giờ giao dịch; P1 depth/NN map.  
+> **Không** đụng `stream.d` / sshd / UFW / `atz-redis` prod.
