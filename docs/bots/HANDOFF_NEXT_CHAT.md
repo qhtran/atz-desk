@@ -19,7 +19,7 @@
 | Volume gate | `backend/volume_filter.py` · `min_volume: 500000` · index luôn giữ · equity `vol==0` hiện · `0<vol<500K` → `hdel` + `{type:remove}` · snapshot cũng lọc |
 | Worker | `PRICEBOARD_SOURCE=mock\|ssi` · mock mặc định file; **VPS đang `ssi`** |
 | Live SSI | `backend/ssi_live.py` — token REST → `wss://stream.ssi.com.vn/ws/v3` · `DATA,X-Quote,X-Trade,MI` · index + VN30 quote/trade |
-| Nginx scaffold | `deploy/nginx_dev.conf` — ForwardAuth Authentik (`/healthz` + `/outpost…` public; `/` + `/ws/` auth) — **chưa apply** `/opt/nginx` |
+| Nginx public | `dev.atz.vn` **đã apply** (2026-10-21): volume `n8n_nginx_config` → `conf.d/dev.atz.vn.conf` · TLS LE · ForwardAuth (`/`+`/ws/` auth; `/healthz`+`/outpost` bypass) · **không** sửa `stream.d` · API gắn `vnstocks_default` |
 | Secret | Chỉ `SSI_CONSUMER_*` từ host `.env` — **không** paste chat / không commit |
 
 **Không ghi** `idx:quote:*` (tránh dual-writer với `atz-ssi-stream`).
