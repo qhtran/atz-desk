@@ -3,28 +3,30 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>atz Radar · Priceboard (dev)</title>
+  <title>atz · iBoard (dev)</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
       theme: {
         extend: {
-          colors: {
-            board: {
-              bg: "#0b0f14",
-              panel: "#121820",
-              line: "#1e2936",
-              mute: "#8b9bb0",
-              text: "#e8eef6",
-              up: "#22c55e",
-              down: "#ef4444",
-              ref: "#fbbf24",
-              accent: "#38bdf8",
-            },
-          },
           fontFamily: {
-            mono: ['"JetBrains Mono"', "ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
-            sans: ['"IBM Plex Sans"', "system-ui", "sans-serif"],
+            sans: [
+              "Inter",
+              "IBM Plex Sans",
+              "system-ui",
+              "-apple-system",
+              "Segoe UI",
+              "sans-serif",
+            ],
+          },
+          colors: {
+            ssi: {
+              ceil: "#ff00ff",
+              floor: "#00ffff",
+              up: "#00ff00",
+              down: "#ff0000",
+              ref: "#ffd900",
+            },
           },
         },
       },
@@ -32,69 +34,231 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <style>
     :root { color-scheme: dark; }
-    body { background: radial-gradient(1200px 600px at 20% -10%, #152033 0%, #0b0f14 55%); }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      background: #0a0a0a;
+      color: #e5e5e5;
+      font-size: 13px;
+      letter-spacing: -0.01em;
+      line-height: 1.25;
+    }
     .flash-up { animation: flashUp 0.55s ease-out; }
     .flash-down { animation: flashDown 0.55s ease-out; }
     @keyframes flashUp {
-      0% { background-color: rgba(34, 197, 94, 0.45); }
+      0% { background-color: rgba(21, 128, 61, 0.5); }
       100% { background-color: transparent; }
     }
     @keyframes flashDown {
-      0% { background-color: rgba(239, 68, 68, 0.45); }
+      0% { background-color: rgba(185, 28, 28, 0.5); }
       100% { background-color: transparent; }
     }
-    #board-table th, #board-table td { border-color: #1e2936; }
-    #board-table tbody tr:hover { background: rgba(56, 189, 248, 0.04); }
+    #board-wrap {
+      overflow: auto;
+      max-height: calc(100vh - 118px);
+      border: 1px solid #2a2a2a;
+    }
+    #board-table {
+      border-collapse: separate; /* sticky left cần separate, không dùng collapse */
+      border-spacing: 0;
+      min-width: 1480px;
+      width: 100%;
+    }
+    #board-table th,
+    #board-table td {
+      /* border-separate: chỉ right+bottom để tránh viền nhân đôi 2px */
+      border-bottom: 1px solid #2a2a2a;
+      border-right: 1px solid #2a2a2a;
+      padding: 0.125rem 0.375rem; /* py-0.5 px-1.5 */
+      white-space: nowrap;
+      line-height: 1.25;
+      font-size: 13px;
+    }
+    #board-table thead th {
+      background: #111111;
+      color: #a3a3a3;
+      font-weight: 500;
+      text-align: right;
+      position: sticky;
+      z-index: 30;
+    }
+    #board-table thead tr:nth-child(1) th { top: 0; }
+    #board-table thead tr:nth-child(2) th { top: 24px; }
+    #board-table tbody tr:hover { background-color: rgba(42, 42, 42, 0.55); }
+
+    #board-table td.num {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Pin col sticky leftmost */
+    #board-table th.th-pin,
+    #board-table td.pin-cell {
+      position: sticky;
+      left: 0;
+      width: 28px;
+      min-width: 28px;
+      max-width: 28px;
+      text-align: center;
+      padding-left: 0.25rem;
+      padding-right: 0.25rem;
+      background: #0a0a0a;
+      z-index: 12;
+    }
+    /* Header ★ + Mã CK: sticky 2 chiều, luôn trên body khi cuộn chéo */
+    #board-table thead th.th-pin {
+      background: #111111;
+      z-index: 40;
+    }
+
+    /* Mã CK sticky next to pin */
+    #board-table th.th-sym,
+    #board-table td.sym {
+      position: sticky;
+      left: 28px;
+      z-index: 11;
+      text-align: left;
+      background: #0a0a0a;
+    }
+    #board-table thead th.th-sym {
+      background: #111111;
+      z-index: 40;
+    }
+    #board-table td.sym {
+      font-weight: 700;
+      color: #ffffff;
+    }
+    #board-table tbody tr:hover td.pin-cell,
+    #board-table tbody tr:hover td.sym {
+      background-color: #1a1a1a;
+    }
+
+    /* Pinned rows: sticky dọc ngay dưới thead (top gán bằng JS) */
+    #board-table tbody tr.is-pinned td {
+      position: sticky;
+      z-index: 25; /* thấp hơn thead (30), cao hơn dòng thường */
+      background-color: #12100a;
+      border-bottom-color: #ffd900;
+      box-shadow: inset 0 -1px 0 rgba(255, 217, 0, 0.55);
+    }
+    /* Góc giao nhau: cột pin + Mã CK của dòng ghim */
+    #board-table tbody tr.is-pinned td.pin-cell,
+    #board-table tbody tr.is-pinned td.sym {
+      z-index: 26;
+      background-color: #12100a;
+    }
+    #board-table tbody tr.is-pinned:hover td {
+      background-color: #1c180c;
+    }
+    #board-table tbody tr.is-pinned:hover td.pin-cell,
+    #board-table tbody tr.is-pinned:hover td.sym {
+      background-color: #1c180c;
+    }
+
+    .pin-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+      padding: 0;
+      margin: 0;
+      border: 0;
+      background: transparent;
+      color: #555;
+      cursor: pointer;
+      font-size: 12px;
+      line-height: 1;
+      border-radius: 2px;
+    }
+    .pin-btn:hover { color: #ffd900; background: rgba(255, 217, 0, 0.08); }
+    .pin-btn.pinned { color: #ffd900; }
+
+    .grp-buy { background: rgba(0, 255, 0, 0.03); }
+    .grp-match { background: rgba(255, 217, 0, 0.04); }
+    .grp-sell { background: rgba(255, 0, 0, 0.03); }
+    .spark { width: 72px; height: 28px; display: block; }
+    .idx-card {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border: 1px solid #2a2a2a;
+      background: #111;
+      padding: 6px 10px;
+      min-width: 200px;
+      flex: 1 1 0;
+    }
   </style>
 </head>
-<body class="h-full font-sans text-board-text antialiased">
-  <div class="min-h-full flex flex-col">
-    <header class="border-b border-board-line bg-board-panel/80 backdrop-blur px-4 py-3 flex items-center justify-between gap-4">
-      <div class="flex items-baseline gap-3">
-        <span class="text-xl font-semibold tracking-tight text-board-accent">atz</span>
-        <span class="text-sm text-board-mute">Radar · Priceboard <span class="text-board-ref">DEV</span></span>
-      </div>
-      <div class="flex items-center gap-3 text-xs font-mono">
-        <span id="conn-dot" class="inline-block h-2 w-2 rounded-full bg-board-down"></span>
-        <span id="conn-label" class="text-board-mute">connecting…</span>
-        <span id="clock" class="text-board-mute tabular-nums"></span>
-      </div>
-    </header>
+<body class="bg-[#0a0a0a] font-sans text-[13px] antialiased tracking-tight leading-tight">
+  <header class="flex items-center justify-between gap-3 border-b border-[#2a2a2a] bg-[#0a0a0a] px-3 py-1.5">
+    <div class="flex items-center gap-3">
+      <span class="text-[13px] font-semibold tracking-tight text-white">iBoard</span>
+      <span class="text-[11px] tracking-tight text-gray-500">atz · DEV · mock SSI</span>
+    </div>
+    <div class="flex items-center gap-3 text-[11px] tracking-tight text-gray-400">
+      <span id="conn-dot" class="inline-block h-2 w-2 rounded-full bg-[#ff0000]"></span>
+      <span id="conn-label">connecting…</span>
+      <span id="clock" class="tabular-nums text-gray-500"></span>
+    </div>
+  </header>
 
-    <!-- Index bar -->
-    <section id="index-bar" class="grid grid-cols-2 md:grid-cols-4 gap-2 px-3 py-3 border-b border-board-line bg-board-panel/40">
-      <!-- filled by JS -->
-    </section>
+  <section id="index-bar" class="flex flex-wrap gap-2 border-b border-[#2a2a2a] bg-[#0a0a0a] px-2 py-2"></section>
 
-    <main class="flex-1 overflow-auto px-3 py-3">
-      <div class="rounded-sm border border-board-line overflow-hidden bg-board-panel/50">
-        <table id="board-table" class="w-full text-sm font-mono border-collapse">
-          <thead class="bg-board-panel text-board-mute text-xs uppercase tracking-wide sticky top-0">
-            <tr>
-              <th class="text-left px-3 py-2 border-b">Mã</th>
-              <th class="text-right px-3 py-2 border-b">Giá</th>
-              <th class="text-right px-3 py-2 border-b">+/-</th>
-              <th class="text-right px-3 py-2 border-b">%</th>
-              <th class="text-right px-3 py-2 border-b hidden sm:table-cell">Cao</th>
-              <th class="text-right px-3 py-2 border-b hidden sm:table-cell">Thấp</th>
-              <th class="text-right px-3 py-2 border-b">KL</th>
-            </tr>
-          </thead>
-          <tbody id="board-body"></tbody>
-        </table>
-      </div>
-      <p class="mt-3 text-[11px] text-board-mute">
-        Mock ticks · Redis Pub/Sub <code class="text-board-accent">priceboard_ticks</code> · không gọi SSI thật.
-      </p>
-    </main>
+  <div id="board-wrap" class="bg-[#0a0a0a]">
+    <table id="board-table" class="border-separate" style="border-spacing: 0;">
+      <thead>
+        <tr>
+          <th rowspan="2" class="th-pin" title="Ghim">★</th>
+          <th rowspan="2" class="th-sym">Mã CK</th>
+          <th rowspan="2">Trần</th>
+          <th rowspan="2">Sàn</th>
+          <th rowspan="2">TC</th>
+          <th colspan="6" class="grp-buy text-[#00ff00]">Bên Mua</th>
+          <th colspan="3" class="grp-match text-[#ffd900]">Khớp lệnh</th>
+          <th colspan="6" class="grp-sell text-[#ff0000]">Bên Bán</th>
+          <th rowspan="2">Tổng KL</th>
+          <th colspan="2">Nước ngoài</th>
+        </tr>
+        <tr>
+          <th class="grp-buy">G3</th>
+          <th class="grp-buy">KL3</th>
+          <th class="grp-buy">G2</th>
+          <th class="grp-buy">KL2</th>
+          <th class="grp-buy">G1</th>
+          <th class="grp-buy">KL1</th>
+          <th class="grp-match">Giá</th>
+          <th class="grp-match">KL</th>
+          <th class="grp-match">+/-</th>
+          <th class="grp-sell">G1</th>
+          <th class="grp-sell">KL1</th>
+          <th class="grp-sell">G2</th>
+          <th class="grp-sell">KL2</th>
+          <th class="grp-sell">G3</th>
+          <th class="grp-sell">KL3</th>
+          <th>Mua</th>
+          <th>Bán</th>
+        </tr>
+      </thead>
+      <tbody id="board-body"></tbody>
+    </table>
   </div>
 
   <script>
+    /* ===== State & WS plumbing (giữ nguyên connect / reconnect / ping) ===== */
     const INDEX_SYMBOLS = new Set(["VNINDEX", "VN30", "HNXINDEX", "UPCOMINDEX"]);
-    const state = new Map(); // symbol -> row
+    const INDEX_LABEL = {
+      VNINDEX: "VN-INDEX",
+      VN30: "VN30",
+      HNXINDEX: "HNX",
+      UPCOMINDEX: "UPCOM",
+    };
+    const PIN_KEY = "atz.iboard.pinned";
+    const state = new Map();
+    const sparkHist = new Map();
     let ws = null;
     let retryMs = 1000;
     let pingTimer = null;
@@ -107,39 +271,215 @@
 
     function setConn(status) {
       const map = {
-        open: ["bg-board-up", "connected"],
-        connecting: ["bg-board-ref", "connecting…"],
-        closed: ["bg-board-down", "disconnected · retrying"],
+        open: ["bg-[#00ff00]", "connected"],
+        connecting: ["bg-[#ffd900]", "connecting…"],
+        closed: ["bg-[#ff0000]", "disconnected · retrying"],
       };
       const [cls, label] = map[status] || map.closed;
       elConnDot.className = "inline-block h-2 w-2 rounded-full " + cls;
       elConnLabel.textContent = label;
     }
 
-    function colorClass(change) {
-      if (change > 0) return "text-board-up";
-      if (change < 0) return "text-board-down";
-      return "text-board-ref";
+    /* ===== Pin (DOM move only — không re-render bảng) ===== */
+    function loadPins() {
+      try {
+        const raw = JSON.parse(localStorage.getItem(PIN_KEY) || "[]");
+        return Array.isArray(raw) ? raw.map(String) : [];
+      } catch (_) {
+        return [];
+      }
     }
 
-    function fmtPrice(row) {
-      if (row.kind === "index") return Number(row.last).toFixed(2);
-      return Number(row.last).toLocaleString("vi-VN");
+    function savePins(arr) {
+      localStorage.setItem(PIN_KEY, JSON.stringify(arr));
+    }
+
+    function applyPinVisual(tr, pinned) {
+      const btn = tr.querySelector("[data-pin]");
+      if (pinned) {
+        tr.classList.add("is-pinned");
+        if (btn) {
+          btn.classList.add("pinned");
+          btn.setAttribute("aria-pressed", "true");
+          btn.title = "Bỏ ghim";
+        }
+      } else {
+        tr.classList.remove("is-pinned");
+        tr.querySelectorAll("td").forEach((td) => { td.style.top = ""; });
+        if (btn) {
+          btn.classList.remove("pinned");
+          btn.setAttribute("aria-pressed", "false");
+          btn.title = "Ghim mã";
+        }
+      }
+    }
+
+    function lastPinnedRow() {
+      let last = null;
+      elBody.querySelectorAll("tr.is-pinned").forEach((r) => { last = r; });
+      return last;
+    }
+
+    /** Sticky top xếp chồng dưới thead theo thứ tự các dòng ghim. */
+    function updatePinnedPositions() {
+      const thead = document.querySelector("#board-table thead");
+      if (!thead || !elBody) return;
+      const baseTop = thead.offsetHeight;
+      const rows = elBody.querySelectorAll("tr.is-pinned");
+      let offset = 0;
+      rows.forEach((row) => {
+        // Tương đương baseTop + index * rowHeight khi các hàng đồng cao;
+        // dùng cộng dồn offsetHeight để đúng khi chiều cao lệch nhau.
+        const top = baseTop + offset;
+        row.querySelectorAll("td").forEach((td) => {
+          td.style.top = top + "px";
+        });
+        offset += row.offsetHeight || 22;
+      });
+    }
+
+    /** Nhấc dòng lên đầu tbody (dưới header) — không destroy/recreate node. */
+    function moveRowToPinnedTop(tr) {
+      elBody.insertBefore(tr, elBody.firstChild);
+    }
+
+    function moveRowAfterPins(tr) {
+      const last = lastPinnedRow();
+      if (last) {
+        elBody.insertBefore(tr, last.nextSibling);
+      }
+    }
+
+    function togglePin(symbol) {
+      const tr = document.getElementById("row-" + symbol);
+      if (!tr) return;
+      let pins = loadPins().filter((s) => s !== symbol);
+      const wasPinned = tr.classList.contains("is-pinned");
+
+      if (wasPinned) {
+        savePins(pins);
+        applyPinVisual(tr, false);
+        moveRowAfterPins(tr);
+        updatePinnedPositions();
+        return;
+      }
+
+      pins.unshift(symbol);
+      savePins(pins);
+      applyPinVisual(tr, true);
+      moveRowToPinnedTop(tr);
+      updatePinnedPositions();
+    }
+
+    /** Sau khi snapshot gen đủ dòng: đưa các mã đã ghim lên đầu theo thứ tự localStorage. */
+    function restorePinnedRows() {
+      const pins = loadPins();
+      for (let i = pins.length - 1; i >= 0; i--) {
+        const tr = document.getElementById("row-" + pins[i]);
+        if (!tr) continue;
+        applyPinVisual(tr, true);
+        elBody.insertBefore(tr, elBody.firstChild);
+      }
+      updatePinnedPositions();
+    }
+
+    window.addEventListener("resize", updatePinnedPositions);
+
+    /* ===== SSI color helpers ===== */
+    function priceTone(price, ref, ceil, floor) {
+      const p = Number(price);
+      const r = Number(ref);
+      const c = Number(ceil);
+      const f = Number(floor);
+      if (!Number.isFinite(p) || !Number.isFinite(r)) return "text-[#ffd900]";
+      if (Number.isFinite(c) && p >= c) return "text-[#ff00ff]";
+      if (Number.isFinite(f) && p <= f) return "text-[#00ffff]";
+      if (p > r) return "text-[#00ff00]";
+      if (p < r) return "text-[#ff0000]";
+      return "text-[#ffd900]";
+    }
+
+    function changeTone(change) {
+      if (change > 0) return "text-[#00ff00]";
+      if (change < 0) return "text-[#ff0000]";
+      return "text-[#ffd900]";
+    }
+
+    function fmtPrice(v, kind) {
+      if (v == null || v === "" || Number.isNaN(Number(v))) return "";
+      if (kind === "index") return Number(v).toFixed(2);
+      return Number(v).toLocaleString("en-US");
     }
 
     function fmtVol(v) {
-      const n = Number(v) || 0;
-      if (n >= 1e6) return (n / 1e6).toFixed(2) + "M";
-      if (n >= 1e3) return (n / 1e3).toFixed(1) + "K";
-      return String(n);
+      const n = Number(v);
+      if (!Number.isFinite(n) || n === 0) return "";
+      return Math.round(n).toLocaleString("en-US");
+    }
+
+    function fmtChange(v) {
+      if (v == null || Number.isNaN(Number(v))) return "";
+      const n = Number(v);
+      return (n > 0 ? "+" : "") + Number(n).toLocaleString("en-US");
     }
 
     function flashCell(el, change) {
       if (!el || !change) return;
       el.classList.remove("flash-up", "flash-down");
-      // force reflow
       void el.offsetWidth;
       el.classList.add(change > 0 ? "flash-up" : "flash-down");
+    }
+
+    function pushSpark(symbol, value) {
+      const arr = sparkHist.get(symbol) || [];
+      arr.push(Number(value));
+      while (arr.length > 32) arr.shift();
+      sparkHist.set(symbol, arr);
+      return arr;
+    }
+
+    function sparkPath(values) {
+      if (!values.length) return "";
+      const w = 72, h = 28, pad = 2;
+      const min = Math.min(...values);
+      const max = Math.max(...values);
+      const span = max - min || 1;
+      return values
+        .map((v, i) => {
+          const x = pad + (i / Math.max(values.length - 1, 1)) * (w - pad * 2);
+          const y = h - pad - ((v - min) / span) * (h - pad * 2);
+          return (i === 0 ? "M" : "L") + x.toFixed(1) + " " + y.toFixed(1);
+        })
+        .join(" ");
+    }
+
+    function enrichDepth(row) {
+      if (row.kind === "index") return row;
+      if (row.bid1 != null && row.ask1 != null) return row;
+      const last = Number(row.last);
+      const ceil = Number(row.ceil);
+      const floor = Number(row.floor);
+      const step = 50;
+      const seed = (row.symbol || "").split("").reduce((a, c) => a + c.charCodeAt(0), 0);
+      const rnd = (n) => ((seed * 17 + n * 31) % 97) + 3;
+      const clamp = (p) => Math.max(floor || p, Math.min(ceil || p, p));
+
+      row.bid1 = row.bid1 ?? clamp(last - step);
+      row.bid2 = row.bid2 ?? clamp(last - step * 2);
+      row.bid3 = row.bid3 ?? clamp(last - step * 3);
+      row.bidVol1 = row.bidVol1 ?? rnd(1) * 100;
+      row.bidVol2 = row.bidVol2 ?? rnd(2) * 80;
+      row.bidVol3 = row.bidVol3 ?? rnd(3) * 60;
+      row.ask1 = row.ask1 ?? clamp(last + step);
+      row.ask2 = row.ask2 ?? clamp(last + step * 2);
+      row.ask3 = row.ask3 ?? clamp(last + step * 3);
+      row.askVol1 = row.askVol1 ?? rnd(4) * 90;
+      row.askVol2 = row.askVol2 ?? rnd(5) * 70;
+      row.askVol3 = row.askVol3 ?? rnd(6) * 50;
+      row.matchVol = row.matchVol ?? Math.max(10, Math.floor((Number(row.volume) || 0) % 5000) || rnd(7) * 10);
+      row.foreignBuy = row.foreignBuy ?? rnd(8) * 1000;
+      row.foreignSell = row.foreignSell ?? rnd(9) * 800;
+      return row;
     }
 
     function ensureEquityRow(symbol) {
@@ -148,79 +488,156 @@
       tr = document.createElement("tr");
       tr.id = "row-" + symbol;
       tr.innerHTML = `
-        <td class="px-3 py-1.5 border-b font-medium text-board-accent" data-f="symbol"></td>
-        <td class="px-3 py-1.5 border-b text-right tabular-nums" data-f="last"></td>
-        <td class="px-3 py-1.5 border-b text-right tabular-nums" data-f="change"></td>
-        <td class="px-3 py-1.5 border-b text-right tabular-nums" data-f="pct"></td>
-        <td class="px-3 py-1.5 border-b text-right tabular-nums hidden sm:table-cell" data-f="high"></td>
-        <td class="px-3 py-1.5 border-b text-right tabular-nums hidden sm:table-cell" data-f="low"></td>
-        <td class="px-3 py-1.5 border-b text-right tabular-nums text-board-mute" data-f="vol"></td>
+        <td class="pin-cell">
+          <button type="button" class="pin-btn" data-pin="${symbol}" aria-pressed="false" title="Ghim mã">★</button>
+        </td>
+        <td class="sym" data-f="symbol"></td>
+        <td class="num text-[#ff00ff]" data-f="ceil"></td>
+        <td class="num text-[#00ffff]" data-f="floor"></td>
+        <td class="num text-[#ffd900]" data-f="ref"></td>
+        <td class="num tabular-nums grp-buy" data-f="bid3"></td>
+        <td class="num tabular-nums grp-buy text-gray-300" data-f="bidVol3"></td>
+        <td class="num tabular-nums grp-buy" data-f="bid2"></td>
+        <td class="num tabular-nums grp-buy text-gray-300" data-f="bidVol2"></td>
+        <td class="num tabular-nums grp-buy" data-f="bid1"></td>
+        <td class="num tabular-nums grp-buy text-gray-300" data-f="bidVol1"></td>
+        <td class="num tabular-nums grp-match font-semibold" data-f="last"></td>
+        <td class="num tabular-nums grp-match text-gray-300" data-f="matchVol"></td>
+        <td class="num tabular-nums grp-match" data-f="change"></td>
+        <td class="num tabular-nums grp-sell" data-f="ask1"></td>
+        <td class="num tabular-nums grp-sell text-gray-300" data-f="askVol1"></td>
+        <td class="num tabular-nums grp-sell" data-f="ask2"></td>
+        <td class="num tabular-nums grp-sell text-gray-300" data-f="askVol2"></td>
+        <td class="num tabular-nums grp-sell" data-f="ask3"></td>
+        <td class="num tabular-nums grp-sell text-gray-300" data-f="askVol3"></td>
+        <td class="num tabular-nums text-gray-200" data-f="vol"></td>
+        <td class="num tabular-nums text-[#00ff00]" data-f="fbuy"></td>
+        <td class="num tabular-nums text-[#ff0000]" data-f="fsell"></td>
       `;
+      const btn = tr.querySelector("[data-pin]");
+      btn.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        togglePin(symbol);
+      });
       elBody.appendChild(tr);
       return tr;
     }
 
     function renderIndexBar() {
-      const idxs = [...INDEX_SYMBOLS].map((s) => state.get(s)).filter(Boolean);
-      elIndexBar.innerHTML = idxs.map((row) => {
-        const cls = colorClass(row.change);
-        return `
-          <div class="rounded-sm border border-board-line bg-board-bg/60 px-3 py-2" data-idx="${row.symbol}">
-            <div class="text-[11px] text-board-mute tracking-wide">${row.symbol}</div>
-            <div class="flex items-baseline justify-between gap-2 mt-0.5">
-              <span class="font-mono text-lg tabular-nums ${cls}" data-f="last">${fmtPrice(row)}</span>
-              <span class="font-mono text-xs tabular-nums ${cls}" data-f="pct">${row.change_pct > 0 ? "+" : ""}${Number(row.change_pct).toFixed(2)}%</span>
-            </div>
-          </div>`;
-      }).join("");
+      const order = ["VNINDEX", "VN30", "HNXINDEX", "UPCOMINDEX"];
+      const idxs = order.map((s) => state.get(s)).filter(Boolean);
+      elIndexBar.innerHTML = idxs
+        .map((row) => {
+          const hist = sparkHist.get(row.symbol) || [Number(row.last)];
+          const tone = changeTone(row.change);
+          const stroke = row.change > 0 ? "#00ff00" : row.change < 0 ? "#ff0000" : "#ffd900";
+          const label = INDEX_LABEL[row.symbol] || row.symbol;
+          return `
+            <div class="idx-card" data-idx="${row.symbol}">
+              <svg class="spark" viewBox="0 0 72 28" aria-hidden="true">
+                <path d="${sparkPath(hist)}" fill="none" stroke="${stroke}" stroke-width="1.5" />
+              </svg>
+              <div class="min-w-0">
+                <div class="text-[10px] tracking-tight text-gray-500">${label}</div>
+                <div class="flex items-baseline gap-2">
+                  <span class="tabular-nums text-[15px] font-semibold ${tone}" data-f="last">${fmtPrice(row.last, "index")}</span>
+                  <span class="tabular-nums text-[11px] ${tone}" data-f="chg">${fmtChange(row.change)}</span>
+                  <span class="tabular-nums text-[11px] ${tone}" data-f="pct">${row.change_pct > 0 ? "+" : ""}${Number(row.change_pct).toFixed(2)}%</span>
+                </div>
+              </div>
+            </div>`;
+        })
+        .join("");
     }
 
-    function applyRow(row, { flash = false } = {}) {
+    function applyIndex(row, { flash = false } = {}) {
       const prev = state.get(row.symbol);
+      pushSpark(row.symbol, row.last);
       state.set(row.symbol, row);
 
-      if (INDEX_SYMBOLS.has(row.symbol)) {
-        let card = elIndexBar.querySelector(`[data-idx="${row.symbol}"]`);
-        if (!card) {
-          renderIndexBar();
-          card = elIndexBar.querySelector(`[data-idx="${row.symbol}"]`);
-        }
-        if (card) {
-          const lastEl = card.querySelector('[data-f="last"]');
-          const pctEl = card.querySelector('[data-f="pct"]');
-          const cls = colorClass(row.change);
-          lastEl.textContent = fmtPrice(row);
-          lastEl.className = "font-mono text-lg tabular-nums " + cls;
-          pctEl.textContent = (row.change_pct > 0 ? "+" : "") + Number(row.change_pct).toFixed(2) + "%";
-          pctEl.className = "font-mono text-xs tabular-nums " + cls;
-          if (flash && prev && prev.last !== row.last) {
-            flashCell(card, row.change);
-          }
-        }
-        return;
+      let card = elIndexBar.querySelector(`[data-idx="${row.symbol}"]`);
+      if (!card) {
+        renderIndexBar();
+        card = elIndexBar.querySelector(`[data-idx="${row.symbol}"]`);
       }
+      if (!card) return;
+
+      const tone = changeTone(row.change);
+      const stroke = row.change > 0 ? "#00ff00" : row.change < 0 ? "#ff0000" : "#ffd900";
+      const lastEl = card.querySelector('[data-f="last"]');
+      const chgEl = card.querySelector('[data-f="chg"]');
+      const pctEl = card.querySelector('[data-f="pct"]');
+      const path = card.querySelector("path");
+
+      lastEl.textContent = fmtPrice(row.last, "index");
+      lastEl.className = "tabular-nums text-[15px] font-semibold " + tone;
+      chgEl.textContent = fmtChange(row.change);
+      chgEl.className = "tabular-nums text-[11px] " + tone;
+      pctEl.textContent = (row.change_pct > 0 ? "+" : "") + Number(row.change_pct).toFixed(2) + "%";
+      pctEl.className = "tabular-nums text-[11px] " + tone;
+      if (path) {
+        path.setAttribute("d", sparkPath(sparkHist.get(row.symbol) || []));
+        path.setAttribute("stroke", stroke);
+      }
+      if (flash && prev && prev.last !== row.last) {
+        flashCell(card, row.change || (row.last > prev.last ? 1 : -1));
+      }
+    }
+
+    function setPriceCell(td, value, row, extraCls) {
+      td.textContent = fmtPrice(value, row.kind);
+      td.className = ("num tabular-nums " + (extraCls || "") + " " + priceTone(value, row.ref, row.ceil, row.floor)).trim();
+    }
+
+    function applyEquity(row, { flash = false } = {}) {
+      const prev = state.get(row.symbol);
+      row = enrichDepth({ ...row });
+      state.set(row.symbol, row);
 
       const tr = ensureEquityRow(row.symbol);
-      const cls = colorClass(row.change);
       tr.querySelector('[data-f="symbol"]').textContent = row.symbol;
+      tr.querySelector('[data-f="ceil"]').textContent = fmtPrice(row.ceil);
+      tr.querySelector('[data-f="floor"]').textContent = fmtPrice(row.floor);
+      tr.querySelector('[data-f="ref"]').textContent = fmtPrice(row.ref);
+
+      setPriceCell(tr.querySelector('[data-f="bid3"]'), row.bid3, row, "grp-buy");
+      tr.querySelector('[data-f="bidVol3"]').textContent = fmtVol(row.bidVol3);
+      setPriceCell(tr.querySelector('[data-f="bid2"]'), row.bid2, row, "grp-buy");
+      tr.querySelector('[data-f="bidVol2"]').textContent = fmtVol(row.bidVol2);
+      setPriceCell(tr.querySelector('[data-f="bid1"]'), row.bid1, row, "grp-buy");
+      tr.querySelector('[data-f="bidVol1"]').textContent = fmtVol(row.bidVol1);
+
       const lastEl = tr.querySelector('[data-f="last"]');
-      lastEl.textContent = fmtPrice(row);
-      lastEl.className = "px-3 py-1.5 border-b text-right tabular-nums " + cls;
-      tr.querySelector('[data-f="change"]').textContent =
-        (row.change > 0 ? "+" : "") + Number(row.change).toLocaleString("vi-VN");
-      tr.querySelector('[data-f="change"]').className =
-        "px-3 py-1.5 border-b text-right tabular-nums " + cls;
-      tr.querySelector('[data-f="pct"]').textContent =
-        (row.change_pct > 0 ? "+" : "") + Number(row.change_pct).toFixed(2);
-      tr.querySelector('[data-f="pct"]').className =
-        "px-3 py-1.5 border-b text-right tabular-nums " + cls;
-      tr.querySelector('[data-f="high"]').textContent = fmtPrice({ ...row, last: row.high });
-      tr.querySelector('[data-f="low"]').textContent = fmtPrice({ ...row, last: row.low });
+      setPriceCell(lastEl, row.last, row, "grp-match font-semibold");
+
+      tr.querySelector('[data-f="matchVol"]').textContent = fmtVol(row.matchVol);
+      const chgEl = tr.querySelector('[data-f="change"]');
+      chgEl.textContent = fmtChange(row.change);
+      chgEl.className = "num tabular-nums grp-match " + changeTone(row.change);
+
+      setPriceCell(tr.querySelector('[data-f="ask1"]'), row.ask1, row, "grp-sell");
+      tr.querySelector('[data-f="askVol1"]').textContent = fmtVol(row.askVol1);
+      setPriceCell(tr.querySelector('[data-f="ask2"]'), row.ask2, row, "grp-sell");
+      tr.querySelector('[data-f="askVol2"]').textContent = fmtVol(row.askVol2);
+      setPriceCell(tr.querySelector('[data-f="ask3"]'), row.ask3, row, "grp-sell");
+      tr.querySelector('[data-f="askVol3"]').textContent = fmtVol(row.askVol3);
+
       tr.querySelector('[data-f="vol"]').textContent = fmtVol(row.volume);
+      tr.querySelector('[data-f="fbuy"]').textContent = fmtVol(row.foreignBuy);
+      tr.querySelector('[data-f="fsell"]').textContent = fmtVol(row.foreignSell);
 
       if (flash && prev && prev.last !== row.last) {
         flashCell(lastEl, row.change || (row.last > prev.last ? 1 : -1));
       }
+    }
+
+    function applyRow(row, opts = {}) {
+      if (INDEX_SYMBOLS.has(row.symbol)) {
+        applyIndex(row, opts);
+        return;
+      }
+      applyEquity(row, opts);
     }
 
     function handleMessage(raw) {
@@ -230,12 +647,22 @@
         elBody.innerHTML = "";
         elIndexBar.innerHTML = "";
         state.clear();
-        msg.rows.forEach((r) => applyRow(r, { flash: false }));
-        renderIndexBar();
-        // re-apply equities already inserted; indices need bar
-        msg.rows.forEach((r) => {
-          if (!INDEX_SYMBOLS.has(r.symbol)) applyRow(r, { flash: false });
+        sparkHist.clear();
+        const rows = [...msg.rows].sort((a, b) => {
+          const ai = INDEX_SYMBOLS.has(a.symbol) ? 0 : 1;
+          const bi = INDEX_SYMBOLS.has(b.symbol) ? 0 : 1;
+          if (ai !== bi) return ai - bi;
+          return String(a.symbol).localeCompare(String(b.symbol));
         });
+        rows.forEach((r) => {
+          if (INDEX_SYMBOLS.has(r.symbol)) pushSpark(r.symbol, r.last);
+          applyRow(r, { flash: false });
+        });
+        renderIndexBar();
+        rows.forEach((r) => {
+          if (INDEX_SYMBOLS.has(r.symbol)) applyIndex(r, { flash: false });
+        });
+        restorePinnedRows();
         return;
       }
       if (msg.type === "tick" && msg.symbol) {

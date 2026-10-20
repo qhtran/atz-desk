@@ -26,27 +26,84 @@ logger = logging.getLogger("atz.priceboard.ssi_worker")
 REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
 CHANNEL = os.getenv("PRICEBOARD_CHANNEL", "priceboard_ticks")
 HASH_KEY = os.getenv("PRICEBOARD_HASH", "priceboard:quotes")
-TICK_INTERVAL_MS = int(os.getenv("MOCK_TICK_INTERVAL_MS", "250"))
+TICK_INTERVAL_MS = int(os.getenv("MOCK_TICK_INTERVAL_MS", "120"))
+TICKS_PER_BURST = int(os.getenv("MOCK_TICKS_PER_BURST", "3"))
+MOCK_EQUITY_COUNT = int(os.getenv("MOCK_EQUITY_COUNT", "70"))  # target equities (50–80)
 TZ_VN = timezone(timedelta(hours=7))
 
-# Seed board — enough symbols for UI stress without flooding Redis.
-SEED: list[dict] = [
-    {"symbol": "VNINDEX", "exchange": "HOSE", "kind": "index", "ref": 1285.4, "last": 1285.4, "volume": 0},
-    {"symbol": "VN30", "exchange": "HOSE", "kind": "index", "ref": 1342.1, "last": 1342.1, "volume": 0},
-    {"symbol": "HNXINDEX", "exchange": "HNX", "kind": "index", "ref": 238.6, "last": 238.6, "volume": 0},
-    {"symbol": "UPCOMINDEX", "exchange": "UPCOM", "kind": "index", "ref": 95.2, "last": 95.2, "volume": 0},
-    {"symbol": "VNM", "exchange": "HOSE", "kind": "equity", "ref": 62500, "last": 62500, "volume": 1_250_000},
-    {"symbol": "FPT", "exchange": "HOSE", "kind": "equity", "ref": 118500, "last": 118500, "volume": 980_000},
-    {"symbol": "VCB", "exchange": "HOSE", "kind": "equity", "ref": 92500, "last": 92500, "volume": 2_100_000},
-    {"symbol": "HPG", "exchange": "HOSE", "kind": "equity", "ref": 27800, "last": 27800, "volume": 8_400_000},
-    {"symbol": "MWG", "exchange": "HOSE", "kind": "equity", "ref": 61200, "last": 61200, "volume": 1_800_000},
-    {"symbol": "SSI", "exchange": "HOSE", "kind": "equity", "ref": 34200, "last": 34200, "volume": 5_200_000},
-    {"symbol": "TCB", "exchange": "HOSE", "kind": "equity", "ref": 24500, "last": 24500, "volume": 3_600_000},
-    {"symbol": "VIC", "exchange": "HOSE", "kind": "equity", "ref": 41500, "last": 41500, "volume": 2_900_000},
-    {"symbol": "MSN", "exchange": "HOSE", "kind": "equity", "ref": 72800, "last": 72800, "volume": 1_100_000},
-    {"symbol": "GAS", "exchange": "HOSE", "kind": "equity", "ref": 78500, "last": 78500, "volume": 450_000},
-    {"symbol": "ACB", "exchange": "HOSE", "kind": "equity", "ref": 24850, "last": 24850, "volume": 4_200_000},
+# VN30 + common HOSE names (approx basket for UI realism).
+VN30_AND_BLUECHIPS: list[tuple[str, int]] = [
+    ("ACB", 24850), ("BCM", 68500), ("BID", 45200), ("BVH", 51200), ("CTG", 34500),
+    ("FPT", 118500), ("GAS", 78500), ("GVR", 31200), ("HDB", 26800), ("HPG", 27800),
+    ("LPB", 31200), ("MBB", 24500), ("MSN", 72800), ("MWG", 61200), ("PLX", 38500),
+    ("SAB", 58200), ("SHB", 11200), ("SSB", 19800), ("SSI", 34200), ("STB", 35600),
+    ("TCB", 24500), ("TPB", 17800), ("VCB", 92500), ("VHM", 41200), ("VIB", 19850),
+    ("VIC", 41500), ("VJC", 98500), ("VNM", 62500), ("VPB", 19800), ("VRE", 18600),
+    # extra liquid names beyond VN30
+    ("DGC", 92500), ("DIG", 18500), ("DXG", 15200), ("HCM", 28500), ("KDH", 31200),
+    ("NLG", 34500), ("PNJ", 92500), ("POW", 12850), ("REE", 65200), ("TCH", 12500),
 ]
+
+
+def _synthetic_symbol(i: int) -> str:
+    """AAA, AAB, AAC … then BAA, BAB … (base-26 style, A–Z)."""
+    n = i
+    chars = []
+    for _ in range(3):
+        chars.append(chr(ord("A") + (n % 26)))
+        n //= 26
+    return "".join(reversed(chars))
+
+
+def _equity_row(symbol: str, ref: int, exchange: str = "HOSE") -> dict:
+    return {
+        "symbol": symbol,
+        "exchange": exchange,
+        "kind": "equity",
+        "ref": ref,
+        "last": ref,
+        "volume": random.randint(50_000, 9_000_000),
+    }
+
+
+def build_seed(equity_count: int | None = None) -> list[dict]:
+    """Build index + 50–80 equities for scroll / sticky header stress tests."""
+    target = equity_count if equity_count is not None else MOCK_EQUITY_COUNT
+    target = max(50, min(80, target))
+
+    seed: list[dict] = [
+        {"symbol": "VNINDEX", "exchange": "HOSE", "kind": "index", "ref": 1285.4, "last": 1285.4, "volume": 0},
+        {"symbol": "VN30", "exchange": "HOSE", "kind": "index", "ref": 1342.1, "last": 1342.1, "volume": 0},
+        {"symbol": "HNXINDEX", "exchange": "HNX", "kind": "index", "ref": 238.6, "last": 238.6, "volume": 0},
+        {"symbol": "UPCOMINDEX", "exchange": "UPCOM", "kind": "index", "ref": 95.2, "last": 95.2, "volume": 0},
+    ]
+
+    seen: set[str] = set()
+    for sym, ref in VN30_AND_BLUECHIPS:
+        if len(seen) >= target:
+            break
+        if sym in seen:
+            continue
+        seen.add(sym)
+        seed.append(_equity_row(sym, ref))
+
+    # Fill remaining with synthetic tickers AAA, AAB, …
+    i = 0
+    while len(seen) < target:
+        sym = _synthetic_symbol(i)
+        i += 1
+        if sym in seen or len(sym) != 3:
+            continue
+        seen.add(sym)
+        # Deterministic-ish price from symbol hash
+        ref = 5_000 + (sum(ord(c) for c in sym) * 137) % 180_000
+        ref = int(round(ref / 50) * 50)
+        seed.append(_equity_row(sym, max(ref, 5_050)))
+
+    return seed
+
+
+SEED: list[dict] = build_seed()
 
 
 def _now_iso() -> str:
@@ -105,7 +162,7 @@ class MockSsiWorker:
 
     def __init__(self) -> None:
         self._stop = asyncio.Event()
-        self._state = [dict(r) for r in SEED]
+        self._state = [dict(r) for r in build_seed()]
         for row in self._state:
             row["high"] = row["last"]
             row["low"] = row["last"]
@@ -136,7 +193,8 @@ class MockSsiWorker:
     async def _session(self) -> None:
         redis = aioredis.from_url(REDIS_URL, decode_responses=True)
         try:
-            # Seed hash so new WS clients get a non-empty snapshot.
+            # Reset hash so removed symbols from older seeds do not linger.
+            await redis.delete(HASH_KEY)
             pipe = redis.pipeline()
             for row in self._state:
                 payload = _tick_row(dict(row))
@@ -148,25 +206,28 @@ class MockSsiWorker:
                 payload["low"] = row["last"]
                 pipe.hset(HASH_KEY, row["symbol"], json.dumps(payload, separators=(",", ":")))
             await pipe.execute()
+            n_eq = sum(1 for r in self._state if r["kind"] == "equity")
             logger.info(
-                "DBG-PRICEBOARD-SSI-MOCK-READY symbols=%s interval_ms=%s",
+                "DBG-PRICEBOARD-SSI-MOCK-READY symbols=%s equities=%s interval_ms=%s burst=%s",
                 len(self._state),
+                n_eq,
                 TICK_INTERVAL_MS,
+                TICKS_PER_BURST,
             )
 
             interval = max(TICK_INTERVAL_MS, 50) / 1000.0
+            burst = max(1, TICKS_PER_BURST)
             while not self._stop.is_set():
-                row = random.choice(self._state)
-                tick = _tick_row(row)
-                # Keep in-memory state in sync with published last/vol.
-                row["last"] = tick["last"]
-                row["volume"] = tick["volume"]
-                row["high"] = tick["high"]
-                row["low"] = tick["low"]
-
-                body = json.dumps(tick, ensure_ascii=False, separators=(",", ":"))
-                await redis.hset(HASH_KEY, tick["symbol"], body)
-                await redis.publish(CHANNEL, body)
+                picks = random.sample(self._state, k=min(burst, len(self._state)))
+                for row in picks:
+                    tick = _tick_row(row)
+                    row["last"] = tick["last"]
+                    row["volume"] = tick["volume"]
+                    row["high"] = tick["high"]
+                    row["low"] = tick["low"]
+                    body = json.dumps(tick, ensure_ascii=False, separators=(",", ":"))
+                    await redis.hset(HASH_KEY, tick["symbol"], body)
+                    await redis.publish(CHANNEL, body)
                 await asyncio.sleep(interval)
         finally:
             await redis.aclose()
