@@ -2,7 +2,7 @@
 
 **Ngày:** 2026-10-21 (P0 browser Pass ngoài phiên · tick BLOCKED)  
 **Branch:** `feature/realtime-fastapi`  
-**HEAD (đã push):** `3c0e7f4`  
+**HEAD (đã push):** `fc478c1`  
 **Orchestrator:** Cursor · Bot code paused · **cấm** sửa nginx `stream.d` / sshd / UFW trừ `user_confirmed_infra: yes`.
 
 Đọc trước: `AGENTS.md`, `docs/architecture.md` §8.1, `docs/infrastructure/VPS_NETWORK.md`, `docs/adr/0008-ssi-websocket-primary.md`, `config/priceboard.yaml`, `docs/specs/PRICEBOARD_P1_DEPTH_NN.md`, file này.
@@ -128,7 +128,7 @@ Chi tiết: [`docs/specs/PRICEBOARD_P1_DEPTH_NN.md`](../specs/PRICEBOARD_P1_DEPT
 
 ## Câu mở chat mới (copy)
 
-> Tiếp `feature/realtime-fastapi` @ tip + `docs/bots/HANDOFF_NEXT_CHAT.md` + `docs/specs/PRICEBOARD_P1_DEPTH_NN.md`.  
+> Tiếp `feature/realtime-fastapi` @ `fc478c1` + `docs/bots/HANDOFF_NEXT_CHAT.md` + `docs/specs/PRICEBOARD_P1_DEPTH_NN.md`.  
 > Public: `https://dev.atz.vn` — P0 Pass (login/WS/index/tabs/search); tick **BLOCKED** ngoài phiên. Stack VPS `atz_priceboard` SSI, `min_volume=500000`. Local OrbStack priceboard đã stop.  
 > Việc tiếp: P0 tick giờ mở cửa + P1 capture depth/NN rồi code.  
 > **Không** đụng `stream.d` / sshd / UFW / `atz-redis` prod.
