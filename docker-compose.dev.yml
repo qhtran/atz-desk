@@ -50,6 +50,7 @@ services:
       FRONTEND_DIR: /app/frontend
       LOG_LEVEL: INFO
     ports:
+      # localhost tunnel + nginx (via Docker DNS on vnstocks_default)
       - "127.0.0.1:8000:8000"
     volumes:
       - ./backend:/app/backend
@@ -62,6 +63,8 @@ services:
       retries: 3
     networks:
       - priceboard_dev
+      # nginx-reverse-proxy resolves atz-priceboard-api-dev for dev.atz.vn
+      - vnstocks_default
 
   ssi-worker:
     build:
@@ -97,6 +100,8 @@ services:
 networks:
   priceboard_dev:
     name: atz_priceboard_dev
+  vnstocks_default:
+    external: true
 
 volumes:
   redis_dev_data:
