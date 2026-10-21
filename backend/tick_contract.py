@@ -7,6 +7,8 @@ from typing import Any
 
 TZ_VN = timezone(timedelta(hours=7))
 
+INDEX_SYMBOLS = frozenset({"VNINDEX", "VN30", "HNXINDEX", "UPCOMINDEX"})
+
 
 def now_iso() -> str:
     return datetime.now(TZ_VN).isoformat()
@@ -21,11 +23,47 @@ def _num(v: Any) -> float | None:
         return None
 
 
+def _first_num(body: dict[str, Any], *keys: str) -> float | None:
+    for k in keys:
+        n = _num(body.get(k))
+        if n is not None:
+            return n
+    return None
+
+
+def _positive_num(v: Any) -> float | None:
+    """Numeric field that must be > 0 (ceil/floor/high/low price levels)."""
+    n = _num(v)
+    if n is None or n <= 0:
+        return None
+    return n
+
+
 def _ceil_floor(ref: float, kind: str) -> tuple[float | int, float | int]:
     if kind == "index":
         return round(ref * 1.07, 2), round(ref * 0.93, 2)
     r = int(round(ref))
     return int(round(r * 1.07 / 50) * 50), int(round(r * 0.93 / 50) * 50)
+
+
+def _book_levels(raw: Any, n: int = 3) -> tuple[list[float], list[float]]:
+    """SSI DATA book: [[price, vol], ...] → first n positive prices + vols."""
+    prices: list[float] = []
+    vols: list[float] = []
+    if not isinstance(raw, (list, tuple)):
+        return prices, vols
+    for row in raw:
+        if len(prices) >= n:
+            break
+        if not isinstance(row, (list, tuple)) or len(row) < 2:
+            continue
+        px = _num(row[0])
+        vol = _num(row[1])
+        if px is None or px <= 0:
+            continue
+        prices.append(px)
+        vols.append(0.0 if vol is None else vol)
+    return prices, vols
 
 
 def build_tick(
@@ -64,6 +102,11 @@ def build_tick(
     sym = str(symbol).strip().upper()
     last_f = float(last)
     ref_f = float(ref) if ref is not None else last_f
+    # SSI sometimes sends 0 for missing limits — treat as absent
+    if ceil is not None and float(ceil) <= 0:
+        ceil = None
+    if floor is not None and float(floor) <= 0:
+        floor = None
     if ceil is None or floor is None:
         c, f = _ceil_floor(ref_f, kind)
         ceil = ceil if ceil is not None else c
@@ -135,7 +178,13 @@ def build_tick(
 
 
 def parse_ssi_envelope(msg: dict[str, Any]) -> dict[str, Any] | None:
-    """Best-effort map SSI WS payload → kwargs for build_tick. None = ignore."""
+    """Best-effort map SSI WS payload → kwargs for build_tick. None = ignore.
+
+    SSI FastConnect DATA short fields (observed live):
+    - Index summary: v=value, c=change, cr=change%, tq=total qty; ce/fl = advance/decline counts (NOT price limits)
+    - Equity trade: p=last, v=accumulated volume, o=open/ref, h/l, q=matchVol
+    - Equity book: bids/asks = [[price, vol], ...]
+    """
     if not isinstance(msg, dict):
         return None
     method = str(msg.get("method") or "").upper()
@@ -176,66 +225,137 @@ def parse_ssi_envelope(msg: dict[str, Any]) -> dict[str, Any] | None:
     }
     sym = aliases.get(sym, sym)
 
-    indexes = {"VNINDEX", "VN30", "HNXINDEX", "UPCOMINDEX"}
-    kind = "index" if sym in indexes else "equity"
+    kind = "index" if sym in INDEX_SYMBOLS else "equity"
 
-    last = _num(
-        body.get("last")
-        or body.get("LastPrice")
-        or body.get("matchedPrice")
-        or body.get("close")
-        or body.get("c")
-        or body.get("p")
-        or body.get("price")
-        or body.get("indexValue")
-        or body.get("IndexValue")
-        or body.get("value")
+    # --- last (kind-aware: never use index `c`=change or equity `v`=volume as last) ---
+    if kind == "index":
+        last = _first_num(
+            body,
+            "indexValue",
+            "IndexValue",
+            "value",
+            "v",  # index level
+            "last",
+            "LastPrice",
+            "price",
+            "p",
+        )
+        # Do NOT fall back to `c` / `close` — `c` is change on indexsummary
+    else:
+        last = _first_num(
+            body,
+            "last",
+            "LastPrice",
+            "matchedPrice",
+            "p",
+            "price",
+            "close",
+        )
+        # Do NOT use `v` (accum volume) or bare `c` (change) as last
+
+    change = _first_num(body, "indexChange", "Change", "change", "priceChange", "c")
+    change_pct = _first_num(
+        body,
+        "change_pct",
+        "changePercent",
+        "indexChangePercentage",
+        "ratioChange",
+        "cr",
     )
-    if last is None:
+
+    if kind == "index":
+        # tq = total shares traded on board; never use `v` (that's the index level)
+        volume = _first_num(
+            body,
+            "tq",
+            "tmq",
+            "totalVol",
+            "TotalVol",
+            "accumulatedVolume",
+            "nmVolume",
+            "volume",
+        )
+        # ce/fl are advance/decline counts on indexsummary — not price ceiling/floor
+        ceil = _positive_num(
+            body.get("ceilingPrice") or body.get("Ceiling") or body.get("highLimit") or body.get("ceil")
+        )
+        floor = _positive_num(
+            body.get("floorPrice") or body.get("Floor") or body.get("lowLimit") or body.get("floor")
+        )
+        high = _positive_num(body.get("high") or body.get("Highest") or body.get("h"))
+        low = _positive_num(body.get("low") or body.get("Lowest") or body.get("l"))
+        ref = _first_num(body, "ref", "refPrice", "basicPrice", "referencePrice", "tc")
+    else:
+        # `v` on equity trade = accumulated session volume
+        volume = _first_num(
+            body,
+            "volume",
+            "v",
+            "totalVol",
+            "TotalVol",
+            "accumulatedVolume",
+            "nmVolume",
+            "tq",
+            "tmq",
+        )
+        ceil = _positive_num(
+            body.get("ceilingPrice")
+            or body.get("Ceiling")
+            or body.get("highLimit")
+            or body.get("ceil")
+            or body.get("ce")
+        )
+        floor = _positive_num(
+            body.get("floorPrice")
+            or body.get("Floor")
+            or body.get("lowLimit")
+            or body.get("floor")
+            or body.get("fl")
+        )
+        high = _positive_num(body.get("high") or body.get("Highest") or body.get("h"))
+        low = _positive_num(body.get("low") or body.get("Lowest") or body.get("l"))
+        # `o` observed as open/ref on equity trade ticks
+        ref = _first_num(body, "ref", "refPrice", "basicPrice", "referencePrice", "tc", "o")
+
+    if ref is None and last is not None and change is not None:
+        ref = round(last - change, 6)
+    if ref is None and last is not None and change_pct is not None and abs(change_pct) < 50:
+        # cr is percent points (0.46 → 0.46%)
+        ref = round(last / (1 + change_pct / 100.0), 6) if change_pct != -100 else last
+
+    # Depth — explicit fields or SSI bids/asks arrays
+    bid1 = _first_num(body, "bid1", "bidPrice1", "BestBid1", "g1")
+    bid2 = _first_num(body, "bid2", "bidPrice2", "BestBid2")
+    bid3 = _first_num(body, "bid3", "bidPrice3", "BestBid3")
+    bidVol1 = _first_num(body, "bidVol1", "bidVolume1", "BestBidVol1")
+    bidVol2 = _first_num(body, "bidVol2", "bidVolume2", "BestBidVol2")
+    bidVol3 = _first_num(body, "bidVol3", "bidVolume3", "BestBidVol3")
+    ask1 = _first_num(body, "ask1", "offer1", "offerPrice1", "BestOffer1")
+    ask2 = _first_num(body, "ask2", "offer2", "offerPrice2", "BestOffer2")
+    ask3 = _first_num(body, "ask3", "offer3", "offerPrice3", "BestOffer3")
+    askVol1 = _first_num(body, "askVol1", "offerVol1", "offerVolume1", "BestOfferVol1")
+    askVol2 = _first_num(body, "askVol2", "offerVol2", "offerVolume2", "BestOfferVol2")
+    askVol3 = _first_num(body, "askVol3", "offerVol3", "offerVolume3", "BestOfferVol3")
+
+    if bid1 is None and "bids" in body:
+        bpx, bvol = _book_levels(body.get("bids"))
+        if bpx:
+            bid1, bid2, bid3 = (bpx + [None, None, None])[:3]
+            bidVol1, bidVol2, bidVol3 = (bvol + [None, None, None])[:3]
+    if ask1 is None and "asks" in body:
+        apx, avol = _book_levels(body.get("asks"))
+        if apx:
+            ask1, ask2, ask3 = (apx + [None, None, None])[:3]
+            askVol1, askVol2, askVol3 = (avol + [None, None, None])[:3]
+
+    matchVol = _first_num(body, "matchVol", "lastVol", "matchedVol", "lot", "q")
+    foreignBuy = _first_num(body, "foreignBuy", "fBuyVol", "BuyForeignQtty")
+    foreignSell = _first_num(body, "foreignSell", "fSellVol", "SellForeignQtty")
+
+    has_depth = any(x is not None for x in (bid1, ask1))
+    has_extra = any(x is not None for x in (volume, matchVol, foreignBuy, foreignSell, high, low))
+    if last is None and not has_depth and not has_extra:
         return None
-
-    ref = _num(
-        body.get("ref")
-        or body.get("refPrice")
-        or body.get("basicPrice")
-        or body.get("referencePrice")
-        or body.get("tc")
-    )
-    change = _num(body.get("change") or body.get("priceChange") or body.get("indexChange") or body.get("Change"))
-    change_pct = _num(
-        body.get("change_pct")
-        or body.get("changePercent")
-        or body.get("ratioChange")
-        or body.get("indexChangePercentage")
-    )
-    volume = _num(
-        body.get("volume")
-        or body.get("totalVol")
-        or body.get("TotalVol")
-        or body.get("accumulatedVolume")
-        or body.get("nmVolume")
-    )
-    high = _num(body.get("high") or body.get("Highest") or body.get("h"))
-    low = _num(body.get("low") or body.get("Lowest") or body.get("l"))
-    ceil = _num(body.get("ceil") or body.get("ceiling") or body.get("ceilingPrice") or body.get("highLimit"))
-    floor = _num(body.get("floor") or body.get("floorPrice") or body.get("lowLimit"))
-
-    # Depth — SSI quote often bid/offer 1..3
-    bid1 = _num(body.get("bid1") or body.get("bidPrice1") or body.get("BestBid1") or body.get("g1"))
-    bid2 = _num(body.get("bid2") or body.get("bidPrice2") or body.get("BestBid2"))
-    bid3 = _num(body.get("bid3") or body.get("bidPrice3") or body.get("BestBid3"))
-    bidVol1 = _num(body.get("bidVol1") or body.get("bidVolume1") or body.get("BestBidVol1"))
-    bidVol2 = _num(body.get("bidVol2") or body.get("bidVolume2") or body.get("BestBidVol2"))
-    bidVol3 = _num(body.get("bidVol3") or body.get("bidVolume3") or body.get("BestBidVol3"))
-    ask1 = _num(body.get("ask1") or body.get("offer1") or body.get("offerPrice1") or body.get("BestOffer1"))
-    ask2 = _num(body.get("ask2") or body.get("offer2") or body.get("offerPrice2") or body.get("BestOffer2"))
-    ask3 = _num(body.get("ask3") or body.get("offer3") or body.get("offerPrice3") or body.get("BestOffer3"))
-    askVol1 = _num(body.get("askVol1") or body.get("offerVol1") or body.get("offerVolume1") or body.get("BestOfferVol1"))
-    askVol2 = _num(body.get("askVol2") or body.get("offerVol2") or body.get("offerVolume2") or body.get("BestOfferVol2"))
-    askVol3 = _num(body.get("askVol3") or body.get("offerVol3") or body.get("offerVolume3") or body.get("BestOfferVol3"))
-    matchVol = _num(body.get("matchVol") or body.get("lastVol") or body.get("matchedVol") or body.get("lot"))
-    foreignBuy = _num(body.get("foreignBuy") or body.get("fBuyVol") or body.get("BuyForeignQtty"))
-    foreignSell = _num(body.get("foreignSell") or body.get("fSellVol") or body.get("SellForeignQtty"))
 
     return {
         "symbol": sym,
