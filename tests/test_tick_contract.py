@@ -120,3 +120,17 @@ def test_build_tick_index_from_parsed():
     assert tick["change_pct"] == pytest.approx(0.31)
     assert tick["volume"] == 21042392
     assert abs(tick["change_pct"]) < 5
+
+
+def test_parse_index_trade_volume_v_not_used_as_last():
+    """trade.index style: large v is volume — must not become index last."""
+    parsed = parse_ssi_envelope(
+        {"channel": "DATA", "data": {"s": "VNINDEX", "p": "1700.5", "q": "10", "v": "99433205"}}
+    )
+    assert parsed is not None
+    assert parsed["last"] == pytest.approx(1700.5)
+    assert parsed["volume"] == pytest.approx(99433205)
+
+
+def test_parse_index_rejects_huge_v_without_summary():
+    assert parse_ssi_envelope({"data": {"s": "VNINDEX", "v": "99433205"}}) is None

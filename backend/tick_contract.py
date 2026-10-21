@@ -227,31 +227,11 @@ def parse_ssi_envelope(msg: dict[str, Any]) -> dict[str, Any] | None:
 
     kind = "index" if sym in INDEX_SYMBOLS else "equity"
 
-    # --- last (kind-aware: never use index `c`=change or equity `v`=volume as last) ---
-    if kind == "index":
-        last = _first_num(
-            body,
-            "indexValue",
-            "IndexValue",
-            "value",
-            "v",  # index level
-            "last",
-            "LastPrice",
-            "price",
-            "p",
-        )
-        # Do NOT fall back to `c` / `close` — `c` is change on indexsummary
-    else:
-        last = _first_num(
-            body,
-            "last",
-            "LastPrice",
-            "matchedPrice",
-            "p",
-            "price",
-            "close",
-        )
-        # Do NOT use `v` (accum volume) or bare `c` (change) as last
+    # Message shape: indexsummary (v=level) vs trade tick (p=last, v=volume)
+    is_index_summary = any(k in body for k in ("adv", "dec", "cr", "tmv", "tvp", "indexValue", "IndexValue")) or (
+        kind == "index" and "v" in body and "c" in body and ("tq" in body or "tv" in body)
+    )
+    is_trade_tick = "p" in body and any(k in body for k in ("q", "si", "o", "a"))
 
     change = _first_num(body, "indexChange", "Change", "change", "priceChange", "c")
     change_pct = _first_num(
@@ -263,8 +243,20 @@ def parse_ssi_envelope(msg: dict[str, Any]) -> dict[str, Any] | None:
         "cr",
     )
 
+    # --- last (kind + shape aware) ---
+    # Never use bare `c` as last (change). Never use trade `v` as index last (volume).
     if kind == "index":
-        # tq = total shares traded on board; never use `v` (that's the index level)
+        last = _first_num(body, "indexValue", "IndexValue")
+        if last is None and is_index_summary:
+            last = _first_num(body, "v", "value")
+        if last is None and is_trade_tick:
+            last = _first_num(body, "p", "last", "LastPrice", "price")
+        if last is None:
+            # Ambiguous short tick: only accept v when it looks like an index level
+            cand = _first_num(body, "value", "last", "LastPrice", "price", "p", "v")
+            if cand is not None and abs(cand) < 20_000:
+                last = cand
+        # Volume: board totals — never treat indexsummary `v` as volume
         volume = _first_num(
             body,
             "tq",
@@ -275,7 +267,9 @@ def parse_ssi_envelope(msg: dict[str, Any]) -> dict[str, Any] | None:
             "nmVolume",
             "volume",
         )
-        # ce/fl are advance/decline counts on indexsummary — not price ceiling/floor
+        if is_trade_tick and volume is None:
+            volume = _first_num(body, "v", "q")
+        # ce/fl on indexsummary = advance/decline counts — not price ceiling/floor
         ceil = _positive_num(
             body.get("ceilingPrice") or body.get("Ceiling") or body.get("highLimit") or body.get("ceil")
         )
@@ -286,6 +280,15 @@ def parse_ssi_envelope(msg: dict[str, Any]) -> dict[str, Any] | None:
         low = _positive_num(body.get("low") or body.get("Lowest") or body.get("l"))
         ref = _first_num(body, "ref", "refPrice", "basicPrice", "referencePrice", "tc")
     else:
+        last = _first_num(
+            body,
+            "last",
+            "LastPrice",
+            "matchedPrice",
+            "p",
+            "price",
+            "close",
+        )
         # `v` on equity trade = accumulated session volume
         volume = _first_num(
             body,
