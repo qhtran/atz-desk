@@ -963,24 +963,135 @@
       el.classList.add(change > 0 ? "flash-up" : "flash-down");
     }
 
+    const SPARK_W = 88;
+    const SPARK_H = 36;
+    const SPARK_PAD_Y = 2;
+    const SPARK_PLOT_H = 32;
+
     function pushSpark(symbol, value) {
       const arr = sparkHist.get(symbol) || [];
       arr.push(Number(value) || 0);
       while (arr.length > 40) arr.shift();
       sparkHist.set(symbol, arr);
     }
-    function sparkPath(values) {
-      if (!values.length) return "";
-      const min = Math.min(...values);
-      const max = Math.max(...values);
+
+    function sparkStroke(change) {
+      const n = Number(change);
+      if (n > 0) return "#00ff00";
+      if (n < 0) return "#ff0000";
+      return "#ffd900";
+    }
+
+    /** Geometry for index spark: hist + level lines (ref/high/low/last). */
+    function sparkGeom(values, levels) {
+      const nums = (values || []).map(Number).filter((v) => Number.isFinite(v));
+      if (!nums.length) return null;
+      const extras = [levels?.ref, levels?.high, levels?.low, levels?.last]
+        .map(Number)
+        .filter((v) => Number.isFinite(v));
+      const min = Math.min(...nums, ...extras);
+      const max = Math.max(...nums, ...extras);
       const span = max - min || 1;
-      return values
-        .map((v, i) => {
-          const x = (i / Math.max(values.length - 1, 1)) * 88;
-          const y = 34 - ((v - min) / span) * 32;
-          return (i === 0 ? "M" : "L") + x.toFixed(1) + " " + y.toFixed(1);
-        })
+      const n = nums.length;
+      const yOf = (v) => SPARK_H - SPARK_PAD_Y - ((v - min) / span) * SPARK_PLOT_H;
+      const xOf = (i) => (i / Math.max(n - 1, 1)) * SPARK_W;
+      const pts = nums.map((v, i) => ({ x: xOf(i), y: yOf(v) }));
+      const lineD = pts
+        .map((p, i) => (i === 0 ? "M" : "L") + p.x.toFixed(1) + " " + p.y.toFixed(1))
         .join(" ");
+      const last = pts[pts.length - 1];
+      const areaD = lineD + " L" + last.x.toFixed(1) + " " + SPARK_H + " L0 " + SPARK_H + " Z";
+      const yLevel = (key) => {
+        const v = Number(levels?.[key]);
+        return Number.isFinite(v) ? yOf(v) : null;
+      };
+      return {
+        lineD,
+        areaD,
+        markerX: last.x,
+        markerY: last.y,
+        yRef: yLevel("ref"),
+        yHigh: yLevel("high"),
+        yLow: yLevel("low"),
+      };
+    }
+
+    function sparkLevelsFromRow(row) {
+      return {
+        ref: row.ref,
+        high: row.high,
+        low: row.low,
+        last: row.last,
+      };
+    }
+
+    /** Full SVG markup for first paint (idxCardHtml). */
+    function renderSparkSvg(symbol, values, levels, change) {
+      const g = sparkGeom(values, levels);
+      const stroke = sparkStroke(change);
+      const gid = "spark-grad-" + String(symbol || "x").replace(/[^A-Za-z0-9_-]/g, "");
+      if (!g) {
+        return `<svg class="spark" viewBox="0 0 ${SPARK_W} ${SPARK_H}" aria-hidden="true"></svg>`;
+      }
+      const lineY = (y, color, key) =>
+        y == null
+          ? `<line data-spark="${key}" x1="0" x2="${SPARK_W}" y1="0" y2="0" stroke="${color}" stroke-width="0.8" stroke-dasharray="3,3" opacity="0" />`
+          : `<line data-spark="${key}" x1="0" x2="${SPARK_W}" y1="${y.toFixed(1)}" y2="${y.toFixed(1)}" stroke="${color}" stroke-width="0.8" stroke-dasharray="3,3" opacity="0.85" />`;
+      return `
+            <svg class="spark" viewBox="0 0 ${SPARK_W} ${SPARK_H}" aria-hidden="true">
+              <defs>
+                <linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
+                  <stop data-spark="grad-top" offset="0%" stop-color="${stroke}" stop-opacity="0.35" />
+                  <stop data-spark="grad-bot" offset="100%" stop-color="${stroke}" stop-opacity="0" />
+                </linearGradient>
+              </defs>
+              ${lineY(g.yRef, "#737373", "ref")}
+              ${lineY(g.yHigh, "#66ff66", "high")}
+              ${lineY(g.yLow, "#ff6666", "low")}
+              <path data-spark="area" d="${g.areaD}" fill="url(#${gid})" stroke="none" />
+              <path data-spark="line" d="${g.lineD}" fill="none" stroke="${stroke}" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" />
+              <circle data-spark="marker" cx="${g.markerX.toFixed(1)}" cy="${g.markerY.toFixed(1)}" r="2" fill="${stroke}" stroke="#0a0a0a" stroke-width="0.6" />
+            </svg>`;
+    }
+
+    /** Patch existing SVG nodes — no innerHTML on the card. */
+    function patchSparkSvg(svg, values, levels, change) {
+      if (!svg) return;
+      const g = sparkGeom(values, levels);
+      const stroke = sparkStroke(change);
+      if (!g) return;
+      const setLine = (key, y) => {
+        const el = svg.querySelector(`[data-spark="${key}"]`);
+        if (!el) return;
+        if (y == null) {
+          el.setAttribute("opacity", "0");
+          return;
+        }
+        const ys = y.toFixed(1);
+        el.setAttribute("y1", ys);
+        el.setAttribute("y2", ys);
+        el.setAttribute("opacity", "0.85");
+      };
+      setLine("ref", g.yRef);
+      setLine("high", g.yHigh);
+      setLine("low", g.yLow);
+      const area = svg.querySelector('[data-spark="area"]');
+      const line = svg.querySelector('[data-spark="line"]');
+      const marker = svg.querySelector('[data-spark="marker"]');
+      const gradTop = svg.querySelector('[data-spark="grad-top"]');
+      const gradBot = svg.querySelector('[data-spark="grad-bot"]');
+      if (area) area.setAttribute("d", g.areaD);
+      if (line) {
+        line.setAttribute("d", g.lineD);
+        line.setAttribute("stroke", stroke);
+      }
+      if (marker) {
+        marker.setAttribute("cx", g.markerX.toFixed(1));
+        marker.setAttribute("cy", g.markerY.toFixed(1));
+        marker.setAttribute("fill", stroke);
+      }
+      if (gradTop) gradTop.setAttribute("stop-color", stroke);
+      if (gradBot) gradBot.setAttribute("stop-color", stroke);
     }
 
     function enrichDepth(row) {
@@ -1054,7 +1165,6 @@
     function idxCardHtml(row) {
       const hist = sparkHist.get(row.symbol) || [Number(row.last)];
       const tone = changeTone(row.change);
-      const stroke = row.change > 0 ? "#00ff00" : row.change < 0 ? "#ff0000" : "#ffd900";
       const label = INDEX_LABEL[row.symbol] || row.symbol;
       const st = computeBasketStats(row.symbol);
       return `
@@ -1070,9 +1180,7 @@
                 <span class="tabular-nums text-[12px] font-medium ${tone}" data-f="pct">${fmtPct(row.change_pct)}</span>
               </div>
             </div>
-            <svg class="spark" viewBox="0 0 88 36" aria-hidden="true">
-              <path d="${sparkPath(hist)}" fill="none" stroke="${stroke}" stroke-width="1.6" />
-            </svg>
+            ${renderSparkSvg(row.symbol, hist, sparkLevelsFromRow(row), row.change)}
           </div>
           <div class="idx-meta">
             <span><span class="k">KL</span><span data-f="ivol">${fmtVolShort(st.volume)}</span> CP</span>
@@ -1134,21 +1242,21 @@
       }
       if (!card) return;
       const tone = changeTone(row.change);
-      const stroke = row.change > 0 ? "#00ff00" : row.change < 0 ? "#ff0000" : "#ffd900";
       const lastEl = card.querySelector('[data-f="last"]');
       const chgEl = card.querySelector('[data-f="chg"]');
       const pctEl = card.querySelector('[data-f="pct"]');
-      const path = card.querySelector("path");
       lastEl.textContent = fmtPrice(row.last, "index");
       lastEl.className = "tabular-nums text-[20px] font-semibold leading-none " + tone;
       chgEl.textContent = fmtChange(row.change);
       chgEl.className = "tabular-nums text-[12px] font-medium " + tone;
       pctEl.textContent = fmtPct(row.change_pct);
       pctEl.className = "tabular-nums text-[12px] font-medium " + tone;
-      if (path) {
-        path.setAttribute("d", sparkPath(sparkHist.get(row.symbol) || []));
-        path.setAttribute("stroke", stroke);
-      }
+      patchSparkSvg(
+        card.querySelector("svg.spark"),
+        sparkHist.get(row.symbol) || [],
+        sparkLevelsFromRow(row),
+        row.change,
+      );
       patchIndexCardStats(card, row.symbol);
       if (flash && prev && prev.last !== row.last) {
         flashCell(card, row.change || (row.last > prev.last ? 1 : -1));
