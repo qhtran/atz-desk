@@ -211,6 +211,19 @@ class RealSsiWorker:
         ref = parsed.get("ref")
         if ref is None:
             ref = prev.get("ref") or last
+        # Index SSI không gửi trần/sàn giá (ce/fl = đếm mã) — luôn tính lại từ ref.
+        if parsed.get("ceil") is not None:
+            ceil = parsed.get("ceil")
+        elif kind == "index":
+            ceil = None
+        else:
+            ceil = prev.get("ceil")
+        if parsed.get("floor") is not None:
+            floor = parsed.get("floor")
+        elif kind == "index":
+            floor = None
+        else:
+            floor = prev.get("floor")
         return build_tick(
             symbol=sym,
             last=last,
@@ -219,8 +232,8 @@ class RealSsiWorker:
             volume=parsed.get("volume") if parsed.get("volume") is not None else prev.get("volume", 0),
             high=parsed.get("high") if parsed.get("high") is not None else prev.get("high"),
             low=parsed.get("low") if parsed.get("low") is not None else prev.get("low"),
-            ceil=parsed.get("ceil") if parsed.get("ceil") is not None else prev.get("ceil"),
-            floor=parsed.get("floor") if parsed.get("floor") is not None else prev.get("floor"),
+            ceil=ceil,
+            floor=floor,
             change=parsed.get("change"),
             change_pct=parsed.get("change_pct"),
             bid1=parsed.get("bid1") if parsed.get("bid1") is not None else prev.get("bid1"),
