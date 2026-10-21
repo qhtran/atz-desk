@@ -201,6 +201,35 @@ class RealSsiWorker:
         await redis.hset(HASH_KEY, sym, body)
         await redis.publish(CHANNEL, body)
 
+    @staticmethod
+    def _merge_extreme(
+        incoming: Any,
+        prev: Any,
+        last: Any,
+        kind: str,
+        *,
+        which: str,
+    ) -> Any:
+        """Session high/low. Index summary rarely sends h/l — track from last."""
+        if incoming is not None:
+            return incoming
+        if kind != "index":
+            return prev
+        try:
+            last_f = float(last)
+        except (TypeError, ValueError):
+            return prev
+        try:
+            prev_f = float(prev) if prev is not None else None
+        except (TypeError, ValueError):
+            prev_f = None
+        # Ignore seed extremes far from live last (e.g. hardcoded INDEX_SEED)
+        if prev_f is None or prev_f <= 0 or abs(prev_f - last_f) / max(abs(last_f), 1.0) > 0.2:
+            return last_f
+        if which == "high":
+            return max(prev_f, last_f)
+        return min(prev_f, last_f)
+
     def _merge_tick(self, parsed: dict[str, Any]) -> dict[str, Any]:
         sym = parsed["symbol"]
         prev = self._board.get(sym) or {}
@@ -211,16 +240,29 @@ class RealSsiWorker:
         ref = parsed.get("ref")
         if ref is None:
             ref = prev.get("ref") or last
+        # Index SSI không gửi trần/sàn giá (ce/fl = đếm mã) — luôn tính lại từ ref.
+        if parsed.get("ceil") is not None:
+            ceil = parsed.get("ceil")
+        elif kind == "index":
+            ceil = None
+        else:
+            ceil = prev.get("ceil")
+        if parsed.get("floor") is not None:
+            floor = parsed.get("floor")
+        elif kind == "index":
+            floor = None
+        else:
+            floor = prev.get("floor")
         return build_tick(
             symbol=sym,
             last=last,
             ref=ref,
             kind=kind,
             volume=parsed.get("volume") if parsed.get("volume") is not None else prev.get("volume", 0),
-            high=parsed.get("high") if parsed.get("high") is not None else prev.get("high"),
-            low=parsed.get("low") if parsed.get("low") is not None else prev.get("low"),
-            ceil=parsed.get("ceil") if parsed.get("ceil") is not None else prev.get("ceil"),
-            floor=parsed.get("floor") if parsed.get("floor") is not None else prev.get("floor"),
+            high=self._merge_extreme(parsed.get("high"), prev.get("high"), last, kind, which="high"),
+            low=self._merge_extreme(parsed.get("low"), prev.get("low"), last, kind, which="low"),
+            ceil=ceil,
+            floor=floor,
             change=parsed.get("change"),
             change_pct=parsed.get("change_pct"),
             bid1=parsed.get("bid1") if parsed.get("bid1") is not None else prev.get("bid1"),
