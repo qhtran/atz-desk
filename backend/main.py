@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field
 
 from backend.debug_ui import public_debug_ui_config
 from backend.portfolio_alerts import position_alert
+from backend.portfolio_f3 import batch_f3_alerts, load_f3_sector_themes
 from backend.portfolio_quotes import normalize_symbols, resolve_portfolio_quotes
 from backend.observability import ERR_PB_REDIS, ERR_PB_SCREENER, ERR_PB_WS, log, setup
 from backend.redis_listener import HASH_KEY, REDIS_URL, RedisTickListener, load_snapshot
@@ -117,6 +118,27 @@ async def portfolio_quotes(symbols: str = "") -> dict:
         return {"ok": True, "quotes": {}, "priceboard_hits": 0, "priced": 0}
     quotes, pb_hits, priced = await asyncio.to_thread(resolve_portfolio_quotes, syms)
     return {"ok": True, "quotes": quotes, "priceboard_hits": pb_hits, "priced": priced}
+
+
+class PortfolioF3AlertsRequest(BaseModel):
+    symbols: list[str] = Field(default_factory=list)
+
+
+@app.get("/api/portfolio/sectors/f3")
+async def portfolio_sectors_f3() -> dict:
+    """Danh sách ngành F3 (read-only sector_themes_f3.yaml)."""
+    themes = await asyncio.to_thread(load_f3_sector_themes)
+    return {"ok": True, "themes": themes}
+
+
+@app.post("/api/portfolio/alerts")
+async def portfolio_f3_alerts(body: PortfolioF3AlertsRequest) -> dict:
+    """Cảnh báo F3 khung ngày — Phase C (không re-run mỗi tick WS)."""
+    syms = normalize_symbols(body.symbols)
+    if not syms:
+        return {"ok": True, "alerts": {}}
+    alerts = await asyncio.to_thread(batch_f3_alerts, syms)
+    return {"ok": True, "alerts": alerts}
 
 
 class ScreenerRequest(BaseModel):

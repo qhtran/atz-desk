@@ -570,6 +570,13 @@
       <label for="pf-avg">Giá TB</label>
       <input id="pf-avg" type="number" min="0" step="100" value="0" style="width:112px" />
       <button type="button" class="btn-quiet primary" id="pf-add">Thêm</button>
+      <label for="pf-f3-sector" class="ml-2">Ngành F3</label>
+      <select id="pf-f3-sector" style="max-width:180px">
+        <option value="">— Chọn ngành —</option>
+      </select>
+      <button type="button" class="btn-quiet" id="pf-f3-merge" title="Merge mã ngành vào danh mục (không ghi đè SL/Giá TB)">
+        Thêm mã ngành
+      </button>
       <span class="text-[11px] text-gray-500 ml-auto" id="pf-summary">NAV —</span>
     </div>
     <div class="atz-table-wrap panel-tall">
@@ -716,7 +723,10 @@
       });
       const showSearch = tab === "iboard";
       document.getElementById("global-search-wrap").style.display = showSearch ? "" : "none";
-      if (tab === "portfolio") renderPortfolioTable();
+      if (tab === "portfolio") {
+        loadPortfolioF3Themes();
+        renderPortfolioTable();
+      }
     }
 
     document.querySelectorAll(".app-tab").forEach((btn) => {
@@ -1485,13 +1495,58 @@
     }
 
     const pfQuoteCache = new Map();
+    const pfF3Cache = new Map();
+    const pfIntradayCache = new Map();
+    let pfF3Themes = [];
     let pfSideTimer = null;
+
+    function joinPortfolioAlertCell(f3Text, intradayText) {
+      const parts = [];
+      if (f3Text && f3Text !== "—") parts.push(f3Text);
+      if (intradayText && intradayText !== "—" && intradayText !== "Chưa có giá") parts.push(intradayText);
+      return parts.length ? parts.join(" · ") : "—";
+    }
+
+    function applyPortfolioAlertCells() {
+      portfolio.forEach((p) => {
+        const tr = document.getElementById("pf-" + p.symbol);
+        if (!tr) return;
+        const el = tr.querySelector('[data-f="alert"]');
+        if (el) {
+          el.textContent = joinPortfolioAlertCell(pfF3Cache.get(p.symbol), pfIntradayCache.get(p.symbol));
+        }
+      });
+    }
+
+    async function loadPortfolioF3Themes() {
+      try {
+        const res = await fetch("/api/portfolio/sectors/f3");
+        const data = await res.json();
+        if (!data.ok || !Array.isArray(data.themes)) return;
+        pfF3Themes = data.themes;
+        const sel = document.getElementById("pf-f3-sector");
+        if (!sel) return;
+        const cur = sel.value;
+        sel.innerHTML = '<option value="">— Chọn ngành —</option>';
+        pfF3Themes.forEach((t) => {
+          const opt = document.createElement("option");
+          opt.value = t.id;
+          opt.textContent = t.name;
+          sel.appendChild(opt);
+        });
+        if (cur) sel.value = cur;
+      } catch {
+        /* offline */
+      }
+    }
+
     function schedulePortfolioSideEffects() {
       if (pfSideTimer) return;
       pfSideTimer = setTimeout(() => {
         pfSideTimer = null;
         refreshPortfolioQuotes();
-        refreshPortfolioAlerts();
+        refreshPortfolioF3Alerts();
+        refreshPortfolioIntradayAlerts();
       }, 120);
     }
 
@@ -1539,7 +1594,27 @@
       plEl.className = "num tabular-nums " + (pl > 0 ? "pf-pl-up" : pl < 0 ? "pf-pl-down" : "");
     }
 
-    async function refreshPortfolioAlerts() {
+    async function refreshPortfolioF3Alerts() {
+      if (!portfolio.length) return;
+      const symbols = portfolio.map((p) => p.symbol);
+      try {
+        const res = await fetch("/api/portfolio/alerts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ symbols }),
+        });
+        const data = await res.json();
+        if (!data.ok || !data.alerts) return;
+        portfolio.forEach((p) => {
+          pfF3Cache.set(p.symbol, data.alerts[p.symbol] || "—");
+        });
+        applyPortfolioAlertCells();
+      } catch {
+        /* offline */
+      }
+    }
+
+    async function refreshPortfolioIntradayAlerts() {
       if (!portfolio.length) return;
       const items = portfolio.map((p) => {
         const row = state.get(p.symbol);
@@ -1565,11 +1640,9 @@
         const data = await res.json();
         if (!data.ok || !data.alerts) return;
         portfolio.forEach((p) => {
-          const tr = document.getElementById("pf-" + p.symbol);
-          if (!tr) return;
-          const el = tr.querySelector('[data-f="alert"]');
-          if (el) el.textContent = data.alerts[p.symbol] || "—";
+          pfIntradayCache.set(p.symbol, data.alerts[p.symbol] || "—");
         });
+        applyPortfolioAlertCells();
       } catch {
         /* offline */
       }
@@ -1679,6 +1752,25 @@
       elPfSummary.textContent = `NAV ${Math.round(nav).toLocaleString("en-US")} · P/L ${Math.round(nav - cost).toLocaleString("en-US")}`;
     }
 
+    document.getElementById("pf-f3-merge").addEventListener("click", () => {
+      const id = String(document.getElementById("pf-f3-sector").value || "");
+      const theme = pfF3Themes.find((t) => t.id === id);
+      if (!theme || !Array.isArray(theme.symbols)) return;
+      const defaultQty = Number(document.getElementById("pf-qty").value) || 100;
+      let added = 0;
+      theme.symbols.forEach((sym) => {
+        const code = String(sym).trim().toUpperCase();
+        if (!code) return;
+        if (portfolio.some((p) => p.symbol === code)) return;
+        portfolio.push({ symbol: code, qty: defaultQty, avg: 0 });
+        added += 1;
+      });
+      if (added > 0) {
+        savePortfolio();
+        renderPortfolioTable();
+      }
+    });
+
     document.getElementById("pf-add").addEventListener("click", () => {
       const symbol = String(document.getElementById("pf-symbol").value || "").trim().toUpperCase();
       const qty = Number(document.getElementById("pf-qty").value) || 0;
@@ -1780,6 +1872,7 @@
 
     setMarketTab(marketTab);
     setAppTab(appTab);
+    loadPortfolioF3Themes();
     connect();
   </script>
   <script>
