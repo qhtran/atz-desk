@@ -50,6 +50,7 @@ services:
       FRONTEND_DIR: /app/frontend
       DEBUG_OVERLAY_CONFIG: /app/config/debug_overlay.yaml
       OHLCV_BARS_DIR: /app/data/ohlcv
+      PORTFOLIO_DB_PATH: /app/data/portfolio.db
       LOG_LEVEL: INFO
     ports:
       # localhost tunnel + nginx (via Docker DNS on vnstocks_default)
@@ -59,6 +60,7 @@ services:
       - ./frontend:/app/frontend
       - ./config/debug_overlay.yaml:/app/config/debug_overlay.yaml:ro
       - ./data/ohlcv:/app/data/ohlcv:ro
+      - ./data:/app/data
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/healthz"]
       interval: 15s

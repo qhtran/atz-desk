@@ -691,7 +691,8 @@
       change_pct_max: null,
       flags: [],
     };
-    let portfolio = loadPortfolio();
+    let portfolio = [];
+    let pfAuthenticated = false;
 
     const elConnDot = document.getElementById("conn-dot");
     const elConnLabel = document.getElementById("conn-label");
@@ -1482,7 +1483,7 @@
     wireScreenerToolbar();
 
     /* ===== Portfolio (shared table + WS) ===== */
-    function loadPortfolio() {
+    function loadPortfolioLocal() {
       try {
         const raw = JSON.parse(localStorage.getItem(PORTFOLIO_KEY) || "[]");
         return Array.isArray(raw) ? raw : [];
@@ -1490,8 +1491,67 @@
         return [];
       }
     }
+
+    async function pushPortfolioToServer() {
+      if (!pfAuthenticated) return;
+      try {
+        await fetch("/api/portfolio/positions", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ items: portfolio }),
+        });
+        localStorage.removeItem(PORTFOLIO_KEY);
+      } catch {
+        /* offline */
+      }
+    }
+
+    async function initPortfolioAuthSync() {
+      try {
+        const meRes = await fetch("/api/account/me");
+        const meData = await meRes.json();
+        pfAuthenticated = meData.authenticated === true;
+        if (!pfAuthenticated) {
+          portfolio = loadPortfolioLocal();
+          return;
+        }
+        const localItems = loadPortfolioLocal();
+        if (localItems.length) {
+          const migRes = await fetch("/api/portfolio/positions/migrate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ items: localItems }),
+          });
+          if (migRes.ok) {
+            const mig = await migRes.json();
+            if (mig.ok && mig.migrated && Array.isArray(mig.items)) {
+              portfolio = mig.items;
+              localStorage.removeItem(PORTFOLIO_KEY);
+              return;
+            }
+          }
+        }
+        const res = await fetch("/api/portfolio/positions");
+        if (res.ok) {
+          const data = await res.json();
+          if (data.ok && Array.isArray(data.items)) {
+            portfolio = data.items;
+            localStorage.removeItem(PORTFOLIO_KEY);
+            return;
+          }
+        }
+        portfolio = loadPortfolioLocal();
+      } catch {
+        portfolio = loadPortfolioLocal();
+      }
+    }
+
     function savePortfolio() {
-      localStorage.setItem(PORTFOLIO_KEY, JSON.stringify(portfolio));
+      if (pfAuthenticated) {
+        void pushPortfolioToServer();
+      } else {
+        localStorage.setItem(PORTFOLIO_KEY, JSON.stringify(portfolio));
+      }
     }
 
     const pfQuoteCache = new Map();
@@ -1870,10 +1930,13 @@
       elClock.textContent = new Date().toLocaleTimeString("vi-VN", { hour12: false });
     }, 1000);
 
-    setMarketTab(marketTab);
-    setAppTab(appTab);
-    loadPortfolioF3Themes();
-    connect();
+    (async () => {
+      await initPortfolioAuthSync();
+      setMarketTab(marketTab);
+      setAppTab(appTab);
+      loadPortfolioF3Themes();
+      connect();
+    })();
   </script>
   <script>
     (function () {

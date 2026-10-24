@@ -11,15 +11,17 @@ from pathlib import Path
 from typing import Any
 
 import redis.asyncio as aioredis
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from backend.debug_ui import public_debug_ui_config
 from backend.portfolio_alerts import position_alert
+from backend.identity import me_from_headers
 from backend.portfolio_f3 import batch_f3_alerts, load_f3_sector_themes
 from backend.portfolio_quotes import normalize_symbols, resolve_portfolio_quotes
+from backend.portfolio_store import list_positions, migrate_if_empty, replace_positions
 from backend.observability import ERR_PB_REDIS, ERR_PB_SCREENER, ERR_PB_WS, log, setup
 from backend.redis_listener import HASH_KEY, REDIS_URL, RedisTickListener, load_snapshot
 from backend.screener import PRESETS, FilterEngine, build_compose_rules, find_invalid_raw_rules
@@ -139,6 +141,66 @@ async def portfolio_f3_alerts(body: PortfolioF3AlertsRequest) -> dict:
         return {"ok": True, "alerts": {}}
     alerts = await asyncio.to_thread(batch_f3_alerts, syms)
     return {"ok": True, "alerts": alerts}
+
+
+class PortfolioPositionItem(BaseModel):
+    symbol: str
+    qty: float
+    avg: float = 0
+    support: float | None = None
+    resistance: float | None = None
+
+
+class PortfolioPositionsBody(BaseModel):
+    items: list[PortfolioPositionItem] = Field(default_factory=list)
+
+
+def _require_authentik_user(request: Request) -> str:
+    me = me_from_headers(request.headers)
+    if not me or not me.get("username"):
+        raise HTTPException(status_code=401, detail="Authentik login required")
+    return str(me["username"])
+
+
+@app.get("/api/account/me")
+async def account_me(request: Request) -> dict:
+    """Identity từ header ForwardAuth (dev/prod nginx)."""
+    me = me_from_headers(request.headers)
+    if not me:
+        return {"ok": True, "authenticated": False, "user": None}
+    return {
+        "ok": True,
+        "authenticated": True,
+        "user": {
+            "username": me["username"],
+            "name": me.get("name") or "",
+            "email": me.get("email") or "",
+        },
+    }
+
+
+@app.get("/api/portfolio/positions")
+async def get_portfolio_positions(request: Request) -> dict:
+    user = _require_authentik_user(request)
+    items = await asyncio.to_thread(list_positions, user)
+    return {"ok": True, "items": items}
+
+
+@app.put("/api/portfolio/positions")
+async def put_portfolio_positions(request: Request, body: PortfolioPositionsBody) -> dict:
+    user = _require_authentik_user(request)
+    payload = [item.model_dump() for item in body.items]
+    items = await asyncio.to_thread(replace_positions, user, payload)
+    return {"ok": True, "items": items}
+
+
+@app.post("/api/portfolio/positions/migrate")
+async def migrate_portfolio_positions(request: Request, body: PortfolioPositionsBody) -> dict:
+    """Một lần: localStorage → SQLite khi user chưa có dòng server."""
+    user = _require_authentik_user(request)
+    payload = [item.model_dump() for item in body.items]
+    migrated, items = await asyncio.to_thread(migrate_if_empty, user, payload)
+    return {"ok": True, "migrated": migrated, "items": items}
 
 
 class ScreenerRequest(BaseModel):
