@@ -312,6 +312,23 @@
     .atz-table.iboard tbody tr.is-pinned:hover td.pin-cell,
     .atz-table.iboard tbody tr.is-pinned:hover td.sym { background-color: #1c180c; }
 
+    /* Portfolio — F1 desk cues (COLOR_TOKENS REF / UP / DOWN) */
+    #portfolio-table thead th.pf-col-avg,
+    #portfolio-table tbody td.pf-col-avg {
+      background: rgba(255, 201, 7, 0.14);
+      color: #f5f5f5;
+    }
+    #portfolio-table td.pf-last-above { color: #00c853; font-weight: 600; }
+    #portfolio-table td.pf-last-below { color: #ff3d00; font-weight: 600; }
+    #portfolio-table td.pf-alert {
+      font-size: 11px;
+      line-height: 1.35;
+      max-width: 220px;
+      color: #d4d4d4;
+    }
+    #portfolio-table td.pf-pl-up { color: #00c853; font-weight: 700; }
+    #portfolio-table td.pf-pl-down { color: #ff3d00; font-weight: 700; }
+
     .pin-btn {
       display: inline-flex;
       align-items: center;
@@ -561,12 +578,13 @@
           <tr>
             <th class="th-sym">Mã</th>
             <th class="num">SL</th>
-            <th class="num">Giá TB</th>
+            <th class="num pf-col-avg">Giá TB</th>
             <th class="num">Giá TT</th>
             <th class="num">+/-</th>
             <th class="num">%</th>
             <th class="num">P/L</th>
             <th class="num">KL ngày</th>
+            <th>Cảnh báo</th>
             <th></th>
           </tr>
         </thead>
@@ -1465,6 +1483,47 @@
       localStorage.setItem(PORTFOLIO_KEY, JSON.stringify(portfolio));
     }
 
+    let pfAlertTimer = null;
+    function schedulePortfolioAlerts() {
+      if (pfAlertTimer) return;
+      pfAlertTimer = setTimeout(() => {
+        pfAlertTimer = null;
+        refreshPortfolioAlerts();
+      }, 120);
+    }
+
+    async function refreshPortfolioAlerts() {
+      if (!portfolio.length) return;
+      const items = portfolio.map((p) => {
+        const row = state.get(p.symbol);
+        const last = row ? Number(row.last) : null;
+        return {
+          symbol: p.symbol,
+          avg: Number(p.avg) > 0 ? Number(p.avg) : null,
+          last: last != null && last > 0 ? last : null,
+          support: p.support != null && Number(p.support) > 0 ? Number(p.support) : null,
+          resistance: p.resistance != null && Number(p.resistance) > 0 ? Number(p.resistance) : null,
+        };
+      });
+      try {
+        const res = await fetch("/api/portfolio/intraday-alerts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ items }),
+        });
+        const data = await res.json();
+        if (!data.ok || !data.alerts) return;
+        portfolio.forEach((p) => {
+          const tr = document.getElementById("pf-" + p.symbol);
+          if (!tr) return;
+          const el = tr.querySelector('[data-f="alert"]');
+          if (el) el.textContent = data.alerts[p.symbol] || "—";
+        });
+      } catch {
+        /* offline */
+      }
+    }
+
     function renderPortfolioTable() {
       elPortfolioBody.innerHTML = "";
       elPortfolioEmpty.hidden = portfolio.length > 0;
@@ -1480,18 +1539,26 @@
         nav += mkt;
         cost += avg * qty;
         const tone = changeTone(row ? row.change : last - avg);
+        const lastVsAvg =
+          row && last > 0 && avg > 0
+            ? last >= avg
+              ? "pf-last-above"
+              : "pf-last-below"
+            : "";
+        const plCls = pl > 0 ? "pf-pl-up" : pl < 0 ? "pf-pl-down" : "";
         const tr = document.createElement("tr");
         tr.id = "pf-" + item.symbol;
         tr.dataset.symbol = item.symbol;
         tr.innerHTML = `
           <td class="sym">${item.symbol}</td>
           <td class="num tabular-nums" data-f="qty">${qty.toLocaleString("en-US")}</td>
-          <td class="num tabular-nums" data-f="avg">${fmtPrice(avg)}</td>
-          <td class="num tabular-nums ${row ? priceTone(last, row.ref, row.ceil, row.floor) : "text-gray-400"}" data-f="last">${row ? fmtPrice(last) : "—"}</td>
+          <td class="num tabular-nums pf-col-avg" data-f="avg">${fmtPrice(avg)}</td>
+          <td class="num tabular-nums ${lastVsAvg}" data-f="last">${row ? fmtPrice(last) : "—"}</td>
           <td class="num tabular-nums ${tone}" data-f="change">${row ? fmtChange(row.change) : "—"}</td>
           <td class="num tabular-nums ${tone}" data-f="pct">${row ? fmtPct(row.change_pct) : "—"}</td>
-          <td class="num tabular-nums ${changeTone(pl)}" data-f="pl">${Math.round(pl).toLocaleString("en-US")}</td>
+          <td class="num tabular-nums ${plCls}" data-f="pl">${Math.round(pl).toLocaleString("en-US")}</td>
           <td class="num tabular-nums" data-f="vol">${row ? fmtVol(row.volume) : "—"}</td>
+          <td class="pf-alert" data-f="alert">—</td>
           <td><button type="button" class="btn-quiet" data-rm="${item.symbol}">Xóa</button></td>`;
         elPortfolioBody.appendChild(tr);
       });
@@ -1506,6 +1573,7 @@
           renderPortfolioTable();
         });
       });
+      schedulePortfolioAlerts();
     }
 
     function patchPortfolioSymbol(symbol, { flash = false } = {}) {
@@ -1526,7 +1594,9 @@
       const lastEl = tr.querySelector('[data-f="last"]');
       const prev = lastEl.textContent;
       lastEl.textContent = row ? fmtPrice(last) : "—";
-      lastEl.className = "num tabular-nums " + (row ? priceTone(last, row.ref, row.ceil, row.floor) : "text-gray-400");
+      const lastVsAvg =
+        row && last > 0 && avg > 0 ? (last >= avg ? "pf-last-above" : "pf-last-below") : "";
+      lastEl.className = "num tabular-nums " + lastVsAvg;
       const chg = tr.querySelector('[data-f="change"]');
       chg.textContent = row ? fmtChange(row.change) : "—";
       chg.className = "num tabular-nums " + tone;
@@ -1535,9 +1605,10 @@
       pct.className = "num tabular-nums " + tone;
       const plEl = tr.querySelector('[data-f="pl"]');
       plEl.textContent = Math.round(pl).toLocaleString("en-US");
-      plEl.className = "num tabular-nums " + changeTone(pl);
+      plEl.className = "num tabular-nums " + (pl > 0 ? "pf-pl-up" : pl < 0 ? "pf-pl-down" : "");
       tr.querySelector('[data-f="vol"]').textContent = row ? fmtVol(row.volume) : "—";
       if (flash && row && prev !== fmtPrice(last)) flashCell(lastEl, row.change || 1);
+      schedulePortfolioAlerts();
       // refresh NAV strip
       let nav = 0, cost = 0;
       portfolio.forEach((it) => {

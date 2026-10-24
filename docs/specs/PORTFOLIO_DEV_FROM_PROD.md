@@ -1,6 +1,6 @@
 # Spec — Tab Danh mục dev.atz.vn (port từ prod Streamlit)
 
-- **Status:** Draft → Ready for Phase A (2026-10-25)
+- **Status:** Phase A shipped (2026-10-25); Phase B+ pending
 - **Phạm vi:** `frontend/index.html` (`pb-ui:portfolio.*`), API FastAPI mới trong `backend/`
 - **North star:** [ADR 0009](../adr/0009-dual-docker-spa-cutover.md) — sau cutover, cùng spec áp cho prod Docker; dev Docker validate trước khi promote.
 

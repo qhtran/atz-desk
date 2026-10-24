@@ -16,6 +16,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from backend.debug_ui import public_debug_ui_config
+from backend.portfolio_alerts import position_alert
 from backend.observability import ERR_PB_REDIS, ERR_PB_SCREENER, ERR_PB_WS, log, setup
 from backend.redis_listener import HASH_KEY, REDIS_URL, RedisTickListener, load_snapshot
 from backend.screener import PRESETS, FilterEngine, build_compose_rules, find_invalid_raw_rules
@@ -75,6 +76,35 @@ class ScreenerRule(BaseModel):
     field: str
     op: str
     value: Any = None
+
+
+class PortfolioAlertItem(BaseModel):
+    symbol: str
+    avg: float | None = None
+    last: float | None = None
+    support: float | None = None
+    resistance: float | None = None
+
+
+class PortfolioAlertsRequest(BaseModel):
+    items: list[PortfolioAlertItem] = Field(default_factory=list)
+
+
+@app.post("/api/portfolio/intraday-alerts")
+async def portfolio_intraday_alerts(body: PortfolioAlertsRequest) -> dict:
+    """Cảnh báo intraday (±% / hỗ trợ-kháng cự) — Phase A spec PORTFOLIO_DEV_FROM_PROD."""
+    alerts: dict[str, str] = {}
+    for item in body.items:
+        sym = str(item.symbol or "").strip().upper()
+        if not sym:
+            continue
+        alerts[sym] = position_alert(
+            item.avg,
+            item.last,
+            support=item.support,
+            resistance=item.resistance,
+        )
+    return {"ok": True, "alerts": alerts}
 
 
 class ScreenerRequest(BaseModel):
