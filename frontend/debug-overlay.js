@@ -1,6 +1,6 @@
 /**
- * dev.atz.vn — Hybrid Inspect debug overlay (pb-ui:* refs).
- * Loaded only when GET /api/debug-ui/config returns enabled: true.
+ * Hybrid Inspect debug overlay (pb-ui:* / atz-ui:*).
+ * Priceboard: bootstrap via /api/debug-ui/config. Prod app: inject script + static/.
  */
 (function () {
   "use strict";
@@ -8,6 +8,12 @@
   var script = document.currentScript;
   var STORAGE = (script && script.dataset.storageKey) || "pb-dbg-on";
   var CATALOG_URL = (script && script.dataset.catalogUrl) || "/static/ui_catalog.json";
+  var REF_PREFIX = (script && script.dataset.refPrefix) || "pb-ui";
+  var SURFACE = (script && script.dataset.surface) || "priceboard";
+
+  function makeUiRef(suffix) {
+    return REF_PREFIX + ":" + suffix;
+  }
 
   var FIELD_LABELS = {
     symbol: "Mã CK",
@@ -128,8 +134,99 @@
     return null;
   }
 
+  function resolveStTarget(anchor) {
+    var box = anchor.closest('[data-testid="stElementContainer"]') || anchor.parentElement;
+    if (!box) return anchor;
+    var n = box.nextElementSibling;
+    while (n) {
+      if (n.getAttribute && n.getAttribute("data-testid") === "stElementContainer") return n;
+      n = n.nextElementSibling;
+    }
+    return box;
+  }
+
+  function resolveStreamlit(el) {
+    var anchor = closestWith(el, function (n) {
+      return n.getAttribute && n.getAttribute("data-atz-dbg");
+    });
+    if (anchor) {
+      var dbgId = anchor.getAttribute("data-atz-dbg");
+      var target = resolveStTarget(anchor);
+      return {
+        ui_ref: makeUiRef(dbgId),
+        element: target,
+        breadcrumb: ["atz.vn", dbgId],
+        tick_field: null,
+        symbol: null,
+        domPath: domPath(target),
+      };
+    }
+    if (el.closest('[data-testid="stSidebar"]')) {
+      return {
+        ui_ref: makeUiRef("DBG-SIDEBAR"),
+        element: el.closest('[data-testid="stSidebar"]'),
+        breadcrumb: ["atz.vn", "Sidebar"],
+        tick_field: null,
+        symbol: null,
+        domPath: domPath(el),
+      };
+    }
+    if (el.closest('[data-testid="stMain"]')) {
+      return {
+        ui_ref: makeUiRef("DBG-MAIN"),
+        element: el.closest('[data-testid="stMain"]'),
+        breadcrumb: ["atz.vn", "Main"],
+        tick_field: null,
+        symbol: null,
+        domPath: domPath(el),
+      };
+    }
+    var nav = el.closest('[data-testid="stButtonGroup"]');
+    if (nav) {
+      return {
+        ui_ref: makeUiRef("DBG-NAV"),
+        element: nav,
+        breadcrumb: ["atz.vn", "Nav"],
+        tick_field: null,
+        symbol: null,
+        domPath: domPath(nav),
+      };
+    }
+    return null;
+  }
+
   function resolveFromElement(el) {
     if (!el || el === document.body) return null;
+
+    if (SURFACE === "atz") {
+      var st = resolveStreamlit(el);
+      if (st) return st;
+    }
+
+    if (SURFACE !== "priceboard") {
+      var atdOnly = closestWith(el, function (n) {
+        return n.getAttribute && n.getAttribute("data-atd-id");
+      });
+      if (atdOnly) {
+        var aid = atdOnly.getAttribute("data-atd-id");
+        return {
+          ui_ref: aid,
+          element: atdOnly,
+          breadcrumb: breadcrumbFromRef(aid),
+          tick_field: null,
+          symbol: null,
+          domPath: domPath(atdOnly),
+        };
+      }
+      return {
+        ui_ref: makeUiRef("pick." + hashDom(el)),
+        element: el,
+        breadcrumb: ["Pick", el.tagName.toLowerCase()],
+        tick_field: null,
+        symbol: null,
+        domPath: domPath(el),
+      };
+    }
 
     var td = closestWith(el, function (n) {
       return n.tagName === "TD" && n.getAttribute("data-f");
@@ -146,16 +243,16 @@
         : tr && tr.closest("#portfolio-table")
           ? "portfolio"
           : "equity";
-      var uiRef;
+      var refStr;
       if (tableKind === "signals") {
-        uiRef = "pb-ui:signals.row." + sym + ".cell." + field;
+        refStr = makeUiRef("signals.row." + sym + ".cell." + field);
       } else if (tableKind === "portfolio") {
-        uiRef = "pb-ui:portfolio.row." + sym + ".cell." + field;
+        refStr = makeUiRef("portfolio.row." + sym + ".cell." + field);
       } else {
-        uiRef = "pb-ui:iboard.equity.row." + sym + ".cell." + field;
+        refStr = makeUiRef("iboard.equity.row." + sym + ".cell." + field);
       }
       return {
-        ui_ref: uiRef,
+        ui_ref: refStr,
         element: td,
         breadcrumb: buildTableBreadcrumb(tableKind, sym, field),
         tick_field: field,
@@ -175,7 +272,7 @@
       if (inner && inner !== idxCard) {
         var f = inner.getAttribute("data-f");
         return {
-          ui_ref: "pb-ui:iboard.index." + idxSym + "." + f,
+          ui_ref: makeUiRef("iboard.index." + idxSym + "." + f),
           element: inner,
           breadcrumb: ["iBoard", "Chỉ số " + idxSym, FIELD_LABELS[f] || f],
           tick_field: f,
@@ -187,7 +284,7 @@
         return n.tagName === "svg" && n.classList.contains("spark");
       })) {
         return {
-          ui_ref: "pb-ui:iboard.index." + idxSym + ".spark",
+          ui_ref: makeUiRef("iboard.index." + idxSym + ".spark"),
           element: idxCard,
           breadcrumb: ["iBoard", "Chỉ số " + idxSym, "Spark chart"],
           tick_field: "spark",
@@ -196,7 +293,7 @@
         };
       }
       return {
-        ui_ref: "pb-ui:iboard.index." + idxSym,
+        ui_ref: makeUiRef("iboard.index." + idxSym),
         element: idxCard,
         breadcrumb: ["iBoard", "Chỉ số " + idxSym],
         tick_field: null,
@@ -221,7 +318,7 @@
     }
 
     return {
-      ui_ref: "pb-ui:pick." + hashDom(el),
+      ui_ref: makeUiRef("pick." + hashDom(el)),
       element: el,
       breadcrumb: ["Pick", el.tagName.toLowerCase()],
       tick_field: null,
@@ -231,7 +328,10 @@
   }
 
   function breadcrumbFromRef(ref) {
-    var parts = ref.replace(/^pb-ui:/, "").split(".");
+    var parts = ref.replace(new RegExp("^" + REF_PREFIX + ":"), "").split(".");
+    if (REF_PREFIX === "atz-ui" && parts[0]) {
+      return ["atz.vn"].concat(parts);
+    }
     var labels = [];
     if (parts[0] === "app") {
       labels.push("App");

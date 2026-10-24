@@ -228,8 +228,9 @@ def dbg_anchor(dbg_id: str) -> None:
     if not user_may_use_debug(current_me()):
         return
     safe = html.escape(code, quote=True)
+    atd = html.escape(f"atz-ui:{code}", quote=True)
     st.html(
-        f'<div data-atz-dbg="{safe}" class="atz-dbg-anchor" aria-hidden="true" '
+        f'<div data-atz-dbg="{safe}" data-atd-id="{atd}" class="atz-dbg-anchor" aria-hidden="true" '
         f'style="display:none;height:0;margin:0;padding:0;overflow:hidden"></div>'
     )
 
@@ -264,248 +265,33 @@ def dbg_table_legend(
     st.html(table_legend_html(table_id, cols, rows))
 
 
-def _overlay_html(storage_key: str) -> str:
-    auto_json = json.dumps(
-        [{"id": dbg_id, "sel": sel} for dbg_id, sel in _AUTO_REGIONS],
-        ensure_ascii=True,
-    )
+def _inspect_assets_html(storage_key: str) -> str:
+    """Hybrid Inspect overlay (shared debug-overlay.js) — atz-ui:* refs."""
+    sk = html.escape(storage_key, quote=True)
     return f"""
+<link rel="stylesheet" href="/static/debug-overlay.css">
 <style>
-  .atz-dbg-badge {{
-    position: fixed; right: 12px; bottom: 12px; z-index: 2147483000;
-    font: 12px/1.3 ui-monospace, SFMono-Regular, Menlo, monospace;
-    background: #c2410c; color: #fff; padding: 8px 12px; border-radius: 8px;
-    box-shadow: 0 4px 16px rgba(0,0,0,.28); display: none; pointer-events: auto;
-    max-width: min(320px, 92vw);
-  }}
-  body.atz-dbg-on .atz-dbg-badge {{ display: block; }}
-  body.atz-dbg-on [data-atz-dbg-bound="1"] {{
-    outline: 2px dashed #ea580c !important;
-    outline-offset: 2px;
-    position: relative;
-  }}
-  .atz-dbg-chip {{
-    position: absolute; top: 2px; left: 2px; z-index: 2147483001;
-    font: 10px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
-    background: #ea580c; color: #fff; padding: 2px 6px; border-radius: 4px;
-    cursor: copy; user-select: none; white-space: nowrap;
-    box-shadow: 0 1px 4px rgba(0,0,0,.25);
-  }}
-  .atz-dbg-chip:hover {{ background: #9a3412; }}
-  .atz-dbg-toast {{
-    position: fixed; left: 50%; bottom: 56px; transform: translateX(-50%);
-    z-index: 2147483002; background: #14532d; color: #fff;
-    font: 12px/1.3 system-ui, sans-serif; padding: 6px 12px; border-radius: 6px;
-    display: none;
-  }}
   .atz-dbg-table-legend {{
-    display: none; margin: 0.2rem 0 0.55rem; padding: 8px 10px;
-    border: 1px dashed #ea580c; border-radius: 8px; background: rgba(234,88,12,.10);
-    font: 11px/1.35 ui-monospace, SFMono-Regular, Menlo, monospace; color: #9a3412;
+    margin: 0.2rem 0 0.55rem; padding: 8px 10px;
+    border: 1px dashed #64748b; border-radius: 8px;
+    font: 11px/1.35 ui-monospace, monospace; color: #94a3b8;
   }}
-  body.atz-dbg-on .atz-dbg-table-legend {{ display: block !important; }}
+  body.pb-dbg-on .atz-dbg-table-legend {{ display: none !important; }}
   .atz-dbg-table-title {{ margin-bottom: 6px; font-weight: 700; }}
   .atz-dbg-table-row {{ margin: 4px 0; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }}
   .atz-dbg-k {{ font-weight: 700; margin-right: 4px; min-width: 2.5rem; }}
   .atz-dbg-pill {{
-    font: 10px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
-    background: #ea580c; color: #fff; border: 0; border-radius: 4px;
-    padding: 3px 6px; cursor: copy; max-width: 100%;
+    font: 10px/1.2 ui-monospace, monospace;
+    background: #475569; color: #fff; border: 0; border-radius: 4px;
+    padding: 3px 6px; cursor: copy;
   }}
-  .atz-dbg-pill:hover {{ background: #9a3412; }}
-  .atz-dbg-pill.is-pick {{ box-shadow: 0 0 0 2px #fff, 0 0 0 4px #c2410c; }}
-  .atz-dbg-pick-state {{ opacity: 0.85; }}
+  .atz-dbg-pill.is-pick {{ box-shadow: 0 0 0 2px #fff, 0 0 0 4px #334155; }}
 </style>
-<div class="atz-dbg-badge" id="atz-dbg-badge" aria-live="polite">
-  DBG ON · ⌘⇧D / Ctrl⇧D · Esc tắt<br/>
-  Khối + chip COL/ROW/CELL · copy <code>atz-dbg:…</code><br/>
-  Tắt hệ thống: env <code>ATZ_DEBUG_OVERLAY=0</code>
-</div>
-<div class="atz-dbg-toast" id="atz-dbg-toast"></div>
-<script>
-(function () {{
-  var STORAGE = {json.dumps(storage_key)};
-  var AUTO = {auto_json};
-  var root = document;
-  var picks = window.__atzDbgPicks || (window.__atzDbgPicks = {{}});
-  (function dedupe(id) {{
-    var nodes = document.querySelectorAll("#" + id);
-    for (var i = 0; i < nodes.length - 1; i++) nodes[i].remove();
-  }})("atz-dbg-badge");
-  (function dedupe(id) {{
-    var nodes = document.querySelectorAll("#" + id);
-    for (var i = 0; i < nodes.length - 1; i++) nodes[i].remove();
-  }})("atz-dbg-toast");
-  function ensureApi() {{
-    if (window.__atzDbg) return window.__atzDbg;
-    var api = {{
-      on: false,
-      refresh: function () {{ applyLabels(); syncBadge(); }},
-      setOn: function (v) {{
-        api.on = !!v;
-        try {{ sessionStorage.setItem(STORAGE, api.on ? "1" : "0"); }} catch (e) {{}}
-        document.body.classList.toggle("atz-dbg-on", api.on);
-        if (!api.on) clearLabels();
-        else applyLabels();
-        syncBadge();
-      }},
-      toggle: function () {{ api.setOn(!api.on); }}
-    }};
-    window.__atzDbg = api;
-    return api;
-  }}
-  function toast(msg) {{
-    var el = document.getElementById("atz-dbg-toast");
-    if (!el) return;
-    el.textContent = msg;
-    el.style.display = "block";
-    clearTimeout(el._t);
-    el._t = setTimeout(function () {{ el.style.display = "none"; }}, 1400);
-  }}
-  function copyText(text) {{
-    if (navigator.clipboard && navigator.clipboard.writeText) {{
-      navigator.clipboard.writeText(text).then(function () {{ toast("Đã copy " + text); }});
-    }} else {{ toast(text); }}
-  }}
-  function syncBadge() {{
-    var b = document.getElementById("atz-dbg-badge");
-    if (b) b.style.display = ensureApi().on ? "block" : "none";
-  }}
-  function clearLabels() {{
-    root.querySelectorAll("[data-atz-dbg-bound]").forEach(function (el) {{
-      el.removeAttribute("data-atz-dbg-bound");
-      el.removeAttribute("data-atz-dbg-id");
-      var chip = el.querySelector(":scope > .atz-dbg-chip");
-      if (chip) chip.remove();
-    }});
-  }}
-  function resolveTarget(anchor) {{
-    var box = anchor.closest('[data-testid="stElementContainer"]') || anchor.parentElement;
-    if (!box) return anchor;
-    var n = box.nextElementSibling;
-    while (n) {{
-      if (n.getAttribute && n.getAttribute("data-testid") === "stElementContainer") return n;
-      n = n.nextElementSibling;
-    }}
-    return box;
-  }}
-  function bindTarget(target, id) {{
-    if (!target || !id) return;
-    if (target.getAttribute("data-atz-dbg-bound") === "1") return;
-    target.setAttribute("data-atz-dbg-bound", "1");
-    target.setAttribute("data-atz-dbg-id", id);
-    var style = window.getComputedStyle(target);
-    if (style.position === "static") target.style.position = "relative";
-    var chip = document.createElement("button");
-    chip.type = "button";
-    chip.className = "atz-dbg-chip";
-    chip.textContent = id;
-    chip.title = "Copy atz-dbg:" + id;
-    chip.addEventListener("click", function (ev) {{
-      ev.preventDefault();
-      ev.stopPropagation();
-      copyText("atz-dbg:" + id);
-    }});
-    target.appendChild(chip);
-  }}
-  function applyLabels() {{
-    if (!ensureApi().on) return;
-    clearLabels();
-    root.querySelectorAll("[data-atz-dbg]").forEach(function (anchor) {{
-      var id = anchor.getAttribute("data-atz-dbg");
-      if (!id) return;
-      bindTarget(resolveTarget(anchor), id);
-    }});
-    AUTO.forEach(function (item) {{
-      var el = root.querySelector(item.sel);
-      if (el) bindTarget(el, item.id);
-    }});
-  }}
-  function syncPickUi(table) {{
-    var st = picks[table] || {{}};
-    root.querySelectorAll('[data-atz-dbg-state="' + table + '"]').forEach(function (el) {{
-      el.textContent = "ROW=" + (st.row || "—") + " · COL=" + (st.col || "—");
-    }});
-    root.querySelectorAll('[data-atz-dbg-table="' + table + '"][data-atz-dbg-pick]').forEach(function (btn) {{
-      var pick = btn.getAttribute("data-atz-dbg-pick") || "";
-      var on = (pick === "row:" + st.row) || (pick === "col:" + st.col);
-      btn.classList.toggle("is-pick", !!on);
-    }});
-  }}
-  function onDocClick(ev) {{
-    if (!ensureApi().on) return;
-    var cellBtn = ev.target.closest("[data-atz-dbg-cell]");
-    if (cellBtn) {{
-      ev.preventDefault();
-      ev.stopPropagation();
-      var t = cellBtn.getAttribute("data-atz-dbg-table");
-      var st = picks[t] || {{}};
-      if (st.row && st.col) copyText("atz-dbg:" + t + ".cell." + st.row + "." + st.col);
-      else toast("Chọn ROW và COL trước");
-      return;
-    }}
-    var pickBtn = ev.target.closest("[data-atz-dbg-pick]");
-    if (pickBtn) {{
-      ev.preventDefault();
-      ev.stopPropagation();
-      var table = pickBtn.getAttribute("data-atz-dbg-table");
-      var pick = pickBtn.getAttribute("data-atz-dbg-pick") || "";
-      picks[table] = picks[table] || {{}};
-      if (pick.indexOf("row:") === 0) picks[table].row = pick.slice(4);
-      if (pick.indexOf("col:") === 0) picks[table].col = pick.slice(4);
-      syncPickUi(table);
-      var copy = pickBtn.getAttribute("data-atz-dbg-copy");
-      if (copy) copyText(copy);
-      var st2 = picks[table];
-      if (st2.row && st2.col) toast("Đủ ROW+COL — bấm Copy CELL");
-      return;
-    }}
-    var copyBtn = ev.target.closest("[data-atz-dbg-copy]");
-    if (copyBtn && !copyBtn.getAttribute("data-atz-dbg-pick")) {{
-      ev.preventDefault();
-      ev.stopPropagation();
-      var text = copyBtn.getAttribute("data-atz-dbg-copy");
-      if (text) copyText(text);
-    }}
-  }}
-  function onKey(ev) {{
-    var key = (ev.key || "").toLowerCase();
-    if (key === "escape" && ensureApi().on) {{
-      ensureApi().setOn(false);
-      toast("DBG OFF");
-      return;
-    }}
-    if (key === "d" && ev.shiftKey && (ev.metaKey || ev.ctrlKey)) {{
-      ev.preventDefault();
-      ensureApi().toggle();
-      toast(ensureApi().on ? "DBG ON" : "DBG OFF");
-    }}
-  }}
-  var api = ensureApi();
-  try {{ api.on = sessionStorage.getItem(STORAGE) === "1"; }} catch (e) {{ api.on = false; }}
-  document.body.classList.toggle("atz-dbg-on", api.on);
-  if (!window.__atzDbgKeyBound) {{
-    window.addEventListener("keydown", onKey, true);
-    window.__atzDbgKeyBound = true;
-  }}
-  if (!window.__atzDbgClickBound) {{
-    document.addEventListener("click", onDocClick, true);
-    window.__atzDbgClickBound = true;
-  }}
-  if (!window.__atzDbgObserver) {{
-    var obs = new MutationObserver(function () {{
-      if (ensureApi().on) {{
-        clearTimeout(window.__atzDbgRefreshT);
-        window.__atzDbgRefreshT = setTimeout(function () {{ applyLabels(); }}, 120);
-      }}
-    }});
-    obs.observe(document.body, {{ childList: true, subtree: true }});
-    window.__atzDbgObserver = obs;
-  }}
-  applyLabels();
-  syncBadge();
-}})();
-</script>
+<script src="/static/debug-overlay.js" defer
+  data-storage-key="{sk}"
+  data-catalog-url="/static/ui_catalog_atz.json"
+  data-ref-prefix="atz-ui"
+  data-surface="atz"></script>
 """
 
 
@@ -521,6 +307,6 @@ def inject_debug_overlay() -> None:
     if not user_may_use_debug(current_me(), config):
         return
     st.html(
-        _overlay_html(config["storage_key"]),
+        _inspect_assets_html(config["storage_key"]),
         unsafe_allow_javascript=True,
     )

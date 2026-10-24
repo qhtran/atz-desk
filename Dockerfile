@@ -10,5 +10,6 @@ RUN --mount=type=secret,id=vnstock_index \
 ENV PYTHONPATH=/app/src/atz
 COPY src ./src
 COPY config ./config
+COPY frontend/debug-overlay.js frontend/debug-overlay.css frontend/ui_catalog_atz.json ./src/atz/static/
 EXPOSE 8501
 CMD ["streamlit", "run", "src/atz/app.py", "--server.port=8501", "--server.address=0.0.0.0", "--server.headless=true"]

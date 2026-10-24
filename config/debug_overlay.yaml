@@ -25,3 +25,7 @@ debug_overlay:
       enabled: true
       inspect: true
       catalog: ui_catalog.json
+    atz:
+      enabled: true
+      inspect: true
+      catalog: ui_catalog_atz.json

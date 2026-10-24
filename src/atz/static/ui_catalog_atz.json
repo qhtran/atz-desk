@@ -1,0 +1,55 @@
+{
+  "entries": [
+    {
+      "match": "atz-ui:DBG-SIDEBAR",
+      "matchType": "exact",
+      "breadcrumb": ["Sidebar", "Điều hướng"],
+      "hints": {
+        "fe": "src/atz/ui/sidebar_portfolio.py, pages.py",
+        "spec": "docs/F1_CHECKLIST_UI.md"
+      },
+      "err_codes": []
+    },
+    {
+      "match": "atz-ui:DBG-MAIN",
+      "matchType": "exact",
+      "breadcrumb": ["Main", "Nội dung trang"],
+      "hints": {
+        "fe": "src/atz/ui/pages.py — open_page()",
+        "spec": "docs/architecture.md"
+      },
+      "err_codes": []
+    },
+    {
+      "match": "atz-ui:DBG-NAV",
+      "matchType": "exact",
+      "breadcrumb": ["Nav", "Button group"],
+      "hints": { "fe": "src/atz/ui/pages.py" },
+      "err_codes": []
+    },
+    {
+      "match": "atz-ui:DBG-BRAND",
+      "matchType": "exact",
+      "breadcrumb": ["Header", "Brand"],
+      "hints": { "fe": "src/atz/app.py" },
+      "err_codes": []
+    },
+    {
+      "match": "atz-ui:DBG-TBL-",
+      "matchType": "prefix",
+      "breadcrumb": ["Bảng dữ liệu"],
+      "hints": {
+        "fe": "src/atz/ui/components.py — dbg_table_legend",
+        "spec": "docs/F1_CHECKLIST_UI.md"
+      },
+      "err_codes": []
+    },
+    {
+      "match": "atz-ui:DBG-",
+      "matchType": "prefix",
+      "breadcrumb": ["Khối UI"],
+      "hints": { "fe": "src/atz/ui/* — dbg_anchor()" },
+      "err_codes": []
+    }
+  ]
+}
