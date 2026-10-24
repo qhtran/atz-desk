@@ -7,7 +7,6 @@ Chip bảng: ``table_deep: false`` để tắt riêng.
 from __future__ import annotations
 
 import html
-import json
 import os
 import re
 from pathlib import Path
