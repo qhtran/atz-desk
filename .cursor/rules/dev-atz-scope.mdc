@@ -1,0 +1,25 @@
+---
+description: Phạm vi active dev — chỉ dev.atz.vn (priceboard); không legacy prod UI
+alwaysApply: true
+---
+
+# Phạm vi Cursor (2026-10-25)
+
+User đã chốt: **từ nay không bàn, không phát triển, không đề xuất** thêm cho **atz.vn (prod)**.
+
+## Agent phải làm
+
+- **Focus:** `dev.atz.vn` — `backend/`, `frontend/`, `docker-compose.dev.yml`, docs priceboard/debug.
+- **Không** sửa / refactor / plan / review tính năng trong `src/atz/` trừ khi user **yêu cầu rõ** lại phạm vi prod.
+- **Không** nhắc tên framework legacy prod UI trong chat (kể cả so sánh kiến trúc), trừ khi user hỏi trực tiếp.
+- So sánh debug overlay: chỉ nói **dev.atz.vn** / `pb-ui:*`, không kéo implementation prod vào lộ trình.
+
+## Agent không làm (mặc định)
+
+- PR/commit/deploy liên quan prod compose / image prod UI.
+- Poll `auditorbot/inbox` cho survey prod UI trừ khi user yêu cầu.
+- Gợi ý “đồng bộ prod ↔ dev” trừ khi user mở lại chủ đề.
+
+## Khi user tag file legacy
+
+- Cảnh báo một dòng: file ngoài phạm vi active dev — hỏi xác nhận trước khi sửa.

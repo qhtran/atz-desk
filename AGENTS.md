@@ -3,6 +3,7 @@
 ## 0. Tài liệu
 - Kiến trúc / vận hành: `docs/architecture.md`, `docs/troubleshooting.md`
 - Target layout (chưa bắt buộc refactor): `docs/adr/0001-target-folder-layout.md`
+- **Phạm vi active dev (2026-10-25):** chỉ **dev.atz.vn** (`backend/`, `frontend/`, `docker-compose.dev.yml`). Không bàn/phát triển prod atz.vn trừ khi user yêu cầu lại — chi tiết `.cursor/rules/dev-atz-scope.mdc`.
 
 ## 1. Karpathy rules
 - Code rõ ràng, modular, dễ đọc.
