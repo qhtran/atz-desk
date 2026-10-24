@@ -88,3 +88,23 @@ docs/refs/_converted/
 agent-reply.md
 PROGRESS.md
 *.bak*
+
+# === dev.atz.vn scope (mở lại khi user @ tag hoặc yêu cầu prod/legacy) ===
+src/
+
+# Prod deploy / compose (dev: docker-compose.dev.yml)
+docker-compose.yml
+deploy/
+
+# Docs bot / hạ tầng / ref / chiến lược dài
+docs/auditorbot/
+docs/bots/
+docs/infrastructure/
+docs/refs/
+docs/REFRESH_1_2S_STRATEGY.md
+
+# Script one-off (chỉ khi task deploy/ops)
+scripts/
+
+# Frontend build output
+frontend/dist/
