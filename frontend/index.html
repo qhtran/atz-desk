@@ -620,6 +620,14 @@
       "LPB", "MBB", "MSN", "MWG", "PLX", "SAB", "SHB", "SSB", "SSI", "STB",
       "TCB", "TPB", "VCB", "VHM", "VIB", "VIC", "VJC", "VNM", "VPB", "VRE",
     ]);
+    const HNX_SET = new Set([
+      "SHS", "PVS", "TIG", "IDC", "VCS", "CEO", "NRC", "LAS", "SHN", "BVS",
+      "DTD", "HUT", "KLF", "PLC", "VIG",
+    ]);
+    const UPCOM_SET = new Set([
+      "ART", "QBS", "VE4", "VNR", "SMT", "LAI", "HAT", "VGP", "KTC", "DTK",
+      "VLA", "BRS", "CLX", "SDG", "VCR",
+    ]);
     const PIN_KEY = "atz.iboard.pinned";
     const MARKET_KEY = "atz.iboard.market";
     const APP_TAB_KEY = "atz.app.tab";
@@ -709,12 +717,15 @@
     }
 
     function resolveExchange(row) {
+      const sym = String(row.symbol || "").toUpperCase();
       const ex = String(row.exchange || "").toUpperCase();
       if (ex === "HOSE" || ex === "HSX") return "HOSE";
       if (ex === "HNX") return "HNX";
       if (ex === "UPCOM" || ex === "UPX") return "UPCOM";
-      if (VN30_SET.has(row.symbol)) return "HOSE";
-      return "HOSE";
+      if (HNX_SET.has(sym)) return "HNX";
+      if (UPCOM_SET.has(sym)) return "UPCOM";
+      if (VN30_SET.has(sym)) return "HOSE";
+      return ex || "HOSE";
     }
 
     function inIndexBasket(indexSym, row) {

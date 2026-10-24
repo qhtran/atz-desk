@@ -100,9 +100,6 @@
   function toggle() {
     setOn(!api().on);
     toast(api().on ? "Inspect ON · click để pin" : "Inspect OFF");
-    // #region agent log
-    agentLog("inspect toggled", "H4", { inspectOn: api().on, storage: STORAGE });
-    // #endregion
   }
 
   function hashDom(el) {
@@ -451,17 +448,6 @@
       }
       lastHoverEl = el;
       positionHighlight(el);
-      // #region agent log
-      if (!window.__pbDbgHoverLogged && api().on) {
-        window.__pbDbgHoverLogged = true;
-        var hres = resolveFromElement(el);
-        agentLog("first hover sample", "H5", {
-          tag: el && el.tagName,
-          uiRef: hres ? hres.ui_ref : null,
-          inIframe: el && el.tagName === "IFRAME",
-        });
-      }
-      // #endregion
     });
   }
 
@@ -611,25 +597,6 @@
       });
   }
 
-  function agentLog(message, hypothesisId, data) {
-    // #region agent log
-    try {
-      fetch("http://127.0.0.1:7722/ingest/48452b2f-cc37-4967-87d2-94240ee9fe6c", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "6352fb" },
-        body: JSON.stringify({
-          sessionId: "6352fb",
-          location: "debug-overlay.js",
-          message: message,
-          hypothesisId: hypothesisId,
-          data: data || {},
-          timestamp: Date.now(),
-        }),
-      }).catch(function () {});
-    } catch (e) {}
-    // #endregion
-  }
-
   function init() {
     mountUi();
     window.__pbDbg = {
@@ -655,21 +622,8 @@
       window.__pbDbgKeyBound = true;
     }
 
-    // #region agent log
-    agentLog("overlay init", "H2", {
-      surface: SURFACE,
-      storage: STORAGE,
-      inspectOn: api().on,
-      hasMain: !!document.querySelector('[data-testid="stMain"]'),
-      scriptSrc: script && script.src,
-    });
-    // #endregion
-
     loadCatalog().then(function () {
       applyFocusQuery();
-      // #region agent log
-      agentLog("catalog loaded", "H3", { entries: catalog.length, catalogUrl: CATALOG_URL });
-      // #endregion
     });
   }
 

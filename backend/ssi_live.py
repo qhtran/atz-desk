@@ -31,6 +31,7 @@ from backend.observability import (
     log,
     setup,
 )
+from backend.board_universe import default_watchlist, exchange_for_symbol
 from backend.tick_contract import build_tick, parse_ssi_envelope, ssi_envelope_has_symbol
 from backend.volume_filter import load_min_volume, passes_volume_filter
 
@@ -45,12 +46,8 @@ MIN_VOLUME = load_min_volume()
 DEFAULT_WS = "wss://stream.ssi.com.vn/ws/v3"
 DEFAULT_AUTH = "https://api.ssi.com.vn/api/v3/auth/token"
 
-# VN30-ish watchlist when config.symbols empty
-DEFAULT_SYMBOLS = [
-    "ACB", "BCM", "BID", "BVH", "CTG", "FPT", "GAS", "GVR", "HDB", "HPG",
-    "LPB", "MBB", "MSN", "MWG", "PLX", "SAB", "SHB", "SSB", "SSI", "STB",
-    "TCB", "TPB", "VCB", "VHM", "VIB", "VIC", "VJC", "VNM", "VPB", "VRE",
-]
+# Watchlist đa sàn khi config.symbols / ENV rỗng (VN30 + HOSE thêm + mẫu HNX/UPCOM)
+DEFAULT_SYMBOLS = default_watchlist()
 
 INDEX_SEED = [
     ("VNINDEX", 1285.4),
@@ -196,6 +193,7 @@ class RealSsiWorker:
                 last=0,
                 ref=0,
                 kind="equity",
+                exchange=exchange_for_symbol(sym),
                 volume=0,
                 source="SSI_WS",
             )

@@ -18,6 +18,7 @@ from typing import Any, Protocol
 
 import redis.asyncio as aioredis
 
+from backend.board_universe import mock_equity_seeds
 from backend.observability import ERR_PB_REDIS_IO, ERR_PB_SSI_FALLBACK, ERR_PB_SSI_SESSION, log, setup
 from backend.tick_contract import build_tick
 from backend.volume_filter import load_min_volume, passes_volume_filter
@@ -138,31 +139,14 @@ def _equity_row(symbol: str, ref: int, exchange: str = "HOSE") -> dict:
 
 def build_seed(equity_count: int | None = None) -> list[dict]:
     target = equity_count if equity_count is not None else MOCK_EQUITY_COUNT
-    target = max(50, min(80, target))
     seed: list[dict] = [
         {"symbol": "VNINDEX", "exchange": "HOSE", "kind": "index", "ref": 1285.4, "last": 1285.4, "volume": 0},
         {"symbol": "VN30", "exchange": "HOSE", "kind": "index", "ref": 1342.1, "last": 1342.1, "volume": 0},
         {"symbol": "HNXINDEX", "exchange": "HNX", "kind": "index", "ref": 238.6, "last": 238.6, "volume": 0},
         {"symbol": "UPCOMINDEX", "exchange": "UPCOM", "kind": "index", "ref": 95.2, "last": 95.2, "volume": 0},
     ]
-    seen: set[str] = set()
-    for sym, ref in VN30_AND_BLUECHIPS:
-        if len(seen) >= target:
-            break
-        if sym in seen:
-            continue
-        seen.add(sym)
-        seed.append(_equity_row(sym, ref))
-    i = 0
-    while len(seen) < target:
-        sym = _synthetic_symbol(i)
-        i += 1
-        if sym in seen or len(sym) != 3:
-            continue
-        seen.add(sym)
-        ref = 5_000 + (sum(ord(c) for c in sym) * 137) % 180_000
-        ref = int(round(ref / 50) * 50)
-        seed.append(_equity_row(sym, max(ref, 5_050)))
+    for sym, ref, ex in mock_equity_seeds(target=target):
+        seed.append(_equity_row(sym, ref, exchange=ex))
     return seed
 
 
