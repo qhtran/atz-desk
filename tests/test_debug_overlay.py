@@ -87,11 +87,14 @@ def test_gate_local_and_groups() -> None:
         "allow_local": True,
         "allowed_groups": ["admin", "authentik Admins"],
         "storage_key": "atz-dbg-on",
+        "atz_inspect_enabled": False,
+        "require_admin_groups": True,
     }
     assert user_may_use_debug(None, cfg) is True
     assert user_may_use_debug({"groups": ["members"]}, cfg) is False
     assert user_may_use_debug({"groups": ["Admin"]}, cfg) is True
     assert user_may_use_debug({"groups": ["authentik Admins"]}, cfg) is True
+    assert user_may_use_debug({"username": "u", "groups": []}, cfg) is False
 
     cfg_off = {**cfg, "enabled": False}
     assert user_may_use_debug(None, cfg_off) is False
@@ -99,3 +102,27 @@ def test_gate_local_and_groups() -> None:
 
     cfg_no_local = {**cfg, "allow_local": False}
     assert user_may_use_debug(None, cfg_no_local) is False
+
+    cfg_atz_open = {
+        **cfg,
+        "atz_inspect_enabled": True,
+        "require_admin_groups": False,
+    }
+    assert user_may_use_debug({"username": "u", "groups": []}, cfg_atz_open) is True
+    assert user_may_use_debug({"groups": ["members"]}, cfg_atz_open) is True
+
+
+def test_config_atz_surface_from_yaml(tmp_path: Path) -> None:
+    path = tmp_path / "debug_overlay.yaml"
+    path.write_text(
+        "debug_overlay:\n"
+        "  enabled: true\n"
+        "  surfaces:\n"
+        "    atz:\n"
+        "      enabled: true\n"
+        "      inspect: true\n",
+        encoding="utf-8",
+    )
+    cfg = load_debug_config(path)
+    assert cfg["atz_inspect_enabled"] is True
+    assert user_may_use_debug({"username": "u", "groups": []}, cfg) is True

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping
 
 _HEADER = "x-authentik-username"
@@ -54,7 +55,7 @@ def me_from_headers(headers: Mapping[str, str] | None) -> dict | None:
     if not me["username"]:
         return None
     raw_groups = me["groups"]
-    me["groups"] = [group.strip() for group in raw_groups.split("|") if group.strip()]
+    me["groups"] = [group.strip() for group in re.split(r"[|,]", raw_groups) if group.strip()]
     return me
 
 

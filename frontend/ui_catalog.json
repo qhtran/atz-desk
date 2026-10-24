@@ -22,11 +22,11 @@
       "err_codes": []
     },
     {
-      "match": "pb-ui:signals.",
+      "match": "pb-ui:iboard.screener",
       "matchType": "prefix",
-      "breadcrumb": ["Bộ lọc tín hiệu"],
+      "breadcrumb": ["iBoard", "Bộ lọc screener"],
       "hints": {
-        "fe": "frontend/index.html — screenerSpec, renderSignalsTable()",
+        "fe": "frontend/index.html — screenerSpec, rowVisible(), applyBoardFilter()",
         "be": "backend/main.py — POST /api/screener",
         "spec": "docs/specs/PRICEBOARD_DEBUG.md"
       },

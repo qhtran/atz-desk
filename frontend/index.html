@@ -431,7 +431,6 @@
         <span class="text-[13px] font-semibold tracking-tight text-white shrink-0 pr-3">atz · Realtime</span>
         <nav class="flex items-center gap-0" role="tablist" aria-label="Chức năng">
           <button type="button" class="app-tab is-active" data-app="iboard" data-atd-id="pb-ui:app.tab.iboard" role="tab" aria-selected="true">Giao dịch iBoard</button>
-          <button type="button" class="app-tab" data-app="signals" data-atd-id="pb-ui:app.tab.signals" role="tab" aria-selected="false">Bộ lọc tín hiệu</button>
           <button type="button" class="app-tab" data-app="portfolio" data-atd-id="pb-ui:app.tab.portfolio" role="tab" aria-selected="false">Danh mục</button>
           <button type="button" class="app-tab" data-app="news" data-atd-id="pb-ui:app.tab.news" role="tab" aria-selected="false">Tin tức / Nghiên cứu</button>
         </nav>
@@ -468,6 +467,36 @@
   <!-- ===== Panel: iBoard ===== -->
   <section id="panel-iboard" class="panel is-active" data-panel="iboard" data-atd-id="pb-ui:iboard.panel" role="tabpanel">
     <section id="index-bar" data-atd-id="pb-ui:iboard.index-bar" aria-label="Chỉ số thị trường"></section>
+    <div class="panel-toolbar" id="screener-toolbar" data-atd-id="pb-ui:iboard.screener">
+      <label for="scr-vol-min">KL min</label>
+      <input id="scr-vol-min" type="number" min="0" step="10000" value="" placeholder="tất cả" style="width:110px" title="Volume tối thiểu" />
+      <label for="scr-pct-min">% ≥</label>
+      <input id="scr-pct-min" type="number" step="0.1" value="" placeholder="vd 2" style="width:72px" title="change_pct min" />
+      <label for="scr-pct-max">% ≤</label>
+      <input id="scr-pct-max" type="number" step="0.1" value="" placeholder="vd -2" style="width:72px" title="change_pct max" />
+      <label class="inline-flex items-center gap-1 text-[11px] text-gray-400">
+        <input type="checkbox" id="scr-flag-up2" /> Tăng ≥2%
+      </label>
+      <label class="inline-flex items-center gap-1 text-[11px] text-gray-400">
+        <input type="checkbox" id="scr-flag-down2" /> Giảm ≤-2%
+      </label>
+      <label class="inline-flex items-center gap-1 text-[11px] text-gray-400">
+        <input type="checkbox" id="scr-flag-volhi" /> KL ≥1M
+      </label>
+      <label class="inline-flex items-center gap-1 text-[11px] text-gray-400">
+        <input type="checkbox" id="scr-flag-ceil" /> Trần
+      </label>
+      <label class="inline-flex items-center gap-1 text-[11px] text-gray-400">
+        <input type="checkbox" id="scr-flag-floor" /> Sàn
+      </label>
+      <label for="scr-mode" class="text-[11px] text-gray-500">Ghép</label>
+      <select id="scr-mode" title="AND = tất cả điều kiện · OR = bất kỳ">
+        <option value="and" selected>AND</option>
+        <option value="or">OR</option>
+      </select>
+      <button type="button" class="btn-quiet" id="scr-reset">Reset</button>
+      <span class="text-[11px] text-gray-500" id="scr-status">WS live · FilterEngine</span>
+    </div>
     <div class="market-bar" role="tablist" aria-label="Rổ thị trường">
       <button type="button" class="mkt-tab is-active" data-market="HOSE" data-atd-id="pb-ui:iboard.market.HOSE" role="tab" aria-selected="true">HOSE</button>
       <button type="button" class="mkt-tab" data-market="VN30" data-atd-id="pb-ui:iboard.market.VN30" role="tab" aria-selected="false">VN30</button>
@@ -511,58 +540,6 @@
         </thead>
         <tbody id="board-body"></tbody>
       </table>
-    </div>
-  </section>
-
-  <!-- ===== Panel: Signals (compose FilterEngine) ===== -->
-  <section id="panel-signals" class="panel" data-panel="signals" data-atd-id="pb-ui:signals.panel" role="tabpanel" hidden>
-    <div class="panel-toolbar" id="screener-toolbar" data-atd-id="pb-ui:signals.toolbar">
-      <label for="scr-vol-min">KL min</label>
-      <input id="scr-vol-min" type="number" min="0" step="10000" value="500000" style="width:110px" title="Volume tối thiểu" />
-      <label for="scr-pct-min">% ≥</label>
-      <input id="scr-pct-min" type="number" step="0.1" value="" placeholder="vd 2" style="width:72px" title="change_pct min" />
-      <label for="scr-pct-max">% ≤</label>
-      <input id="scr-pct-max" type="number" step="0.1" value="" placeholder="vd -2" style="width:72px" title="change_pct max" />
-      <label class="inline-flex items-center gap-1 text-[11px] text-gray-400">
-        <input type="checkbox" id="scr-flag-up2" /> Tăng ≥2%
-      </label>
-      <label class="inline-flex items-center gap-1 text-[11px] text-gray-400">
-        <input type="checkbox" id="scr-flag-down2" /> Giảm ≤-2%
-      </label>
-      <label class="inline-flex items-center gap-1 text-[11px] text-gray-400">
-        <input type="checkbox" id="scr-flag-volhi" /> KL ≥1M
-      </label>
-      <label class="inline-flex items-center gap-1 text-[11px] text-gray-400">
-        <input type="checkbox" id="scr-flag-ceil" /> Trần
-      </label>
-      <label class="inline-flex items-center gap-1 text-[11px] text-gray-400">
-        <input type="checkbox" id="scr-flag-floor" /> Sàn
-      </label>
-      <label for="scr-mode" class="text-[11px] text-gray-500">Ghép</label>
-      <select id="scr-mode" title="AND = tất cả điều kiện · OR = bất kỳ">
-        <option value="and" selected>AND</option>
-        <option value="or">OR</option>
-      </select>
-      <button type="button" class="btn-quiet" id="scr-reset">Reset</button>
-      <span class="text-[11px] text-gray-500" id="scr-status">WS live · FilterEngine</span>
-    </div>
-    <div class="atz-table-wrap panel-tall">
-      <table class="atz-table" id="signals-table">
-        <thead>
-          <tr>
-            <th class="th-sym">Mã</th>
-            <th class="num">Giá</th>
-            <th class="num">+/-</th>
-            <th class="num">%</th>
-            <th class="num">KL</th>
-            <th class="num">TC</th>
-            <th>Tín hiệu</th>
-            <th class="num">Sàn</th>
-          </tr>
-        </thead>
-        <tbody id="signals-body"></tbody>
-      </table>
-      <div id="signals-empty" class="empty-hint" hidden>Chưa có mã khớp bộ lọc — chỉnh toolbar hoặc chờ tick WS.</div>
     </div>
   </section>
 
@@ -611,8 +588,8 @@
         <span class="tag">Hạ tầng</span>
       </article>
       <article class="news-card">
-        <h3>Bộ lọc tín hiệu (client)</h3>
-        <p>Lọc theo % / KL / trần–sàn trên dữ liệu đang live trong bộ nhớ. Sẵn sàng gắn API tín hiệu khi backend sẵn sàng.</p>
+        <h3>Bộ lọc trên iBoard</h3>
+        <p>Toolbar screener trên tab Giao dịch iBoard — lọc % / KL / trần–sàn trực tiếp trên bảng depth (cùng rổ HOSE/VN30…).</p>
         <span class="tag">Tín hiệu</span>
       </article>
       <article class="news-card">
@@ -648,7 +625,7 @@
     const APP_TAB_KEY = "atz.app.tab";
     const PORTFOLIO_KEY = "atz.app.portfolio";
     const VALID_MARKETS = new Set(["HOSE", "VN30", "HNX", "UPCOM"]);
-    const VALID_APP_TABS = new Set(["iboard", "signals", "portfolio", "news"]);
+    const VALID_APP_TABS = new Set(["iboard", "portfolio", "news"]);
     /** P1: fake depth until X-Quote map Pass — ?fake_depth=0 or localStorage pb_fake_depth=0 */
     const FAKE_DEPTH_STORAGE_KEY = "pb_fake_depth";
     const PB_FAKE_DEPTH = (() => {
@@ -668,14 +645,14 @@
     let marketTab = VALID_MARKETS.has(localStorage.getItem(MARKET_KEY))
       ? localStorage.getItem(MARKET_KEY)
       : "HOSE";
-    let appTab = VALID_APP_TABS.has(localStorage.getItem(APP_TAB_KEY))
-      ? localStorage.getItem(APP_TAB_KEY)
-      : "iboard";
+    let storedAppTab = localStorage.getItem(APP_TAB_KEY);
+    if (storedAppTab === "signals") storedAppTab = "iboard";
+    let appTab = VALID_APP_TABS.has(storedAppTab) ? storedAppTab : "iboard";
     let indexStatsTimer = null;
     /** Composite screener (mirrors backend.screener.FilterEngine) */
     let screenerSpec = {
       mode: "and",
-      volume_min: 500000,
+      volume_min: null,
       change_pct_min: null,
       change_pct_max: null,
       flags: [],
@@ -690,8 +667,6 @@
     const elSearch = document.getElementById("search-input");
     const elSettingsBtn = document.getElementById("btn-settings");
     const elSettingsMenu = document.getElementById("settings-menu");
-    const elSignalsBody = document.getElementById("signals-body");
-    const elSignalsEmpty = document.getElementById("signals-empty");
     const elPortfolioBody = document.getElementById("portfolio-body");
     const elPortfolioEmpty = document.getElementById("portfolio-empty");
     const elPfSummary = document.getElementById("pf-summary");
@@ -712,9 +687,8 @@
         if (on) panel.removeAttribute("hidden");
         else panel.setAttribute("hidden", "");
       });
-      const showSearch = tab === "iboard" || tab === "signals";
+      const showSearch = tab === "iboard";
       document.getElementById("global-search-wrap").style.display = showSearch ? "" : "none";
-      if (tab === "signals") renderSignalsTable();
       if (tab === "portfolio") renderPortfolioTable();
     }
 
@@ -789,11 +763,19 @@
       const q = searchQuery.trim().toUpperCase();
       if (q && !symbol.includes(q)) return false;
       const ex = resolveExchange(row);
-      if (marketTab === "VN30") return VN30_SET.has(symbol);
-      if (marketTab === "HOSE") return ex === "HOSE";
-      if (marketTab === "HNX") return ex === "HNX";
-      if (marketTab === "UPCOM") return ex === "UPCOM";
-      return true;
+      if (marketTab === "VN30" && !VN30_SET.has(symbol)) return false;
+      if (marketTab === "HOSE" && ex !== "HOSE") return false;
+      if (marketTab === "HNX" && ex !== "HNX") return false;
+      if (marketTab === "UPCOM" && ex !== "UPCOM") return false;
+      return matchesScreenerFilters(row);
+    }
+
+    function countVisibleBoardRows() {
+      let n = 0;
+      elBody.querySelectorAll("tr[data-symbol]").forEach((tr) => {
+        if (tr.style.display !== "none") n += 1;
+      });
+      return n;
     }
 
     function applyBoardFilter() {
@@ -801,6 +783,14 @@
         tr.style.display = rowVisible(tr.dataset.symbol) ? "" : "none";
       });
       updatePinnedPositions();
+      updateScreenerStatus(countVisibleBoardRows());
+    }
+
+    function applyBoardFilterForSymbol(symbol) {
+      const tr = document.getElementById("row-" + symbol);
+      if (!tr) return;
+      tr.style.display = rowVisible(symbol) ? "" : "none";
+      updateScreenerStatus(countVisibleBoardRows());
     }
 
     function setMarketTab(tab) {
@@ -822,7 +812,6 @@
     elSearch.addEventListener("input", () => {
       searchQuery = elSearch.value || "";
       applyBoardFilter();
-      if (appTab === "signals") renderSignalsTable();
     });
 
     elSettingsBtn.addEventListener("click", (ev) => {
@@ -849,10 +838,8 @@
       state.delete(symbol);
       const tr = document.getElementById("row-" + symbol);
       if (tr) tr.remove();
-      const sig = document.getElementById("sig-" + symbol);
-      if (sig) sig.remove();
-      if (appTab === "signals") renderSignalsTable();
       if (appTab === "portfolio") renderPortfolioTable();
+      applyBoardFilter();
       scheduleIndexStatsRefresh();
       updatePinnedPositions();
     }
@@ -1398,29 +1385,12 @@
       return false;
     }
 
-    function matchesScreener(row) {
-      if (!row || INDEX_SYMBOLS.has(row.symbol)) return false;
-      const q = searchQuery.trim().toUpperCase();
-      if (q && !String(row.symbol).includes(q)) return false;
+    function matchesScreenerFilters(row) {
       const rules = buildScreenerRules(screenerSpec);
       if (!rules.length) return true;
       const work = annotateNearLimits({ ...row });
       if (screenerSpec.mode === "or") return rules.some((r) => evalScreenerRule(work, r));
       return rules.every((r) => evalScreenerRule(work, r));
-    }
-
-    function signalLabel(row) {
-      const last = Number(row.last);
-      const pct = Number(row.change_pct) || 0;
-      const vol = Number(row.volume) || 0;
-      if (row.ceil != null && last === Number(row.ceil)) return "Trần";
-      if (row.floor != null && last === Number(row.floor)) return "Sàn";
-      if (pct >= 2) return "Tăng mạnh";
-      if (pct <= -2) return "Giảm mạnh";
-      if (vol >= 1e6) return "KL lớn";
-      if (pct > 0) return "Tăng";
-      if (pct < 0) return "Giảm";
-      return "TC";
     }
 
     function updateScreenerStatus(n) {
@@ -1444,67 +1414,7 @@
         change_pct_max: safeNum(document.getElementById("scr-pct-max").value),
         flags,
       };
-      renderSignalsTable();
-    }
-
-    function renderSignalsTable() {
-      const rows = [...state.values()]
-        .filter(matchesScreener)
-        .sort((a, b) => Math.abs(Number(b.change_pct) || 0) - Math.abs(Number(a.change_pct) || 0));
-      elSignalsBody.innerHTML = "";
-      elSignalsEmpty.hidden = rows.length > 0;
-      rows.forEach((row) => {
-        const tr = document.createElement("tr");
-        tr.dataset.symbol = row.symbol;
-        tr.id = "sig-" + row.symbol;
-        const tone = changeTone(row.change);
-        tr.innerHTML = `
-          <td class="sym">${row.symbol}</td>
-          <td class="num tabular-nums ${priceTone(row.last, row.ref, row.ceil, row.floor)}" data-f="last">${fmtPrice(row.last)}</td>
-          <td class="num tabular-nums ${tone}" data-f="change">${fmtChange(row.change)}</td>
-          <td class="num tabular-nums ${tone}" data-f="pct">${fmtPct(row.change_pct)}</td>
-          <td class="num tabular-nums" data-f="vol">${fmtVol(row.volume)}</td>
-          <td class="num tabular-nums text-[#ffd900]" data-f="ref">${fmtPrice(row.ref)}</td>
-          <td data-f="sig">${signalLabel(row)}</td>
-          <td class="num tabular-nums text-gray-400">${resolveExchange(row)}</td>`;
-        elSignalsBody.appendChild(tr);
-      });
-      updateScreenerStatus(rows.length);
-    }
-
-    function patchSignalRow(symbol, { flash = false } = {}) {
-      if (appTab !== "signals") return;
-      const row = state.get(symbol);
-      if (!row || INDEX_SYMBOLS.has(symbol)) return;
-      const match = matchesScreener(row);
-      let tr = document.getElementById("sig-" + symbol);
-      if (!match) {
-        if (tr) tr.remove();
-        elSignalsEmpty.hidden = elSignalsBody.children.length > 0;
-        updateScreenerStatus(elSignalsBody.children.length);
-        return;
-      }
-      if (!tr) {
-        renderSignalsTable();
-        return;
-      }
-      const prevLast = tr.querySelector('[data-f="last"]')?.textContent;
-      const tone = changeTone(row.change);
-      const lastEl = tr.querySelector('[data-f="last"]');
-      lastEl.textContent = fmtPrice(row.last);
-      lastEl.className = "num tabular-nums " + priceTone(row.last, row.ref, row.ceil, row.floor);
-      const chg = tr.querySelector('[data-f="change"]');
-      chg.textContent = fmtChange(row.change);
-      chg.className = "num tabular-nums " + tone;
-      const pct = tr.querySelector('[data-f="pct"]');
-      pct.textContent = fmtPct(row.change_pct);
-      pct.className = "num tabular-nums " + tone;
-      tr.querySelector('[data-f="vol"]').textContent = fmtVol(row.volume);
-      tr.querySelector('[data-f="ref"]').textContent = fmtPrice(row.ref);
-      tr.querySelector('[data-f="sig"]').textContent = signalLabel(row);
-      if (flash && prevLast !== fmtPrice(row.last)) {
-        flashCell(lastEl, row.change || 1);
-      }
+      applyBoardFilter();
     }
 
     function wireScreenerToolbar() {
@@ -1519,7 +1429,7 @@
         el.addEventListener("input", readScreenerToolbar);
       });
       document.getElementById("scr-reset").addEventListener("click", () => {
-        document.getElementById("scr-vol-min").value = "500000";
+        document.getElementById("scr-vol-min").value = "";
         document.getElementById("scr-pct-min").value = "";
         document.getElementById("scr-pct-max").value = "";
         document.getElementById("scr-mode").value = "and";
@@ -1645,9 +1555,9 @@
       renderPortfolioTable();
     });
 
-    /** Fan-out tick → bảng tín hiệu + danh mục (DOM nếu tab đang mở; state đã cập nhật trước đó) */
+    /** Fan-out tick → lọc iBoard + danh mục (state đã cập nhật trước đó) */
     function fanOutRealtime(symbol, opts = {}) {
-      patchSignalRow(symbol, opts);
+      applyBoardFilterForSymbol(symbol);
       patchPortfolioSymbol(symbol, opts);
     }
 
@@ -1677,7 +1587,6 @@
         restorePinnedRows();
         applyBoardFilter();
         refreshAllIndexStats();
-        renderSignalsTable();
         renderPortfolioTable();
         return;
       }

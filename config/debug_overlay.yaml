@@ -12,7 +12,9 @@ debug_overlay:
   max_row_chips: 40
   # Cho phép khi không có header Authentik (dev local).
   allow_local: true
-  # Khớp không phân biệt hoa thường với X-authentik-groups.
+  # true = chỉ allowed_groups (khi header groups rỗng overlay sẽ tắt). false = mọi user đã login Authentik (giống dev priceboard).
+  require_admin_groups: false
+  # Khớp không phân biệt hoa thường với X-authentik-groups (hỗ trợ | hoặc ,).
   allowed_groups:
     - admin
     - admins

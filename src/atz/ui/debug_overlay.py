@@ -17,6 +17,30 @@ import yaml
 from storage.paths import repo_root
 
 DEFAULT_PATH = repo_root() / "config" / "debug_overlay.yaml"
+_AGENT_DBG_LOG = repo_root() / ".cursor" / "debug-6352fb.log"
+
+
+def _agent_dbg_log(message: str, *, hypothesis_id: str, data: dict | None = None) -> None:
+    """NDJSON cho phiên debug Cursor (6352fb). Không log PII."""
+    try:
+        import json
+        import time
+
+        payload = {
+            "sessionId": "6352fb",
+            "timestamp": int(time.time() * 1000),
+            "location": "debug_overlay.py",
+            "message": message,
+            "hypothesisId": hypothesis_id,
+            "data": data or {},
+        }
+        _AGENT_DBG_LOG.parent.mkdir(parents=True, exist_ok=True)
+        with _AGENT_DBG_LOG.open("a", encoding="utf-8") as fh:
+            fh.write(json.dumps(payload, ensure_ascii=False) + "\n")
+    except Exception:
+        pass
+
+
 _DBG_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$")
 _ROW_KEY_COLS = ("Mã", "Ma", "symbol", "Symbol", "Thành phần", "ID")
 
@@ -71,6 +95,8 @@ def load_debug_config(path: Path | str | None = None) -> dict:
             "allow_local": False,
             "allowed_groups": [],
             "storage_key": "atz-dbg-on",
+            "atz_inspect_enabled": False,
+            "require_admin_groups": False,
         }
     else:
         doc = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
@@ -85,13 +111,19 @@ def load_debug_config(path: Path | str | None = None) -> dict:
             max_rows = int(block.get("max_row_chips", 40))
         except (TypeError, ValueError):
             max_rows = 40
+        surfaces = block.get("surfaces") if isinstance(block.get("surfaces"), dict) else {}
+        atz = surfaces.get("atz") if isinstance(surfaces.get("atz"), dict) else {}
+        global_on = bool(block.get("enabled", False))
+        atz_inspect = global_on and bool(atz.get("enabled", True)) and bool(atz.get("inspect", True))
         base = {
-            "enabled": bool(block.get("enabled", False)),
+            "enabled": global_on,
             "table_deep": bool(block.get("table_deep", True)),
             "max_row_chips": max(1, min(200, max_rows)),
             "allow_local": bool(block.get("allow_local", False)),
             "allowed_groups": [str(g).strip() for g in groups if str(g).strip()],
             "storage_key": key,
+            "atz_inspect_enabled": atz_inspect,
+            "require_admin_groups": bool(block.get("require_admin_groups", False)),
         }
     env_on = _env_tri_state("ATZ_DEBUG_OVERLAY")
     if env_on is not None:
@@ -103,12 +135,14 @@ def load_debug_config(path: Path | str | None = None) -> dict:
 
 
 def user_may_use_debug(me: dict | None, config: dict | None = None) -> bool:
-    """Gate: enabled + (local được phép khi me is None) hoặc giao groups."""
+    """Gate: enabled + local / atz inspect surface (giống dev priceboard) hoặc giao groups."""
     config = config or load_debug_config()
     if not config.get("enabled"):
         return False
     if me is None:
         return bool(config.get("allow_local"))
+    if config.get("atz_inspect_enabled") and not config.get("require_admin_groups"):
+        return True
     allowed = {g.casefold() for g in config.get("allowed_groups") or []}
     if not allowed:
         return False
@@ -268,6 +302,11 @@ def _inspect_assets_html(storage_key: str) -> str:
     """Hybrid Inspect overlay (shared debug-overlay.js) — atz-ui:* refs."""
     sk = html.escape(storage_key, quote=True)
     return f"""
+<script>
+// #region agent log
+(function(){{try{{fetch("http://127.0.0.1:7722/ingest/48452b2f-cc37-4967-87d2-94240ee9fe6c",{{method:"POST",headers:{{"Content-Type":"application/json","X-Debug-Session-Id":"6352fb"}},body:JSON.stringify({{sessionId:"6352fb",location:"debug_overlay:inline",message:"atz assets html injected",data:{{storageKey:"{sk}"}},timestamp:Date.now(),hypothesisId:"H1"}})}}).catch(function(){{}});}}catch(e){{}}}})();
+// #endregion
+</script>
 <link rel="stylesheet" href="/static/debug-overlay.css">
 <style>
   .atz-dbg-table-legend {{
@@ -303,7 +342,21 @@ def inject_debug_overlay() -> None:
     except Exception:
         return
     config = load_debug_config()
-    if not user_may_use_debug(current_me(), config):
+    me = current_me()
+    may = user_may_use_debug(me, config)
+    group_count = len(me.get("groups") or []) if me else 0
+    _agent_dbg_log(
+        "inject_debug_overlay",
+        hypothesis_id="H1",
+        data={
+            "enabled": bool(config.get("enabled")),
+            "may_use": may,
+            "me_present": me is not None,
+            "group_count": group_count,
+            "allow_local": bool(config.get("allow_local")),
+        },
+    )
+    if not may:
         return
     st.html(
         _inspect_assets_html(config["storage_key"]),
