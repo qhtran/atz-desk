@@ -2,8 +2,7 @@
 
 **Ngày:** 2026-10-25 (~01:50 ICT)  
 **Branch (active dev):** `feature/priceboard-debug-trace`  
-**HEAD (local):** `feature/priceboard-debug-trace` (sau P1 prep — push trước khi VPS pull code)  
-**HEAD VPS (docs @ dea3b27):** code runtime vẫn `5cc26b9` cho tới pull + restart worker mới  
+**HEAD (đã push + VPS pull):** `122b243`  
 **Base merge target:** `feature/realtime-fastapi` (chưa merge debug trace)  
 **Orchestrator:** Cursor · Bot code paused · **cấm** sửa nginx `stream.d` / sshd / UFW trừ `user_confirmed_infra: yes`.
 

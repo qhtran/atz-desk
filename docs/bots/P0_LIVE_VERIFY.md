@@ -11,7 +11,7 @@
 | Check | Kết quả |
 |-------|---------|
 | `/healthz` | **200** |
-| VPS git HEAD | `dea3b27` (handoff) |
+| VPS git HEAD | `122b243` (P1 prep + worker restart) |
 | Stack `atz_priceboard` | api **healthy**, ssi-worker running |
 | Worker connect | `DBG-…-PB-SSI-LIVE-CONNECT` + `SUBSCRIBED` @ 2026-10-25 01:49 ICT |
 | Tick live / volume gate / flash | **Chưa verify** — ngoài phiên GD; không giả tick |
