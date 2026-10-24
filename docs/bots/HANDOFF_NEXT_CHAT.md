@@ -2,7 +2,8 @@
 
 **Ngày:** 2026-10-25 (~01:50 ICT)  
 **Branch (active dev):** `feature/priceboard-debug-trace`  
-**HEAD (đã push + VPS pull):** `5cc26b9`  
+**HEAD (local):** `feature/priceboard-debug-trace` (sau P1 prep — push trước khi VPS pull code)  
+**HEAD VPS (docs @ dea3b27):** code runtime vẫn `5cc26b9` cho tới pull + restart worker mới  
 **Base merge target:** `feature/realtime-fastapi` (chưa merge debug trace)  
 **Orchestrator:** Cursor · Bot code paused · **cấm** sửa nginx `stream.d` / sshd / UFW trừ `user_confirmed_infra: yes`.
 
@@ -49,8 +50,10 @@ ssh -o BatchMode=yes root@112.213.88.230 'cd /opt/vnstocks && git pull --ff-only
 | BE | FastAPI `/` + `/ws/priceboard` · Redis `priceboard_ticks` + `priceboard:quotes` |
 | Volume gate | `min_volume: 500000` |
 | Worker | VPS `PRICEBOARD_SOURCE=ssi` · DATA+X-Quote+X-Trade+MI · log `PB-SSI-LIVE-*` |
-| VPS deploy | **2026-10-25** pull `5cc26b9` · restart api + ssi-worker · `/healthz` ok |
-| P0 browser | Login/WS/tabs **Pass** · tick live verify **còn** lúc mở cửa |
+| VPS deploy | **2026-10-25** pull `dea3b27` (handoff) · api healthy · `/healthz` 200 |
+| PR | #4 → `feature/realtime-fastapi` (debug trace + handoff) |
+| P0 browser | Login/WS/tabs **Pass** · tick live runbook [P0_LIVE_VERIFY.md](P0_LIVE_VERIFY.md) · capture §4 **phiên mở** |
+| P1 prep | FE gate `enrichDepth` · partial parse tests · `ERR-PB-006` rate-limit worker |
 | P1 plan | [`PRICEBOARD_P1_DEPTH_NN.md`](../specs/PRICEBOARD_P1_DEPTH_NN.md) — **chưa** code map depth |
 | Local OrbStack priceboard | **stop** (tránh chiếm `:8000`) |
 | Backlog doc (local) | `docs/specs/FILTER_SCORING_HUONG1.md` — **untracked**, Streamlit/filter scoring, **ngoài** scope priceboard trừ khi user chọn |

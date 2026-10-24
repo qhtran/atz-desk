@@ -177,14 +177,8 @@ def build_tick(
     return tick
 
 
-def parse_ssi_envelope(msg: dict[str, Any]) -> dict[str, Any] | None:
-    """Best-effort map SSI WS payload → kwargs for build_tick. None = ignore.
-
-    SSI FastConnect DATA short fields (observed live):
-    - Index summary: v=value, c=change, cr=change%, tq=total qty; ce/fl = advance/decline counts (NOT price limits)
-    - Equity trade: p=last, v=accumulated volume, o=open/ref, h/l, q=matchVol
-    - Equity book: bids/asks = [[price, vol], ...]
-    """
+def _ssi_envelope_body(msg: dict[str, Any]) -> dict[str, Any] | None:
+    """Inner payload dict from SSI WS envelope, or None."""
     if not isinstance(msg, dict):
         return None
     method = str(msg.get("method") or "").upper()
@@ -193,7 +187,6 @@ def parse_ssi_envelope(msg: dict[str, Any]) -> dict[str, Any] | None:
         return None
     if channel == "HEARTBEAT":
         return None
-
     body: Any = msg
     for k in ("data", "payload", "body", "content"):
         inner = msg.get(k)
@@ -203,8 +196,37 @@ def parse_ssi_envelope(msg: dict[str, Any]) -> dict[str, Any] | None:
         if isinstance(inner, list) and inner and isinstance(inner[0], dict):
             body = inner[0]
             break
-    if not isinstance(body, dict):
+    return body if isinstance(body, dict) else None
+
+
+def ssi_envelope_has_symbol(msg: dict[str, Any]) -> bool:
+    """True when envelope looks like market data (symbol present) — parse miss → ERR-PB-006."""
+    body = _ssi_envelope_body(msg)
+    if not body:
+        return False
+    sym = (
+        body.get("symbol")
+        or body.get("s")
+        or body.get("StockSymbol")
+        or body.get("index")
+        or body.get("indexCode")
+        or body.get("Indexcode")
+    )
+    return bool(sym and str(sym).strip())
+
+
+def parse_ssi_envelope(msg: dict[str, Any]) -> dict[str, Any] | None:
+    """Best-effort map SSI WS payload → kwargs for build_tick. None = ignore.
+
+    SSI FastConnect DATA short fields (observed live):
+    - Index summary: v=value, c=change, cr=change%, tq=total qty; ce/fl = advance/decline counts (NOT price limits)
+    - Equity trade: p=last, v=accumulated volume, o=open/ref, h/l, q=matchVol
+    - Equity book: bids/asks = [[price, vol], ...]
+    """
+    body = _ssi_envelope_body(msg)
+    if not body:
         return None
+    channel = str(msg.get("channel") or "").upper()
 
     sym = (
         body.get("symbol")

@@ -23,6 +23,7 @@ from websockets.exceptions import ConnectionClosed
 
 from backend.observability import (
     ERR_PB_CONFIG,
+    ERR_PB_PARSE,
     ERR_PB_REDIS_IO,
     ERR_PB_SSI_AUTH,
     ERR_PB_SSI_SESSION,
@@ -30,7 +31,7 @@ from backend.observability import (
     log,
     setup,
 )
-from backend.tick_contract import build_tick, parse_ssi_envelope
+from backend.tick_contract import build_tick, parse_ssi_envelope, ssi_envelope_has_symbol
 from backend.volume_filter import load_min_volume, passes_volume_filter
 
 setup("ssi_live")
@@ -156,6 +157,7 @@ class RealSsiWorker:
             os.getenv("SSI_RECONNECT_MAX") or ssi.get("reconnect_max_seconds") or 60
         )
         self._board: dict[str, dict] = {}
+        self._parse_warn_at: float = 0.0
 
     def request_stop(self) -> None:
         self._stop.set()
@@ -409,6 +411,21 @@ class RealSsiWorker:
 
                     parsed = parse_ssi_envelope(msg)
                     if not parsed:
+                        if ssi_envelope_has_symbol(msg):
+                            now = time.time()
+                            if now - self._parse_warn_at >= 60.0:
+                                self._parse_warn_at = now
+                                ch = str(msg.get("channel") or "")
+                                body = msg.get("data") if isinstance(msg.get("data"), dict) else {}
+                                log(
+                                    COMPONENT,
+                                    "SSI-PARSE-MISS",
+                                    "ssi envelope had symbol but parse returned none",
+                                    logging.WARNING,
+                                    error_code=ERR_PB_PARSE,
+                                    channel=ch,
+                                    body_keys=sorted(body.keys()) if isinstance(body, dict) else [],
+                                )
                         continue
                     tick = self._merge_tick(parsed)
                     if tick["kind"] == "equity" and float(tick.get("last") or 0) == 0 and float(tick.get("ref") or 0) == 0:

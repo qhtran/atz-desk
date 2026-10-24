@@ -647,6 +647,15 @@
     const PORTFOLIO_KEY = "atz.app.portfolio";
     const VALID_MARKETS = new Set(["HOSE", "VN30", "HNX", "UPCOM"]);
     const VALID_APP_TABS = new Set(["iboard", "signals", "portfolio", "news"]);
+    /** P1: fake depth until X-Quote map Pass — ?fake_depth=0 or localStorage pb_fake_depth=0 */
+    const FAKE_DEPTH_STORAGE_KEY = "pb_fake_depth";
+    const PB_FAKE_DEPTH = (() => {
+      const q = new URLSearchParams(location.search).get("fake_depth");
+      if (q === "0" || q === "false") return false;
+      if (q === "1" || q === "true") return true;
+      return localStorage.getItem(FAKE_DEPTH_STORAGE_KEY) !== "0";
+    })();
+    const symbolsWithServerDepth = new Set();
 
     const state = new Map();
     const sparkHist = new Map();
@@ -1096,7 +1105,11 @@
 
     function enrichDepth(row) {
       if (row.kind === "index") return row;
-      if (row.bid1 != null && row.ask1 != null) return row;
+      if (row.bid1 != null && row.ask1 != null) {
+        if (row.source === "SSI_WS" && row.symbol) symbolsWithServerDepth.add(row.symbol);
+        return row;
+      }
+      if (!PB_FAKE_DEPTH || (row.symbol && symbolsWithServerDepth.has(row.symbol))) return row;
       const last = Number(row.last);
       const ceil = Number(row.ceil);
       const floor = Number(row.floor);

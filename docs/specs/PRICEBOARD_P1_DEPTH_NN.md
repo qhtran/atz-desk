@@ -56,6 +56,10 @@ flowchart LR
 
 Điền cột «SSI field thực tế» từ sample giờ mở cửa (1–2 mã VN30).
 
+**Trạng thái capture:** off-hours 2026-10-25 — worker `CONNECT`/`SUBSCRIBED` OK; bảng dưới vẫn _TBD_. Runbook: [P0_LIVE_VERIFY.md](../bots/P0_LIVE_VERIFY.md).
+
+**FE gate (prep):** `?fake_depth=0` hoặc `localStorage pb_fake_depth=0` tắt `enrichDepth` fake; symbol đã có `bid1`/`ask1` từ WS không bị fake lại.
+
 | FE / contract | Kênh dự kiến | Alias đã thử trong code | SSI field thực tế | Ghi chú |
 |---------------|--------------|-------------------------|-------------------|---------|
 | `bid1..3` | X-Quote | `bidPriceN`, `BestBidN`, `g1` | _TBD_ | |
