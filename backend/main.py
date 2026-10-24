@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
@@ -17,6 +18,7 @@ from pydantic import BaseModel, Field
 
 from backend.debug_ui import public_debug_ui_config
 from backend.portfolio_alerts import position_alert
+from backend.portfolio_quotes import normalize_symbols, resolve_portfolio_quotes
 from backend.observability import ERR_PB_REDIS, ERR_PB_SCREENER, ERR_PB_WS, log, setup
 from backend.redis_listener import HASH_KEY, REDIS_URL, RedisTickListener, load_snapshot
 from backend.screener import PRESETS, FilterEngine, build_compose_rules, find_invalid_raw_rules
@@ -105,6 +107,16 @@ async def portfolio_intraday_alerts(body: PortfolioAlertsRequest) -> dict:
             resistance=item.resistance,
         )
     return {"ok": True, "alerts": alerts}
+
+
+@app.get("/api/portfolio/quotes")
+async def portfolio_quotes(symbols: str = "") -> dict:
+    """Giá + KL TB 10 phiên — priceboard hash → OHLCV → legacy quote:* (Phase B)."""
+    syms = normalize_symbols(symbols)
+    if not syms:
+        return {"ok": True, "quotes": {}, "priceboard_hits": 0, "priced": 0}
+    quotes, pb_hits, priced = await asyncio.to_thread(resolve_portfolio_quotes, syms)
+    return {"ok": True, "quotes": quotes, "priceboard_hits": pb_hits, "priced": priced}
 
 
 class ScreenerRequest(BaseModel):

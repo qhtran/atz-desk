@@ -584,6 +584,7 @@
             <th class="num">%</th>
             <th class="num">P/L</th>
             <th class="num">KL ngày</th>
+            <th class="num">KL TB 10</th>
             <th>Cảnh báo</th>
             <th></th>
           </tr>
@@ -1483,20 +1484,70 @@
       localStorage.setItem(PORTFOLIO_KEY, JSON.stringify(portfolio));
     }
 
-    let pfAlertTimer = null;
-    function schedulePortfolioAlerts() {
-      if (pfAlertTimer) return;
-      pfAlertTimer = setTimeout(() => {
-        pfAlertTimer = null;
+    const pfQuoteCache = new Map();
+    let pfSideTimer = null;
+    function schedulePortfolioSideEffects() {
+      if (pfSideTimer) return;
+      pfSideTimer = setTimeout(() => {
+        pfSideTimer = null;
+        refreshPortfolioQuotes();
         refreshPortfolioAlerts();
       }, 120);
+    }
+
+    async function refreshPortfolioQuotes() {
+      if (!portfolio.length) return;
+      const syms = portfolio.map((p) => p.symbol).join(",");
+      try {
+        const res = await fetch("/api/portfolio/quotes?symbols=" + encodeURIComponent(syms));
+        const data = await res.json();
+        if (!data.ok || !data.quotes) return;
+        portfolio.forEach((p) => {
+          const q = data.quotes[p.symbol];
+          if (!q) return;
+          pfQuoteCache.set(p.symbol, q);
+          const tr = document.getElementById("pf-" + p.symbol);
+          if (!tr) return;
+          const volEl = tr.querySelector('[data-f="avgvol10"]');
+          if (volEl) {
+            volEl.textContent =
+              q.avg_volume_10 != null && q.avg_volume_10 > 0 ? fmtVol(q.avg_volume_10) : "—";
+          }
+          if (!state.get(p.symbol) && q.price != null && Number(q.price) > 0) {
+            patchPortfolioFromQuote(p.symbol, Number(q.price));
+          }
+        });
+      } catch {
+        /* offline */
+      }
+    }
+
+    function patchPortfolioFromQuote(symbol, last) {
+      const tr = document.getElementById("pf-" + symbol);
+      const item = portfolio.find((p) => p.symbol === symbol);
+      if (!tr || !item) return;
+      const qty = Number(item.qty) || 0;
+      const avg = Number(item.avg) || 0;
+      const pl = (last - avg) * qty;
+      const lastEl = tr.querySelector('[data-f="last"]');
+      lastEl.textContent = fmtPrice(last);
+      const lastVsAvg =
+        last > 0 && avg > 0 ? (last >= avg ? "pf-last-above" : "pf-last-below") : "";
+      lastEl.className = "num tabular-nums " + lastVsAvg;
+      const plEl = tr.querySelector('[data-f="pl"]');
+      plEl.textContent = Math.round(pl).toLocaleString("en-US");
+      plEl.className = "num tabular-nums " + (pl > 0 ? "pf-pl-up" : pl < 0 ? "pf-pl-down" : "");
     }
 
     async function refreshPortfolioAlerts() {
       if (!portfolio.length) return;
       const items = portfolio.map((p) => {
         const row = state.get(p.symbol);
-        const last = row ? Number(row.last) : null;
+        const cached = pfQuoteCache.get(p.symbol);
+        let last = row ? Number(row.last) : null;
+        if ((last == null || last <= 0) && cached && cached.price != null) {
+          last = Number(cached.price);
+        }
         return {
           symbol: p.symbol,
           avg: Number(p.avg) > 0 ? Number(p.avg) : null,
@@ -1531,7 +1582,12 @@
       let cost = 0;
       portfolio.forEach((item) => {
         const row = state.get(item.symbol);
-        const last = row ? Number(row.last) || 0 : 0;
+        const cached = pfQuoteCache.get(item.symbol);
+        const last = row
+          ? Number(row.last) || 0
+          : cached && cached.price != null
+            ? Number(cached.price) || 0
+            : 0;
         const qty = Number(item.qty) || 0;
         const avg = Number(item.avg) || 0;
         const mkt = last * qty;
@@ -1558,6 +1614,9 @@
           <td class="num tabular-nums ${tone}" data-f="pct">${row ? fmtPct(row.change_pct) : "—"}</td>
           <td class="num tabular-nums ${plCls}" data-f="pl">${Math.round(pl).toLocaleString("en-US")}</td>
           <td class="num tabular-nums" data-f="vol">${row ? fmtVol(row.volume) : "—"}</td>
+          <td class="num tabular-nums" data-f="avgvol10">${
+            cached && cached.avg_volume_10 > 0 ? fmtVol(cached.avg_volume_10) : "—"
+          }</td>
           <td class="pf-alert" data-f="alert">—</td>
           <td><button type="button" class="btn-quiet" data-rm="${item.symbol}">Xóa</button></td>`;
         elPortfolioBody.appendChild(tr);
@@ -1573,7 +1632,7 @@
           renderPortfolioTable();
         });
       });
-      schedulePortfolioAlerts();
+      schedulePortfolioSideEffects();
     }
 
     function patchPortfolioSymbol(symbol, { flash = false } = {}) {
@@ -1608,7 +1667,7 @@
       plEl.className = "num tabular-nums " + (pl > 0 ? "pf-pl-up" : pl < 0 ? "pf-pl-down" : "");
       tr.querySelector('[data-f="vol"]').textContent = row ? fmtVol(row.volume) : "—";
       if (flash && row && prev !== fmtPrice(last)) flashCell(lastEl, row.change || 1);
-      schedulePortfolioAlerts();
+      schedulePortfolioSideEffects();
       // refresh NAV strip
       let nav = 0, cost = 0;
       portfolio.forEach((it) => {
