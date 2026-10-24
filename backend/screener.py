@@ -102,6 +102,24 @@ def normalize_rule(raw: Any) -> dict[str, Any] | None:
     return {"field": field, "op": op, "value": raw.get("value")}
 
 
+def find_invalid_raw_rules(raw_rules: Any) -> list[str]:
+    """Return human-readable errors for API validation (ERR-PB-008)."""
+    if not isinstance(raw_rules, Sequence) or isinstance(raw_rules, (str, bytes)):
+        return ["rules: expected a list"]
+    out: list[str] = []
+    for i, item in enumerate(raw_rules):
+        if not isinstance(item, Mapping):
+            out.append(f"rules[{i}]: expected object")
+            continue
+        field = safe_str(item.get("field")).lower()
+        op = safe_str(item.get("op")).lower()
+        if not field:
+            out.append(f"rules[{i}]: missing field")
+        if not op or op not in ALLOWED_OPS:
+            out.append(f"rules[{i}]: unsupported op {op!r}")
+    return out
+
+
 def normalize_rules(raw_rules: Any) -> list[dict[str, Any]]:
     if not isinstance(raw_rules, Sequence) or isinstance(raw_rules, (str, bytes)):
         return []

@@ -162,6 +162,8 @@ Container `atz-index` (`python -m ingestion.index`, config `config/index.yaml`) 
 - SSI WebSocket primary (ADR 0008): service `atz-ssi-stream` (`python -m ingestion.ssi_stream`), health Redis `ssi_stream:health`. Khi healthy=true, `atz-index` không ghi đè spot bằng SSI REST. Log: `docker logs atz-ssi-stream`. Fallback: dừng/stream stale → index REST như cũ.
 - Bật SSI: thêm `SSI_CONSUMER_ID` (= API Key) và `SSI_CONSUMER_SECRET` (= API Secret) vào `/opt/vnstocks/.env`, rồi rebuild image `vnstocks` + `docker compose up -d --no-deps index-feed`. Auth: `POST https://api.ssi.com.vn/api/v3/auth/token`. Data: `GET /api/v3/data/indexSummary`, `GET /api/v3/data/ohlc` (docs developers.ssi.com.vn). **Không** cần Private Key/OTP (Market Data). Rate-limit header data ≈ 20/cửa sổ. Không ghi access token vào `.env`. WebSocket market = bước tiếp theo.
 
+**Priceboard dev (`dev.atz.vn`, FastAPI):** mã `ERR-PB-*` và trace `origin` — xem [`docs/specs/PRICEBOARD_DEBUG.md`](specs/PRICEBOARD_DEBUG.md) (không trùng bảng Streamlit bên dưới).
+
 ### Chung
 | Error Code       | Mô tả                              | Cách xử lý                                      |
 |------------------|------------------------------------|-------------------------------------------------|

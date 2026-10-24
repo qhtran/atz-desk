@@ -233,7 +233,8 @@ Stack **dev** trên nhánh `feature/realtime-fastapi`, **không** thay Streamlit
 | Public | **`https://dev.atz.vn`** — TLS LE · Authentik ForwardAuth (cookie domain `atz.vn`) · `/healthz` + `/outpost…` bypass · `/` + `/ws/` yêu cầu login · conf: `deploy/nginx_dev.conf` → volume `n8n_nginx_config` `conf.d/dev.atz.vn.conf` (listen **8443 ssl proxy_protocol**; **không** sửa `stream.d`) |
 
 Handoff vận hành chat-to-chat: [`docs/bots/HANDOFF_NEXT_CHAT.md`](bots/HANDOFF_NEXT_CHAT.md).  
-Plan P1 depth/NN: [`docs/specs/PRICEBOARD_P1_DEPTH_NN.md`](specs/PRICEBOARD_P1_DEPTH_NN.md).
+Plan P1 depth/NN: [`docs/specs/PRICEBOARD_P1_DEPTH_NN.md`](specs/PRICEBOARD_P1_DEPTH_NN.md).  
+Debug / mã lỗi priceboard (ERR-PB-*, trace `origin`): [`docs/specs/PRICEBOARD_DEBUG.md`](specs/PRICEBOARD_DEBUG.md).
 
 ---
 

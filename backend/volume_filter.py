@@ -9,13 +9,36 @@ Rule (3b):
 
 from __future__ import annotations
 
+import logging
 import os
 from pathlib import Path
 from typing import Any
 
+from backend.observability import ERR_PB_CONFIG, log
+
 DEFAULT_MIN_VOLUME = 500_000
 
 INDEX_SYMBOLS = frozenset({"VNINDEX", "VN30", "HNXINDEX", "UPCOMINDEX"})
+
+_CONFIG_LOGGED = False
+
+
+def _log_config_once(message: str, *, exc: Exception | None = None) -> None:
+    global _CONFIG_LOGGED  # noqa: PLW0603
+    if _CONFIG_LOGGED:
+        return
+    _CONFIG_LOGGED = True
+    from backend.observability.logging import setup
+
+    setup("worker")
+    log(
+        "worker",
+        "CONFIG",
+        message,
+        logging.WARNING,
+        error_code=ERR_PB_CONFIG,
+        exc=exc,
+    )
 
 
 def load_min_volume() -> int:
@@ -34,8 +57,8 @@ def load_min_volume() -> int:
             raw = (doc.get("priceboard") or {}).get("min_volume")
             if raw is not None:
                 return max(0, int(raw))
-        except Exception:  # noqa: BLE001
-            pass
+        except Exception as exc:  # noqa: BLE001
+            _log_config_once("priceboard min_volume config unreadable", exc=exc)
     return DEFAULT_MIN_VOLUME
 
 

@@ -11,19 +11,17 @@ from typing import Any
 
 import redis.asyncio as aioredis
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from backend.observability import ERR_PB_REDIS, ERR_PB_SCREENER, ERR_PB_WS, log, setup
 from backend.redis_listener import HASH_KEY, REDIS_URL, RedisTickListener, load_snapshot
-from backend.screener import PRESETS, FilterEngine, build_compose_rules
+from backend.screener import PRESETS, FilterEngine, build_compose_rules, find_invalid_raw_rules
 from backend.websocket_manager import ConnectionManager
 
-logging.basicConfig(
-    level=os.getenv("LOG_LEVEL", "INFO"),
-    format='{"ts":"%(asctime)s","level":"%(levelname)s","msg":"%(message)s"}',
-)
-logger = logging.getLogger("atz.priceboard.api")
+setup("api")
+COMPONENT = "api"
 
 FRONTEND_DIR = Path(os.getenv("FRONTEND_DIR", Path(__file__).resolve().parent.parent / "frontend"))
 
@@ -34,10 +32,10 @@ listener = RedisTickListener(manager)
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     listener.start()
-    logger.info("DBG-PRICEBOARD-API-START frontend=%s redis=%s", FRONTEND_DIR, REDIS_URL)
+    log(COMPONENT, "API-START", "priceboard api started", frontend=str(FRONTEND_DIR), redis_url=REDIS_URL)
     yield
     await listener.stop()
-    logger.info("DBG-PRICEBOARD-API-STOP")
+    log(COMPONENT, "API-STOP", "priceboard api stopped")
 
 
 app = FastAPI(title="atz priceboard", version="0.1.0-dev", lifespan=lifespan)
@@ -51,7 +49,14 @@ async def healthz() -> dict:
         ok = (await r.ping()) is True
         await r.aclose()
     except Exception as exc:
-        logger.warning("DBG-PRICEBOARD-HEALTH-REDIS-ERR err=%s", exc)
+        log(
+            COMPONENT,
+            "HEALTH-REDIS",
+            "redis ping failed",
+            logging.WARNING,
+            error_code=ERR_PB_REDIS,
+            exc=exc,
+        )
     return {
         "ok": ok,
         "clients": manager.client_count,
@@ -71,7 +76,6 @@ class ScreenerRequest(BaseModel):
     mode: str = "and"
     include_index: bool = False
     rules: list[ScreenerRule] = Field(default_factory=list)
-    # Convenience compose (merged as AND with rules)
     volume_min: float | None = None
     change_pct_min: float | None = None
     change_pct_max: float | None = None
@@ -85,14 +89,24 @@ async def screener_presets() -> dict:
 
 
 @app.post("/api/screener")
-async def screener_run(body: ScreenerRequest) -> dict:
+async def screener_run(body: ScreenerRequest):
+    raw_rules = [r.model_dump() for r in body.rules]
+    invalid = find_invalid_raw_rules(raw_rules)
+    if invalid:
+        msg = "; ".join(invalid)
+        log(COMPONENT, "SCREENER", msg, logging.WARNING, error_code=ERR_PB_SCREENER)
+        return JSONResponse(
+            status_code=400,
+            content={"ok": False, "error_code": ERR_PB_SCREENER, "message": msg},
+        )
+
     compose_rules, _ = build_compose_rules(
         volume_min=body.volume_min,
         change_pct_min=body.change_pct_min,
         change_pct_max=body.change_pct_max,
         flags=body.flags,
     )
-    merged = [r.model_dump() for r in body.rules] + compose_rules
+    merged = raw_rules + compose_rules
     engine = FilterEngine(merged, mode=body.mode, include_index=body.include_index)
 
     if body.rows is not None:
@@ -103,17 +117,36 @@ async def screener_run(body: ScreenerRequest) -> dict:
         try:
             source_rows = await load_snapshot(redis)
             source = "redis_hash"
+        except Exception as exc:
+            log(
+                COMPONENT,
+                "SCREENER",
+                "redis snapshot load failed",
+                logging.ERROR,
+                error_code=ERR_PB_REDIS,
+                exc=exc,
+            )
+            return JSONResponse(
+                status_code=503,
+                content={
+                    "ok": False,
+                    "error_code": ERR_PB_REDIS,
+                    "message": "Cannot load priceboard snapshot from Redis",
+                },
+            )
         finally:
             await redis.aclose()
 
     matched = engine.filter_rows(source_rows)
-    logger.info(
-        "DBG-PRICEBOARD-SCREENER matched=%s total=%s mode=%s rules=%s source=%s",
-        len(matched),
-        len(source_rows),
-        engine.mode,
-        len(engine.rules),
-        source,
+    log(
+        COMPONENT,
+        "SCREENER",
+        "screener run complete",
+        matched=len(matched),
+        total=len(source_rows),
+        mode=engine.mode,
+        rules=len(engine.rules),
+        source=source,
     )
     return {
         "ok": True,
@@ -139,7 +172,6 @@ async def ws_priceboard(websocket: WebSocket) -> None:
                 separators=(",", ":"),
             ),
         )
-        # Keepalive: client may send ping; we also tolerate idle until nginx timeout.
         while True:
             msg = await websocket.receive_text()
             if msg in ("ping", '{"type":"ping"}'):
@@ -147,7 +179,14 @@ async def ws_priceboard(websocket: WebSocket) -> None:
     except WebSocketDisconnect:
         pass
     except Exception as exc:
-        logger.warning("DBG-PRICEBOARD-WS-ERR err=%s", exc)
+        log(
+            COMPONENT,
+            "WS",
+            "websocket handler error",
+            logging.WARNING,
+            error_code=ERR_PB_WS,
+            exc=exc,
+        )
     finally:
         await redis.aclose()
         await manager.disconnect(websocket)
