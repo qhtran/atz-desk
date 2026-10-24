@@ -220,7 +220,7 @@ Theo dõi vị thế user đã nhập, tính P&L near-realtime, cảnh báo SL/T
 
 ### 8.1 Priceboard FastAPI / iBoard (song song prod — 2026-10-21)
 
-Stack **dev** trên nhánh `feature/realtime-fastapi`, **không** thay Streamlit `:8501` / `atz-redis` prod.
+Stack **dev** (`dev.atz.vn`) Docker **tách** prod; **cutover đích:** thay source Docker `atz.vn` bằng cùng stack SPA, **nginx giữ nguyên**, promote code dev → prod — [`adr/0009-dual-docker-spa-cutover.md`](adr/0009-dual-docker-spa-cutover.md). Danh mục SPA: [`specs/PORTFOLIO_DEV_FROM_PROD.md`](specs/PORTFOLIO_DEV_FROM_PROD.md).
 
 | Thành phần | Chi tiết |
 |------------|----------|
