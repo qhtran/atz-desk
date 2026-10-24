@@ -1,0 +1,90 @@
+# Dependencies & virtualenvs
+node_modules/
+.venv/
+venv/
+env/
+__pypackages__/
+
+# Build / dist / packaging
+dist/
+build/
+out/
+*.egg-info/
+.eggs/
+*.whl
+*.so
+
+# Caches
+**/__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.cache/
+*.pyc
+*.pyo
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# Logs
+logs/
+*.log
+*.log.*
+
+# Runtime / mounted data (large, regenerated)
+data/
+redis_data/
+vnstock_home/
+top20_cache.csv
+
+# Converted docs assets (images / sidecars)
+docs/refs/_converted/
+**/sidecar/
+
+# Image & binary media assets
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+*.svg
+*.ico
+*.bmp
+*.tiff
+*.mp4
+*.mov
+*.avi
+*.webm
+*.pdf
+*.zip
+*.tar
+*.tar.gz
+*.gz
+*.7z
+*.rar
+
+# Databases & dumps
+*.db
+*.sqlite
+*.sqlite3
+*.dump
+
+# IDE / local tooling (not needed for AI context)
+.idea/
+.vscode/
+.agents/
+.DS_Store
+
+# Secrets (never index)
+.env
+.env.*
+.pip_index
+*.key
+*.pem
+*.p12
+
+# Scratch / agent noise
+agent-reply.md
+PROGRESS.md
+*.bak*

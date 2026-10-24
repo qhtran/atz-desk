@@ -1,0 +1,18 @@
+# Cursor AI — token & scope rules (vnstocks)
+
+This is a massive codebase. NEVER perform full-workspace scans or broad searches unless explicitly requested.
+
+Strictly limit your context, reading, and modifications to the files or folders directly tagged by the user using @ symbols, or the minimal scope required for the active task.
+
+Do not run repetitive terminal loops or automated tests that bloat the conversation context window.
+
+Always aim for the most token-efficient approach.
+
+If you need to scan or read additional directories beyond the tagged/minimal scope, you MUST ask the user for explicit permission at that moment before doing so. List the exact paths and why they are needed; wait for approval (e.g. numbered choice) before scanning.
+
+## Additional constraints for this repo
+- Prefer targeted reads (specific paths) over glob/grep across the whole tree.
+- Prefer `rg`/`grep` with narrow path + glob filters; avoid recursive scans of `data/`, `.venv/`, `docs/refs/`, caches, or media.
+- Do not dump large files, logs, or binary/media contents into the chat.
+- Follow existing project rules in `AGENTS.md` and `.cursor/rules/` when they do not conflict with the token-efficiency rules above.
+- Ask with numbered choices (`1a`/`1b`) before broad or multi-module changes; keep replies short and in Vietnamese when addressing the user.
