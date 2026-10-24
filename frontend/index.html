@@ -506,8 +506,19 @@
       <label class="inline-flex items-center gap-1 text-[11px] text-gray-400">
         <input type="checkbox" id="scr-flag-floor" /> Sàn
       </label>
-      <label for="scr-mode" class="text-[11px] text-gray-500">Ghép</label>
-      <select id="scr-mode" title="AND = tất cả điều kiện · OR = bất kỳ">
+      <label for="scr-source" class="text-[11px] text-gray-500">Nguồn</label>
+      <select id="scr-source" title="Live = lọc tick WS · Tín hiệu ngày = quét OHLCV">
+        <option value="live" selected>Live WS</option>
+        <option value="daily">Tín hiệu ngày</option>
+      </select>
+      <select id="scr-daily-filter" hidden title="Filter OHLCV (F1)">
+        <option value="rsi">RSI F1</option>
+        <option value="macd">MACD F1</option>
+        <option value="ma">MA</option>
+      </select>
+      <button type="button" class="btn-quiet" id="scr-daily-run" hidden>Quét</button>
+      <label for="scr-mode" class="text-[11px] text-gray-500 scr-live-only">Ghép</label>
+      <select id="scr-mode" class="scr-live-only" title="AND = tất cả điều kiện · OR = bất kỳ">
         <option value="and" selected>AND</option>
         <option value="or">OR</option>
       </select>
@@ -691,6 +702,9 @@
       change_pct_max: null,
       flags: [],
     };
+    let scrSource = "live";
+    let dailySignalSet = null;
+    let dailyScanMeta = { filter: "", matched: 0, scanned: 0 };
     let portfolio = [];
     let pfAuthenticated = false;
 
@@ -808,6 +822,10 @@
       if (marketTab === "HOSE" && ex !== "HOSE") return false;
       if (marketTab === "HNX" && ex !== "HNX") return false;
       if (marketTab === "UPCOM" && ex !== "UPCOM") return false;
+      if (scrSource === "daily") {
+        if (!dailySignalSet) return false;
+        return dailySignalSet.has(symbol);
+      }
       return matchesScreenerFilters(row);
     }
 
@@ -844,6 +862,7 @@
         btn.setAttribute("aria-selected", on ? "true" : "false");
       });
       applyBoardFilter();
+      if (scrSource === "daily" && dailySignalSet) void runDailySignalScan();
     }
 
     document.querySelectorAll(".mkt-tab").forEach((btn) => {
@@ -1437,8 +1456,61 @@
     function updateScreenerStatus(n) {
       const el = document.getElementById("scr-status");
       if (!el) return;
+      if (scrSource === "daily") {
+        if (!dailySignalSet) {
+          el.textContent = `Tín hiệu ngày · chọn filter + Quét · ${n} mã`;
+          return;
+        }
+        el.textContent = `Tín hiệu ngày · ${dailyScanMeta.filter} · ${dailyScanMeta.matched}/${dailyScanMeta.scanned} hit · ${n} mã`;
+        return;
+      }
       const nRules = buildScreenerRules(screenerSpec).length;
       el.textContent = `WS live · ${screenerSpec.mode.toUpperCase()} · ${nRules} rule · ${n} mã`;
+    }
+
+    function syncScreenerSourceUi() {
+      const daily = scrSource === "daily";
+      document.getElementById("scr-daily-filter").hidden = !daily;
+      document.getElementById("scr-daily-run").hidden = !daily;
+      document.querySelectorAll(".scr-live-only").forEach((el) => {
+        el.hidden = daily;
+      });
+      [
+        "scr-vol-min", "scr-pct-min", "scr-pct-max",
+        "scr-flag-up2", "scr-flag-down2", "scr-flag-volhi", "scr-flag-ceil", "scr-flag-floor",
+      ].forEach((id) => {
+        const node = document.getElementById(id);
+        if (node) node.disabled = daily;
+      });
+    }
+
+    async function runDailySignalScan() {
+      const filter = document.getElementById("scr-daily-filter").value || "rsi";
+      const el = document.getElementById("scr-status");
+      if (el) el.textContent = "Tín hiệu ngày · đang quét…";
+      try {
+        const res = await fetch("/api/iboard/daily-signals", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ market: marketTab, filter }),
+        });
+        const data = await res.json();
+        if (!data.ok || !Array.isArray(data.symbols)) {
+          dailySignalSet = new Set();
+          dailyScanMeta = { filter, matched: 0, scanned: 0 };
+          applyBoardFilter();
+          return;
+        }
+        dailySignalSet = new Set(data.symbols.map((s) => String(s).toUpperCase()));
+        dailyScanMeta = {
+          filter: data.filter || filter,
+          matched: data.matched ?? dailySignalSet.size,
+          scanned: data.scanned ?? 0,
+        };
+        applyBoardFilter();
+      } catch {
+        if (el) el.textContent = "Tín hiệu ngày · lỗi quét";
+      }
     }
 
     function readScreenerToolbar() {
@@ -1477,8 +1549,21 @@
         ["scr-flag-up2", "scr-flag-down2", "scr-flag-volhi", "scr-flag-ceil", "scr-flag-floor"].forEach((id) => {
           document.getElementById(id).checked = false;
         });
+        dailySignalSet = null;
         readScreenerToolbar();
       });
+      document.getElementById("scr-source").addEventListener("change", () => {
+        scrSource = document.getElementById("scr-source").value === "daily" ? "daily" : "live";
+        if (scrSource === "live") dailySignalSet = null;
+        syncScreenerSourceUi();
+        applyBoardFilter();
+      });
+      document.getElementById("scr-daily-run").addEventListener("click", () => runDailySignalScan());
+      document.getElementById("scr-daily-filter").addEventListener("change", () => {
+        dailySignalSet = null;
+        applyBoardFilter();
+      });
+      syncScreenerSourceUi();
     }
     wireScreenerToolbar();
 

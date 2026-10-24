@@ -42,6 +42,18 @@ def exchange_for_symbol(symbol: str) -> Exchange:
     return "HOSE"
 
 
+def symbols_for_market_tab(market: str) -> list[str]:
+    """Mã equity theo tab iBoard (không index)."""
+    tab = str(market or "HOSE").strip().upper()
+    if tab == "VN30":
+        return list(VN30_SYMBOLS)
+    if tab == "HNX":
+        return list(HNX_SYMBOLS)
+    if tab == "UPCOM":
+        return list(UPCOM_SYMBOLS)
+    return list(dict.fromkeys([*VN30_SYMBOLS, *HOSE_EXTRA_SYMBOLS]))
+
+
 def default_watchlist() -> list[str]:
     """Mã equity subscribe SSI / seed mock khi config.symbols rỗng."""
     out: list[str] = []

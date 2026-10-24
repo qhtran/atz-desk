@@ -21,6 +21,7 @@ from backend.portfolio_alerts import position_alert
 from backend.identity import me_from_headers
 from backend.portfolio_f3 import batch_f3_alerts, load_f3_sector_themes
 from backend.portfolio_quotes import normalize_symbols, resolve_portfolio_quotes
+from backend.daily_signals import ALLOWED_FILTERS, scan_daily_signals
 from backend.portfolio_store import list_positions, migrate_if_empty, replace_positions
 from backend.observability import ERR_PB_REDIS, ERR_PB_SCREENER, ERR_PB_WS, log, setup
 from backend.redis_listener import HASH_KEY, REDIS_URL, RedisTickListener, load_snapshot
@@ -201,6 +202,37 @@ async def migrate_portfolio_positions(request: Request, body: PortfolioPositions
     payload = [item.model_dump() for item in body.items]
     migrated, items = await asyncio.to_thread(migrate_if_empty, user, payload)
     return {"ok": True, "migrated": migrated, "items": items}
+
+
+class DailySignalsRequest(BaseModel):
+    market: str = "HOSE"
+    filter: str = Field(default="rsi", alias="filter")
+
+    model_config = {"populate_by_name": True}
+
+
+@app.get("/api/iboard/daily-signals/filters")
+async def iboard_daily_signal_filters() -> dict:
+    return {"ok": True, "filters": sorted(ALLOWED_FILTERS)}
+
+
+@app.post("/api/iboard/daily-signals")
+async def iboard_daily_signals(body: DailySignalsRequest) -> dict:
+    """Quét OHLCV — subset mã match filter (iBoard chế độ Tín hiệu ngày)."""
+    hits, scanned, matched = await asyncio.to_thread(
+        scan_daily_signals,
+        market=body.market,
+        filter_name=body.filter,
+    )
+    return {
+        "ok": True,
+        "symbols": [h["symbol"] for h in hits],
+        "hits": hits,
+        "scanned": scanned,
+        "matched": matched,
+        "filter": body.filter,
+        "market": body.market.upper(),
+    }
 
 
 class ScreenerRequest(BaseModel):

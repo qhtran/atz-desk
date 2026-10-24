@@ -26,6 +26,7 @@ COPY config/sector_themes_f3.yaml /app/config/sector_themes_f3.yaml
 COPY src/atz/analysis/f3_alerts.py src/atz/analysis/technical.py src/atz/analysis/__init__.py /app/atz_pkg/analysis/
 COPY src/atz/config.py /app/atz_pkg/config.py
 COPY src/atz/storage/__init__.py src/atz/storage/paths.py /app/atz_pkg/storage/
+COPY src/atz/filters/__init__.py src/atz/filters/base.py src/atz/filters/rsi.py src/atz/filters/macd.py src/atz/filters/ma.py /app/atz_pkg/filters/
 
 EXPOSE 8000
 
