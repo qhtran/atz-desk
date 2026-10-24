@@ -6,7 +6,8 @@ alwaysApply: true
 # vnstocks — active dev dev.atz.vn
 
 - **Phạm vi mặc định:** priceboard FastAPI + SPA (`backend/`, `frontend/`, `docker-compose.dev.yml`). Prod atz.vn **ngoài scope** — xem `.cursor/rules/dev-atz-scope.mdc`.
-- Đọc `AGENTS.md`, `docs/architecture.md`, `docs/troubleshooting.md` trước khi sửa (ưu tiên mục liên quan dev.atz.vn).
+- **Ask/plan:** không tự đọc full `docs/architecture.md` / `docs/troubleshooting.md` (xem `token-scope.mdc`).
+- **Khi sửa code:** đọc `AGENTS.md` nếu cần quy trình; với architecture/troubleshooting chỉ **mục/section** liên quan module (grep heading), không đọc cả file.
 - Cursor: **tự code/test/deploy** trong repo (bot code paused). Giữ AuditorBot cho survey hình/UI. Poll git chủ yếu `auditorbot/inbox`. Không hỏi user gõ cmd. **Cấm** file ngoài project; không xóa phá; không force push.
 - `git pull` trước; commit nhỏ, push thường; **KHÔNG force push**.
 - Một module mỗi lần; viết/cập nhật test trong `tests/test_<module>.py`; báo Pass/Fail.
