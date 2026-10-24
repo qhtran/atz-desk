@@ -57,3 +57,15 @@ ssh -o BatchMode=yes root@112.213.88.230 \
 ```
 
 FE (`frontend/index.html`) mount — **không** cần restart sau pull.
+
+### Inspect overlay (debug UI)
+
+| Bước | Pass |
+|------|------|
+| `GET /api/debug-ui/config` → `enabled: true` | |
+| ⌘⇧D → badge “Inspect ON”, crosshair | |
+| Hover ô bảng / tab → highlight + `pb-ui:…` | |
+| Click pin → panel · Copy JSON có `ui_ref`, `hints`, `err_codes` | |
+| Esc tắt · WS vẫn connected | |
+
+Tắt hệ thống: `PB_DEBUG_UI=0` trên api container (cần recreate env) hoặc `enabled: false` trong `debug_overlay.yaml`.

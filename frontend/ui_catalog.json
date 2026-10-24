@@ -1,0 +1,68 @@
+{
+  "entries": [
+    {
+      "match": "pb-ui:app.conn",
+      "matchType": "exact",
+      "breadcrumb": ["App", "WebSocket"],
+      "hints": {
+        "fe": "frontend/index.html — connect(), wsUrl()",
+        "be": "backend/main.py — /ws/priceboard",
+        "spec": "docs/specs/PRICEBOARD_DEBUG.md"
+      },
+      "err_codes": ["ERR-PB-007"]
+    },
+    {
+      "match": "pb-ui:iboard.search",
+      "matchType": "exact",
+      "breadcrumb": ["iBoard", "Tìm mã"],
+      "hints": {
+        "fe": "frontend/index.html — searchQuery, rowVisible()",
+        "spec": "docs/bots/HANDOFF_NEXT_CHAT.md"
+      },
+      "err_codes": []
+    },
+    {
+      "match": "pb-ui:signals.",
+      "matchType": "prefix",
+      "breadcrumb": ["Bộ lọc tín hiệu"],
+      "hints": {
+        "fe": "frontend/index.html — screenerSpec, renderSignalsTable()",
+        "be": "backend/main.py — POST /api/screener",
+        "spec": "docs/specs/PRICEBOARD_DEBUG.md"
+      },
+      "err_codes": ["ERR-PB-008"]
+    },
+    {
+      "match": "pb-ui:iboard.equity.row.",
+      "matchType": "prefix",
+      "breadcrumb": ["iBoard", "Bảng cổ phiếu"],
+      "hints": {
+        "fe": "frontend/index.html — applyEquity(), data-f cells",
+        "be": "backend/tick_contract.py — parse_ssi_envelope",
+        "spec": "docs/specs/PRICEBOARD_P1_DEPTH_NN.md"
+      },
+      "err_codes": ["ERR-PB-006"]
+    },
+    {
+      "match": "pb-ui:iboard.index.",
+      "matchType": "prefix",
+      "breadcrumb": ["iBoard", "Chỉ số"],
+      "hints": {
+        "fe": "frontend/index.html — patchIndexCard(), renderSparkSvg()",
+        "be": "backend/tick_contract.py — index summary parse",
+        "spec": "docs/specs/PRICEBOARD_P1_DEPTH_NN.md"
+      },
+      "err_codes": ["ERR-PB-006"]
+    },
+    {
+      "match": "pb-ui:portfolio.",
+      "matchType": "prefix",
+      "breadcrumb": ["Danh mục"],
+      "hints": {
+        "fe": "frontend/index.html — portfolio localStorage",
+        "spec": "docs/bots/HANDOFF_NEXT_CHAT.md"
+      },
+      "err_codes": []
+    }
+  ]
+}

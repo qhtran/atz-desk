@@ -48,6 +48,7 @@ services:
       PRICEBOARD_CHANNEL: priceboard_ticks
       PRICEBOARD_HASH: priceboard:quotes
       FRONTEND_DIR: /app/frontend
+      DEBUG_OVERLAY_CONFIG: /app/config/debug_overlay.yaml
       LOG_LEVEL: INFO
     ports:
       # localhost tunnel + nginx (via Docker DNS on vnstocks_default)
@@ -55,6 +56,7 @@ services:
     volumes:
       - ./backend:/app/backend
       - ./frontend:/app/frontend
+      - ./config/debug_overlay.yaml:/app/config/debug_overlay.yaml:ro
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/healthz"]
       interval: 15s

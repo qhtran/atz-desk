@@ -430,14 +430,14 @@
       <div class="flex items-center gap-1 min-w-0 flex-wrap">
         <span class="text-[13px] font-semibold tracking-tight text-white shrink-0 pr-3">atz · Realtime</span>
         <nav class="flex items-center gap-0" role="tablist" aria-label="Chức năng">
-          <button type="button" class="app-tab is-active" data-app="iboard" role="tab" aria-selected="true">Giao dịch iBoard</button>
-          <button type="button" class="app-tab" data-app="signals" role="tab" aria-selected="false">Bộ lọc tín hiệu</button>
-          <button type="button" class="app-tab" data-app="portfolio" role="tab" aria-selected="false">Danh mục</button>
-          <button type="button" class="app-tab" data-app="news" role="tab" aria-selected="false">Tin tức / Nghiên cứu</button>
+          <button type="button" class="app-tab is-active" data-app="iboard" data-atd-id="pb-ui:app.tab.iboard" role="tab" aria-selected="true">Giao dịch iBoard</button>
+          <button type="button" class="app-tab" data-app="signals" data-atd-id="pb-ui:app.tab.signals" role="tab" aria-selected="false">Bộ lọc tín hiệu</button>
+          <button type="button" class="app-tab" data-app="portfolio" data-atd-id="pb-ui:app.tab.portfolio" role="tab" aria-selected="false">Danh mục</button>
+          <button type="button" class="app-tab" data-app="news" data-atd-id="pb-ui:app.tab.news" role="tab" aria-selected="false">Tin tức / Nghiên cứu</button>
         </nav>
       </div>
       <div class="flex items-center gap-2 shrink-0">
-        <label class="search-wrap" title="Tìm mã / ngành" id="global-search-wrap">
+        <label class="search-wrap" title="Tìm mã / ngành" id="global-search-wrap" data-atd-id="pb-ui:iboard.search">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <circle cx="11" cy="11" r="7"></circle>
             <path d="M20 20l-3.5-3.5" stroke-linecap="round"></path>
@@ -445,7 +445,7 @@
           <input id="search-input" type="search" placeholder="Tìm mã CK…" autocomplete="off" spellcheck="false" />
         </label>
         <div class="relative" id="settings-wrap">
-          <button type="button" class="icon-btn" id="btn-settings" aria-label="Cài đặt" aria-expanded="false" title="Cài đặt">
+          <button type="button" class="icon-btn" id="btn-settings" data-atd-id="pb-ui:app.settings" aria-label="Cài đặt" aria-expanded="false" title="Cài đặt">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
               <circle cx="12" cy="12" r="3"></circle>
               <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9c0 .7.4 1.3 1 1.5H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"></path>
@@ -456,23 +456,25 @@
             <button type="button" id="btn-focus-search" role="menuitem">Focus ô tìm kiếm</button>
           </div>
         </div>
-        <span id="conn-dot" class="inline-block h-2 w-2 rounded-full bg-[#ff0000]" title="Trạng thái WS"></span>
-        <span id="conn-label" class="text-[11px] text-gray-400 hidden sm:inline">connecting…</span>
+        <span id="conn-wrap" data-atd-id="pb-ui:app.conn" class="inline-flex items-center gap-1">
+          <span id="conn-dot" class="inline-block h-2 w-2 rounded-full bg-[#ff0000]" title="Trạng thái WS"></span>
+          <span id="conn-label" class="text-[11px] text-gray-400 hidden sm:inline">connecting…</span>
+        </span>
         <span id="clock" class="tabular-nums text-[11px] text-gray-500"></span>
       </div>
     </div>
   </header>
 
   <!-- ===== Panel: iBoard ===== -->
-  <section id="panel-iboard" class="panel is-active" data-panel="iboard" role="tabpanel">
-    <section id="index-bar" aria-label="Chỉ số thị trường"></section>
+  <section id="panel-iboard" class="panel is-active" data-panel="iboard" data-atd-id="pb-ui:iboard.panel" role="tabpanel">
+    <section id="index-bar" data-atd-id="pb-ui:iboard.index-bar" aria-label="Chỉ số thị trường"></section>
     <div class="market-bar" role="tablist" aria-label="Rổ thị trường">
-      <button type="button" class="mkt-tab is-active" data-market="HOSE" role="tab" aria-selected="true">HOSE</button>
-      <button type="button" class="mkt-tab" data-market="VN30" role="tab" aria-selected="false">VN30</button>
-      <button type="button" class="mkt-tab" data-market="HNX" role="tab" aria-selected="false">HNX</button>
-      <button type="button" class="mkt-tab" data-market="UPCOM" role="tab" aria-selected="false">UPCOM</button>
+      <button type="button" class="mkt-tab is-active" data-market="HOSE" data-atd-id="pb-ui:iboard.market.HOSE" role="tab" aria-selected="true">HOSE</button>
+      <button type="button" class="mkt-tab" data-market="VN30" data-atd-id="pb-ui:iboard.market.VN30" role="tab" aria-selected="false">VN30</button>
+      <button type="button" class="mkt-tab" data-market="HNX" data-atd-id="pb-ui:iboard.market.HNX" role="tab" aria-selected="false">HNX</button>
+      <button type="button" class="mkt-tab" data-market="UPCOM" data-atd-id="pb-ui:iboard.market.UPCOM" role="tab" aria-selected="false">UPCOM</button>
     </div>
-    <div id="board-wrap" class="atz-table-wrap">
+    <div id="board-wrap" class="atz-table-wrap" data-atd-id="pb-ui:iboard.board-table">
       <table id="board-table" class="atz-table iboard">
         <thead>
           <tr>
@@ -513,8 +515,8 @@
   </section>
 
   <!-- ===== Panel: Signals (compose FilterEngine) ===== -->
-  <section id="panel-signals" class="panel" data-panel="signals" role="tabpanel" hidden>
-    <div class="panel-toolbar" id="screener-toolbar">
+  <section id="panel-signals" class="panel" data-panel="signals" data-atd-id="pb-ui:signals.panel" role="tabpanel" hidden>
+    <div class="panel-toolbar" id="screener-toolbar" data-atd-id="pb-ui:signals.toolbar">
       <label for="scr-vol-min">KL min</label>
       <input id="scr-vol-min" type="number" min="0" step="10000" value="500000" style="width:110px" title="Volume tối thiểu" />
       <label for="scr-pct-min">% ≥</label>
@@ -565,8 +567,8 @@
   </section>
 
   <!-- ===== Panel: Portfolio ===== -->
-  <section id="panel-portfolio" class="panel" data-panel="portfolio" role="tabpanel" hidden>
-    <div class="panel-toolbar">
+  <section id="panel-portfolio" class="panel" data-panel="portfolio" data-atd-id="pb-ui:portfolio.panel" role="tabpanel" hidden>
+    <div class="panel-toolbar" data-atd-id="pb-ui:portfolio.toolbar">
       <label for="pf-symbol">Thêm mã</label>
       <input id="pf-symbol" type="text" placeholder="VD: FPT" maxlength="12" style="width:88px;text-transform:uppercase" />
       <label for="pf-qty">SL</label>
@@ -598,7 +600,7 @@
   </section>
 
   <!-- ===== Panel: News ===== -->
-  <section id="panel-news" class="panel" data-panel="news" role="tabpanel" hidden>
+  <section id="panel-news" class="panel" data-panel="news" data-atd-id="pb-ui:news.panel" role="tabpanel" hidden>
     <div class="panel-toolbar">
       <span class="text-[12px] text-gray-400">Tin tức / Nghiên cứu — nội dung trong app (không điều hướng site cũ)</span>
     </div>
@@ -1181,7 +1183,7 @@
       const label = INDEX_LABEL[row.symbol] || row.symbol;
       const st = computeBasketStats(row.symbol);
       return `
-        <div class="idx-card" data-idx="${row.symbol}">
+        <div class="idx-card" data-idx="${row.symbol}" data-atd-id="pb-ui:iboard.index.${row.symbol}">
           <div class="idx-card-top">
             <div class="min-w-0">
               <div class="text-[10px] tracking-wide text-gray-500 font-medium">${label}</div>
@@ -1193,7 +1195,9 @@
                 <span class="tabular-nums text-[12px] font-medium ${tone}" data-f="pct">${fmtPct(row.change_pct)}</span>
               </div>
             </div>
-            ${renderSparkSvg(row.symbol, hist, sparkLevelsFromRow(row), row.change)}
+            <div class="idx-spark-wrap" data-atd-id="pb-ui:iboard.index.${row.symbol}.spark">
+              ${renderSparkSvg(row.symbol, hist, sparkLevelsFromRow(row), row.change)}
+            </div>
           </div>
           <div class="idx-meta">
             <span><span class="k">KL</span><span data-f="ivol">${fmtVolShort(st.volume)}</span> CP</span>
@@ -1727,6 +1731,28 @@
     setMarketTab(marketTab);
     setAppTab(appTab);
     connect();
+  </script>
+  <script>
+    (function () {
+      fetch("/api/debug-ui/config")
+        .then(function (r) {
+          return r.ok ? r.json() : null;
+        })
+        .then(function (cfg) {
+          if (!cfg || !cfg.enabled) return;
+          var link = document.createElement("link");
+          link.rel = "stylesheet";
+          link.href = "/static/debug-overlay.css";
+          document.head.appendChild(link);
+          var s = document.createElement("script");
+          s.src = "/static/debug-overlay.js";
+          s.defer = true;
+          s.dataset.storageKey = cfg.storageKey || "pb-dbg-on";
+          s.dataset.catalogUrl = cfg.catalogUrl || "/static/ui_catalog.json";
+          document.body.appendChild(s);
+        })
+        .catch(function () {});
+    })();
   </script>
 </body>
 </html>

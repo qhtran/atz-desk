@@ -51,13 +51,20 @@ docker compose -f docker-compose.dev.yml logs api 2>&1 | grep ERR-PB
 docker compose -f docker-compose.dev.yml logs ssi-worker 2>&1 | grep DBG- | tail -20
 ```
 
-## 5. Ví dụ
+## 5. Debug UI overlay (Inspect)
+
+- Bật: `config/debug_overlay.yaml` → `surfaces.priceboard.enabled` (hoặc env `PB_DEBUG_UI=1`).
+- Trên trang: **⌘⇧D / Ctrl⇧D** · hover highlight · click pin → **Copy JSON** (`pb-ui:*` + hints / `ERR-PB-*` từ [`frontend/ui_catalog.json`](../../frontend/ui_catalog.json)).
+- Tắt nhanh: `PB_DEBUG_UI=0` hoặc Esc.
+- Checklist: [`docs/bots/P0_LIVE_VERIFY.md`](../bots/P0_LIVE_VERIFY.md) mục Inspect.
+
+## 6. Ví dụ
 
 ```text
 [DBG-20261025-0930-PB-HEALTH-REDIS] ERR-PB-001 {"ts":"...","debug_label":"DBG-20261025-0930-PB-HEALTH-REDIS","error_code":"ERR-PB-001","module":"PB","message":"redis ping failed","origin":{"file":"/app/backend/main.py","line":54,"function":"healthz","qualname":"healthz"},"exc_type":"ConnectionError","exc_message":"..."}
 ```
 
-## 6. Liên kết
+## 7. Liên kết
 
 - Kiến trúc §8.1: [`docs/architecture.md`](../architecture.md)
 - User Manual Streamlit (prod khác stack): [`docs/troubleshooting.md`](../troubleshooting.md) — priceboard dev dùng tài liệu này.

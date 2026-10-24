@@ -15,6 +15,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from backend.debug_ui import public_debug_ui_config
 from backend.observability import ERR_PB_REDIS, ERR_PB_SCREENER, ERR_PB_WS, log, setup
 from backend.redis_listener import HASH_KEY, REDIS_URL, RedisTickListener, load_snapshot
 from backend.screener import PRESETS, FilterEngine, build_compose_rules, find_invalid_raw_rules
@@ -39,6 +40,12 @@ async def lifespan(_app: FastAPI):
 
 
 app = FastAPI(title="atz priceboard", version="0.1.0-dev", lifespan=lifespan)
+
+
+@app.get("/api/debug-ui/config")
+async def debug_ui_config() -> JSONResponse:
+    """Bootstrap gate for priceboard Inspect overlay (no secrets)."""
+    return JSONResponse(public_debug_ui_config())
 
 
 @app.get("/healthz")

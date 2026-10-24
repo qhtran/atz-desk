@@ -18,3 +18,10 @@ debug_overlay:
     - admins
     - authentik Admins
   storage_key: atz-dbg-on
+  # dev.atz.vn SPA — Hybrid Inspect (pb-ui:*), hotkey ⌘⇧D, storage pb-dbg-on
+  priceboard_storage_key: pb-dbg-on
+  surfaces:
+    priceboard:
+      enabled: true
+      inspect: true
+      catalog: ui_catalog.json
