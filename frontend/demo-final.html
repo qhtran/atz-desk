@@ -438,64 +438,6 @@
       return `<span class="bell bell-idle" title="Không cảnh báo">${BELL}</span>`;
     }
 
-    function render() {
-      const body = document.getElementById("pos-body");
-      body.innerHTML = positions.map((p) => {
-        const chg = p.last - p.avg;
-        const chgPct = p.avg ? (chg / p.avg) * 100 : 0;
-        const statusBadge = p.status === "open"
-          ? `<span class="badge badge-open">OPEN</span>`
-          : `<span class="badge badge-closed">CLOSED</span>`;
-        const tpStr = (p.tp || []).map((x) => fmtVnd(x)).join(" / ") || "—";
-        const slStr = p.sl != null ? fmtVnd(p.sl) : "—";
-        const trancheRows = (p.tranches || []).map((tr) => `
-          <tr class="tranche-row">
-            <td class="sym pl-8">↳ T${tr.t}</td>
-            <td>${tr.qty.toLocaleString("vi-VN")}</td>
-            <td class="text-avg">${fmtVnd(tr.price)}</td>
-            <td colspan="2" class="text-left text-neutral-500">phí ${fmtVnd(tr.fee)}</td>
-            <td colspan="7"></td>
-          </tr>`).join("");
-        return `
-          <details class="pos contents">
-            <summary class="contents">
-              <tr>
-                <td class="sym">
-                  <span class="chev mr-1">▸</span>${p.symbol}
-                  <span class="ml-1 text-[10px] text-neutral-500">${(p.tranches || []).length}T</span>
-                </td>
-                <td>${p.qty.toLocaleString("vi-VN")}</td>
-                <td><span class="badge badge-avg">${fmtVnd(p.avg)}</span></td>
-                <td class="${pnlClass(chg)}">${fmtVnd(p.last)}</td>
-                <td class="${pnlClass(chg)}">${chg > 0 ? "+" : chg < 0 ? "−" : ""}${fmtVnd(Math.abs(chg))}</td>
-                <td class="${pnlClass(chgPct)}">${chgPct > 0 ? "+" : chgPct < 0 ? "−" : ""}${Math.abs(chgPct).toFixed(2)}%</td>
-                <td>${fmtTr(p.invested)}</td>
-                <td>${fmtTr(p.mv)}</td>
-                <td class="${pnlClass(p.pnl)} font-semibold">${pnlText(p.pnl, p.pnlPct)}</td>
-                <td class="text-[11px]"><span class="text-down">${slStr}</span> / <span class="text-up">${tpStr}</span></td>
-                <td>${bellHtml(p.alert)}</td>
-                <td>${statusBadge}</td>
-              </tr>
-            </summary>
-            ${trancheRows}
-          </details>`;
-      }).join("");
-
-      // details/summary with table rows: re-bind open toggle via click on first cell
-      body.querySelectorAll("details.pos").forEach((d) => {
-        const sumRow = d.querySelector("summary tr");
-        if (!sumRow) return;
-        sumRow.addEventListener("click", (e) => {
-          e.preventDefault();
-          d.open = !d.open;
-          const chev = sumRow.querySelector(".chev");
-          if (chev) chev.textContent = d.open ? "▾" : "▸";
-          // move tranche rows after summary row visually: append into tbody after this detail
-        });
-      });
-    }
-
-    // Simpler table render without broken details-in-table
     function renderTable() {
       const body = document.getElementById("pos-body");
       const rows = [];
