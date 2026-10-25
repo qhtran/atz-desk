@@ -1,8 +1,8 @@
 # Handoff — priceboard dev (chat tiếp theo)
 
 **Cập nhật:** 2026-10-25  
-**Nhánh:** `main` + commit mới: **iBoard Tín hiệu ngày** (toolbar, không tab riêng)  
-**Deploy:** `dev.atz.vn` — `./scripts/deploy-vps.sh dev --push`
+**Nhánh deploy VPS:** `main` — commit **`acf4361`** (advisor + iBoard daily)  
+**Deploy:** `./scripts/deploy-vps.sh dev` (hoặc `--push` trước khi deploy)
 
 ---
 
@@ -10,56 +10,80 @@
 
 - **Active:** `dev.atz.vn` — `backend/`, `frontend/`, `docker-compose.dev.yml`
 - **Không** phát triển prod Streamlit / cutover prod trừ khi owner mở lại (ADR 0009)
-- **Một bảng iBoard** — không thêm tab/bảng giá trùng; lọc ngày = subset trên cùng board
+- **Một bảng iBoard** — lọc ngày = subset trên cùng `#board-table` (không tab bảng riêng)
 
 ---
 
-## Đã ship (Danh mục + cutover docs)
+## Đã ship (gần nhất)
 
-| Commit (gần nhất) | Nội dung |
-|-------------------|----------|
-| `6228f95` | Phase D — Authentik + SQLite `portfolio.db` |
-| `f3f4329` | Phase C — F3 alerts + ngành merge |
-| `41b7489` | Phase B — quotes + KL TB 10 |
-| `f70195c` | Phase A — desk styling + intraday |
-| `6921198` | ADR 0009 + spec `PORTFOLIO_DEV_FROM_PROD.md` |
+| Commit | Nội dung |
+|--------|----------|
+| **`acf4361`** | **Advisor 0–100** (P1–P3 spec FILTER_SCORING_HUONG1): `engine/advisor_score.py`, `config/advisor_score.yaml`, filter `advisor`, Streamlit chế độ 「Cố vấn」, debug overlay `FILTER-ADVISOR`, filter-runner `plan_flow_kinds` + foreign flow |
+| **`acf4361`** | **iBoard Tín hiệu ngày + Cố vấn:** `POST /api/iboard/daily-signals` — filter `rsi\|macd\|ma\|advisor`, body `buy_min_total` (advisor); UI toolbar **Quét** + **Điểm ≥** |
+| `8e39d90` | iBoard daily signals (F1 subset) trên cùng bảng |
+| `6228f95`… | Danh mục Phases A–D (portfolio API, Authentik, F3, …) |
 
-**API Danh mục:** `GET/PUT /api/portfolio/positions`, `POST .../migrate`, `GET /api/account/me`, quotes, F3 alerts, sectors/f3.
+**Spec:** `docs/specs/FILTER_SCORING_HUONG1.md` — P1–P3 xong; P4+ (đa TF, smart money) ngoài scope.
+
+**API Danh mục (giữ):** `GET/PUT /api/portfolio/positions`, `POST .../migrate`, `GET /api/account/me`, quotes, F3 alerts, sectors/f3.
 
 ---
 
-## iBoard — hướng lọc (owner chốt)
+## iBoard — cách dùng (đã verify dev.atz.vn)
 
-- **Không** khôi phục tab 「Bộ lọc tín hiệu」riêng.
-- **Tín hiệu ngày** (OHLCV + `filters/*`) → toolbar iBoard, chế độ **Live WS | Tín hiệu ngày**, cùng `#board-table`.
-- Realtime: toolbar % / KL / trần-sàn (FilterEngine) — giữ nguyên ở chế độ Live.
+1. **Live WS** — lọc tick (FilterEngine), bảng đầy mã theo tab sàn.
+2. **Tín hiệu ngày** — **ẩn hết mã** cho đến khi bấm **Quét** (`dailySignalSet === null` → `rowVisible` false). UX hiện tại, không phải lỗi deploy.
+3. Sau **Quét:** subset mã khớp OHLCV filter; status: `Tín hiệu ngày · {filter} · {matched}/{scanned} hit · N mã`.
+4. **Cố vấn:** filter **Cố vấn (0–100)** + **Điểm ≥** (mặc định 65; thử 40–50 nếu ít hit) + **Quét**.
 
-**API:** `POST /api/iboard/daily-signals` `{ market, filter }` → `symbols[]` (rsi | macd | ma).  
-**UI:** Nguồn **Live WS | Tín hiệu ngày** → **Quét** → subset trên cùng `#board-table`.
+**API:**
+
+- `GET /api/iboard/daily-signals/filters`
+- `POST /api/iboard/daily-signals` `{ "market": "HOSE|VN30|...", "filter": "rsi|macd|ma|advisor", "buy_min_total": 65? }`  
+  → `symbols[]`, `hits[]` (advisor có `total`, `trend`, `flow`, `short_term`).
+
+**Dữ liệu:** quét đọc `data/ohlcv/{SYMBOL}.csv` (mount VPS). `scanned=0` → thiếu/cũ OHLCV.
+
+**Owner chốt (lọc):** không tab 「Bộ lọc tín hiệu」riêng trên SPA; Streamlit vẫn có Bộ lọc + chế độ Cố vấn (legacy UI, khác stack priceboard).
+
+---
+
+## Ops dev VPS (bắt buộc đọc)
+
+| Mục | Chi tiết |
+|-----|----------|
+| **Branch** | `scripts/deploy-vps.env` → **`ATZ_VPS_BRANCH=main`**. Deploy nhánh feature (vd. `feature/priceboard-debug-trace`) → dev thiếu advisor/daily API. |
+| **Rebuild** | Sau đổi `Dockerfile.dev` / `atz_pkg/engine` → `docker compose -f docker-compose.dev.yml build api` (+ recreate). Bind mount `backend/` + `frontend/`; engine advisor **trong image**. |
+| **Kiểm tra nhanh** | VPS: `curl http://127.0.0.1:8000/api/iboard/daily-signals/filters` → có `"advisor"`. |
+| Worker | `PRICEBOARD_SOURCE=ssi\|mock`; watchlist ≈ `board_universe` |
+| Mount | `data/ohlcv`, `data/portfolio.db`, `config/debug_overlay.yaml` |
+| Filter runner | Filter `advisor` qua user config SQLite — xem `docs/troubleshooting.md` mục Filter Runner |
 
 ---
 
 ## Việc tiếp (gợi ý)
 
-1. **Advisor scoring 0–100** — `docs/specs/FILTER_SCORING_HUONG1.md`
-2. **Mở rộng daily signals** — thêm filter (candle, volume, foreign), cache theo ngày
-3. **Top 20 / Top KL phiên** — subset “Áp lên iBoard” (không bảng mới)
-4. **Parity checklist** — doc trước cutover prod (ADR 0007)
-5. **CapitalLedger / NAV** — optional trên Danh mục
+1. **UX Tín hiệu ngày** — trước Quét: giữ full board hoặc banner 「Bấm Quét để lọc」; tránh user tưởng lỗi.
+2. **Daily signals mở rộng** — candle / volume / foreign; cache theo ngày.
+3. **Top 20 / Top KL phiên** — subset iBoard (không bảng mới).
+4. **Hiển thị điểm cố vấn trên board** — cột phụ hoặc tooltip từ `hits[]` (chưa có UI).
+5. **Parity / cutover** — ADR 0007 checklist (prod ngoài scope mặc định).
+6. **CapitalLedger / NAV** — optional Danh mục.
 
 ---
 
 ## Prompt gợi ý chat mới
 
 ```text
-Đọc docs/HANDOFF_NEXT_CHAT.md + FILTER_SCORING_HUONG1.md.
-dev.atz.vn only. Tiếp [advisor score | daily signals mở rộng | Top 20 subset iBoard].
+Đọc docs/HANDOFF_NEXT_CHAT.md.
+dev.atz.vn only. Tiếp [UX daily chưa Quét | daily signals mở rộng | Top 20 iBoard | cột điểm advisor].
 ```
 
 ---
 
-## Ops dev VPS
+## Test local
 
-- `PRICEBOARD_SOURCE=ssi` trên worker khi có cred
-- Mount: `data/ohlcv`, `data/portfolio.db` (API)
-- F3 engine trong image: `atz_pkg/analysis` (Dockerfile.dev)
+```bash
+PYTHONPATH=src/atz:. pytest tests/test_advisor_score.py tests/test_advisor_filter.py \
+  tests/test_filter_runner_advisor.py tests/test_daily_signals.py -q
+```
