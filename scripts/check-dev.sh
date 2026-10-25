@@ -42,6 +42,7 @@ SMOKE_TESTS=(
   tests/test_debug_ui.py
   tests/test_portfolio_store.py
   tests/test_portfolio_quotes.py
+  tests/test_ohlcv_seed.py
 )
 
 run_pytest() {
