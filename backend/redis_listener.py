@@ -13,7 +13,7 @@ import redis.asyncio as aioredis
 from backend.board_universe import INDEX_BOARD_SYMBOLS, INDEX_DEFAULT_REFS
 from backend.observability import ERR_PB_REDIS, log, setup
 from backend.tick_contract import build_tick
-from backend.volume_filter import load_min_volume, passes_volume_filter
+from backend.volume_filter import load_volume_filter_settings, passes_volume_filter
 
 if TYPE_CHECKING:
     from backend.websocket_manager import ConnectionManager
@@ -24,7 +24,7 @@ COMPONENT = "redis"
 REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
 CHANNEL = os.getenv("PRICEBOARD_CHANNEL", "priceboard_ticks")
 HASH_KEY = os.getenv("PRICEBOARD_HASH", "priceboard:quotes")
-MIN_VOLUME = load_min_volume()
+VOLUME_FILTER = load_volume_filter_settings()
 
 
 def merge_index_stubs(rows: list[dict]) -> list[dict]:
@@ -60,7 +60,7 @@ async def load_snapshot(redis: aioredis.Redis) -> list[dict]:
             row = json.loads(payload)
         except (TypeError, json.JSONDecodeError):
             continue
-        if passes_volume_filter(row, MIN_VOLUME):
+        if passes_volume_filter(row, VOLUME_FILTER):
             rows.append(row)
     return merge_index_stubs(rows)
 

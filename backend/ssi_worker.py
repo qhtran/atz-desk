@@ -21,7 +21,7 @@ import redis.asyncio as aioredis
 from backend.board_universe import mock_equity_seeds
 from backend.observability import ERR_PB_REDIS_IO, ERR_PB_SSI_FALLBACK, ERR_PB_SSI_SESSION, log, setup
 from backend.tick_contract import build_tick
-from backend.volume_filter import load_min_volume, passes_volume_filter
+from backend.volume_filter import load_volume_filter_settings, passes_volume_filter
 
 setup("worker")
 COMPONENT = "worker"
@@ -32,14 +32,14 @@ HASH_KEY = os.getenv("PRICEBOARD_HASH", "priceboard:quotes")
 TICK_INTERVAL_MS = int(os.getenv("MOCK_TICK_INTERVAL_MS", "120"))
 TICKS_PER_BURST = int(os.getenv("MOCK_TICKS_PER_BURST", "3"))
 MOCK_EQUITY_COUNT = int(os.getenv("MOCK_EQUITY_COUNT", "70"))
-MIN_VOLUME = load_min_volume()
+VOLUME_FILTER = load_volume_filter_settings()
 
 
 async def _publish_or_hide(redis: aioredis.Redis, tick: dict) -> None:
     """Publish tick to hash+channel, or remove when equity fails volume gate."""
     sym = tick["symbol"]
     try:
-        if not passes_volume_filter(tick, MIN_VOLUME):
+        if not passes_volume_filter(tick, VOLUME_FILTER):
             await redis.hdel(HASH_KEY, sym)
             remove = json.dumps(
                 {"type": "remove", "symbol": sym},
@@ -236,7 +236,7 @@ class MockSsiWorker:
                 payload["change_pct"] = 0.0
                 payload["high"] = row["last"]
                 payload["low"] = row["last"]
-                if passes_volume_filter(payload, MIN_VOLUME):
+                if passes_volume_filter(payload, VOLUME_FILTER):
                     await redis.hset(
                         HASH_KEY,
                         row["symbol"],
@@ -251,7 +251,8 @@ class MockSsiWorker:
                 symbols=len(self._state),
                 equities=n_eq,
                 published=published,
-                min_volume=MIN_VOLUME,
+                min_volume=VOLUME_FILTER.default,
+                min_volume_by_exchange=VOLUME_FILTER.by_exchange,
                 interval_ms=TICK_INTERVAL_MS,
                 burst=TICKS_PER_BURST,
             )

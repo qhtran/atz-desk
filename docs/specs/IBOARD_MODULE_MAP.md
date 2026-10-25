@@ -26,14 +26,14 @@
 | **Mock worker** | `backend/ssi_worker.py` | `build_seed()`, `_tick_row()`, `MockSsiWorker` | `config/priceboard.yaml` → `source: mock` |
 | **Parse SSI → field tick** | `backend/tick_contract.py` | `parse_ssi_envelope()`, `build_tick()`, `tick_has_payload()` | `tests/test_tick_contract.py` |
 | **Hợp đồng JSON tick** | `backend/tick_contract.py` | `build_tick()` — `exchange`, `foreignBuy`, `foreignSell`, depth | `tests/test_tick_contract.py` |
-| **Lọc KL tối thiểu (ẩn mã)** | `backend/volume_filter.py` | `passes_volume_filter()`, `load_min_volume()` | `tests/test_volume_filter.py` |
+| **Lọc KL tối thiểu (ẩn mã)** | `backend/volume_filter.py` | `VolumeFilterSettings`, `load_volume_filter_settings()`, `passes_volume_filter()` | `tests/test_volume_filter.py` |
 | **WS snapshot + fan-out** | `backend/redis_listener.py` | `load_snapshot()`, `merge_index_stubs()` | — |
 | **WS endpoint** | `backend/main.py` | `@app.websocket("/ws/priceboard")` | `docs/specs/PRICEBOARD_DEBUG.md` |
 | **Index bar (VN-INDEX, VN30, …)** | `frontend/index.html` | `INDEX_ORDER`, `applyIndex()`, `inIndexBasket()`, `computeBasketStats()` | `backend/board_universe.py` → `INDEX_BOARD_SYMBOLS` |
 | **Cột depth 3 bước** | `frontend/index.html` | `applyEquity()`, `enrichDepth()`, cột `data-f=bid*`, `ask*` | `docs/specs/PRICEBOARD_P1_DEPTH_NN.md` |
 | **Cột ĐTNN Mua/Bán** | `frontend/index.html` | `data-f=fbuy`, `data-f=fsell`; `matchesForeignLiveRow()` (tab Khối ngoại) | `docs/specs/PRICEBOARD_P1_DEPTH_NN.md` §4 |
 | **Tín hiệu ngày / quét rổ** | `backend/daily_signals.py` | `scan_daily_signals()`, `symbols_for_market_tab(market)` | `backend/main.py` → `/api/iboard/daily-signals` |
-| **Config runtime** | `config/priceboard.yaml` | `min_volume`, `ssi.channels`, `ssi.symbols` | ENV `PRICEBOARD_*`, `SSI_*` |
+| **Config runtime** | `config/priceboard.yaml` | `min_volume`, `min_volume_by_exchange`, `ssi.channels`, `ssi.symbols` | ENV `PRICEBOARD_*`, `SSI_*` |
 | **Debug overlay / ui_ref** | `frontend/debug-overlay.js`, `frontend/ui_catalog.json` | `pb-ui:iboard.market.*`, `pb-ui:iboard.equity.row.*` | `docs/specs/PRICEBOARD_DEBUG.md` |
 
 ---
@@ -75,4 +75,6 @@
 
 **P0 (2026-10-25):** `ssi_live._merge_tick` truyền `exchange=exchange_for_symbol(sym)`; FE `resolveExchange` ưu tiên `HNX_SET`/`UPCOM_SET` trước field `exchange`; `applyEquity` luôn gán `row.exchange = resolveExchange(row)`.
 
-*Cập nhật: 2026-10-25 — audit routing sàn + ĐTNN + fix P0 exchange.*
+**P1 (2026-10-25):** `min_volume_by_exchange` — HOSE 500k, HNX/UPCOM 50k (`volume_filter.VolumeFilterSettings`).
+
+*Cập nhật: 2026-10-25 — audit routing sàn + ĐTNN + P0 exchange + P1 min_volume.*

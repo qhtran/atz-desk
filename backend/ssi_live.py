@@ -39,7 +39,7 @@ from backend.tick_contract import (
     tick_has_payload,
     tick_kind_for_symbol,
 )
-from backend.volume_filter import load_min_volume, passes_volume_filter
+from backend.volume_filter import load_volume_filter_settings, passes_volume_filter
 
 setup("ssi_live")
 COMPONENT = "ssi_live"
@@ -47,7 +47,7 @@ COMPONENT = "ssi_live"
 REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
 CHANNEL = os.getenv("PRICEBOARD_CHANNEL", "priceboard_ticks")
 HASH_KEY = os.getenv("PRICEBOARD_HASH", "priceboard:quotes")
-MIN_VOLUME = load_min_volume()
+VOLUME_FILTER = load_volume_filter_settings()
 
 DEFAULT_WS = "wss://stream.ssi.com.vn/ws/v3"
 DEFAULT_AUTH = "https://api.ssi.com.vn/api/v3/auth/token"
@@ -217,14 +217,15 @@ class RealSsiWorker:
             "seeded redis skeleton",
             indexes=len(INDEX_SEED),
             equities=len(self.symbols),
-            min_volume=MIN_VOLUME,
+            min_volume=VOLUME_FILTER.default,
+            min_volume_by_exchange=VOLUME_FILTER.by_exchange,
         )
 
     async def _publish(self, redis: aioredis.Redis, tick: dict) -> None:
         sym = tick["symbol"]
         self._board[sym] = tick
         try:
-            if not passes_volume_filter(tick, MIN_VOLUME):
+            if not passes_volume_filter(tick, VOLUME_FILTER):
                 await redis.hdel(HASH_KEY, sym)
                 remove = json.dumps(
                     {"type": "remove", "symbol": sym},
