@@ -1,0 +1,7 @@
+# Trạm Trading — dev.atz.vn (Phase P1–P4)
+brokerage_fee_rate: 0.0015   # 0.15%
+sell_tax_rate: 0.001         # 0.1%
+max_tranche: 5
+default_user: default_user
+redis_hash: priceboard:quotes
+quote_field: last

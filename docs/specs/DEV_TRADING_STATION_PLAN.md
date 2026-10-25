@@ -1,7 +1,7 @@
 # Plan — Trạm Trading / QLTS trên DEV (dev.atz.vn)
 
-**Status:** Plan chốt · UI demo duyệt · **chưa** implement API  
-**Ngày:** 2026-10-25 (~22:06 ICT)  
+**Status:** P1–P4 implement trên `feature/realtime-fastapi` · `/trading` + `/api/trading/*`  
+**Ngày:** 2026-10-25 (cập nhật sau implement)  
 **Phạm vi:** chỉ DEV — `backend/`, `frontend/`, `docker-compose.dev.yml`  
 **UI demo duyệt:** `frontend/demo-final.html` (trace label `demo-ui-final`)  
 **PR demo:** https://github.com/qhtran/quanlychungkhoan/pull/5  
@@ -96,3 +96,11 @@ Mặc định đề xuất nếu chat mới không có chọn: **tab/`trading.ht
 - Không đụng iBoard/Screener logic trừ mount router.  
 - Không nginx / Authentik / SSH.  
 - Không ghi `idx:quote:*`.  
+
+---
+
+## Merge → `main` (deploy dev.atz.vn)
+
+1. PR `feature/realtime-fastapi` → `main` (resolve conflict với priceboard depth nếu có).  
+2. `./scripts/check-dev.sh --pytest-only` (gồm `test_trading_station`, `test_logging_middleware`).  
+3. `./scripts/deploy-vps.sh dev` — verify `https://dev.atz.vn/trading` + header `X-Request-ID` trên `/api/trading/positions`.

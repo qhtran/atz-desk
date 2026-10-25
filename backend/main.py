@@ -15,6 +15,10 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from backend.core.database import init_db
+from backend.core.errors import AppError, app_error_handler
+from backend.core.logging_middleware import TraceMiddleware
+from backend.modules.trading.router import router as trading_router
 from backend.redis_listener import HASH_KEY, REDIS_URL, RedisTickListener, load_snapshot
 from backend.screener import PRESETS, FilterEngine, build_compose_rules
 from backend.websocket_manager import ConnectionManager
@@ -33,6 +37,7 @@ listener = RedisTickListener(manager)
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    init_db()
     listener.start()
     logger.info("DBG-PRICEBOARD-API-START frontend=%s redis=%s", FRONTEND_DIR, REDIS_URL)
     yield
@@ -41,6 +46,9 @@ async def lifespan(_app: FastAPI):
 
 
 app = FastAPI(title="atz priceboard", version="0.1.0-dev", lifespan=lifespan)
+app.add_middleware(TraceMiddleware)
+app.add_exception_handler(AppError, app_error_handler)
+app.include_router(trading_router)
 
 
 @app.get("/healthz")
@@ -156,6 +164,11 @@ async def ws_priceboard(websocket: WebSocket) -> None:
 @app.get("/")
 async def index() -> FileResponse:
     return FileResponse(FRONTEND_DIR / "index.html")
+
+
+@app.get("/trading")
+async def trading_page() -> FileResponse:
+    return FileResponse(FRONTEND_DIR / "trading.html")
 
 
 if FRONTEND_DIR.is_dir():

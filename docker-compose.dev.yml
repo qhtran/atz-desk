@@ -48,6 +48,8 @@ services:
       PRICEBOARD_CHANNEL: priceboard_ticks
       PRICEBOARD_HASH: priceboard:quotes
       FRONTEND_DIR: /app/frontend
+      TRADING_DB_PATH: /app/data/dev_trading.db
+      TRADING_CONFIG: /app/config/trading_station.yaml
       LOG_LEVEL: INFO
     ports:
       # localhost tunnel + nginx (via Docker DNS on vnstocks_default)
@@ -55,6 +57,8 @@ services:
     volumes:
       - ./backend:/app/backend
       - ./frontend:/app/frontend
+      - ./config/trading_station.yaml:/app/config/trading_station.yaml:ro
+      - ./data:/app/data
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/healthz"]
       interval: 15s
