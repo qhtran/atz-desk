@@ -166,6 +166,23 @@ def test_parse_vn30f1m_x_quote_depth():
     assert parsed["ask1"] == pytest.approx(1848.0)
 
 
+def test_parse_data_quote_bids_in_thousands_vnd():
+    parsed = parse_ssi_envelope(
+        {
+            "channel": "DATA",
+            "data": {
+                "s": "SSI",
+                "bids": [["45.45", "3200"], ["45.40", "1500"], ["45.35", "4200"]],
+                "asks": [["45.50", "2800"], ["45.55", "1900"], ["45.60", "3600"]],
+            },
+        }
+    )
+    assert parsed is not None
+    assert parsed["bid1"] == 45450
+    assert parsed["ask1"] == 45500
+    assert parsed["bidVol1"] == 3200
+
+
 def test_parse_x_quote_depth_only_no_last():
     """P1 skeleton: X-Quote partial — merge path expects depth without last."""
     parsed = parse_ssi_envelope(

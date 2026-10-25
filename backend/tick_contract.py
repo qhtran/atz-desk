@@ -87,7 +87,19 @@ def _ceil_floor(ref: float, kind: str) -> tuple[float | int, float | int]:
     return int(round(r * 1.07 / 50) * 50), int(round(r * 0.93 / 50) * 50)
 
 
-def _book_levels(raw: Any, n: int = 3) -> tuple[list[float], list[float]]:
+def _scale_equity_px(px: float | None, symbol: str) -> float | None:
+    """DATA quote bids/asks often in nghìn đồng; index/HĐTL giữ nguyên."""
+    if px is None:
+        return None
+    kind = tick_kind_for_symbol(symbol)
+    if kind == "index" or symbol in FUTURES_SYMBOL_SET:
+        return px
+    if 0 < px < 500:
+        return round(px * 1000)
+    return px
+
+
+def _book_levels(raw: Any, n: int = 3, *, symbol: str = "") -> tuple[list[float], list[float]]:
     """SSI DATA book: [[price, vol], ...] → first n positive prices + vols."""
     prices: list[float] = []
     vols: list[float] = []
@@ -98,7 +110,7 @@ def _book_levels(raw: Any, n: int = 3) -> tuple[list[float], list[float]]:
             break
         if not isinstance(row, (list, tuple)) or len(row) < 2:
             continue
-        px = _num(row[0])
+        px = _scale_equity_px(_num(row[0]), symbol)
         vol = _num(row[1])
         if px is None or px <= 0:
             continue
@@ -401,27 +413,38 @@ def parse_ssi_envelope(msg: dict[str, Any]) -> dict[str, Any] | None:
         # cr is percent points (0.46 → 0.46%)
         ref = round(last / (1 + change_pct / 100.0), 6) if change_pct != -100 else last
 
+    if kind == "equity":
+        ref = _scale_equity_px(ref, sym) if ref is not None else None
+        if last is not None:
+            last = _scale_equity_px(last, sym) or last
+        if ceil is not None:
+            ceil = _scale_equity_px(float(ceil), sym)
+        if floor is not None:
+            floor = _scale_equity_px(float(floor), sym)
+
     # Depth — explicit fields or SSI bids/asks arrays
-    bid1 = _first_num(body, "bid1", "bidPrice1", "BestBid1", "g1")
-    bid2 = _first_num(body, "bid2", "bidPrice2", "BestBid2")
-    bid3 = _first_num(body, "bid3", "bidPrice3", "BestBid3")
-    bidVol1 = _first_num(body, "bidVol1", "bidVolume1", "BestBidVol1")
-    bidVol2 = _first_num(body, "bidVol2", "bidVolume2", "BestBidVol2")
-    bidVol3 = _first_num(body, "bidVol3", "bidVolume3", "BestBidVol3")
-    ask1 = _first_num(body, "ask1", "offer1", "offerPrice1", "BestOffer1")
-    ask2 = _first_num(body, "ask2", "offer2", "offerPrice2", "BestOffer2")
-    ask3 = _first_num(body, "ask3", "offer3", "offerPrice3", "BestOffer3")
-    askVol1 = _first_num(body, "askVol1", "offerVol1", "offerVolume1", "BestOfferVol1")
-    askVol2 = _first_num(body, "askVol2", "offerVol2", "offerVolume2", "BestOfferVol2")
-    askVol3 = _first_num(body, "askVol3", "offerVol3", "offerVolume3", "BestOfferVol3")
+    bid1 = _scale_equity_px(_first_num(body, "bid1", "bidPrice1", "BidPrice1", "BestBid1", "g1"), sym)
+    bid2 = _scale_equity_px(_first_num(body, "bid2", "bidPrice2", "BidPrice2", "BestBid2"), sym)
+    bid3 = _scale_equity_px(_first_num(body, "bid3", "bidPrice3", "BidPrice3", "BestBid3"), sym)
+    bidVol1 = _first_num(body, "bidVol1", "bidVolume1", "BidVol1", "BestBidVol1")
+    bidVol2 = _first_num(body, "bidVol2", "bidVolume2", "BidVol2", "BestBidVol2")
+    bidVol3 = _first_num(body, "bidVol3", "bidVolume3", "BidVol3", "BestBidVol3")
+    ask1 = _scale_equity_px(
+        _first_num(body, "ask1", "offer1", "offerPrice1", "AskPrice1", "BestOffer1"), sym
+    )
+    ask2 = _scale_equity_px(_first_num(body, "ask2", "offer2", "offerPrice2", "AskPrice2", "BestOffer2"), sym)
+    ask3 = _scale_equity_px(_first_num(body, "ask3", "offer3", "offerPrice3", "AskPrice3", "BestOffer3"), sym)
+    askVol1 = _first_num(body, "askVol1", "offerVol1", "offerVolume1", "AskVol1", "BestOfferVol1")
+    askVol2 = _first_num(body, "askVol2", "offerVol2", "offerVolume2", "AskVol2", "BestOfferVol2")
+    askVol3 = _first_num(body, "askVol3", "offerVol3", "offerVolume3", "AskVol3", "BestOfferVol3")
 
     if bid1 is None and "bids" in body:
-        bpx, bvol = _book_levels(body.get("bids"))
+        bpx, bvol = _book_levels(body.get("bids"), symbol=sym)
         if bpx:
             bid1, bid2, bid3 = (bpx + [None, None, None])[:3]
             bidVol1, bidVol2, bidVol3 = (bvol + [None, None, None])[:3]
     if ask1 is None and "asks" in body:
-        apx, avol = _book_levels(body.get("asks"))
+        apx, avol = _book_levels(body.get("asks"), symbol=sym)
         if apx:
             ask1, ask2, ask3 = (apx + [None, None, None])[:3]
             askVol1, askVol2, askVol3 = (avol + [None, None, None])[:3]
@@ -443,7 +466,8 @@ def parse_ssi_envelope(msg: dict[str, Any]) -> dict[str, Any] | None:
             low,
         )
     )
-    if last is None and not has_depth and not has_extra:
+    has_meta = any(x is not None for x in (ref, ceil, floor))
+    if last is None and not has_depth and not has_extra and not has_meta:
         return None
 
     return {
@@ -475,7 +499,7 @@ def parse_ssi_envelope(msg: dict[str, Any]) -> dict[str, Any] | None:
         "foreignSell": foreignSell,
         "foreignBuyValue": foreignBuyValue,
         "foreignSellValue": foreignSellValue,
-        "channel": channel or str(msg.get("type") or ""),
+        "channel": (channel or str(msg.get("type") or "")).upper(),
     }
 
 

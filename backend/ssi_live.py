@@ -177,9 +177,13 @@ class RealSsiWorker:
     def _build_topics(self) -> list[str]:
         topics = list(self.index_topics)
         for sym in self.symbols:
+            if sym in INDEX_BOARD_SYMBOLS:
+                continue
             topics.append(f"quote.{sym}@tick")
+            topics.append(f"quote.{sym}")
             topics.append(f"trade.{sym}@tick")
             topics.append(f"room.{sym}")
+            topics.append(f"market.{sym}")
         # de-dupe preserve order
         seen: set[str] = set()
         out: list[str] = []
@@ -231,7 +235,7 @@ class RealSsiWorker:
         for tick in ticks:
             if not tick_has_payload(tick):
                 continue
-            await self._publish(redis, tick)
+            await self._publish(redis, tick, merged=False)
             published += 1
         log(
             COMPONENT,
@@ -242,7 +246,57 @@ class RealSsiWorker:
             published=published,
         )
 
-    async def _publish(self, redis: aioredis.Redis, tick: dict) -> None:
+    _MERGE_KEYS = (
+        "symbol",
+        "kind",
+        "last",
+        "ref",
+        "volume",
+        "high",
+        "low",
+        "ceil",
+        "floor",
+        "change",
+        "change_pct",
+        "bid1",
+        "bid2",
+        "bid3",
+        "bidVol1",
+        "bidVol2",
+        "bidVol3",
+        "ask1",
+        "ask2",
+        "ask3",
+        "askVol1",
+        "askVol2",
+        "askVol3",
+        "matchVol",
+        "foreignBuy",
+        "foreignSell",
+        "foreignBuyValue",
+        "foreignSellValue",
+    )
+
+    def _partial_from_tick(self, tick: dict[str, Any]) -> dict[str, Any]:
+        partial: dict[str, Any] = {"symbol": tick["symbol"]}
+        for k in self._MERGE_KEYS:
+            if k == "symbol":
+                continue
+            if k in tick and tick[k] is not None:
+                partial[k] = tick[k]
+        if "kind" not in partial and tick.get("kind"):
+            partial["kind"] = tick["kind"]
+        return partial
+
+    async def _publish(self, redis: aioredis.Redis, tick: dict, *, merged: bool = False) -> None:
+        if not merged:
+            src = tick.get("source")
+            extra = tick.get("extra")
+            tick = self._merge_tick(self._partial_from_tick(tick))
+            if src:
+                tick["source"] = src
+            if extra:
+                tick["extra"] = extra
         sym = tick["symbol"]
         self._board[sym] = tick
         try:
@@ -473,7 +527,7 @@ class RealSsiWorker:
                     tick = self._merge_tick(parsed)
                     if not tick_has_payload(tick):
                         continue
-                    await self._publish(redis, tick)
+                    await self._publish(redis, tick, merged=True)
         finally:
             await redis.aclose()
             log(COMPONENT, "SSI-LIVE-SESSION-END", "ssi live session ended", t=int(time.time()))
