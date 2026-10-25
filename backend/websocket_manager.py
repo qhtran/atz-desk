@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any
 
 from fastapi import WebSocket
 
-logger = logging.getLogger("atz.priceboard.ws")
+from backend.observability import ERR_PB_WS, log, setup
+
+setup("ws")
+COMPONENT = "ws"
 
 
 class ConnectionManager:
@@ -26,18 +28,12 @@ class ConnectionManager:
         await websocket.accept()
         async with self._lock:
             self._connections.add(websocket)
-        logger.info(
-            "DBG-PRICEBOARD-WS-CONNECT clients=%s",
-            len(self._connections),
-        )
+        log(COMPONENT, "WS-CONNECT", "client connected", clients=len(self._connections))
 
     async def disconnect(self, websocket: WebSocket) -> None:
         async with self._lock:
             self._connections.discard(websocket)
-        logger.info(
-            "DBG-PRICEBOARD-WS-DISCONNECT clients=%s",
-            len(self._connections),
-        )
+        log(COMPONENT, "WS-DISCONNECT", "client disconnected", clients=len(self._connections))
 
     async def send_personal(self, websocket: WebSocket, message: str) -> None:
         try:
@@ -65,13 +61,17 @@ class ConnectionManager:
             async with self._lock:
                 for ws in stale:
                     self._connections.discard(ws)
-            logger.warning(
-                "DBG-PRICEBOARD-WS-STALE removed=%s remaining=%s",
-                len(stale),
-                len(self._connections),
+            log(
+                COMPONENT,
+                "WS-STALE",
+                "removed stale websocket clients",
+                logging.WARNING,
+                error_code=ERR_PB_WS,
+                removed=len(stale),
+                remaining=len(self._connections),
             )
 
-    async def broadcast_json(self, payload: dict[str, Any]) -> None:
+    async def broadcast_json(self, payload: dict) -> None:
         import json
 
         await self.broadcast(json.dumps(payload, ensure_ascii=False, separators=(",", ":")))

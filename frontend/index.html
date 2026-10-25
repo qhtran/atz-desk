@@ -312,6 +312,23 @@
     .atz-table.iboard tbody tr.is-pinned:hover td.pin-cell,
     .atz-table.iboard tbody tr.is-pinned:hover td.sym { background-color: #1c180c; }
 
+    /* Portfolio — F1 desk cues (COLOR_TOKENS REF / UP / DOWN) */
+    #portfolio-table thead th.pf-col-avg,
+    #portfolio-table tbody td.pf-col-avg {
+      background: rgba(255, 201, 7, 0.14);
+      color: #f5f5f5;
+    }
+    #portfolio-table td.pf-last-above { color: #00c853; font-weight: 600; }
+    #portfolio-table td.pf-last-below { color: #ff3d00; font-weight: 600; }
+    #portfolio-table td.pf-alert {
+      font-size: 11px;
+      line-height: 1.35;
+      max-width: 220px;
+      color: #d4d4d4;
+    }
+    #portfolio-table td.pf-pl-up { color: #00c853; font-weight: 700; }
+    #portfolio-table td.pf-pl-down { color: #ff3d00; font-weight: 700; }
+
     .pin-btn {
       display: inline-flex;
       align-items: center;
@@ -430,14 +447,13 @@
       <div class="flex items-center gap-1 min-w-0 flex-wrap">
         <span class="text-[13px] font-semibold tracking-tight text-white shrink-0 pr-3">atz · Realtime</span>
         <nav class="flex items-center gap-0" role="tablist" aria-label="Chức năng">
-          <button type="button" class="app-tab is-active" data-app="iboard" role="tab" aria-selected="true">Giao dịch iBoard</button>
-          <button type="button" class="app-tab" data-app="signals" role="tab" aria-selected="false">Bộ lọc tín hiệu</button>
-          <button type="button" class="app-tab" data-app="portfolio" role="tab" aria-selected="false">Danh mục</button>
-          <button type="button" class="app-tab" data-app="news" role="tab" aria-selected="false">Tin tức / Nghiên cứu</button>
+          <button type="button" class="app-tab is-active" data-app="iboard" data-atd-id="pb-ui:app.tab.iboard" role="tab" aria-selected="true">Giao dịch iBoard</button>
+          <button type="button" class="app-tab" data-app="portfolio" data-atd-id="pb-ui:app.tab.portfolio" role="tab" aria-selected="false">Danh mục</button>
+          <button type="button" class="app-tab" data-app="news" data-atd-id="pb-ui:app.tab.news" role="tab" aria-selected="false">Tin tức / Nghiên cứu</button>
         </nav>
       </div>
       <div class="flex items-center gap-2 shrink-0">
-        <label class="search-wrap" title="Tìm mã / ngành" id="global-search-wrap">
+        <label class="search-wrap" title="Tìm mã / ngành" id="global-search-wrap" data-atd-id="pb-ui:iboard.search">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <circle cx="11" cy="11" r="7"></circle>
             <path d="M20 20l-3.5-3.5" stroke-linecap="round"></path>
@@ -445,7 +461,7 @@
           <input id="search-input" type="search" placeholder="Tìm mã CK…" autocomplete="off" spellcheck="false" />
         </label>
         <div class="relative" id="settings-wrap">
-          <button type="button" class="icon-btn" id="btn-settings" aria-label="Cài đặt" aria-expanded="false" title="Cài đặt">
+          <button type="button" class="icon-btn" id="btn-settings" data-atd-id="pb-ui:app.settings" aria-label="Cài đặt" aria-expanded="false" title="Cài đặt">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
               <circle cx="12" cy="12" r="3"></circle>
               <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9c0 .7.4 1.3 1 1.5H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"></path>
@@ -456,23 +472,55 @@
             <button type="button" id="btn-focus-search" role="menuitem">Focus ô tìm kiếm</button>
           </div>
         </div>
-        <span id="conn-dot" class="inline-block h-2 w-2 rounded-full bg-[#ff0000]" title="Trạng thái WS"></span>
-        <span id="conn-label" class="text-[11px] text-gray-400 hidden sm:inline">connecting…</span>
+        <span id="conn-wrap" data-atd-id="pb-ui:app.conn" class="inline-flex items-center gap-1">
+          <span id="conn-dot" class="inline-block h-2 w-2 rounded-full bg-[#ff0000]" title="Trạng thái WS"></span>
+          <span id="conn-label" class="text-[11px] text-gray-400 hidden sm:inline">connecting…</span>
+        </span>
         <span id="clock" class="tabular-nums text-[11px] text-gray-500"></span>
       </div>
     </div>
   </header>
 
   <!-- ===== Panel: iBoard ===== -->
-  <section id="panel-iboard" class="panel is-active" data-panel="iboard" role="tabpanel">
-    <section id="index-bar" aria-label="Chỉ số thị trường"></section>
-    <div class="market-bar" role="tablist" aria-label="Rổ thị trường">
-      <button type="button" class="mkt-tab is-active" data-market="HOSE" role="tab" aria-selected="true">HOSE</button>
-      <button type="button" class="mkt-tab" data-market="VN30" role="tab" aria-selected="false">VN30</button>
-      <button type="button" class="mkt-tab" data-market="HNX" role="tab" aria-selected="false">HNX</button>
-      <button type="button" class="mkt-tab" data-market="UPCOM" role="tab" aria-selected="false">UPCOM</button>
+  <section id="panel-iboard" class="panel is-active" data-panel="iboard" data-atd-id="pb-ui:iboard.panel" role="tabpanel">
+    <section id="index-bar" data-atd-id="pb-ui:iboard.index-bar" aria-label="Chỉ số thị trường"></section>
+    <div class="panel-toolbar" id="screener-toolbar" data-atd-id="pb-ui:iboard.screener">
+      <label for="scr-vol-min">KL min</label>
+      <input id="scr-vol-min" type="number" min="0" step="10000" value="" placeholder="tất cả" style="width:110px" title="Volume tối thiểu" />
+      <label for="scr-pct-min">% ≥</label>
+      <input id="scr-pct-min" type="number" step="0.1" value="" placeholder="vd 2" style="width:72px" title="change_pct min" />
+      <label for="scr-pct-max">% ≤</label>
+      <input id="scr-pct-max" type="number" step="0.1" value="" placeholder="vd -2" style="width:72px" title="change_pct max" />
+      <label class="inline-flex items-center gap-1 text-[11px] text-gray-400">
+        <input type="checkbox" id="scr-flag-up2" /> Tăng ≥2%
+      </label>
+      <label class="inline-flex items-center gap-1 text-[11px] text-gray-400">
+        <input type="checkbox" id="scr-flag-down2" /> Giảm ≤-2%
+      </label>
+      <label class="inline-flex items-center gap-1 text-[11px] text-gray-400">
+        <input type="checkbox" id="scr-flag-volhi" /> KL ≥1M
+      </label>
+      <label class="inline-flex items-center gap-1 text-[11px] text-gray-400">
+        <input type="checkbox" id="scr-flag-ceil" /> Trần
+      </label>
+      <label class="inline-flex items-center gap-1 text-[11px] text-gray-400">
+        <input type="checkbox" id="scr-flag-floor" /> Sàn
+      </label>
+      <label for="scr-mode" class="text-[11px] text-gray-500">Ghép</label>
+      <select id="scr-mode" title="AND = tất cả điều kiện · OR = bất kỳ">
+        <option value="and" selected>AND</option>
+        <option value="or">OR</option>
+      </select>
+      <button type="button" class="btn-quiet" id="scr-reset">Reset</button>
+      <span class="text-[11px] text-gray-500" id="scr-status">WS live · FilterEngine</span>
     </div>
-    <div id="board-wrap" class="atz-table-wrap">
+    <div class="market-bar" role="tablist" aria-label="Rổ thị trường">
+      <button type="button" class="mkt-tab is-active" data-market="HOSE" data-atd-id="pb-ui:iboard.market.HOSE" role="tab" aria-selected="true">HOSE</button>
+      <button type="button" class="mkt-tab" data-market="VN30" data-atd-id="pb-ui:iboard.market.VN30" role="tab" aria-selected="false">VN30</button>
+      <button type="button" class="mkt-tab" data-market="HNX" data-atd-id="pb-ui:iboard.market.HNX" role="tab" aria-selected="false">HNX</button>
+      <button type="button" class="mkt-tab" data-market="UPCOM" data-atd-id="pb-ui:iboard.market.UPCOM" role="tab" aria-selected="false">UPCOM</button>
+    </div>
+    <div id="board-wrap" class="atz-table-wrap" data-atd-id="pb-ui:iboard.board-table">
       <table id="board-table" class="atz-table iboard">
         <thead>
           <tr>
@@ -512,61 +560,9 @@
     </div>
   </section>
 
-  <!-- ===== Panel: Signals (compose FilterEngine) ===== -->
-  <section id="panel-signals" class="panel" data-panel="signals" role="tabpanel" hidden>
-    <div class="panel-toolbar" id="screener-toolbar">
-      <label for="scr-vol-min">KL min</label>
-      <input id="scr-vol-min" type="number" min="0" step="10000" value="500000" style="width:110px" title="Volume tối thiểu" />
-      <label for="scr-pct-min">% ≥</label>
-      <input id="scr-pct-min" type="number" step="0.1" value="" placeholder="vd 2" style="width:72px" title="change_pct min" />
-      <label for="scr-pct-max">% ≤</label>
-      <input id="scr-pct-max" type="number" step="0.1" value="" placeholder="vd -2" style="width:72px" title="change_pct max" />
-      <label class="inline-flex items-center gap-1 text-[11px] text-gray-400">
-        <input type="checkbox" id="scr-flag-up2" /> Tăng ≥2%
-      </label>
-      <label class="inline-flex items-center gap-1 text-[11px] text-gray-400">
-        <input type="checkbox" id="scr-flag-down2" /> Giảm ≤-2%
-      </label>
-      <label class="inline-flex items-center gap-1 text-[11px] text-gray-400">
-        <input type="checkbox" id="scr-flag-volhi" /> KL ≥1M
-      </label>
-      <label class="inline-flex items-center gap-1 text-[11px] text-gray-400">
-        <input type="checkbox" id="scr-flag-ceil" /> Trần
-      </label>
-      <label class="inline-flex items-center gap-1 text-[11px] text-gray-400">
-        <input type="checkbox" id="scr-flag-floor" /> Sàn
-      </label>
-      <label for="scr-mode" class="text-[11px] text-gray-500">Ghép</label>
-      <select id="scr-mode" title="AND = tất cả điều kiện · OR = bất kỳ">
-        <option value="and" selected>AND</option>
-        <option value="or">OR</option>
-      </select>
-      <button type="button" class="btn-quiet" id="scr-reset">Reset</button>
-      <span class="text-[11px] text-gray-500" id="scr-status">WS live · FilterEngine</span>
-    </div>
-    <div class="atz-table-wrap panel-tall">
-      <table class="atz-table" id="signals-table">
-        <thead>
-          <tr>
-            <th class="th-sym">Mã</th>
-            <th class="num">Giá</th>
-            <th class="num">+/-</th>
-            <th class="num">%</th>
-            <th class="num">KL</th>
-            <th class="num">TC</th>
-            <th>Tín hiệu</th>
-            <th class="num">Sàn</th>
-          </tr>
-        </thead>
-        <tbody id="signals-body"></tbody>
-      </table>
-      <div id="signals-empty" class="empty-hint" hidden>Chưa có mã khớp bộ lọc — chỉnh toolbar hoặc chờ tick WS.</div>
-    </div>
-  </section>
-
   <!-- ===== Panel: Portfolio ===== -->
-  <section id="panel-portfolio" class="panel" data-panel="portfolio" role="tabpanel" hidden>
-    <div class="panel-toolbar">
+  <section id="panel-portfolio" class="panel" data-panel="portfolio" data-atd-id="pb-ui:portfolio.panel" role="tabpanel" hidden>
+    <div class="panel-toolbar" data-atd-id="pb-ui:portfolio.toolbar">
       <label for="pf-symbol">Thêm mã</label>
       <input id="pf-symbol" type="text" placeholder="VD: FPT" maxlength="12" style="width:88px;text-transform:uppercase" />
       <label for="pf-qty">SL</label>
@@ -574,6 +570,13 @@
       <label for="pf-avg">Giá TB</label>
       <input id="pf-avg" type="number" min="0" step="100" value="0" style="width:112px" />
       <button type="button" class="btn-quiet primary" id="pf-add">Thêm</button>
+      <label for="pf-f3-sector" class="ml-2">Ngành F3</label>
+      <select id="pf-f3-sector" style="max-width:180px">
+        <option value="">— Chọn ngành —</option>
+      </select>
+      <button type="button" class="btn-quiet" id="pf-f3-merge" title="Merge mã ngành vào danh mục (không ghi đè SL/Giá TB)">
+        Thêm mã ngành
+      </button>
       <span class="text-[11px] text-gray-500 ml-auto" id="pf-summary">NAV —</span>
     </div>
     <div class="atz-table-wrap panel-tall">
@@ -582,12 +585,14 @@
           <tr>
             <th class="th-sym">Mã</th>
             <th class="num">SL</th>
-            <th class="num">Giá TB</th>
+            <th class="num pf-col-avg">Giá TB</th>
             <th class="num">Giá TT</th>
             <th class="num">+/-</th>
             <th class="num">%</th>
             <th class="num">P/L</th>
             <th class="num">KL ngày</th>
+            <th class="num">KL TB 10</th>
+            <th>Cảnh báo</th>
             <th></th>
           </tr>
         </thead>
@@ -598,7 +603,7 @@
   </section>
 
   <!-- ===== Panel: News ===== -->
-  <section id="panel-news" class="panel" data-panel="news" role="tabpanel" hidden>
+  <section id="panel-news" class="panel" data-panel="news" data-atd-id="pb-ui:news.panel" role="tabpanel" hidden>
     <div class="panel-toolbar">
       <span class="text-[12px] text-gray-400">Tin tức / Nghiên cứu — nội dung trong app (không điều hướng site cũ)</span>
     </div>
@@ -609,8 +614,8 @@
         <span class="tag">Hạ tầng</span>
       </article>
       <article class="news-card">
-        <h3>Bộ lọc tín hiệu (client)</h3>
-        <p>Lọc theo % / KL / trần–sàn trên dữ liệu đang live trong bộ nhớ. Sẵn sàng gắn API tín hiệu khi backend sẵn sàng.</p>
+        <h3>Bộ lọc trên iBoard</h3>
+        <p>Toolbar screener trên tab Giao dịch iBoard — lọc % / KL / trần–sàn trực tiếp trên bảng depth (cùng rổ HOSE/VN30…).</p>
         <span class="tag">Tín hiệu</span>
       </article>
       <article class="news-card">
@@ -641,12 +646,29 @@
       "LPB", "MBB", "MSN", "MWG", "PLX", "SAB", "SHB", "SSB", "SSI", "STB",
       "TCB", "TPB", "VCB", "VHM", "VIB", "VIC", "VJC", "VNM", "VPB", "VRE",
     ]);
+    const HNX_SET = new Set([
+      "SHS", "PVS", "TIG", "IDC", "VCS", "CEO", "NRC", "LAS", "SHN", "BVS",
+      "DTD", "HUT", "KLF", "PLC", "VIG",
+    ]);
+    const UPCOM_SET = new Set([
+      "ART", "QBS", "VE4", "VNR", "SMT", "LAI", "HAT", "VGP", "KTC", "DTK",
+      "VLA", "BRS", "CLX", "SDG", "VCR",
+    ]);
     const PIN_KEY = "atz.iboard.pinned";
     const MARKET_KEY = "atz.iboard.market";
     const APP_TAB_KEY = "atz.app.tab";
     const PORTFOLIO_KEY = "atz.app.portfolio";
     const VALID_MARKETS = new Set(["HOSE", "VN30", "HNX", "UPCOM"]);
-    const VALID_APP_TABS = new Set(["iboard", "signals", "portfolio", "news"]);
+    const VALID_APP_TABS = new Set(["iboard", "portfolio", "news"]);
+    /** P1: fake depth until X-Quote map Pass — ?fake_depth=0 or localStorage pb_fake_depth=0 */
+    const FAKE_DEPTH_STORAGE_KEY = "pb_fake_depth";
+    const PB_FAKE_DEPTH = (() => {
+      const q = new URLSearchParams(location.search).get("fake_depth");
+      if (q === "0" || q === "false") return false;
+      if (q === "1" || q === "true") return true;
+      return localStorage.getItem(FAKE_DEPTH_STORAGE_KEY) !== "0";
+    })();
+    const symbolsWithServerDepth = new Set();
 
     const state = new Map();
     const sparkHist = new Map();
@@ -657,19 +679,20 @@
     let marketTab = VALID_MARKETS.has(localStorage.getItem(MARKET_KEY))
       ? localStorage.getItem(MARKET_KEY)
       : "HOSE";
-    let appTab = VALID_APP_TABS.has(localStorage.getItem(APP_TAB_KEY))
-      ? localStorage.getItem(APP_TAB_KEY)
-      : "iboard";
+    let storedAppTab = localStorage.getItem(APP_TAB_KEY);
+    if (storedAppTab === "signals") storedAppTab = "iboard";
+    let appTab = VALID_APP_TABS.has(storedAppTab) ? storedAppTab : "iboard";
     let indexStatsTimer = null;
     /** Composite screener (mirrors backend.screener.FilterEngine) */
     let screenerSpec = {
       mode: "and",
-      volume_min: 500000,
+      volume_min: null,
       change_pct_min: null,
       change_pct_max: null,
       flags: [],
     };
-    let portfolio = loadPortfolio();
+    let portfolio = [];
+    let pfAuthenticated = false;
 
     const elConnDot = document.getElementById("conn-dot");
     const elConnLabel = document.getElementById("conn-label");
@@ -679,8 +702,6 @@
     const elSearch = document.getElementById("search-input");
     const elSettingsBtn = document.getElementById("btn-settings");
     const elSettingsMenu = document.getElementById("settings-menu");
-    const elSignalsBody = document.getElementById("signals-body");
-    const elSignalsEmpty = document.getElementById("signals-empty");
     const elPortfolioBody = document.getElementById("portfolio-body");
     const elPortfolioEmpty = document.getElementById("portfolio-empty");
     const elPfSummary = document.getElementById("pf-summary");
@@ -701,10 +722,12 @@
         if (on) panel.removeAttribute("hidden");
         else panel.setAttribute("hidden", "");
       });
-      const showSearch = tab === "iboard" || tab === "signals";
+      const showSearch = tab === "iboard";
       document.getElementById("global-search-wrap").style.display = showSearch ? "" : "none";
-      if (tab === "signals") renderSignalsTable();
-      if (tab === "portfolio") renderPortfolioTable();
+      if (tab === "portfolio") {
+        loadPortfolioF3Themes();
+        renderPortfolioTable();
+      }
     }
 
     document.querySelectorAll(".app-tab").forEach((btn) => {
@@ -724,12 +747,15 @@
     }
 
     function resolveExchange(row) {
+      const sym = String(row.symbol || "").toUpperCase();
       const ex = String(row.exchange || "").toUpperCase();
       if (ex === "HOSE" || ex === "HSX") return "HOSE";
       if (ex === "HNX") return "HNX";
       if (ex === "UPCOM" || ex === "UPX") return "UPCOM";
-      if (VN30_SET.has(row.symbol)) return "HOSE";
-      return "HOSE";
+      if (HNX_SET.has(sym)) return "HNX";
+      if (UPCOM_SET.has(sym)) return "UPCOM";
+      if (VN30_SET.has(sym)) return "HOSE";
+      return ex || "HOSE";
     }
 
     function inIndexBasket(indexSym, row) {
@@ -778,11 +804,19 @@
       const q = searchQuery.trim().toUpperCase();
       if (q && !symbol.includes(q)) return false;
       const ex = resolveExchange(row);
-      if (marketTab === "VN30") return VN30_SET.has(symbol);
-      if (marketTab === "HOSE") return ex === "HOSE";
-      if (marketTab === "HNX") return ex === "HNX";
-      if (marketTab === "UPCOM") return ex === "UPCOM";
-      return true;
+      if (marketTab === "VN30" && !VN30_SET.has(symbol)) return false;
+      if (marketTab === "HOSE" && ex !== "HOSE") return false;
+      if (marketTab === "HNX" && ex !== "HNX") return false;
+      if (marketTab === "UPCOM" && ex !== "UPCOM") return false;
+      return matchesScreenerFilters(row);
+    }
+
+    function countVisibleBoardRows() {
+      let n = 0;
+      elBody.querySelectorAll("tr[data-symbol]").forEach((tr) => {
+        if (tr.style.display !== "none") n += 1;
+      });
+      return n;
     }
 
     function applyBoardFilter() {
@@ -790,6 +824,14 @@
         tr.style.display = rowVisible(tr.dataset.symbol) ? "" : "none";
       });
       updatePinnedPositions();
+      updateScreenerStatus(countVisibleBoardRows());
+    }
+
+    function applyBoardFilterForSymbol(symbol) {
+      const tr = document.getElementById("row-" + symbol);
+      if (!tr) return;
+      tr.style.display = rowVisible(symbol) ? "" : "none";
+      updateScreenerStatus(countVisibleBoardRows());
     }
 
     function setMarketTab(tab) {
@@ -811,7 +853,6 @@
     elSearch.addEventListener("input", () => {
       searchQuery = elSearch.value || "";
       applyBoardFilter();
-      if (appTab === "signals") renderSignalsTable();
     });
 
     elSettingsBtn.addEventListener("click", (ev) => {
@@ -838,10 +879,8 @@
       state.delete(symbol);
       const tr = document.getElementById("row-" + symbol);
       if (tr) tr.remove();
-      const sig = document.getElementById("sig-" + symbol);
-      if (sig) sig.remove();
-      if (appTab === "signals") renderSignalsTable();
       if (appTab === "portfolio") renderPortfolioTable();
+      applyBoardFilter();
       scheduleIndexStatsRefresh();
       updatePinnedPositions();
     }
@@ -1096,7 +1135,11 @@
 
     function enrichDepth(row) {
       if (row.kind === "index") return row;
-      if (row.bid1 != null && row.ask1 != null) return row;
+      if (row.bid1 != null && row.ask1 != null) {
+        if (row.source === "SSI_WS" && row.symbol) symbolsWithServerDepth.add(row.symbol);
+        return row;
+      }
+      if (!PB_FAKE_DEPTH || (row.symbol && symbolsWithServerDepth.has(row.symbol))) return row;
       const last = Number(row.last);
       const ceil = Number(row.ceil);
       const floor = Number(row.floor);
@@ -1168,7 +1211,7 @@
       const label = INDEX_LABEL[row.symbol] || row.symbol;
       const st = computeBasketStats(row.symbol);
       return `
-        <div class="idx-card" data-idx="${row.symbol}">
+        <div class="idx-card" data-idx="${row.symbol}" data-atd-id="pb-ui:iboard.index.${row.symbol}">
           <div class="idx-card-top">
             <div class="min-w-0">
               <div class="text-[10px] tracking-wide text-gray-500 font-medium">${label}</div>
@@ -1180,7 +1223,9 @@
                 <span class="tabular-nums text-[12px] font-medium ${tone}" data-f="pct">${fmtPct(row.change_pct)}</span>
               </div>
             </div>
-            ${renderSparkSvg(row.symbol, hist, sparkLevelsFromRow(row), row.change)}
+            <div class="idx-spark-wrap" data-atd-id="pb-ui:iboard.index.${row.symbol}.spark">
+              ${renderSparkSvg(row.symbol, hist, sparkLevelsFromRow(row), row.change)}
+            </div>
           </div>
           <div class="idx-meta">
             <span><span class="k">KL</span><span data-f="ivol">${fmtVolShort(st.volume)}</span> CP</span>
@@ -1381,29 +1426,12 @@
       return false;
     }
 
-    function matchesScreener(row) {
-      if (!row || INDEX_SYMBOLS.has(row.symbol)) return false;
-      const q = searchQuery.trim().toUpperCase();
-      if (q && !String(row.symbol).includes(q)) return false;
+    function matchesScreenerFilters(row) {
       const rules = buildScreenerRules(screenerSpec);
       if (!rules.length) return true;
       const work = annotateNearLimits({ ...row });
       if (screenerSpec.mode === "or") return rules.some((r) => evalScreenerRule(work, r));
       return rules.every((r) => evalScreenerRule(work, r));
-    }
-
-    function signalLabel(row) {
-      const last = Number(row.last);
-      const pct = Number(row.change_pct) || 0;
-      const vol = Number(row.volume) || 0;
-      if (row.ceil != null && last === Number(row.ceil)) return "Trần";
-      if (row.floor != null && last === Number(row.floor)) return "Sàn";
-      if (pct >= 2) return "Tăng mạnh";
-      if (pct <= -2) return "Giảm mạnh";
-      if (vol >= 1e6) return "KL lớn";
-      if (pct > 0) return "Tăng";
-      if (pct < 0) return "Giảm";
-      return "TC";
     }
 
     function updateScreenerStatus(n) {
@@ -1427,67 +1455,7 @@
         change_pct_max: safeNum(document.getElementById("scr-pct-max").value),
         flags,
       };
-      renderSignalsTable();
-    }
-
-    function renderSignalsTable() {
-      const rows = [...state.values()]
-        .filter(matchesScreener)
-        .sort((a, b) => Math.abs(Number(b.change_pct) || 0) - Math.abs(Number(a.change_pct) || 0));
-      elSignalsBody.innerHTML = "";
-      elSignalsEmpty.hidden = rows.length > 0;
-      rows.forEach((row) => {
-        const tr = document.createElement("tr");
-        tr.dataset.symbol = row.symbol;
-        tr.id = "sig-" + row.symbol;
-        const tone = changeTone(row.change);
-        tr.innerHTML = `
-          <td class="sym">${row.symbol}</td>
-          <td class="num tabular-nums ${priceTone(row.last, row.ref, row.ceil, row.floor)}" data-f="last">${fmtPrice(row.last)}</td>
-          <td class="num tabular-nums ${tone}" data-f="change">${fmtChange(row.change)}</td>
-          <td class="num tabular-nums ${tone}" data-f="pct">${fmtPct(row.change_pct)}</td>
-          <td class="num tabular-nums" data-f="vol">${fmtVol(row.volume)}</td>
-          <td class="num tabular-nums text-[#ffd900]" data-f="ref">${fmtPrice(row.ref)}</td>
-          <td data-f="sig">${signalLabel(row)}</td>
-          <td class="num tabular-nums text-gray-400">${resolveExchange(row)}</td>`;
-        elSignalsBody.appendChild(tr);
-      });
-      updateScreenerStatus(rows.length);
-    }
-
-    function patchSignalRow(symbol, { flash = false } = {}) {
-      if (appTab !== "signals") return;
-      const row = state.get(symbol);
-      if (!row || INDEX_SYMBOLS.has(symbol)) return;
-      const match = matchesScreener(row);
-      let tr = document.getElementById("sig-" + symbol);
-      if (!match) {
-        if (tr) tr.remove();
-        elSignalsEmpty.hidden = elSignalsBody.children.length > 0;
-        updateScreenerStatus(elSignalsBody.children.length);
-        return;
-      }
-      if (!tr) {
-        renderSignalsTable();
-        return;
-      }
-      const prevLast = tr.querySelector('[data-f="last"]')?.textContent;
-      const tone = changeTone(row.change);
-      const lastEl = tr.querySelector('[data-f="last"]');
-      lastEl.textContent = fmtPrice(row.last);
-      lastEl.className = "num tabular-nums " + priceTone(row.last, row.ref, row.ceil, row.floor);
-      const chg = tr.querySelector('[data-f="change"]');
-      chg.textContent = fmtChange(row.change);
-      chg.className = "num tabular-nums " + tone;
-      const pct = tr.querySelector('[data-f="pct"]');
-      pct.textContent = fmtPct(row.change_pct);
-      pct.className = "num tabular-nums " + tone;
-      tr.querySelector('[data-f="vol"]').textContent = fmtVol(row.volume);
-      tr.querySelector('[data-f="ref"]').textContent = fmtPrice(row.ref);
-      tr.querySelector('[data-f="sig"]').textContent = signalLabel(row);
-      if (flash && prevLast !== fmtPrice(row.last)) {
-        flashCell(lastEl, row.change || 1);
-      }
+      applyBoardFilter();
     }
 
     function wireScreenerToolbar() {
@@ -1502,7 +1470,7 @@
         el.addEventListener("input", readScreenerToolbar);
       });
       document.getElementById("scr-reset").addEventListener("click", () => {
-        document.getElementById("scr-vol-min").value = "500000";
+        document.getElementById("scr-vol-min").value = "";
         document.getElementById("scr-pct-min").value = "";
         document.getElementById("scr-pct-max").value = "";
         document.getElementById("scr-mode").value = "and";
@@ -1515,7 +1483,7 @@
     wireScreenerToolbar();
 
     /* ===== Portfolio (shared table + WS) ===== */
-    function loadPortfolio() {
+    function loadPortfolioLocal() {
       try {
         const raw = JSON.parse(localStorage.getItem(PORTFOLIO_KEY) || "[]");
         return Array.isArray(raw) ? raw : [];
@@ -1523,8 +1491,221 @@
         return [];
       }
     }
+
+    async function pushPortfolioToServer() {
+      if (!pfAuthenticated) return;
+      try {
+        await fetch("/api/portfolio/positions", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ items: portfolio }),
+        });
+        localStorage.removeItem(PORTFOLIO_KEY);
+      } catch {
+        /* offline */
+      }
+    }
+
+    async function initPortfolioAuthSync() {
+      try {
+        const meRes = await fetch("/api/account/me");
+        const meData = await meRes.json();
+        pfAuthenticated = meData.authenticated === true;
+        if (!pfAuthenticated) {
+          portfolio = loadPortfolioLocal();
+          return;
+        }
+        const localItems = loadPortfolioLocal();
+        if (localItems.length) {
+          const migRes = await fetch("/api/portfolio/positions/migrate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ items: localItems }),
+          });
+          if (migRes.ok) {
+            const mig = await migRes.json();
+            if (mig.ok && mig.migrated && Array.isArray(mig.items)) {
+              portfolio = mig.items;
+              localStorage.removeItem(PORTFOLIO_KEY);
+              return;
+            }
+          }
+        }
+        const res = await fetch("/api/portfolio/positions");
+        if (res.ok) {
+          const data = await res.json();
+          if (data.ok && Array.isArray(data.items)) {
+            portfolio = data.items;
+            localStorage.removeItem(PORTFOLIO_KEY);
+            return;
+          }
+        }
+        portfolio = loadPortfolioLocal();
+      } catch {
+        portfolio = loadPortfolioLocal();
+      }
+    }
+
     function savePortfolio() {
-      localStorage.setItem(PORTFOLIO_KEY, JSON.stringify(portfolio));
+      if (pfAuthenticated) {
+        void pushPortfolioToServer();
+      } else {
+        localStorage.setItem(PORTFOLIO_KEY, JSON.stringify(portfolio));
+      }
+    }
+
+    const pfQuoteCache = new Map();
+    const pfF3Cache = new Map();
+    const pfIntradayCache = new Map();
+    let pfF3Themes = [];
+    let pfSideTimer = null;
+
+    function joinPortfolioAlertCell(f3Text, intradayText) {
+      const parts = [];
+      if (f3Text && f3Text !== "—") parts.push(f3Text);
+      if (intradayText && intradayText !== "—" && intradayText !== "Chưa có giá") parts.push(intradayText);
+      return parts.length ? parts.join(" · ") : "—";
+    }
+
+    function applyPortfolioAlertCells() {
+      portfolio.forEach((p) => {
+        const tr = document.getElementById("pf-" + p.symbol);
+        if (!tr) return;
+        const el = tr.querySelector('[data-f="alert"]');
+        if (el) {
+          el.textContent = joinPortfolioAlertCell(pfF3Cache.get(p.symbol), pfIntradayCache.get(p.symbol));
+        }
+      });
+    }
+
+    async function loadPortfolioF3Themes() {
+      try {
+        const res = await fetch("/api/portfolio/sectors/f3");
+        const data = await res.json();
+        if (!data.ok || !Array.isArray(data.themes)) return;
+        pfF3Themes = data.themes;
+        const sel = document.getElementById("pf-f3-sector");
+        if (!sel) return;
+        const cur = sel.value;
+        sel.innerHTML = '<option value="">— Chọn ngành —</option>';
+        pfF3Themes.forEach((t) => {
+          const opt = document.createElement("option");
+          opt.value = t.id;
+          opt.textContent = t.name;
+          sel.appendChild(opt);
+        });
+        if (cur) sel.value = cur;
+      } catch {
+        /* offline */
+      }
+    }
+
+    function schedulePortfolioSideEffects() {
+      if (pfSideTimer) return;
+      pfSideTimer = setTimeout(() => {
+        pfSideTimer = null;
+        refreshPortfolioQuotes();
+        refreshPortfolioF3Alerts();
+        refreshPortfolioIntradayAlerts();
+      }, 120);
+    }
+
+    async function refreshPortfolioQuotes() {
+      if (!portfolio.length) return;
+      const syms = portfolio.map((p) => p.symbol).join(",");
+      try {
+        const res = await fetch("/api/portfolio/quotes?symbols=" + encodeURIComponent(syms));
+        const data = await res.json();
+        if (!data.ok || !data.quotes) return;
+        portfolio.forEach((p) => {
+          const q = data.quotes[p.symbol];
+          if (!q) return;
+          pfQuoteCache.set(p.symbol, q);
+          const tr = document.getElementById("pf-" + p.symbol);
+          if (!tr) return;
+          const volEl = tr.querySelector('[data-f="avgvol10"]');
+          if (volEl) {
+            volEl.textContent =
+              q.avg_volume_10 != null && q.avg_volume_10 > 0 ? fmtVol(q.avg_volume_10) : "—";
+          }
+          if (!state.get(p.symbol) && q.price != null && Number(q.price) > 0) {
+            patchPortfolioFromQuote(p.symbol, Number(q.price));
+          }
+        });
+      } catch {
+        /* offline */
+      }
+    }
+
+    function patchPortfolioFromQuote(symbol, last) {
+      const tr = document.getElementById("pf-" + symbol);
+      const item = portfolio.find((p) => p.symbol === symbol);
+      if (!tr || !item) return;
+      const qty = Number(item.qty) || 0;
+      const avg = Number(item.avg) || 0;
+      const pl = (last - avg) * qty;
+      const lastEl = tr.querySelector('[data-f="last"]');
+      lastEl.textContent = fmtPrice(last);
+      const lastVsAvg =
+        last > 0 && avg > 0 ? (last >= avg ? "pf-last-above" : "pf-last-below") : "";
+      lastEl.className = "num tabular-nums " + lastVsAvg;
+      const plEl = tr.querySelector('[data-f="pl"]');
+      plEl.textContent = Math.round(pl).toLocaleString("en-US");
+      plEl.className = "num tabular-nums " + (pl > 0 ? "pf-pl-up" : pl < 0 ? "pf-pl-down" : "");
+    }
+
+    async function refreshPortfolioF3Alerts() {
+      if (!portfolio.length) return;
+      const symbols = portfolio.map((p) => p.symbol);
+      try {
+        const res = await fetch("/api/portfolio/alerts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ symbols }),
+        });
+        const data = await res.json();
+        if (!data.ok || !data.alerts) return;
+        portfolio.forEach((p) => {
+          pfF3Cache.set(p.symbol, data.alerts[p.symbol] || "—");
+        });
+        applyPortfolioAlertCells();
+      } catch {
+        /* offline */
+      }
+    }
+
+    async function refreshPortfolioIntradayAlerts() {
+      if (!portfolio.length) return;
+      const items = portfolio.map((p) => {
+        const row = state.get(p.symbol);
+        const cached = pfQuoteCache.get(p.symbol);
+        let last = row ? Number(row.last) : null;
+        if ((last == null || last <= 0) && cached && cached.price != null) {
+          last = Number(cached.price);
+        }
+        return {
+          symbol: p.symbol,
+          avg: Number(p.avg) > 0 ? Number(p.avg) : null,
+          last: last != null && last > 0 ? last : null,
+          support: p.support != null && Number(p.support) > 0 ? Number(p.support) : null,
+          resistance: p.resistance != null && Number(p.resistance) > 0 ? Number(p.resistance) : null,
+        };
+      });
+      try {
+        const res = await fetch("/api/portfolio/intraday-alerts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ items }),
+        });
+        const data = await res.json();
+        if (!data.ok || !data.alerts) return;
+        portfolio.forEach((p) => {
+          pfIntradayCache.set(p.symbol, data.alerts[p.symbol] || "—");
+        });
+        applyPortfolioAlertCells();
+      } catch {
+        /* offline */
+      }
     }
 
     function renderPortfolioTable() {
@@ -1534,7 +1715,12 @@
       let cost = 0;
       portfolio.forEach((item) => {
         const row = state.get(item.symbol);
-        const last = row ? Number(row.last) || 0 : 0;
+        const cached = pfQuoteCache.get(item.symbol);
+        const last = row
+          ? Number(row.last) || 0
+          : cached && cached.price != null
+            ? Number(cached.price) || 0
+            : 0;
         const qty = Number(item.qty) || 0;
         const avg = Number(item.avg) || 0;
         const mkt = last * qty;
@@ -1542,18 +1728,29 @@
         nav += mkt;
         cost += avg * qty;
         const tone = changeTone(row ? row.change : last - avg);
+        const lastVsAvg =
+          row && last > 0 && avg > 0
+            ? last >= avg
+              ? "pf-last-above"
+              : "pf-last-below"
+            : "";
+        const plCls = pl > 0 ? "pf-pl-up" : pl < 0 ? "pf-pl-down" : "";
         const tr = document.createElement("tr");
         tr.id = "pf-" + item.symbol;
         tr.dataset.symbol = item.symbol;
         tr.innerHTML = `
           <td class="sym">${item.symbol}</td>
           <td class="num tabular-nums" data-f="qty">${qty.toLocaleString("en-US")}</td>
-          <td class="num tabular-nums" data-f="avg">${fmtPrice(avg)}</td>
-          <td class="num tabular-nums ${row ? priceTone(last, row.ref, row.ceil, row.floor) : "text-gray-400"}" data-f="last">${row ? fmtPrice(last) : "—"}</td>
+          <td class="num tabular-nums pf-col-avg" data-f="avg">${fmtPrice(avg)}</td>
+          <td class="num tabular-nums ${lastVsAvg}" data-f="last">${row ? fmtPrice(last) : "—"}</td>
           <td class="num tabular-nums ${tone}" data-f="change">${row ? fmtChange(row.change) : "—"}</td>
           <td class="num tabular-nums ${tone}" data-f="pct">${row ? fmtPct(row.change_pct) : "—"}</td>
-          <td class="num tabular-nums ${changeTone(pl)}" data-f="pl">${Math.round(pl).toLocaleString("en-US")}</td>
+          <td class="num tabular-nums ${plCls}" data-f="pl">${Math.round(pl).toLocaleString("en-US")}</td>
           <td class="num tabular-nums" data-f="vol">${row ? fmtVol(row.volume) : "—"}</td>
+          <td class="num tabular-nums" data-f="avgvol10">${
+            cached && cached.avg_volume_10 > 0 ? fmtVol(cached.avg_volume_10) : "—"
+          }</td>
+          <td class="pf-alert" data-f="alert">—</td>
           <td><button type="button" class="btn-quiet" data-rm="${item.symbol}">Xóa</button></td>`;
         elPortfolioBody.appendChild(tr);
       });
@@ -1568,6 +1765,7 @@
           renderPortfolioTable();
         });
       });
+      schedulePortfolioSideEffects();
     }
 
     function patchPortfolioSymbol(symbol, { flash = false } = {}) {
@@ -1588,7 +1786,9 @@
       const lastEl = tr.querySelector('[data-f="last"]');
       const prev = lastEl.textContent;
       lastEl.textContent = row ? fmtPrice(last) : "—";
-      lastEl.className = "num tabular-nums " + (row ? priceTone(last, row.ref, row.ceil, row.floor) : "text-gray-400");
+      const lastVsAvg =
+        row && last > 0 && avg > 0 ? (last >= avg ? "pf-last-above" : "pf-last-below") : "";
+      lastEl.className = "num tabular-nums " + lastVsAvg;
       const chg = tr.querySelector('[data-f="change"]');
       chg.textContent = row ? fmtChange(row.change) : "—";
       chg.className = "num tabular-nums " + tone;
@@ -1597,9 +1797,10 @@
       pct.className = "num tabular-nums " + tone;
       const plEl = tr.querySelector('[data-f="pl"]');
       plEl.textContent = Math.round(pl).toLocaleString("en-US");
-      plEl.className = "num tabular-nums " + changeTone(pl);
+      plEl.className = "num tabular-nums " + (pl > 0 ? "pf-pl-up" : pl < 0 ? "pf-pl-down" : "");
       tr.querySelector('[data-f="vol"]').textContent = row ? fmtVol(row.volume) : "—";
       if (flash && row && prev !== fmtPrice(last)) flashCell(lastEl, row.change || 1);
+      schedulePortfolioSideEffects();
       // refresh NAV strip
       let nav = 0, cost = 0;
       portfolio.forEach((it) => {
@@ -1610,6 +1811,25 @@
       });
       elPfSummary.textContent = `NAV ${Math.round(nav).toLocaleString("en-US")} · P/L ${Math.round(nav - cost).toLocaleString("en-US")}`;
     }
+
+    document.getElementById("pf-f3-merge").addEventListener("click", () => {
+      const id = String(document.getElementById("pf-f3-sector").value || "");
+      const theme = pfF3Themes.find((t) => t.id === id);
+      if (!theme || !Array.isArray(theme.symbols)) return;
+      const defaultQty = Number(document.getElementById("pf-qty").value) || 100;
+      let added = 0;
+      theme.symbols.forEach((sym) => {
+        const code = String(sym).trim().toUpperCase();
+        if (!code) return;
+        if (portfolio.some((p) => p.symbol === code)) return;
+        portfolio.push({ symbol: code, qty: defaultQty, avg: 0 });
+        added += 1;
+      });
+      if (added > 0) {
+        savePortfolio();
+        renderPortfolioTable();
+      }
+    });
 
     document.getElementById("pf-add").addEventListener("click", () => {
       const symbol = String(document.getElementById("pf-symbol").value || "").trim().toUpperCase();
@@ -1628,9 +1848,9 @@
       renderPortfolioTable();
     });
 
-    /** Fan-out tick → bảng tín hiệu + danh mục (DOM nếu tab đang mở; state đã cập nhật trước đó) */
+    /** Fan-out tick → lọc iBoard + danh mục (state đã cập nhật trước đó) */
     function fanOutRealtime(symbol, opts = {}) {
-      patchSignalRow(symbol, opts);
+      applyBoardFilterForSymbol(symbol);
       patchPortfolioSymbol(symbol, opts);
     }
 
@@ -1660,7 +1880,6 @@
         restorePinnedRows();
         applyBoardFilter();
         refreshAllIndexStats();
-        renderSignalsTable();
         renderPortfolioTable();
         return;
       }
@@ -1711,9 +1930,35 @@
       elClock.textContent = new Date().toLocaleTimeString("vi-VN", { hour12: false });
     }, 1000);
 
-    setMarketTab(marketTab);
-    setAppTab(appTab);
-    connect();
+    (async () => {
+      await initPortfolioAuthSync();
+      setMarketTab(marketTab);
+      setAppTab(appTab);
+      loadPortfolioF3Themes();
+      connect();
+    })();
+  </script>
+  <script>
+    (function () {
+      fetch("/api/debug-ui/config")
+        .then(function (r) {
+          return r.ok ? r.json() : null;
+        })
+        .then(function (cfg) {
+          if (!cfg || !cfg.enabled) return;
+          var link = document.createElement("link");
+          link.rel = "stylesheet";
+          link.href = "/static/debug-overlay.css";
+          document.head.appendChild(link);
+          var s = document.createElement("script");
+          s.src = "/static/debug-overlay.js";
+          s.defer = true;
+          s.dataset.storageKey = cfg.storageKey || "pb-dbg-on";
+          s.dataset.catalogUrl = cfg.catalogUrl || "/static/ui_catalog.json";
+          document.body.appendChild(s);
+        })
+        .catch(function () {});
+    })();
   </script>
 </body>
 </html>

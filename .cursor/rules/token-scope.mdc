@@ -1,0 +1,48 @@
+---
+description: Giới hạn quét/đọc file — tiết token (dev.atz.vn)
+alwaysApply: true
+---
+
+# Token & scope (vnstocks)
+
+Ưu tiên **ít file, path hẹp**. Rule này **ưu tiên** hơn thói quen “đọc thêm cho chắc”.
+
+## Deny-list (không Read / Grep / Glob trừ khi user @ path hoặc chọn mở prod/legacy)
+
+Mọi path khớp `.cursorignore`, đặc biệt:
+
+- `src/` (legacy prod Streamlit)
+- `data/`, cache, media, secrets, logs
+- `deploy/`, `docker-compose.yml`, `scripts/` (trừ task ops rõ)
+- `docs/auditorbot/`, `docs/bots/`, `docs/infrastructure/`, `docs/refs/`, `docs/REFRESH_1_2S_STRATEGY.md`
+
+## Map câu hỏi → thư mục (quét trong đó trước)
+
+| Chủ đề | Path ưu tiên |
+|--------|----------------|
+| UI / SPA | `frontend/` |
+| API / WS / backend | `backend/` |
+| Docker dev | `docker-compose.dev.yml`, `Dockerfile.dev` |
+| Config | `config/` + file code liên quan |
+| Test | `tests/test_<module>.py` + module đích |
+| Kiến trúc / vận hành (khi sửa code) | mục liên quan trong `docs/architecture.md`, `docs/troubleshooting.md` — **grep heading**, không đọc full |
+
+Phạm vi mặc định: `backend/`, `frontend/`, `config/`, `tests/`, `docker-compose.dev.yml` — xem `dev-atz-scope.mdc`.
+
+## Grep / Glob / explore
+
+- **Cấm** search không `path` hoặc không `glob` (cấm quét root repo).
+- `rg`/`grep`: luôn kèm path hẹp (vd. `backend/`, `frontend/src/`).
+- Subagent explore/Task: chỉ `quick` + **path cụ thể** trong mô tả; cấm “full repository” / `very thorough` không kèm path.
+
+## Giới hạn đọc
+
+- **Ask / plan / giải thích:** tối đa ~5 file Read; mở rộng → hỏi user (lựa chọn số).
+- **Không** tự đọc `docs/architecture.md` / `docs/troubleshooting.md` full khi chỉ hỏi đáp; khi **sửa code** chỉ section liên quan module.
+- **Không** paste file dài (> ~150 dòng) vào chat; cite đoạn cần thiết.
+
+## Thứ tự ưu tiên context
+
+1. File user **@** tag
+2. Một module / một luồng tính năng
+3. Hỏi trước khi sang module khác hoặc mở deny-list

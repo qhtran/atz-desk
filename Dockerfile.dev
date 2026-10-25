@@ -4,7 +4,9 @@ FROM python:3.11-slim-bookworm
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    FRONTEND_DIR=/app/frontend
+    FRONTEND_DIR=/app/frontend \
+    OHLCV_BARS_DIR=/app/data/ohlcv \
+    F3_THEMES_CONFIG=/app/config/sector_themes_f3.yaml
 
 WORKDIR /app
 
@@ -18,6 +20,12 @@ RUN pip install --no-cache-dir -r /app/backend/requirements.txt
 COPY backend /app/backend
 COPY frontend /app/frontend
 COPY config/priceboard.yaml /app/config/priceboard.yaml
+COPY config/ingestion.yaml /app/config/ingestion.yaml
+COPY config/sector_themes_f3.yaml /app/config/sector_themes_f3.yaml
+# F3 engine (legacy analysis — port tối thiểu, ADR 0009)
+COPY src/atz/analysis/f3_alerts.py src/atz/analysis/technical.py src/atz/analysis/__init__.py /app/atz_pkg/analysis/
+COPY src/atz/config.py /app/atz_pkg/config.py
+COPY src/atz/storage/__init__.py src/atz/storage/paths.py /app/atz_pkg/storage/
 
 EXPOSE 8000
 

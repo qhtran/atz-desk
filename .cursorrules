@@ -1,18 +1,29 @@
 # Cursor AI — token & scope rules (vnstocks)
 
-This is a massive codebase. NEVER perform full-workspace scans or broad searches unless explicitly requested.
+Repo lớn. **Không** quét full workspace trừ khi user yêu cầu rõ.
 
-Strictly limit your context, reading, and modifications to the files or folders directly tagged by the user using @ symbols, or the minimal scope required for the active task.
+## Thứ tự ưu tiên
 
-Do not run repetitive terminal loops or automated tests that bloat the conversation context window.
+1. File/folder user **@** tag
+2. Path tối thiểu cho task (một module)
+3. Hỏi user (lựa chọn số) trước khi mở rộng
 
-Always aim for the most token-efficient approach.
+Chi tiết map module + deny-list: `.cursor/rules/token-scope.mdc` và `.cursorignore`.
 
-If you need to scan or read additional directories beyond the tagged/minimal scope, you MUST ask the user for explicit permission at that moment before doing so. List the exact paths and why they are needed; wait for approval (e.g. numbered choice) before scanning.
+## Deny-list (agent)
 
-## Additional constraints for this repo
-- Prefer targeted reads (specific paths) over glob/grep across the whole tree.
-- Prefer `rg`/`grep` with narrow path + glob filters; avoid recursive scans of `data/`, `.venv/`, `docs/refs/`, caches, or media.
-- Do not dump large files, logs, or binary/media contents into the chat.
-- Follow existing project rules in `AGENTS.md` and `.cursor/rules/` when they do not conflict with the token-efficiency rules above.
-- Ask with numbered choices (`1a`/`1b`) before broad or multi-module changes; keep replies short and in Vietnamese when addressing the user.
+Không Read/Grep/Glob các path trong `.cursorignore` (gồm `src/`, `data/`, `deploy/`, `scripts/`, docs bot/ref dài, …) trừ khi user @ path đó hoặc chọn mở prod/legacy/ops.
+
+## Search
+
+- Luôn `path` hoặc `glob` hẹp — **cấm** grep/glob root `.`
+- Tránh `data/`, `.venv/`, cache, media, `docs/refs/`
+- Không dump log/binary/file dài vào chat
+
+## Hành vi
+
+- Không vòng lặp terminal / test lặp làm phình context
+- Không đọc thêm “cho chắc” ngoài deny-list — **hỏi trước**
+- Multi-module hoặc quét rộng: lựa chọn `1a`/`1b` trước khi làm
+- `AGENTS.md` + `.cursor/rules/` khi không mâu thuẫn rule token ở trên
+- Trả lời user: tiếng Việt, ngắn gọn

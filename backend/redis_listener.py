@@ -10,12 +10,14 @@ from typing import TYPE_CHECKING
 
 import redis.asyncio as aioredis
 
+from backend.observability import ERR_PB_REDIS, log, setup
 from backend.volume_filter import load_min_volume, passes_volume_filter
 
 if TYPE_CHECKING:
     from backend.websocket_manager import ConnectionManager
 
-logger = logging.getLogger("atz.priceboard.redis_listener")
+setup("redis")
+COMPONENT = "redis"
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
 CHANNEL = os.getenv("PRICEBOARD_CHANNEL", "priceboard_ticks")
@@ -71,10 +73,14 @@ class RedisTickListener:
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
-                logger.error(
-                    "DBG-PRICEBOARD-REDIS-LISTENER-ERR err=%s retry_in=%.1fs",
-                    exc,
-                    delay,
+                log(
+                    COMPONENT,
+                    "REDIS-LISTENER",
+                    "pub/sub listener error",
+                    logging.ERROR,
+                    error_code=ERR_PB_REDIS,
+                    exc=exc,
+                    retry_in_s=delay,
                 )
                 try:
                     await asyncio.wait_for(self._stop.wait(), timeout=delay)
@@ -87,11 +93,7 @@ class RedisTickListener:
         pubsub = redis.pubsub()
         try:
             await pubsub.subscribe(CHANNEL)
-            logger.info(
-                "DBG-PRICEBOARD-REDIS-SUB channel=%s hash=%s",
-                CHANNEL,
-                HASH_KEY,
-            )
+            log(COMPONENT, "REDIS-SUB", "subscribed", channel=CHANNEL, hash=HASH_KEY)
             while not self._stop.is_set():
                 message = await pubsub.get_message(
                     ignore_subscribe_messages=True,
@@ -103,7 +105,6 @@ class RedisTickListener:
                 data = message.get("data")
                 if not data:
                     continue
-                # Fan-out raw JSON string from publisher (already compact).
                 if isinstance(data, bytes):
                     data = data.decode("utf-8")
                 await self._manager.broadcast(data)

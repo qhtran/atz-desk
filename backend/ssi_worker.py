@@ -18,14 +18,13 @@ from typing import Any, Protocol
 
 import redis.asyncio as aioredis
 
+from backend.board_universe import mock_equity_seeds
+from backend.observability import ERR_PB_REDIS_IO, ERR_PB_SSI_FALLBACK, ERR_PB_SSI_SESSION, log, setup
 from backend.tick_contract import build_tick
 from backend.volume_filter import load_min_volume, passes_volume_filter
 
-logging.basicConfig(
-    level=os.getenv("LOG_LEVEL", "INFO"),
-    format='{"ts":"%(asctime)s","level":"%(levelname)s","msg":"%(message)s"}',
-)
-logger = logging.getLogger("atz.priceboard.ssi_worker")
+setup("worker")
+COMPONENT = "worker"
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
 CHANNEL = os.getenv("PRICEBOARD_CHANNEL", "priceboard_ticks")
@@ -39,18 +38,30 @@ MIN_VOLUME = load_min_volume()
 async def _publish_or_hide(redis: aioredis.Redis, tick: dict) -> None:
     """Publish tick to hash+channel, or remove when equity fails volume gate."""
     sym = tick["symbol"]
-    if not passes_volume_filter(tick, MIN_VOLUME):
-        await redis.hdel(HASH_KEY, sym)
-        remove = json.dumps(
-            {"type": "remove", "symbol": sym},
-            ensure_ascii=False,
-            separators=(",", ":"),
+    try:
+        if not passes_volume_filter(tick, MIN_VOLUME):
+            await redis.hdel(HASH_KEY, sym)
+            remove = json.dumps(
+                {"type": "remove", "symbol": sym},
+                ensure_ascii=False,
+                separators=(",", ":"),
+            )
+            await redis.publish(CHANNEL, remove)
+            return
+        body = json.dumps(tick, ensure_ascii=False, separators=(",", ":"))
+        await redis.hset(HASH_KEY, sym, body)
+        await redis.publish(CHANNEL, body)
+    except Exception as exc:  # noqa: BLE001
+        log(
+            COMPONENT,
+            "REDIS-PUBLISH",
+            "redis publish failed",
+            logging.ERROR,
+            error_code=ERR_PB_REDIS_IO,
+            exc=exc,
+            symbol=sym,
         )
-        await redis.publish(CHANNEL, remove)
-        return
-    body = json.dumps(tick, ensure_ascii=False, separators=(",", ":"))
-    await redis.hset(HASH_KEY, sym, body)
-    await redis.publish(CHANNEL, body)
+
 
 VN30_AND_BLUECHIPS: list[tuple[str, int]] = [
     ("ACB", 24850), ("BCM", 68500), ("BID", 45200), ("BVH", 51200), ("CTG", 34500),
@@ -96,8 +107,12 @@ def resolve_source() -> str:
     secret = (os.getenv("SSI_CONSUMER_SECRET") or os.getenv("SSI_API_SECRET") or "").strip()
     if cid and secret:
         return "ssi"
-    logger.warning(
-        "DBG-PRICEBOARD-SOURCE-FALLBACK wanted=ssi reason=missing_SSI_CONSUMER_* → mock"
+    log(
+        COMPONENT,
+        "SOURCE-FALLBACK",
+        "wanted ssi but missing SSI_CONSUMER_* — using mock",
+        logging.WARNING,
+        error_code=ERR_PB_SSI_FALLBACK,
     )
     return "mock"
 
@@ -124,31 +139,14 @@ def _equity_row(symbol: str, ref: int, exchange: str = "HOSE") -> dict:
 
 def build_seed(equity_count: int | None = None) -> list[dict]:
     target = equity_count if equity_count is not None else MOCK_EQUITY_COUNT
-    target = max(50, min(80, target))
     seed: list[dict] = [
         {"symbol": "VNINDEX", "exchange": "HOSE", "kind": "index", "ref": 1285.4, "last": 1285.4, "volume": 0},
         {"symbol": "VN30", "exchange": "HOSE", "kind": "index", "ref": 1342.1, "last": 1342.1, "volume": 0},
         {"symbol": "HNXINDEX", "exchange": "HNX", "kind": "index", "ref": 238.6, "last": 238.6, "volume": 0},
         {"symbol": "UPCOMINDEX", "exchange": "UPCOM", "kind": "index", "ref": 95.2, "last": 95.2, "volume": 0},
     ]
-    seen: set[str] = set()
-    for sym, ref in VN30_AND_BLUECHIPS:
-        if len(seen) >= target:
-            break
-        if sym in seen:
-            continue
-        seen.add(sym)
-        seed.append(_equity_row(sym, ref))
-    i = 0
-    while len(seen) < target:
-        sym = _synthetic_symbol(i)
-        i += 1
-        if sym in seen or len(sym) != 3:
-            continue
-        seen.add(sym)
-        ref = 5_000 + (sum(ord(c) for c in sym) * 137) % 180_000
-        ref = int(round(ref / 50) * 50)
-        seed.append(_equity_row(sym, max(ref, 5_050)))
+    for sym, ref, ex in mock_equity_seeds(target=target):
+        seed.append(_equity_row(sym, ref, exchange=ex))
     return seed
 
 
@@ -209,10 +207,14 @@ class MockSsiWorker:
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
-                logger.error(
-                    "DBG-PRICEBOARD-SSI-MOCK-RECONNECT err=%s retry_in=%.1fs",
-                    exc,
-                    delay,
+                log(
+                    COMPONENT,
+                    "SSI-MOCK-RECONNECT",
+                    "mock worker session error",
+                    logging.ERROR,
+                    error_code=ERR_PB_SSI_SESSION,
+                    exc=exc,
+                    retry_in_s=delay,
                 )
                 try:
                     await asyncio.wait_for(self._stop.wait(), timeout=delay)
@@ -240,15 +242,16 @@ class MockSsiWorker:
                     )
                     published += 1
             n_eq = sum(1 for r in self._state if r["kind"] == "equity")
-            logger.info(
-                "DBG-PRICEBOARD-SSI-MOCK-READY symbols=%s equities=%s published=%s "
-                "min_volume=%s interval_ms=%s burst=%s",
-                len(self._state),
-                n_eq,
-                published,
-                MIN_VOLUME,
-                TICK_INTERVAL_MS,
-                TICKS_PER_BURST,
+            log(
+                COMPONENT,
+                "SSI-MOCK-READY",
+                "mock board ready",
+                symbols=len(self._state),
+                equities=n_eq,
+                published=published,
+                min_volume=MIN_VOLUME,
+                interval_ms=TICK_INTERVAL_MS,
+                burst=TICKS_PER_BURST,
             )
 
             interval = max(TICK_INTERVAL_MS, 50) / 1000.0
@@ -265,12 +268,12 @@ class MockSsiWorker:
                 await asyncio.sleep(interval)
         finally:
             await redis.aclose()
-            logger.info("DBG-PRICEBOARD-SSI-MOCK-SESSION-END t=%s", int(time.time()))
+            log(COMPONENT, "SSI-MOCK-SESSION-END", "mock session ended", t=int(time.time()))
 
 
 def create_worker() -> Stoppable:
     source = resolve_source()
-    logger.info("DBG-PRICEBOARD-WORKER-BOOT source=%s", source)
+    log(COMPONENT, "WORKER-BOOT", "ssi worker starting", source=source)
     if source == "ssi":
         from backend.ssi_live import RealSsiWorker
 
@@ -283,7 +286,7 @@ async def _amain() -> None:
     loop = asyncio.get_running_loop()
 
     def _handle_sig(*_args: object) -> None:
-        logger.info("DBG-PRICEBOARD-WORKER-SIGNAL stopping")
+        log(COMPONENT, "WORKER-SIGNAL", "stop signal received")
         worker.request_stop()
 
     for sig in (signal.SIGINT, signal.SIGTERM):

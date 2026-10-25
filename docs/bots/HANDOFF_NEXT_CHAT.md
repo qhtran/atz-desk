@@ -1,103 +1,126 @@
-# Handoff — chat tiếp theo (priceboard FastAPI / iBoard)
+# Handoff — chat tiếp theo (dev.atz.vn priceboard + debug overlay)
 
-**Ngày:** 2026-10-21 (~07:36 ICT)  
-**Branch:** `feature/realtime-fastapi`  
-**HEAD (đã push + VPS pull):** `adc552d`  
-**Orchestrator:** Cursor · Bot code paused · **cấm** sửa nginx `stream.d` / sshd / UFW trừ `user_confirmed_infra: yes`.
+**Ngày:** 2026-10-25 (~02:45 ICT)  
+**Branch (active dev):** `feature/priceboard-debug-trace`  
+**HEAD (đã push + VPS pull):** `781ec9e`  
+**PR:** [#4](https://github.com/qhtran/quanlychungkhoan/pull/4) → `feature/realtime-fastapi` (chưa merge)  
+**Orchestrator:** Cursor · **cấm** sửa nginx `stream.d` / sshd / UFW trừ `user_confirmed_infra: yes`.
 
-**Trigger chat mới:** user gõ **`call progress`** → đọc file này + làm mục **Next**, không hỏi lại context dài.
+**Trigger chat mới:** user gõ **`call progress`**, **`HANDOFF_NEXT_CHAT`**, hoặc dán block **Câu mở chat** → đọc file này + làm **Next**, không hỏi lại context dài.
 
-Đọc trước: `AGENTS.md`, `docs/architecture.md` §8.1, file này, `docs/specs/PRICEBOARD_P1_DEPTH_NN.md`.
+Đọc trước: `AGENTS.md`, `.cursor/rules/dev-atz-scope.mdc`, `docs/specs/PRICEBOARD_DEBUG.md`, `docs/specs/PRICEBOARD_P1_DEPTH_NN.md`, `docs/bots/P0_LIVE_VERIFY.md`.
+
+**Phạm vi mặc định:** **dev.atz.vn** — `backend/`, `frontend/`, `docker-compose.dev.yml`. Prod **atz.vn** chỉ khi user yêu cầu rõ (overlay đã ship @ `781ec9e`).
 
 ---
 
 ## Khi user nói `call progress` — làm ngay
 
-1. `git checkout feature/realtime-fastapi && git pull` (local / cloud worktree).  
-2. Tóm tắt 5 dòng: HEAD · VPS stack · P0 còn gì · P1 · Screener / spark.  
-3. **Ưu tiên theo giờ ICT:**
-   - **Trong phiên GD (≈09:00–15:00):** verify tick live `dev.atz.vn` + capture SSI schema → điền P1 plan §4 → hỏi xác nhận rồi code partial parse.  
-   - **Ngoài phiên:** không giả tick live; harden screener/tests/docs OK.  
-4. **Không** đụng `stream.d` / sshd / UFW / `atz-redis` prod.  
-5. Deploy FE: SSH VPS `git pull` (volume-mount HTML). API Python đổi → `docker compose -f docker-compose.dev.yml restart api` (không `--remove-orphans`).
+1. `git checkout feature/priceboard-debug-trace && git pull`  
+2. Tóm tắt 5 dòng: HEAD · VPS dev stack · VPS prod `vnstocks` · P0 live · P1 §4.  
+3. **ICT:** trong phiên (~09:00–15:00) → verify tick + capture SSI; ngoài phiên → tests/docs/PR.  
+4. Deploy **dev:** pull + `restart api ssi-worker` (mount code). Deploy **prod app:** `docker compose build vnstocks && up -d --no-deps vnstocks` (image, không mount `src/`).  
+5. **Không** đụng `stream.d` / sshd / UFW / logic `atz-redis` prod ngoài yêu cầu.
 
 ---
 
-## SSH VPS (bắt buộc nhớ — key đã sẵn)
+## SSH VPS
 
 ```bash
-ssh -o BatchMode=yes root@112.213.88.230 'cd /opt/vnstocks && git pull --ff-only origin feature/realtime-fastapi'
+ssh -o BatchMode=yes root@112.213.88.230 'cd /opt/vnstocks && git pull --ff-only origin feature/priceboard-debug-trace'
 ```
 
-- Host: `root@112.213.88.230` · path `/opt/vnstocks` · **đừng** tìm skill SSH — gọi thẳng.  
-- Public: `https://dev.atz.vn` (Authentik ForwardAuth).
+| Site | URL | Stack |
+|------|-----|--------|
+| Dev priceboard | https://dev.atz.vn | `docker-compose.dev.yml` · `atz_priceboard` |
+| Prod app | https://atz.vn | `docker-compose.yml` · service **`vnstocks`** `:8501` |
 
 ---
 
-## Đã xong (snapshot)
+## Đã xong (snapshot session này)
 
 | Hạng mục | Chi tiết |
 |----------|----------|
-| Stack | `docker-compose.dev.yml` · **`name: atz_priceboard`** · Redis `:6380` · API `:8000` · join `vnstocks_default` |
-| FE SPA | `frontend/index.html` — 4 tab iBoard / Screener / Danh mục / Tin tức · `.atz-table` · 1 WS |
-| Spark index (1a) | **Done @ `adc552d`** — `renderSparkSvg` / `patchSparkSvg`: gradient area + marker + dashed **ref/high/low** · patch attrs (không re-innerHTML card) · VPS đã pull |
-| Screener | `backend/screener.py` + `POST /api/screener` + FE toolbar · `tests/test_screener.py` Pass |
-| BE | FastAPI `/` + `/ws/priceboard` · Redis `priceboard_ticks` + `priceboard:quotes` |
-| Volume gate | `min_volume: 500000` |
-| Worker | VPS `PRICEBOARD_SOURCE=ssi` · DATA+X-Quote+X-Trade+MI |
-| P0 browser | Login/WS/tabs **Pass** · tick live verify **còn** lúc mở cửa |
-| P1 plan | [`docs/specs/PRICEBOARD_P1_DEPTH_NN.md`](../specs/PRICEBOARD_P1_DEPTH_NN.md) — **chưa** code map depth |
-| Local OrbStack priceboard | **stop** (tránh chiếm `:8000`) |
+| **Observability** | `ERR-PB-001…009` · `origin` file/line · [`PRICEBOARD_DEBUG.md`](../specs/PRICEBOARD_DEBUG.md) |
+| **P1 prep** | `enrichDepth` gate (`?fake_depth=0`) · partial parse tests · worker `ERR-PB-006` rate-limit |
+| **Inspect overlay dev** | `frontend/debug-overlay.js` · `pb-ui:*` · `GET /api/debug-ui/config` · catalog `ui_catalog.json` · ⌘⇧D · storage **`pb-dbg-on`** |
+| **Inspect overlay prod** | Cùng JS trong image · `atz-ui:*` · [`src/atz/ui/debug_overlay.py`](../../src/atz/ui/debug_overlay.py) · static `/static/debug-overlay.*` · catalog `ui_catalog_atz.json` · storage **`atz-dbg-on`** · VPS **rebuilt + restarted** `vnstocks` @ `781ec9e` |
+| **Priceboard FE/BE** | iBoard 4 tab · WS · screener · spark index · worker SSI |
+| **PR #4** | Mở; chưa merge vào `feature/realtime-fastapi` |
+| **Runbook** | [P0_LIVE_VERIFY.md](P0_LIVE_VERIFY.md) (tick live + Inspect checklist) |
 
-**Không ghi** `idx:quote:*` (tránh dual-writer với `atz-ssi-stream`).
+**Chưa có (user đã hỏi):** overlay **không** tự hiện file:dòng khi lỗi runtime; backend log `origin` chỉ trên Docker logs; FE errors chưa gắn panel.
+
+**Local uncommitted / untracked:** `.cursor/rules/dev-atz-scope.mdc`, sửa `AGENTS.md` / `atz.mdc`, `docs/specs/FILTER_SCORING_HUONG1.md` — commit khi user bảo.
+
+**Không ghi** `idx:quote:*` (tránh dual-writer `atz-ssi-stream`).
 
 ---
 
-## VPS
+## Debug overlay — dùng nhanh
 
-| Mục | Giá trị |
-|-----|---------|
-| Path | `/opt/vnstocks` · `feature/realtime-fastapi` @ `adc552d` |
-| Compose | `atz_priceboard` · api + redis-dev + ssi-worker |
-| Mount | `./frontend` + `./backend` → `/app/...` |
-| Prod | Streamlit + `atz-redis` **song song** |
+| | dev.atz.vn | atz.vn |
+|--|------------|--------|
+| Bật | `config/debug_overlay.yaml` · `PB_DEBUG_UI=1` | `ATZ_DEBUG_OVERLAY=1` · groups Authentik |
+| Hotkey | ⌘⇧D / Ctrl⇧D | ⌘⇧D / Ctrl⇧D |
+| Copy | Panel → **Copy JSON** (`ui_ref`, hints, `err_codes`) | Giống |
+| Tắt | `PB_DEBUG_UI=0` hoặc Esc | `ATZ_DEBUG_OVERLAY=0` |
+
+Config chung: [`config/debug_overlay.yaml`](../../config/debug_overlay.yaml) — `surfaces.priceboard` / `surfaces.atz`.
+
+---
+
+## VPS trạng thái (2026-10-25)
+
+| Stack | Branch @ HEAD | Ghi chú |
+|-------|---------------|---------|
+| `atz_priceboard` (dev) | `781ec9e` | mount `backend/` + `frontend/` — pull + restart api đủ cho JS/Python |
+| `vnstocks` (prod) | `781ec9e` | **Cần rebuild image** khi đổi `src/atz` hoặc Dockerfile |
 
 ```bash
-# FE only:
-ssh -o BatchMode=yes root@112.213.88.230 'cd /opt/vnstocks && git pull --ff-only origin feature/realtime-fastapi'
-# API Python:
-ssh -o BatchMode=yes root@112.213.88.230 'cd /opt/vnstocks && docker compose -f docker-compose.dev.yml restart api'
-# SSI log (che token):
-ssh -o BatchMode=yes root@112.213.88.230 'cd /opt/vnstocks && docker compose -f docker-compose.dev.yml logs -f --tail=100 ssi-worker'
+# Dev priceboard
+docker compose -f docker-compose.dev.yml restart api ssi-worker
+
+# Prod app (sau pull + đổi src/Dockerfile)
+docker compose build vnstocks && docker compose up -d --no-deps vnstocks
+
+# Log ERR-PB
+docker compose -f docker-compose.dev.yml logs --tail=200 api ssi-worker 2>&1 | grep -E 'ERR-PB|PB-'
 ```
 
 ---
 
 ## Next (ưu tiên)
 
-### P0 — giờ mở cửa (~09:00 ICT)
-1. Browser `dev.atz.vn`: tick `source=SSI_WS` · volume gate · flash · **spark area/marker/dashed** trên index cards.  
-2. Worker log: LIVE-CONNECT / ticks (che token).
+### P0 — phiên GD (~09:00 ICT)
+1. [P0_LIVE_VERIFY.md](P0_LIVE_VERIFY.md): tick live · volume gate · spark · Inspect pick ô HPG/bid1.  
+2. Capture SSI → điền [P1 §4](../specs/PRICEBOARD_P1_DEPTH_NN.md) → user chọn `2a` partial parse.
+
+### P0.5 — git
+1. Merge / theo dõi PR #4.  
+2. Commit rule `dev-atz-scope.mdc` + AGENTS nếu user muốn đồng bộ repo.
 
 ### P1 — depth / NN
-1. Capture X-Quote/X-Trade/MI → bảng map trong plan §4.  
-2. Partial parse (không bắt buộc `last`) · tắt/gate `enrichDepth` fake.  
-3. `tests/test_tick_contract.py`.
+1. Code map theo §4 sau capture.  
+2. Mở rộng `ui_catalog.json` + hints file:line (overlay v2 — nếu user yêu cầu).
 
-### P2 / backlog spark
-- Cột spark trên hàng cổ phiếu (đã từ chối 1b — chỉ làm khi user chọn lại).  
-- Field `open` trong tick_contract nếu SSI có.  
-- PR → `main` khi P0 tick Pass · throttle WS · quan hệ `atz-ssi-stream`.
+### P2 / backlog
+- Panel “lỗi gần đây” (ERR-PB + origin) trên dev.atz.vn.  
+- `FILTER_SCORING_HUONG1.md` (priceboard screener).  
+- Spark cột equity (khi user chọn).
 
 ---
 
 ## Câu mở chat / Cloud Agent
 
 ```
-call progress
+HANDOFF_NEXT_CHAT
 
 @docs/bots/HANDOFF_NEXT_CHAT.md
-feature/realtime-fastapi @ adc552d · https://dev.atz.vn
+feature/priceboard-debug-trace @ 781ec9e
+dev: https://dev.atz.vn · prod app: https://atz.vn
 SSH: root@112.213.88.230 → /opt/vnstocks
-Không đụng stream.d / sshd / UFW / atz-redis prod.
+Overlay: pb-ui (dev) · atz-ui (prod) · ⌘⇧D · Copy JSON
+Debug logs: docs/specs/PRICEBOARD_DEBUG.md (ERR-PB-* + origin)
+Không đụng stream.d / sshd / UFW.
 ```

@@ -220,7 +220,7 @@ Theo dõi vị thế user đã nhập, tính P&L near-realtime, cảnh báo SL/T
 
 ### 8.1 Priceboard FastAPI / iBoard (song song prod — 2026-10-21)
 
-Stack **dev** trên nhánh `feature/realtime-fastapi`, **không** thay Streamlit `:8501` / `atz-redis` prod.
+Stack **dev** (`dev.atz.vn`) Docker **tách** prod; **cutover đích:** thay source Docker `atz.vn` bằng cùng stack SPA, **nginx giữ nguyên**, promote code dev → prod — [`adr/0009-dual-docker-spa-cutover.md`](adr/0009-dual-docker-spa-cutover.md). Danh mục SPA: [`specs/PORTFOLIO_DEV_FROM_PROD.md`](specs/PORTFOLIO_DEV_FROM_PROD.md).
 
 | Thành phần | Chi tiết |
 |------------|----------|
@@ -233,7 +233,8 @@ Stack **dev** trên nhánh `feature/realtime-fastapi`, **không** thay Streamlit
 | Public | **`https://dev.atz.vn`** — TLS LE · Authentik ForwardAuth (cookie domain `atz.vn`) · `/healthz` + `/outpost…` bypass · `/` + `/ws/` yêu cầu login · conf: `deploy/nginx_dev.conf` → volume `n8n_nginx_config` `conf.d/dev.atz.vn.conf` (listen **8443 ssl proxy_protocol**; **không** sửa `stream.d`) |
 
 Handoff vận hành chat-to-chat: [`docs/bots/HANDOFF_NEXT_CHAT.md`](bots/HANDOFF_NEXT_CHAT.md).  
-Plan P1 depth/NN: [`docs/specs/PRICEBOARD_P1_DEPTH_NN.md`](specs/PRICEBOARD_P1_DEPTH_NN.md).
+Plan P1 depth/NN: [`docs/specs/PRICEBOARD_P1_DEPTH_NN.md`](specs/PRICEBOARD_P1_DEPTH_NN.md).  
+Debug / mã lỗi priceboard (ERR-PB-*, trace `origin`): [`docs/specs/PRICEBOARD_DEBUG.md`](specs/PRICEBOARD_DEBUG.md).
 
 ---
 

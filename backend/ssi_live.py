@@ -21,10 +21,22 @@ import requests
 import websockets
 from websockets.exceptions import ConnectionClosed
 
-from backend.tick_contract import build_tick, parse_ssi_envelope
+from backend.observability import (
+    ERR_PB_CONFIG,
+    ERR_PB_PARSE,
+    ERR_PB_REDIS_IO,
+    ERR_PB_SSI_AUTH,
+    ERR_PB_SSI_SESSION,
+    PriceboardError,
+    log,
+    setup,
+)
+from backend.board_universe import default_watchlist, exchange_for_symbol
+from backend.tick_contract import build_tick, parse_ssi_envelope, ssi_envelope_has_symbol
 from backend.volume_filter import load_min_volume, passes_volume_filter
 
-logger = logging.getLogger("atz.priceboard.ssi_live")
+setup("ssi_live")
+COMPONENT = "ssi_live"
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
 CHANNEL = os.getenv("PRICEBOARD_CHANNEL", "priceboard_ticks")
@@ -34,12 +46,8 @@ MIN_VOLUME = load_min_volume()
 DEFAULT_WS = "wss://stream.ssi.com.vn/ws/v3"
 DEFAULT_AUTH = "https://api.ssi.com.vn/api/v3/auth/token"
 
-# VN30-ish watchlist when config.symbols empty
-DEFAULT_SYMBOLS = [
-    "ACB", "BCM", "BID", "BVH", "CTG", "FPT", "GAS", "GVR", "HDB", "HPG",
-    "LPB", "MBB", "MSN", "MWG", "PLX", "SAB", "SHB", "SSB", "SSI", "STB",
-    "TCB", "TPB", "VCB", "VHM", "VIB", "VIC", "VJC", "VNM", "VPB", "VRE",
-]
+# Watchlist đa sàn khi config.symbols / ENV rỗng (VN30 + HOSE thêm + mẫu HNX/UPCOM)
+DEFAULT_SYMBOLS = default_watchlist()
 
 INDEX_SEED = [
     ("VNINDEX", 1285.4),
@@ -63,7 +71,14 @@ def _load_yaml_cfg() -> dict[str, Any]:
         doc = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
         return dict(doc.get("priceboard") or {})
     except Exception as exc:  # noqa: BLE001
-        logger.warning("DBG-PRICEBOARD-CFG-YAML-ERR err=%s", exc)
+        log(
+            COMPONENT,
+            "CFG-YAML",
+            "priceboard yaml unreadable",
+            logging.WARNING,
+            error_code=ERR_PB_CONFIG,
+            exc=exc,
+        )
         return {}
 
 
@@ -74,14 +89,17 @@ def _ssi_credentials() -> tuple[str, str]:
 
 
 def fetch_access_token(auth_url: str, api_key: str, api_secret: str, timeout: float = 20) -> str:
-    r = requests.post(
-        auth_url,
-        json={"apiKey": api_key, "apiSecret": api_secret},
-        headers={"Content-Type": "application/json", "Accept": "application/json"},
-        timeout=timeout,
-    )
-    r.raise_for_status()
-    body = r.json()
+    try:
+        r = requests.post(
+            auth_url,
+            json={"apiKey": api_key, "apiSecret": api_secret},
+            headers={"Content-Type": "application/json", "Accept": "application/json"},
+            timeout=timeout,
+        )
+        r.raise_for_status()
+        body = r.json()
+    except Exception as exc:  # noqa: BLE001
+        raise PriceboardError(ERR_PB_SSI_AUTH, "SSI token request failed", cause=exc) from exc
     tok = (
         body.get("accessToken")
         or body.get("access_token")
@@ -89,7 +107,10 @@ def fetch_access_token(auth_url: str, api_key: str, api_secret: str, timeout: fl
         or (body.get("data") or {}).get("access_token")
     )
     if not tok:
-        raise RuntimeError(f"SSI auth no token status={body.get('status')} msg={body.get('message')}")
+        raise PriceboardError(
+            ERR_PB_SSI_AUTH,
+            f"SSI auth no token status={body.get('status')} msg={body.get('message')}",
+        )
     return str(tok)
 
 
@@ -133,6 +154,7 @@ class RealSsiWorker:
             os.getenv("SSI_RECONNECT_MAX") or ssi.get("reconnect_max_seconds") or 60
         )
         self._board: dict[str, dict] = {}
+        self._parse_warn_at: float = 0.0
 
     def request_stop(self) -> None:
         self._stop.set()
@@ -171,6 +193,7 @@ class RealSsiWorker:
                 last=0,
                 ref=0,
                 kind="equity",
+                exchange=exchange_for_symbol(sym),
                 volume=0,
                 source="SSI_WS",
             )
@@ -178,28 +201,41 @@ class RealSsiWorker:
             self._board[sym] = tick
             pipe.hset(HASH_KEY, sym, json.dumps(tick, separators=(",", ":")))
         await pipe.execute()
-        logger.info(
-            "DBG-PRICEBOARD-SSI-LIVE-SEED indexes=%s equities=%s min_volume=%s",
-            len(INDEX_SEED),
-            len(self.symbols),
-            MIN_VOLUME,
+        log(
+            COMPONENT,
+            "SSI-LIVE-SEED",
+            "seeded redis skeleton",
+            indexes=len(INDEX_SEED),
+            equities=len(self.symbols),
+            min_volume=MIN_VOLUME,
         )
 
     async def _publish(self, redis: aioredis.Redis, tick: dict) -> None:
         sym = tick["symbol"]
         self._board[sym] = tick
-        if not passes_volume_filter(tick, MIN_VOLUME):
-            await redis.hdel(HASH_KEY, sym)
-            remove = json.dumps(
-                {"type": "remove", "symbol": sym},
-                ensure_ascii=False,
-                separators=(",", ":"),
+        try:
+            if not passes_volume_filter(tick, MIN_VOLUME):
+                await redis.hdel(HASH_KEY, sym)
+                remove = json.dumps(
+                    {"type": "remove", "symbol": sym},
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                )
+                await redis.publish(CHANNEL, remove)
+                return
+            body = json.dumps(tick, ensure_ascii=False, separators=(",", ":"))
+            await redis.hset(HASH_KEY, sym, body)
+            await redis.publish(CHANNEL, body)
+        except Exception as exc:  # noqa: BLE001
+            log(
+                COMPONENT,
+                "REDIS-PUBLISH",
+                "redis publish failed",
+                logging.ERROR,
+                error_code=ERR_PB_REDIS_IO,
+                exc=exc,
+                symbol=sym,
             )
-            await redis.publish(CHANNEL, remove)
-            return
-        body = json.dumps(tick, ensure_ascii=False, separators=(",", ":"))
-        await redis.hset(HASH_KEY, sym, body)
-        await redis.publish(CHANNEL, body)
 
     @staticmethod
     def _merge_extreme(
@@ -293,10 +329,15 @@ class RealSsiWorker:
             except asyncio.CancelledError:
                 raise
             except Exception as exc:  # noqa: BLE001
-                logger.error(
-                    "DBG-PRICEBOARD-SSI-LIVE-RECONNECT err=%s retry_in=%.1fs",
-                    exc,
-                    delay,
+                code = ERR_PB_SSI_AUTH if isinstance(exc, PriceboardError) and exc.error_code == ERR_PB_SSI_AUTH else ERR_PB_SSI_SESSION
+                log(
+                    COMPONENT,
+                    "SSI-LIVE-RECONNECT",
+                    "ssi live session error",
+                    logging.ERROR,
+                    error_code=code,
+                    exc=exc,
+                    retry_in_s=delay,
                 )
                 try:
                     await asyncio.wait_for(self._stop.wait(), timeout=delay)
@@ -315,11 +356,13 @@ class RealSsiWorker:
         try:
             await self._seed_skeleton(redis)
             headers = {"Authorization": f"Bearer {token}"}
-            logger.info(
-                "DBG-PRICEBOARD-SSI-LIVE-CONNECT url=%s channels=%s topics=%s",
-                self.ws_url,
-                self.channels,
-                len(topics),
+            log(
+                COMPONENT,
+                "SSI-LIVE-CONNECT",
+                "connecting ssi websocket",
+                ws_url=self.ws_url,
+                channels=self.channels,
+                topics=len(topics),
             )
             async with websockets.connect(
                 self.ws_url,
@@ -330,7 +373,7 @@ class RealSsiWorker:
                 for ch in self.channels:
                     sub = {"method": "SUBSCRIBE", "channel": ch, "topics": topics}
                     await ws.send(json.dumps(sub))
-                logger.info("DBG-PRICEBOARD-SSI-LIVE-SUBSCRIBED channels=%s", self.channels)
+                log(COMPONENT, "SSI-LIVE-SUBSCRIBED", "ssi channels subscribed", channels=self.channels)
 
                 while not self._stop.is_set():
                     try:
@@ -366,6 +409,21 @@ class RealSsiWorker:
 
                     parsed = parse_ssi_envelope(msg)
                     if not parsed:
+                        if ssi_envelope_has_symbol(msg):
+                            now = time.time()
+                            if now - self._parse_warn_at >= 60.0:
+                                self._parse_warn_at = now
+                                ch = str(msg.get("channel") or "")
+                                body = msg.get("data") if isinstance(msg.get("data"), dict) else {}
+                                log(
+                                    COMPONENT,
+                                    "SSI-PARSE-MISS",
+                                    "ssi envelope had symbol but parse returned none",
+                                    logging.WARNING,
+                                    error_code=ERR_PB_PARSE,
+                                    channel=ch,
+                                    body_keys=sorted(body.keys()) if isinstance(body, dict) else [],
+                                )
                         continue
                     tick = self._merge_tick(parsed)
                     if tick["kind"] == "equity" and float(tick.get("last") or 0) == 0 and float(tick.get("ref") or 0) == 0:
@@ -373,4 +431,4 @@ class RealSsiWorker:
                     await self._publish(redis, tick)
         finally:
             await redis.aclose()
-            logger.info("DBG-PRICEBOARD-SSI-LIVE-SESSION-END t=%s", int(time.time()))
+            log(COMPONENT, "SSI-LIVE-SESSION-END", "ssi live session ended", t=int(time.time()))

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from backend.tick_contract import build_tick, parse_ssi_envelope
+from backend.tick_contract import build_tick, parse_ssi_envelope, ssi_envelope_has_symbol
 
 
 def test_parse_index_prefers_v_not_c():
@@ -134,3 +134,43 @@ def test_parse_index_trade_volume_v_not_used_as_last():
 
 def test_parse_index_rejects_huge_v_without_summary():
     assert parse_ssi_envelope({"data": {"s": "VNINDEX", "v": "99433205"}}) is None
+    assert ssi_envelope_has_symbol({"data": {"s": "VNINDEX", "v": "99433205"}})
+
+
+def test_parse_x_quote_depth_only_no_last():
+    """P1 skeleton: X-Quote partial — merge path expects depth without last."""
+    parsed = parse_ssi_envelope(
+        {
+            "channel": "X-Quote",
+            "data": {
+                "s": "FPT",
+                "bidPrice1": "95000",
+                "bidVolume1": "1200",
+                "offerPrice1": "95100",
+                "offerVolume1": "800",
+            },
+        }
+    )
+    assert parsed is not None
+    assert parsed["last"] is None
+    assert parsed["bid1"] == 95000
+    assert parsed["ask1"] == 95100
+    assert parsed["bidVol1"] == 1200
+    assert parsed["channel"] == "X-QUOTE"
+
+
+def test_parse_mi_foreign_only_no_last():
+    parsed = parse_ssi_envelope(
+        {
+            "channel": "MI",
+            "data": {"StockSymbol": "HPG", "fBuyVol": "15000", "fSellVol": "22000"},
+        }
+    )
+    assert parsed is not None
+    assert parsed["last"] is None
+    assert parsed["foreignBuy"] == 15000
+    assert parsed["foreignSell"] == 22000
+
+
+def test_ssi_envelope_has_symbol_false_on_heartbeat():
+    assert not ssi_envelope_has_symbol({"method": "PING", "channel": "HEARTBEAT"})

@@ -12,9 +12,22 @@ debug_overlay:
   max_row_chips: 40
   # Cho phép khi không có header Authentik (dev local).
   allow_local: true
-  # Khớp không phân biệt hoa thường với X-authentik-groups.
+  # true = chỉ allowed_groups (khi header groups rỗng overlay sẽ tắt). false = mọi user đã login Authentik (giống dev priceboard).
+  require_admin_groups: false
+  # Khớp không phân biệt hoa thường với X-authentik-groups (hỗ trợ | hoặc ,).
   allowed_groups:
     - admin
     - admins
     - authentik Admins
   storage_key: atz-dbg-on
+  # dev.atz.vn SPA — Hybrid Inspect (pb-ui:*), hotkey ⌘⇧D, storage pb-dbg-on
+  priceboard_storage_key: pb-dbg-on
+  surfaces:
+    priceboard:
+      enabled: true
+      inspect: true
+      catalog: ui_catalog.json
+    atz:
+      enabled: true
+      inspect: true
+      catalog: ui_catalog_atz.json
