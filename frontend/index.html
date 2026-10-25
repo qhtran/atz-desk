@@ -223,6 +223,16 @@
       border-color: #ffd900;
     }
 
+    .daily-scan-banner {
+      padding: 6px 10px;
+      font-size: 11px;
+      color: #a3a3a3;
+      background: #141414;
+      border: 1px solid #2a2a2a;
+      border-top: 0;
+    }
+    .daily-scan-banner strong { color: #ffd900; font-weight: 600; }
+
     /* ===== Shared table component (.atz-table) ===== */
     .atz-table-wrap {
       overflow: auto;
@@ -507,14 +517,18 @@
         <input type="checkbox" id="scr-flag-floor" /> Sàn
       </label>
       <label for="scr-source" class="text-[11px] text-gray-500">Nguồn</label>
-      <select id="scr-source" title="Live = lọc tick WS · Tín hiệu ngày = quét OHLCV">
+      <select id="scr-source" title="Live = lọc tick WS · Tín hiệu ngày = quét OHLCV · Top 20 = KL phiên">
         <option value="live" selected>Live WS</option>
         <option value="daily">Tín hiệu ngày</option>
+        <option value="topvol">Top 20 KL phiên</option>
       </select>
       <select id="scr-daily-filter" hidden title="Filter OHLCV (F1)">
         <option value="rsi">RSI F1</option>
         <option value="macd">MACD F1</option>
         <option value="ma">MA</option>
+        <option value="candle">Nến F1</option>
+        <option value="volume">KL đột biến</option>
+        <option value="foreign">Khối ngoại</option>
         <option value="advisor">Cố vấn (0–100)</option>
       </select>
       <label for="scr-advisor-min" id="scr-advisor-min-wrap" class="text-[11px] text-gray-500" hidden>Điểm ≥</label>
@@ -528,6 +542,9 @@
       <button type="button" class="btn-quiet" id="scr-reset">Reset</button>
       <span class="text-[11px] text-gray-500" id="scr-status">WS live · FilterEngine</span>
     </div>
+    <div id="daily-scan-banner" class="daily-scan-banner" hidden>
+      Chế độ <strong>Tín hiệu ngày</strong> — đang hiển thị full rổ tab sàn; bấm <strong>Quét</strong> để lọc theo filter OHLCV.
+    </div>
     <div class="market-bar" role="tablist" aria-label="Rổ thị trường">
       <button type="button" class="mkt-tab is-active" data-market="HOSE" data-atd-id="pb-ui:iboard.market.HOSE" role="tab" aria-selected="true">HOSE</button>
       <button type="button" class="mkt-tab" data-market="VN30" data-atd-id="pb-ui:iboard.market.VN30" role="tab" aria-selected="false">VN30</button>
@@ -540,6 +557,7 @@
           <tr>
             <th rowspan="2" class="th-pin" title="Ghim">★</th>
             <th rowspan="2" class="th-sym">Mã CK</th>
+            <th rowspan="2" class="num th-advisor" id="th-advisor-col" hidden title="Điểm cố vấn 0–100">CV</th>
             <th rowspan="2" class="num">Trần</th>
             <th rowspan="2" class="num">Sàn</th>
             <th rowspan="2" class="num">TC</th>
@@ -707,7 +725,18 @@
     };
     let scrSource = "live";
     let dailySignalSet = null;
+    let dailyHitBySymbol = new Map();
     let dailyScanMeta = { filter: "", matched: 0, scanned: 0 };
+    let topVolSet = new Set();
+    const DAILY_FILTER_LABELS = {
+      rsi: "RSI F1",
+      macd: "MACD F1",
+      ma: "MA",
+      candle: "Nến F1",
+      volume: "KL đột biến",
+      foreign: "Khối ngoại",
+      advisor: "Cố vấn",
+    };
     let portfolio = [];
     let pfAuthenticated = false;
 
@@ -815,18 +844,107 @@
     }
 
     /* ===== Market filter (iBoard) ===== */
-    function rowVisible(symbol) {
-      const row = state.get(symbol);
-      if (!row || INDEX_SYMBOLS.has(symbol)) return false;
-      const q = searchQuery.trim().toUpperCase();
-      if (q && !symbol.includes(q)) return false;
+    function matchesMarketTab(symbol, row) {
       const ex = resolveExchange(row);
       if (marketTab === "VN30" && !VN30_SET.has(symbol)) return false;
       if (marketTab === "HOSE" && ex !== "HOSE") return false;
       if (marketTab === "HNX" && ex !== "HNX") return false;
       if (marketTab === "UPCOM" && ex !== "UPCOM") return false;
+      return true;
+    }
+
+    function computeTopVolSet(limit = 20) {
+      const rows = [];
+      for (const [sym, row] of state) {
+        if (!row || INDEX_SYMBOLS.has(sym)) continue;
+        if (!matchesMarketTab(sym, row)) continue;
+        rows.push({ sym, vol: Number(row.volume) || 0 });
+      }
+      rows.sort((a, b) => b.vol - a.vol);
+      return new Set(rows.slice(0, limit).map((r) => r.sym));
+    }
+
+    function refreshTopVolSet() {
+      if (scrSource !== "topvol") {
+        topVolSet = new Set();
+        return;
+      }
+      topVolSet = computeTopVolSet(20);
+    }
+
+    function syncDailyScanBanner() {
+      const el = document.getElementById("daily-scan-banner");
+      if (!el) return;
+      const show = scrSource === "daily" && !dailySignalSet;
+      if (show) el.removeAttribute("hidden");
+      else el.setAttribute("hidden", "");
+    }
+
+    function setAdvisorColumnVisible(show) {
+      const th = document.getElementById("th-advisor-col");
+      if (th) {
+        if (show) th.removeAttribute("hidden");
+        else th.setAttribute("hidden", "");
+      }
+      elBody.querySelectorAll(".advisor-col").forEach((td) => {
+        if (show) td.removeAttribute("hidden");
+        else td.setAttribute("hidden", "");
+      });
+    }
+
+    function ensureAdvisorCell(tr) {
+      let td = tr.querySelector('[data-f="advisor"]');
+      if (td) return td;
+      td = document.createElement("td");
+      td.className = "num tabular-nums text-[#ffd900] advisor-col";
+      td.dataset.f = "advisor";
+      const symTd = tr.querySelector('[data-f="symbol"]');
+      if (symTd) symTd.insertAdjacentElement("afterend", td);
+      return td;
+    }
+
+    function patchAdvisorCell(tr, symbol) {
+      const td = ensureAdvisorCell(tr);
+      const hit = dailyHitBySymbol.get(symbol);
+      const showCol = scrSource === "daily" && dailyScanMeta.filter === "advisor" && dailySignalSet;
+      if (!showCol || !hit || hit.total == null) {
+        td.textContent = "";
+        td.removeAttribute("title");
+        return;
+      }
+      const total = Math.round(Number(hit.total));
+      td.textContent = String(total);
+      const parts = [
+        `CV ${total}`,
+        hit.signal_type ? `· ${hit.signal_type}` : "",
+        hit.trend != null ? `· trend ${hit.trend}` : "",
+        hit.flow != null ? `· flow ${hit.flow}` : "",
+        hit.short_term != null ? `· ST ${hit.short_term}` : "",
+        hit.reason ? `\n${hit.reason}` : "",
+      ];
+      td.title = parts.join(" ").trim();
+    }
+
+    function refreshAdvisorColumnUi() {
+      const show = scrSource === "daily" && dailyScanMeta.filter === "advisor" && !!dailySignalSet;
+      setAdvisorColumnVisible(show);
+      if (!show) return;
+      elBody.querySelectorAll("tr[data-symbol]").forEach((tr) => {
+        patchAdvisorCell(tr, tr.dataset.symbol);
+      });
+    }
+
+    function rowVisible(symbol) {
+      const row = state.get(symbol);
+      if (!row || INDEX_SYMBOLS.has(symbol)) return false;
+      const q = searchQuery.trim().toUpperCase();
+      if (q && !symbol.includes(q)) return false;
+      if (!matchesMarketTab(symbol, row)) return false;
+      if (scrSource === "topvol") {
+        return topVolSet.has(symbol);
+      }
       if (scrSource === "daily") {
-        if (!dailySignalSet) return false;
+        if (!dailySignalSet) return true;
         return dailySignalSet.has(symbol);
       }
       return matchesScreenerFilters(row);
@@ -841,9 +959,13 @@
     }
 
     function applyBoardFilter() {
+      refreshTopVolSet();
       elBody.querySelectorAll("tr[data-symbol]").forEach((tr) => {
         tr.style.display = rowVisible(tr.dataset.symbol) ? "" : "none";
+        patchAdvisorCell(tr, tr.dataset.symbol);
       });
+      syncDailyScanBanner();
+      refreshAdvisorColumnUi();
       updatePinnedPositions();
       updateScreenerStatus(countVisibleBoardRows());
     }
@@ -1197,6 +1319,7 @@
       tr.innerHTML = `
         <td class="pin-cell"><button type="button" class="pin-btn" aria-label="Ghim ${symbol}" aria-pressed="false">★</button></td>
         <td class="sym" data-f="symbol"></td>
+        <td class="num tabular-nums text-[#ffd900] advisor-col" data-f="advisor" hidden></td>
         <td class="num tabular-nums text-[#ff00ff]" data-f="ceil"></td>
         <td class="num tabular-nums text-[#00ffff]" data-f="floor"></td>
         <td class="num tabular-nums text-[#ffd900]" data-f="ref"></td>
@@ -1373,6 +1496,7 @@
       tr.querySelector('[data-f="vol"]').textContent = fmtVol(row.volume);
       tr.querySelector('[data-f="fbuy"]').textContent = fmtVol(row.foreignBuy);
       tr.querySelector('[data-f="fsell"]').textContent = fmtVol(row.foreignSell);
+      patchAdvisorCell(tr, row.symbol);
 
       if (flash && prev && prev.last !== row.last) {
         flashCell(lastEl, row.change || (row.last > prev.last ? 1 : -1));
@@ -1459,12 +1583,17 @@
     function updateScreenerStatus(n) {
       const el = document.getElementById("scr-status");
       if (!el) return;
+      if (scrSource === "topvol") {
+        el.textContent = `Top 20 KL phiên · ${marketTab} · ${n} mã`;
+        return;
+      }
       if (scrSource === "daily") {
+        const fl = DAILY_FILTER_LABELS[dailyScanMeta.filter] || dailyScanMeta.filter;
         if (!dailySignalSet) {
-          el.textContent = `Tín hiệu ngày · chọn filter + Quét · ${n} mã`;
+          el.textContent = `Tín hiệu ngày · full rổ · bấm Quét · ${n} mã`;
           return;
         }
-        el.textContent = `Tín hiệu ngày · ${dailyScanMeta.filter} · ${dailyScanMeta.matched}/${dailyScanMeta.scanned} hit · ${n} mã`;
+        el.textContent = `Tín hiệu ngày · ${fl} · ${dailyScanMeta.matched}/${dailyScanMeta.scanned} hit · ${n} mã`;
         return;
       }
       const nRules = buildScreenerRules(screenerSpec).length;
@@ -1473,6 +1602,7 @@
 
     function syncScreenerSourceUi() {
       const daily = scrSource === "daily";
+      const preset = scrSource === "topvol";
       const dailyFilter = document.getElementById("scr-daily-filter").value || "rsi";
       const advisor = daily && dailyFilter === "advisor";
       document.getElementById("scr-daily-filter").hidden = !daily;
@@ -1480,15 +1610,39 @@
       document.getElementById("scr-advisor-min-wrap").hidden = !advisor;
       document.getElementById("scr-advisor-min").hidden = !advisor;
       document.querySelectorAll(".scr-live-only").forEach((el) => {
-        el.hidden = daily;
+        el.hidden = daily || preset;
       });
       [
         "scr-vol-min", "scr-pct-min", "scr-pct-max",
         "scr-flag-up2", "scr-flag-down2", "scr-flag-volhi", "scr-flag-ceil", "scr-flag-floor",
       ].forEach((id) => {
         const node = document.getElementById(id);
-        if (node) node.disabled = daily;
+        if (node) node.disabled = daily || preset;
       });
+      if (!daily || !dailySignalSet || dailyFilter !== "advisor") {
+        if (!daily || dailyFilter !== "advisor") setAdvisorColumnVisible(false);
+      }
+      syncDailyScanBanner();
+    }
+
+    async function loadDailyFilterOptions() {
+      const sel = document.getElementById("scr-daily-filter");
+      if (!sel) return;
+      try {
+        const res = await fetch("/api/iboard/daily-signals/filters");
+        const data = await res.json();
+        if (!data.ok || !Array.isArray(data.filters) || !data.filters.length) return;
+        const prev = sel.value;
+        sel.innerHTML = data.filters
+          .map((key) => {
+            const label = DAILY_FILTER_LABELS[key] || key;
+            return `<option value="${key}">${label}</option>`;
+          })
+          .join("");
+        if (data.filters.includes(prev)) sel.value = prev;
+      } catch {
+        /* giữ option HTML tĩnh */
+      }
     }
 
     async function runDailySignalScan() {
@@ -1508,11 +1662,19 @@
         const data = await res.json();
         if (!data.ok || !Array.isArray(data.symbols)) {
           dailySignalSet = new Set();
+          dailyHitBySymbol = new Map();
           dailyScanMeta = { filter, matched: 0, scanned: 0 };
           applyBoardFilter();
           return;
         }
         dailySignalSet = new Set(data.symbols.map((s) => String(s).toUpperCase()));
+        dailyHitBySymbol = new Map();
+        if (Array.isArray(data.hits)) {
+          data.hits.forEach((h) => {
+            const sym = String(h.symbol || "").toUpperCase();
+            if (sym) dailyHitBySymbol.set(sym, h);
+          });
+        }
         dailyScanMeta = {
           filter: data.filter || filter,
           matched: data.matched ?? dailySignalSet.size,
@@ -1561,20 +1723,33 @@
           document.getElementById(id).checked = false;
         });
         dailySignalSet = null;
+        dailyHitBySymbol = new Map();
         readScreenerToolbar();
       });
       document.getElementById("scr-source").addEventListener("change", () => {
-        scrSource = document.getElementById("scr-source").value === "daily" ? "daily" : "live";
-        if (scrSource === "live") dailySignalSet = null;
+        const v = document.getElementById("scr-source").value;
+        scrSource = v === "daily" || v === "topvol" ? v : "live";
+        if (scrSource !== "daily") {
+          dailySignalSet = null;
+          dailyHitBySymbol = new Map();
+          dailyScanMeta = { filter: "", matched: 0, scanned: 0 };
+        }
         syncScreenerSourceUi();
         applyBoardFilter();
       });
       document.getElementById("scr-daily-run").addEventListener("click", () => runDailySignalScan());
       document.getElementById("scr-daily-filter").addEventListener("change", () => {
         dailySignalSet = null;
+        dailyHitBySymbol = new Map();
+        dailyScanMeta = {
+          filter: document.getElementById("scr-daily-filter").value || "rsi",
+          matched: 0,
+          scanned: 0,
+        };
         syncScreenerSourceUi();
         applyBoardFilter();
       });
+      void loadDailyFilterOptions();
       syncScreenerSourceUi();
     }
     wireScreenerToolbar();

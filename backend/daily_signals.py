@@ -2,16 +2,30 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 
 from backend.board_universe import symbols_for_market_tab
 from backend.portfolio_f3 import _ensure_legacy_path, _legacy_atz_root, load_symbol_bars
 
-ALLOWED_FILTERS = frozenset({"rsi", "macd", "ma", "advisor"})
+ALLOWED_FILTERS = frozenset({"rsi", "macd", "ma", "candle", "volume", "foreign", "advisor"})
+
+_VN_TZ = ZoneInfo("Asia/Ho_Chi_Minh")
+_scan_cache: dict[tuple[Any, ...], tuple[str, list[dict[str, Any]], int, int]] = {}
+
+
+def _trading_day_key() -> str:
+    return datetime.now(_VN_TZ).strftime("%Y-%m-%d")
+
+
+def clear_daily_scan_cache() -> None:
+    """Xóa cache quét (dùng trong test / sau cập nhật OHLCV)."""
+    _scan_cache.clear()
 
 
 @lru_cache(maxsize=1)
@@ -91,16 +105,31 @@ def scan_daily_signals(
     symbols: list[str] | None = None,
     bars_dir: Path | None = None,
     buy_min_total: float | None = None,
+    use_cache: bool = True,
 ) -> tuple[list[dict[str, Any]], int, int]:
     """Quét mã; trả (hits, scanned, matched_count)."""
     name = str(filter_name or "rsi").strip().lower()
+    day = _trading_day_key()
+    sym_key: tuple[str, ...] | None = None
+    if symbols is not None:
+        sym_key = tuple(sorted(str(s).upper() for s in symbols))
+    cache_key = (market.upper(), name, buy_min_total, sym_key)
+    if use_cache:
+        cached = _scan_cache.get(cache_key)
+        if cached and cached[0] == day:
+            hits, scanned, matched = cached[1], cached[2], cached[3]
+            return list(hits), scanned, matched
+
     if name == "advisor":
-        return scan_advisor_scores(
+        hits, scanned, matched = scan_advisor_scores(
             market=market,
             symbols=symbols,
             bars_dir=bars_dir,
             buy_min_total=buy_min_total,
         )
+        if use_cache:
+            _scan_cache[cache_key] = (day, hits, scanned, matched)
+        return hits, scanned, matched
     registry = _filter_registry()
     module = registry.get(name)
     if module is None:
@@ -129,7 +158,10 @@ def scan_daily_signals(
                 "reason": getattr(result, "reason", ""),
             }
         )
-    return hits, scanned, len(hits)
+    matched = len(hits)
+    if use_cache:
+        _scan_cache[cache_key] = (day, hits, scanned, matched)
+    return hits, scanned, matched
 
 
 def hit_symbols(

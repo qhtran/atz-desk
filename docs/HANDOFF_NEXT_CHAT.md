@@ -63,10 +63,10 @@
 
 ## Việc tiếp (gợi ý)
 
-1. **UX Tín hiệu ngày** — trước Quét: giữ full board hoặc banner 「Bấm Quét để lọc」; tránh user tưởng lỗi.
-2. **Daily signals mở rộng** — candle / volume / foreign; cache theo ngày.
-3. **Top 20 / Top KL phiên** — subset iBoard (không bảng mới).
-4. **Hiển thị điểm cố vấn trên board** — cột phụ hoặc tooltip từ `hits[]` (chưa có UI).
+1. ~~UX Tín hiệu ngày~~ — full rổ + banner trước Quét (local).
+2. ~~Daily signals mở rộng~~ — filter `candle|volume|foreign` + cache theo ngày VN (`clear_daily_scan_cache`).
+3. ~~Top 20 KL phiên~~ — nguồn **Top 20 KL phiên** trên toolbar (WS snapshot).
+4. ~~Cột CV cố vấn~~ — sau Quét filter advisor + tooltip breakdown.
 5. **Parity / cutover** — ADR 0007 checklist (prod ngoài scope mặc định).
 6. **CapitalLedger / NAV** — optional Danh mục.
 
