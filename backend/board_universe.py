@@ -17,6 +17,10 @@ INDEX_BOARD_SYMBOLS: tuple[str, ...] = (
 )
 INDEX_SYMBOL_SET = frozenset(INDEX_BOARD_SYMBOLS)
 
+# HĐTL: index-bar + một dòng depth (parse/merge như equity, không indexsummary)
+FUTURES_BOARD_SYMBOLS: tuple[str, ...] = ("VN30F1M", "VN30F2M")
+FUTURES_SYMBOL_SET = frozenset(FUTURES_BOARD_SYMBOLS)
+
 # Ref mặc định khi Redis chưa có tick (khớp backend/ssi_live INDEX_SEED)
 INDEX_DEFAULT_REFS: dict[str, float] = {
     "VNINDEX": 1285.4,

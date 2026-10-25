@@ -5,11 +5,46 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from backend.board_universe import INDEX_SYMBOL_SET
+from backend.board_universe import FUTURES_SYMBOL_SET, INDEX_SYMBOL_SET
 
 TZ_VN = timezone(timedelta(hours=7))
 
 INDEX_SYMBOLS = INDEX_SYMBOL_SET
+
+
+def tick_kind_for_symbol(sym: str) -> str:
+    """HĐTL dùng cột depth equity; chỉ số thuần dùng kind index."""
+    code = str(sym or "").strip().upper()
+    if code in FUTURES_SYMBOL_SET:
+        return "equity"
+    if code in INDEX_SYMBOLS:
+        return "index"
+    return "equity"
+
+
+def tick_has_payload(tick: dict[str, Any]) -> bool:
+    """True nếu tick đủ dữ liệu để publish (tránh skeleton rỗng)."""
+    last = float(tick.get("last") or 0)
+    ref = float(tick.get("ref") or 0)
+    if last > 0 or ref > 0:
+        return True
+    if tick.get("kind") == "index":
+        return last > 0 or float(tick.get("volume") or 0) > 0
+    depth_or_flow = any(
+        tick.get(k) is not None
+        for k in (
+            "bid1",
+            "ask1",
+            "bid2",
+            "ask2",
+            "bid3",
+            "ask3",
+            "foreignBuy",
+            "foreignSell",
+            "matchVol",
+        )
+    )
+    return depth_or_flow
 
 
 def now_iso() -> str:
@@ -249,7 +284,7 @@ def parse_ssi_envelope(msg: dict[str, Any]) -> dict[str, Any] | None:
     }
     sym = aliases.get(sym, sym)
 
-    kind = "index" if sym in INDEX_SYMBOLS else "equity"
+    kind = tick_kind_for_symbol(sym)
 
     # Message shape: indexsummary (v=level) vs trade tick (p=last, v=volume)
     is_index_summary = any(k in body for k in ("adv", "dec", "cr", "tmv", "tvp", "indexValue", "IndexValue")) or (

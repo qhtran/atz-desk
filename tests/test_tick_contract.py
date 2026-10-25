@@ -4,7 +4,13 @@ from __future__ import annotations
 
 import pytest
 
-from backend.tick_contract import build_tick, parse_ssi_envelope, ssi_envelope_has_symbol
+from backend.tick_contract import (
+    build_tick,
+    parse_ssi_envelope,
+    ssi_envelope_has_symbol,
+    tick_has_payload,
+    tick_kind_for_symbol,
+)
 
 
 def test_parse_index_prefers_v_not_c():
@@ -137,6 +143,29 @@ def test_parse_index_rejects_huge_v_without_summary():
     assert ssi_envelope_has_symbol({"data": {"s": "VNINDEX", "v": "99433205"}})
 
 
+def test_futures_symbols_parse_as_equity_kind():
+    assert tick_kind_for_symbol("VN30F1M") == "equity"
+    assert tick_kind_for_symbol("VNINDEX") == "index"
+
+
+def test_parse_vn30f1m_x_quote_depth():
+    parsed = parse_ssi_envelope(
+        {
+            "channel": "X-Quote",
+            "data": {
+                "s": "VN30F1M",
+                "bidPrice1": "1846.0",
+                "offerPrice1": "1848.0",
+            },
+        }
+    )
+    assert parsed is not None
+    assert parsed["kind"] == "equity"
+    assert parsed["last"] is None
+    assert parsed["bid1"] == pytest.approx(1846.0)
+    assert parsed["ask1"] == pytest.approx(1848.0)
+
+
 def test_parse_x_quote_depth_only_no_last():
     """P1 skeleton: X-Quote partial — merge path expects depth without last."""
     parsed = parse_ssi_envelope(
@@ -174,3 +203,8 @@ def test_parse_mi_foreign_only_no_last():
 
 def test_ssi_envelope_has_symbol_false_on_heartbeat():
     assert not ssi_envelope_has_symbol({"method": "PING", "channel": "HEARTBEAT"})
+
+
+def test_tick_has_payload_depth_only_equity():
+    assert tick_has_payload({"kind": "equity", "last": 0, "ref": 0, "bid1": 1.0}) is True
+    assert tick_has_payload({"kind": "equity", "last": 0, "ref": 0}) is False

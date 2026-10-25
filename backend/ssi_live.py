@@ -32,7 +32,12 @@ from backend.observability import (
     setup,
 )
 from backend.board_universe import default_watchlist, exchange_for_symbol
-from backend.tick_contract import build_tick, parse_ssi_envelope, ssi_envelope_has_symbol
+from backend.tick_contract import (
+    build_tick,
+    parse_ssi_envelope,
+    ssi_envelope_has_symbol,
+    tick_has_payload,
+)
 from backend.volume_filter import load_min_volume, passes_volume_filter
 
 setup("ssi_live")
@@ -430,7 +435,7 @@ class RealSsiWorker:
                                 )
                         continue
                     tick = self._merge_tick(parsed)
-                    if tick["kind"] == "equity" and float(tick.get("last") or 0) == 0 and float(tick.get("ref") or 0) == 0:
+                    if not tick_has_payload(tick):
                         continue
                     await self._publish(redis, tick)
         finally:

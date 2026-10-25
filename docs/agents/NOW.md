@@ -46,11 +46,11 @@ idle
 ## Last executor
 
 ```text
-task: —
-result: —
+task: T-hdtl-depth-p1-prep
+result: Pass — HĐTL kind equity, tick_has_payload, enrichDepth partial WS
 status: idle
-pytest: —
-master_ack: yes (T-iboard-ohlcv-eod archived)
+pytest: Pass (21)
+master_ack: pending
 ```
 
 Khi ack: Doing về trống; chuyển packet sang `docs/agents/archive/tasks/`. Không chép brief vào file này.
