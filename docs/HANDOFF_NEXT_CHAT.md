@@ -87,8 +87,8 @@ Khác:
 1. ~~UX Tín hiệu ngày / filter mở rộng / Top 20 / cột CV~~ — ship `2e9ee5d`.
 2. ~~OHLCV EOD seed iBoard~~ — ship `7ae3da5` + verify VPS.
 3. ~~HĐTL depth P1 prep~~ — ship `6fe7f21`; **pass** khi verify trong phiên.
-3. **Parity / cutover** — ADR 0007 (prod ngoài scope mặc định).
-4. **CapitalLedger / NAV** — optional Danh mục.
+4. **Parity / cutover** — ADR 0007 (prod ngoài scope mặc định).
+5. **CapitalLedger / NAV** — optional Danh mục.
 
 ---
 
