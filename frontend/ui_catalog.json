@@ -66,6 +66,28 @@
       "err_codes": ["ERR-PB-006"]
     },
     {
+      "match": "pb-ui:iboard.market.VN30F1M",
+      "matchType": "exact",
+      "breadcrumb": ["iBoard", "Tab sàn", "VN30F1M"],
+      "hints": {
+        "fe": "frontend/index.html — marketTab VN30F1M, FUTURES_BOARD_SYMBOLS",
+        "be": "backend/board_universe.py — symbols_for_market_tab",
+        "spec": "config/index.yaml"
+      },
+      "err_codes": []
+    },
+    {
+      "match": "pb-ui:iboard.market.VN30F2M",
+      "matchType": "exact",
+      "breadcrumb": ["iBoard", "Tab sàn", "VN30F2M"],
+      "hints": {
+        "fe": "frontend/index.html — marketTab VN30F2M, FUTURES_BOARD_SYMBOLS",
+        "be": "backend/board_universe.py — symbols_for_market_tab",
+        "spec": "config/index.yaml"
+      },
+      "err_codes": []
+    },
+    {
       "match": "pb-ui:iboard.index.VN30F2M",
       "matchType": "exact",
       "breadcrumb": ["iBoard", "Chỉ số", "VN30F2M"],

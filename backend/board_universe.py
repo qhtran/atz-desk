@@ -68,6 +68,8 @@ def symbols_for_market_tab(market: str) -> list[str]:
     tab = str(market or "HOSE").strip().upper()
     if tab == "FOREIGN":
         return default_watchlist()
+    if tab in ("VN30F1M", "VN30F2M"):
+        return [tab]
     if tab == "VN30":
         return list(VN30_SYMBOLS)
     if tab == "HNX":

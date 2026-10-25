@@ -548,6 +548,8 @@
     <div class="market-bar" role="tablist" aria-label="Rổ thị trường">
       <button type="button" class="mkt-tab is-active" data-market="HOSE" data-atd-id="pb-ui:iboard.market.HOSE" role="tab" aria-selected="true">HOSE</button>
       <button type="button" class="mkt-tab" data-market="VN30" data-atd-id="pb-ui:iboard.market.VN30" role="tab" aria-selected="false">VN30</button>
+      <button type="button" class="mkt-tab" data-market="VN30F1M" data-atd-id="pb-ui:iboard.market.VN30F1M" role="tab" aria-selected="false">VN30F1M</button>
+      <button type="button" class="mkt-tab" data-market="VN30F2M" data-atd-id="pb-ui:iboard.market.VN30F2M" role="tab" aria-selected="false">VN30F2M</button>
       <button type="button" class="mkt-tab" data-market="HNX" data-atd-id="pb-ui:iboard.market.HNX" role="tab" aria-selected="false">HNX</button>
       <button type="button" class="mkt-tab" data-market="UPCOM" data-atd-id="pb-ui:iboard.market.UPCOM" role="tab" aria-selected="false">UPCOM</button>
       <button type="button" class="mkt-tab" data-market="FOREIGN" data-atd-id="pb-ui:iboard.market.FOREIGN" role="tab" aria-selected="false">Khối ngoại</button>
@@ -678,6 +680,8 @@
       UPCOMINDEX: "UPCOM",
     };
     const INDEX_ORDER = ["VNINDEX", "VN30", "VN30F1M", "VN30F2M", "HNXINDEX", "UPCOMINDEX"];
+    /** HĐTL VN30: tab sàn + một dòng trên bảng depth (khác chỉ số index-bar thuần). */
+    const FUTURES_BOARD_SYMBOLS = new Set(["VN30F1M", "VN30F2M"]);
     const INDEX_STUBS = {
       VNINDEX: { symbol: "VNINDEX", kind: "index", exchange: "HOSE", ref: 1285.4, last: 1285.4, change: 0, change_pct: 0, volume: 0 },
       VN30: { symbol: "VN30", kind: "index", exchange: "HOSE", ref: 1342.1, last: 1342.1, change: 0, change_pct: 0, volume: 0 },
@@ -703,7 +707,7 @@
     const MARKET_KEY = "atz.iboard.market";
     const APP_TAB_KEY = "atz.app.tab";
     const PORTFOLIO_KEY = "atz.app.portfolio";
-    const VALID_MARKETS = new Set(["HOSE", "VN30", "HNX", "UPCOM", "FOREIGN"]);
+    const VALID_MARKETS = new Set(["HOSE", "VN30", "VN30F1M", "VN30F2M", "HNX", "UPCOM", "FOREIGN"]);
     const VALID_APP_TABS = new Set(["iboard", "portfolio", "news"]);
     /** P1: fake depth until X-Quote map Pass — ?fake_depth=0 or localStorage pb_fake_depth=0 */
     const FAKE_DEPTH_STORAGE_KEY = "pb_fake_depth";
@@ -861,7 +865,13 @@
       return marketTab === "FOREIGN";
     }
 
+    function isFuturesMarketTab() {
+      return FUTURES_BOARD_SYMBOLS.has(marketTab);
+    }
+
     function matchesMarketTab(symbol, row) {
+      if (marketTab === "VN30F1M") return symbol === "VN30F1M";
+      if (marketTab === "VN30F2M") return symbol === "VN30F2M";
       if (isForeignMarketTab()) return true;
       const ex = resolveExchange(row);
       if (marketTab === "VN30" && !VN30_SET.has(symbol)) return false;
@@ -960,7 +970,9 @@
 
     function rowVisible(symbol) {
       const row = state.get(symbol);
-      if (!row || INDEX_SYMBOLS.has(symbol)) return false;
+      if (!row) return false;
+      if (INDEX_SYMBOLS.has(symbol) && !FUTURES_BOARD_SYMBOLS.has(symbol)) return false;
+      if (FUTURES_BOARD_SYMBOLS.has(symbol) && marketTab !== symbol) return false;
       const q = searchQuery.trim().toUpperCase();
       if (q && !symbol.includes(q)) return false;
       if (!matchesMarketTab(symbol, row)) return false;
@@ -1334,7 +1346,7 @@
     }
 
     function enrichDepth(row) {
-      if (row.kind === "index") return row;
+      if (row.kind === "index" && !FUTURES_BOARD_SYMBOLS.has(row.symbol)) return row;
       if (row.bid1 != null && row.ask1 != null) {
         if (row.source === "SSI_WS" && row.symbol) symbolsWithServerDepth.add(row.symbol);
         return row;
@@ -1569,6 +1581,10 @@
     }
 
     function applyRow(row, opts = {}) {
+      if (FUTURES_BOARD_SYMBOLS.has(row.symbol)) {
+        applyEquity(row, opts);
+        return;
+      }
       if (INDEX_SYMBOLS.has(row.symbol)) {
         applyIndex(row, opts);
         return;
@@ -1660,6 +1676,10 @@
           return;
         }
         el.textContent = `${isForeignMarketTab() ? "Khối ngoại" : "Tín hiệu ngày"} · ${fl} · ${dailyScanMeta.matched}/${dailyScanMeta.scanned} hit · ${n} mã`;
+        return;
+      }
+      if (isFuturesMarketTab()) {
+        el.textContent = `${marketTab} · HĐTL · ${n} mã`;
         return;
       }
       if (isForeignMarketTab()) {

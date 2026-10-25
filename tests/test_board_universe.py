@@ -27,6 +27,11 @@ def test_index_board_symbols_include_vn30_futures():
     assert "VN30F2M" in INDEX_BOARD_SYMBOLS
 
 
+def test_futures_market_tabs_single_symbol():
+    assert symbols_for_market_tab("VN30F1M") == ["VN30F1M"]
+    assert symbols_for_market_tab("VN30F2M") == ["VN30F2M"]
+
+
 def test_foreign_market_tab_uses_full_watchlist():
     foreign = symbols_for_market_tab("FOREIGN")
     wl = default_watchlist()
