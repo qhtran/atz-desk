@@ -46,11 +46,11 @@ idle
 ## Last executor
 
 ```text
-task: T-iboard-ohlcv-eod
-result: Pass — seed VPS 80 mã (78 ok) qua container vnstocks; curl VN30 rsi matched=3; HOSE advisor matched=45
+task: —
+result: —
 status: idle
-pytest: Pass (6)
-master_ack: pending
+pytest: —
+master_ack: yes (T-iboard-ohlcv-eod archived)
 ```
 
 Khi ack: Doing về trống; chuyển packet sang `docs/agents/archive/tasks/`. Không chép brief vào file này.

@@ -1,7 +1,7 @@
 # Handoff — priceboard dev (chat tiếp theo)
 
 **Cập nhật:** 2026-10-25 (sync HEAD)  
-**Nhánh deploy VPS:** `main` — commit **`39d7fe7`** (HĐTL tab sàn + daily UX gần nhất)  
+**Nhánh deploy VPS:** `main` — commit **`7ae3da5`** (OHLCV seed iBoard + script VPS)  
 **Deploy:** `./scripts/deploy-vps.sh dev` (hoặc `--push` trước khi deploy)
 
 ## Ai đọc file này
@@ -24,6 +24,7 @@
 
 | Commit | Nội dung |
 |--------|----------|
+| **`7ae3da5`** | **OHLCV EOD seed:** `backend/ohlcv_seed.py`, `./scripts/seed-iboard-ohlcv.sh` (container `vnstocks`) |
 | **`39d7fe7`** | Tab sàn **VN30F1M** / **VN30F2M** trên market-bar (HĐTL depth board) |
 | `c41b2f7` / `d399410` | Index-bar luôn có VN30F1M/F2M; tab **Khối ngoại** |
 | **`2e9ee5d`** | **Daily UX:** full rổ + banner trước Quét; filter OHLCV `candle\|volume\|foreign`; **Top 20 KL phiên** (WS); cột CV cố vấn + tooltip |
@@ -78,14 +79,14 @@
 
 | # | Hướng | Vì sao | Pass gợi ý |
 |---|--------|--------|------------|
-| **A** | **EOD / OHLCV seed** — tool `python -m backend.ohlcv_seed` (host VPS) | `scanned=0` hoặc hit lệch khi `data/ohlcv` cũ/thiếu | Chạy seed + restart `api`; `POST daily-signals` → `scanned>0` |
 | **B** | **HĐTL depth UX** (VN30F1M/F2M) | Tab sàn đã ship; depth vẫn **fake** (`enrichDepth`) tới P1 map X-Quote | Spec `docs/specs/PRICEBOARD_P1_DEPTH_NN.md` — partial tick + tắt fake khi WS có `bid1`; **capture schema cần giờ mở cửa** |
 
 Khác:
 
 1. ~~UX Tín hiệu ngày / filter mở rộng / Top 20 / cột CV~~ — ship `2e9ee5d`.
-2. **Parity / cutover** — ADR 0007 (prod ngoài scope mặc định).
-3. **CapitalLedger / NAV** — optional Danh mục.
+2. ~~OHLCV EOD seed iBoard~~ — ship `7ae3da5` + verify VPS.
+3. **Parity / cutover** — ADR 0007 (prod ngoài scope mặc định).
+4. **CapitalLedger / NAV** — optional Danh mục.
 
 ---
 
