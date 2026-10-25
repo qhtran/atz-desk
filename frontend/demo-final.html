@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="vi" class="h-full">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DEV · Demo giao diện đích — atz priceboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ["Inter", "IBM Plex Sans", "system-ui", "sans-serif"],
+          },
+          colors: {
+            ssi: {
+              ceil: "#ff00ff",
+              floor: "#00ffff",
+              up: "#00ff00",
+              down: "#ff0000",
+              ref: "#ffd900",
+            },
+          },
+        },
+      },
+    };
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root { color-scheme: dark; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      background: #0a0a0a;
+      color: #e5e5e5;
+      font-size: 13px;
+      letter-spacing: -0.01em;
+      line-height: 1.25;
+    }
+    .app-tab {
+      display: inline-flex; align-items: center; height: 28px;
+      padding: 0 12px; border: 0; border-bottom: 2px solid transparent;
+      background: transparent; color: #a3a3a3; font-size: 12px; font-weight: 600;
+      cursor: pointer;
+    }
+    .app-tab:hover { color: #fff; }
+    .app-tab.is-active { color: #ffd900; border-bottom-color: #ffd900; }
+    .panel[hidden] { display: none !important; }
+    .atz-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+    .atz-table th, .atz-table td {
+      padding: 6px 8px; border-bottom: 1px solid #1f1f1f;
+      text-align: right; white-space: nowrap;
+    }
+    .atz-table th:first-child, .atz-table td:first-child,
+    .atz-table th.sym, .atz-table td.sym { text-align: left; }
+    .atz-table thead th {
+      position: sticky; top: 0; z-index: 2;
+      background: #111; color: #a3a3a3; font-weight: 600; font-size: 11px;
+      border-bottom: 1px solid #2a2a2a;
+    }
+    .atz-table tbody tr:hover { background: rgba(42, 42, 42, 0.55); }
+    .atz-table td.sym { font-weight: 700; color: #fff; }
+    .text-avg { color: #ffd900; font-weight: 600; }
+    .text-up { color: #00ff00; }
+    .text-down { color: #ff0000; }
+    .badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 1px 6px; border-radius: 3px; font-size: 11px; font-weight: 600;
+    }
+    .badge-avg { background: rgba(255, 217, 0, 0.12); color: #ffd900; }
+    .badge-open { background: rgba(34, 197, 94, 0.12); color: #4ade80; }
+    .badge-closed { background: rgba(115, 115, 115, 0.2); color: #a3a3a3; }
+    .bell {
+      display: inline-flex; width: 22px; height: 22px; align-items: center; justify-content: center;
+      border-radius: 999px; border: 1px solid transparent;
+    }
+    .bell svg { width: 14px; height: 14px; }
+    .bell-sl {
+      color: #ff0000; border-color: rgba(255, 0, 0, 0.45);
+      background: rgba(255, 0, 0, 0.12);
+      animation: bellPulse 1.1s ease-in-out infinite;
+    }
+    .bell-tp {
+      color: #00ff00; border-color: rgba(0, 255, 0, 0.4);
+      background: rgba(0, 255, 0, 0.1);
+    }
+    .bell-idle { color: #525252; border-color: #2a2a2a; background: #111; }
+    @keyframes bellPulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.35); }
+      50% { box-shadow: 0 0 0 6px rgba(255, 0, 0, 0); }
+    }
+    .tranche-row td { background: #0f0f0f; color: #a3a3a3; font-size: 12px; }
+    .stat-card {
+      border: 1px solid #2a2a2a; background: #111; border-radius: 4px; padding: 10px 12px;
+      min-width: 140px;
+    }
+    .stat-card .lbl { color: #737373; font-size: 11px; font-weight: 600; }
+    .stat-card .val { margin-top: 4px; font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .btn {
+      height: 28px; padding: 0 10px; border: 1px solid #2a2a2a; border-radius: 3px;
+      background: #111; color: #e5e5e5; font-size: 12px; font-weight: 600; cursor: pointer;
+    }
+    .btn:hover { border-color: #3a3a3a; color: #fff; }
+    .btn-primary { background: #ffd900; color: #0a0a0a; border-color: #ffd900; }
+    .btn-primary:hover { filter: brightness(1.05); color: #0a0a0a; }
+    .demo-banner {
+      background: linear-gradient(90deg, rgba(255, 217, 0, 0.12), transparent);
+      border-bottom: 1px solid #2a2a2a;
+      color: #ffd900;
+      font-size: 11px; font-weight: 600;
+      padding: 6px 12px;
+    }
+    .idx-mini {
+      border: 1px solid #2a2a2a; background: #111; border-radius: 4px; padding: 8px 10px; min-width: 120px;
+    }
+    details.pos > summary { list-style: none; cursor: pointer; }
+    details.pos > summary::-webkit-details-marker { display: none; }
+    .chev { display: inline-block; transition: transform 0.15s; color: #737373; }
+    details[open] .chev { transform: rotate(90deg); }
+  </style>
+</head>
+<body class="font-sans antialiased">
+  <div class="demo-banner">
+    DEMO giao diện đích DEV · dữ liệu giả · không gọi API —
+    <a class="underline hover:text-white" href="/">← về board live</a>
+  </div>
+
+  <header class="border-b border-[#2a2a2a] bg-[#0a0a0a]">
+    <div class="flex items-center justify-between gap-3 px-3 py-1.5">
+      <div class="flex items-center gap-3 min-w-0">
+        <div class="font-bold text-[13px] tracking-tight text-white shrink-0">atz <span class="text-ssi-ref">DEV</span></div>
+        <nav class="flex items-center overflow-x-auto" role="tablist" aria-label="App tabs">
+          <button type="button" class="app-tab" data-app="iboard" role="tab">Giao dịch iBoard</button>
+          <button type="button" class="app-tab" data-app="signals" role="tab">Bộ lọc tín hiệu</button>
+          <button type="button" class="app-tab is-active" data-app="trading" role="tab" aria-selected="true">Trạm Trading</button>
+          <button type="button" class="app-tab" data-app="assets" role="tab">QL tài sản</button>
+          <button type="button" class="app-tab" data-app="portfolio" role="tab">Danh mục</button>
+          <button type="button" class="app-tab" data-app="news" role="tab">Tin tức</button>
+        </nav>
+      </div>
+      <div class="flex items-center gap-2 shrink-0 text-[11px] text-neutral-500">
+        <span class="hidden sm:inline">trace <code class="text-neutral-400">demo-ui-final</code></span>
+        <span class="px-1.5 py-0.5 rounded border border-[#2a2a2a] bg-[#111] text-ssi-up">SSI_WS</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ===== Trạm Trading (main demo) ===== -->
+  <section id="panel-trading" class="panel" data-panel="trading" role="tabpanel">
+    <div class="flex flex-wrap items-stretch gap-2 px-3 py-2 border-b border-[#2a2a2a]">
+      <div class="stat-card">
+        <div class="lbl">Vốn khả dụng</div>
+        <div class="val">482.5 <span class="text-[12px] font-medium text-neutral-500">tr</span></div>
+      </div>
+      <div class="stat-card">
+        <div class="lbl">Đã đầu tư</div>
+        <div class="val text-avg">186.2 <span class="text-[12px] font-medium text-neutral-500">tr</span></div>
+      </div>
+      <div class="stat-card">
+        <div class="lbl">Giá trị TT</div>
+        <div class="val">194.8 <span class="text-[12px] font-medium text-neutral-500">tr</span></div>
+      </div>
+      <div class="stat-card">
+        <div class="lbl">PnL chưa thực hiện</div>
+        <div class="val text-up">+8.6 tr · +4.6%</div>
+      </div>
+      <div class="stat-card">
+        <div class="lbl">Chuông</div>
+        <div class="val flex items-center gap-2 text-[13px]">
+          <span class="bell bell-sl" title="SL"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 22a2 2 0 0 0 2-2h-4a2 2 0 0 0 2 2zm6-6V11a6 6 0 1 0-12 0v5l-2 2v1h16v-1l-2-2z"/></svg></span>
+          <span class="text-down">1 SL</span>
+          <span class="bell bell-tp" title="TP"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 22a2 2 0 0 0 2-2h-4a2 2 0 0 0 2 2zm6-6V11a6 6 0 1 0-12 0v5l-2 2v1h16v-1l-2-2z"/></svg></span>
+          <span class="text-up">2 TP</span>
+        </div>
+      </div>
+      <div class="ml-auto flex items-end gap-2 pb-0.5">
+        <button type="button" class="btn btn-primary" id="btn-add-buy">+ Mua / Tranche</button>
+        <button type="button" class="btn">Bán một phần</button>
+        <button type="button" class="btn">Xuất sổ</button>
+      </div>
+    </div>
+
+    <div class="px-3 py-2 flex flex-wrap gap-3 items-center border-b border-[#1f1f1f] text-[11px] text-neutral-500">
+      <span>Phí môi giới mặc định <strong class="text-neutral-300">0.15%</strong></span>
+      <span>·</span>
+      <span>Thuế bán <strong class="text-neutral-300">0.1%</strong></span>
+      <span>·</span>
+      <span>Giá TB hiển thị <span class="text-avg">vàng</span> · lãi <span class="text-up">xanh +</span> · lỗ <span class="text-down">đỏ −</span></span>
+      <span class="ml-auto">Giá live từ Redis <code class="text-neutral-400">priceboard:quotes</code></span>
+    </div>
+
+    <div class="overflow-auto" style="max-height: calc(100vh - 210px)">
+      <table class="atz-table">
+        <thead>
+          <tr>
+            <th class="sym">Mã</th>
+            <th>KL</th>
+            <th>Giá TB</th>
+            <th>Giá TT</th>
+            <th>+/−</th>
+            <th>%</th>
+            <th>Đầu tư</th>
+            <th>GT hiện tại</th>
+            <th>PnL</th>
+            <th>SL / TP</th>
+            <th>Alert</th>
+            <th>Trạng thái</th>
+          </tr>
+        </thead>
+        <tbody id="pos-body">
+          <!-- filled by JS -->
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ===== iBoard shell ===== -->
+  <section id="panel-iboard" class="panel" data-panel="iboard" role="tabpanel" hidden>
+    <div class="flex gap-2 px-3 py-2 border-b border-[#2a2a2a] overflow-x-auto">
+      <div class="idx-mini"><div class="text-[10px] text-neutral-500 font-semibold">VNINDEX</div><div class="text-up font-bold">1,701.08 <span class="text-[11px]">+0.54%</span></div></div>
+      <div class="idx-mini"><div class="text-[10px] text-neutral-500 font-semibold">VN30</div><div class="text-up font-bold">1,851.73 <span class="text-[11px]">+0.34%</span></div></div>
+      <div class="idx-mini"><div class="text-[10px] text-neutral-500 font-semibold">HNX</div><div class="text-down font-bold">257.07 <span class="text-[11px]">−0.35%</span></div></div>
+    </div>
+    <div class="px-3 py-8 text-center text-neutral-500 text-sm">
+      Panel iBoard = board live hiện tại (<code class="text-neutral-400">index.html</code>). Demo này tập trung Trạm Trading.
+    </div>
+  </section>
+
+  <section id="panel-signals" class="panel" data-panel="signals" role="tabpanel" hidden>
+    <div class="px-3 py-8 text-center text-neutral-500 text-sm">Screener / Bộ lọc tín hiệu — giữ toolbar + bảng hiện có trên DEV.</div>
+  </section>
+
+  <!-- ===== QL tài sản ===== -->
+  <section id="panel-assets" class="panel" data-panel="assets" role="tabpanel" hidden>
+    <div class="px-3 py-3 grid gap-3 md:grid-cols-3">
+      <div class="stat-card md:col-span-1">
+        <div class="lbl">Vốn gốc</div>
+        <div class="val">500.0 tr</div>
+      </div>
+      <div class="stat-card">
+        <div class="lbl">Nạp / rút tháng này</div>
+        <div class="val text-up">+20.0 / −5.0 tr</div>
+      </div>
+      <div class="stat-card">
+        <div class="lbl">Risk / lệnh tối đa</div>
+        <div class="val">2% · 40 tr</div>
+      </div>
+    </div>
+    <div class="px-3 pb-4">
+      <h2 class="text-[12px] font-semibold text-neutral-400 mb-2">Sổ kế toán (trade_transactions)</h2>
+      <div class="overflow-auto border border-[#2a2a2a] rounded">
+        <table class="atz-table">
+          <thead>
+            <tr>
+              <th class="sym">Thời gian</th>
+              <th class="sym">Mã</th>
+              <th>Loại</th>
+              <th>Tranche</th>
+              <th>KL</th>
+              <th>Giá</th>
+              <th>Phí</th>
+              <th>Thuế</th>
+              <th>Ghi chú</th>
+            </tr>
+          </thead>
+          <tbody class="text-[12px]">
+            <tr>
+              <td class="sym text-neutral-400">21/10 09:15</td>
+              <td class="sym">FPT</td>
+              <td class="text-avg">BUY</td>
+              <td>T1</td>
+              <td>200</td>
+              <td class="text-avg">58,300</td>
+              <td>174,900</td>
+              <td>—</td>
+              <td class="sym text-neutral-500">Mở vị thế</td>
+            </tr>
+            <tr>
+              <td class="sym text-neutral-400">21/10 10:02</td>
+              <td class="sym">FPT</td>
+              <td class="text-avg">BUY</td>
+              <td>T2</td>
+              <td>100</td>
+              <td class="text-avg">57,800</td>
+              <td>86,700</td>
+              <td>—</td>
+              <td class="sym text-neutral-500">Tranche 2</td>
+            </tr>
+            <tr>
+              <td class="sym text-neutral-400">22/10 13:40</td>
+              <td class="sym">HPG</td>
+              <td class="text-down">SELL</td>
+              <td>—</td>
+              <td>500</td>
+              <td>21,200</td>
+              <td>15,900</td>
+              <td>10,600</td>
+              <td class="sym text-neutral-500">Chốt 1 phần</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section id="panel-portfolio" class="panel" data-panel="portfolio" role="tabpanel" hidden>
+    <div class="px-3 py-8 text-center text-neutral-500 text-sm">Danh mục tổng hợp — liên kết Trạm Trading + pin board.</div>
+  </section>
+  <section id="panel-news" class="panel" data-panel="news" role="tabpanel" hidden>
+    <div class="px-3 py-8 text-center text-neutral-500 text-sm">Tin tức / Nghiên cứu — placeholder đích.</div>
+  </section>
+
+  <!-- Modal thêm mua (demo) -->
+  <dialog id="dlg-buy" class="rounded border border-[#2a2a2a] bg-[#111] text-[#e5e5e5] p-0 w-[min(420px,92vw)] backdrop:bg-black/60">
+    <form method="dialog" class="p-4 space-y-3">
+      <div class="flex items-center justify-between">
+        <h3 class="font-semibold text-[14px]">Mua / thêm Tranche</h3>
+        <button value="cancel" class="btn">Đóng</button>
+      </div>
+      <label class="block text-[11px] text-neutral-500">Mã
+        <input name="symbol" value="FPT" class="mt-1 w-full h-8 px-2 rounded border border-[#2a2a2a] bg-[#0a0a0a]" />
+      </label>
+      <div class="grid grid-cols-2 gap-2">
+        <label class="block text-[11px] text-neutral-500">KL
+          <input name="qty" type="number" value="100" class="mt-1 w-full h-8 px-2 rounded border border-[#2a2a2a] bg-[#0a0a0a]" />
+        </label>
+        <label class="block text-[11px] text-neutral-500">Giá mua
+          <input name="price" type="number" value="58000" class="mt-1 w-full h-8 px-2 rounded border border-[#2a2a2a] bg-[#0a0a0a] text-avg" />
+        </label>
+      </div>
+      <label class="block text-[11px] text-neutral-500">Tranche
+        <select class="mt-1 w-full h-8 px-2 rounded border border-[#2a2a2a] bg-[#0a0a0a]">
+          <option>T1</option><option>T2</option><option selected>T3</option><option>T4</option><option>T5</option>
+        </select>
+      </label>
+      <p class="text-[11px] text-neutral-500">Phí ước tính 0.15% · ghi <code>trade_transactions</code> · cập nhật avg.</p>
+      <button value="ok" class="btn btn-primary w-full">Lưu giao dịch (demo)</button>
+    </form>
+  </dialog>
+
+  <script>
+    const BELL = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 22a2 2 0 0 0 2-2h-4a2 2 0 0 0 2 2zm6-6V11a6 6 0 1 0-12 0v5l-2 2v1h16v-1l-2-2z"/></svg>`;
+
+    const positions = [
+      {
+        symbol: "FPT",
+        qty: 300,
+        avg: 58133,
+        last: 58000,
+        invested: 17_440_000,
+        mv: 17_400_000,
+        pnl: -40_000,
+        pnlPct: -0.23,
+        sl: 56500,
+        tp: [62000, 65000, 70000],
+        alert: "idle",
+        status: "open",
+        tranches: [
+          { t: 1, qty: 200, price: 58300, fee: 174900 },
+          { t: 2, qty: 100, price: 57800, fee: 86700 },
+        ],
+      },
+      {
+        symbol: "HPG",
+        qty: 2000,
+        avg: 21040,
+        last: 21200,
+        invested: 42_080_000,
+        mv: 42_400_000,
+        pnl: 320_000,
+        pnlPct: 0.76,
+        sl: 20000,
+        tp: [22000, 23500],
+        alert: "tp",
+        status: "open",
+        tranches: [
+          { t: 1, qty: 1000, price: 20950, fee: 314250 },
+          { t: 2, qty: 500, price: 21100, fee: 158250 },
+          { t: 3, qty: 500, price: 21150, fee: 158625 },
+        ],
+      },
+      {
+        symbol: "VCB",
+        qty: 500,
+        avg: 56200,
+        last: 54800,
+        invested: 28_100_000,
+        mv: 27_400_000,
+        pnl: -700_000,
+        pnlPct: -2.49,
+        sl: 55000,
+        tp: [59000, 62000],
+        alert: "sl",
+        status: "open",
+        tranches: [
+          { t: 1, qty: 300, price: 55800, fee: 251100 },
+          { t: 2, qty: 200, price: 56800, fee: 170400 },
+        ],
+      },
+      {
+        symbol: "MWG",
+        qty: 0,
+        avg: 61200,
+        last: 64500,
+        invested: 0,
+        mv: 0,
+        pnl: 1_250_000,
+        pnlPct: 8.2,
+        sl: null,
+        tp: [],
+        alert: "idle",
+        status: "closed",
+        tranches: [
+          { t: 1, qty: 200, price: 61200, fee: 183600 },
+        ],
+      },
+    ];
+
+    function fmtVnd(n) {
+      return Math.round(n).toLocaleString("vi-VN");
+    }
+    function fmtTr(n) {
+      return (n / 1e6).toFixed(1) + " tr";
+    }
+    function pnlClass(n) {
+      return n > 0 ? "text-up" : n < 0 ? "text-down" : "text-neutral-400";
+    }
+    function pnlText(n, pct) {
+      const sign = n > 0 ? "+" : n < 0 ? "−" : "";
+      const abs = Math.abs(n);
+      const pSign = pct > 0 ? "+" : pct < 0 ? "−" : "";
+      return `${sign}${fmtTr(abs)} · ${pSign}${Math.abs(pct).toFixed(2)}%`;
+    }
+    function bellHtml(alert) {
+      if (alert === "sl") return `<span class="bell bell-sl" title="Vượt / chạm SL">${BELL}</span>`;
+      if (alert === "tp") return `<span class="bell bell-tp" title="Chạm TP">${BELL}</span>`;
+      return `<span class="bell bell-idle" title="Không cảnh báo">${BELL}</span>`;
+    }
+
+    function render() {
+      const body = document.getElementById("pos-body");
+      body.innerHTML = positions.map((p) => {
+        const chg = p.last - p.avg;
+        const chgPct = p.avg ? (chg / p.avg) * 100 : 0;
+        const statusBadge = p.status === "open"
+          ? `<span class="badge badge-open">OPEN</span>`
+          : `<span class="badge badge-closed">CLOSED</span>`;
+        const tpStr = (p.tp || []).map((x) => fmtVnd(x)).join(" / ") || "—";
+        const slStr = p.sl != null ? fmtVnd(p.sl) : "—";
+        const trancheRows = (p.tranches || []).map((tr) => `
+          <tr class="tranche-row">
+            <td class="sym pl-8">↳ T${tr.t}</td>
+            <td>${tr.qty.toLocaleString("vi-VN")}</td>
+            <td class="text-avg">${fmtVnd(tr.price)}</td>
+            <td colspan="2" class="text-left text-neutral-500">phí ${fmtVnd(tr.fee)}</td>
+            <td colspan="7"></td>
+          </tr>`).join("");
+        return `
+          <details class="pos contents">
+            <summary class="contents">
+              <tr>
+                <td class="sym">
+                  <span class="chev mr-1">▸</span>${p.symbol}
+                  <span class="ml-1 text-[10px] text-neutral-500">${(p.tranches || []).length}T</span>
+                </td>
+                <td>${p.qty.toLocaleString("vi-VN")}</td>
+                <td><span class="badge badge-avg">${fmtVnd(p.avg)}</span></td>
+                <td class="${pnlClass(chg)}">${fmtVnd(p.last)}</td>
+                <td class="${pnlClass(chg)}">${chg > 0 ? "+" : chg < 0 ? "−" : ""}${fmtVnd(Math.abs(chg))}</td>
+                <td class="${pnlClass(chgPct)}">${chgPct > 0 ? "+" : chgPct < 0 ? "−" : ""}${Math.abs(chgPct).toFixed(2)}%</td>
+                <td>${fmtTr(p.invested)}</td>
+                <td>${fmtTr(p.mv)}</td>
+                <td class="${pnlClass(p.pnl)} font-semibold">${pnlText(p.pnl, p.pnlPct)}</td>
+                <td class="text-[11px]"><span class="text-down">${slStr}</span> / <span class="text-up">${tpStr}</span></td>
+                <td>${bellHtml(p.alert)}</td>
+                <td>${statusBadge}</td>
+              </tr>
+            </summary>
+            ${trancheRows}
+          </details>`;
+      }).join("");
+
+      // details/summary with table rows: re-bind open toggle via click on first cell
+      body.querySelectorAll("details.pos").forEach((d) => {
+        const sumRow = d.querySelector("summary tr");
+        if (!sumRow) return;
+        sumRow.addEventListener("click", (e) => {
+          e.preventDefault();
+          d.open = !d.open;
+          const chev = sumRow.querySelector(".chev");
+          if (chev) chev.textContent = d.open ? "▾" : "▸";
+          // move tranche rows after summary row visually: append into tbody after this detail
+        });
+      });
+    }
+
+    // Simpler table render without broken details-in-table
+    function renderTable() {
+      const body = document.getElementById("pos-body");
+      const rows = [];
+      positions.forEach((p, idx) => {
+        const chg = p.last - p.avg;
+        const chgPct = p.avg ? (chg / p.avg) * 100 : 0;
+        const statusBadge = p.status === "open"
+          ? `<span class="badge badge-open">OPEN</span>`
+          : `<span class="badge badge-closed">CLOSED</span>`;
+        const tpStr = (p.tp || []).map((x) => fmtVnd(x)).join(" / ") || "—";
+        const slStr = p.sl != null ? fmtVnd(p.sl) : "—";
+        rows.push(`
+          <tr data-pos="${idx}" class="pos-main cursor-pointer">
+            <td class="sym"><span class="chev" data-chev="${idx}">▸</span> ${p.symbol}
+              <span class="ml-1 text-[10px] text-neutral-500">${(p.tranches || []).length}T</span></td>
+            <td>${p.qty.toLocaleString("vi-VN")}</td>
+            <td><span class="badge badge-avg">${fmtVnd(p.avg)}</span></td>
+            <td class="${pnlClass(chg)}">${fmtVnd(p.last)}</td>
+            <td class="${pnlClass(chg)}">${chg > 0 ? "+" : chg < 0 ? "−" : ""}${fmtVnd(Math.abs(chg))}</td>
+            <td class="${pnlClass(chgPct)}">${chgPct > 0 ? "+" : chgPct < 0 ? "−" : ""}${Math.abs(chgPct).toFixed(2)}%</td>
+            <td>${fmtTr(p.invested)}</td>
+            <td>${fmtTr(p.mv)}</td>
+            <td class="${pnlClass(p.pnl)} font-semibold">${pnlText(p.pnl, p.pnlPct)}</td>
+            <td class="text-[11px]"><span class="text-down">${slStr}</span> / <span class="text-up">${tpStr}</span></td>
+            <td>${bellHtml(p.alert)}</td>
+            <td>${statusBadge}</td>
+          </tr>`);
+        (p.tranches || []).forEach((tr) => {
+          rows.push(`
+            <tr class="tranche-row hidden" data-tranche-of="${idx}">
+              <td class="sym" style="padding-left:1.5rem">↳ T${tr.t}</td>
+              <td>${tr.qty.toLocaleString("vi-VN")}</td>
+              <td class="text-avg">${fmtVnd(tr.price)}</td>
+              <td colspan="2" style="text-align:left" class="text-neutral-500">phí ${fmtVnd(tr.fee)}</td>
+              <td colspan="7"></td>
+            </tr>`);
+        });
+      });
+      body.innerHTML = rows.join("");
+      body.querySelectorAll("tr.pos-main").forEach((tr) => {
+        tr.addEventListener("click", () => {
+          const idx = tr.getAttribute("data-pos");
+          const open = tr.classList.toggle("is-open");
+          const chev = tr.querySelector(".chev");
+          if (chev) chev.textContent = open ? "▾" : "▸";
+          body.querySelectorAll(`tr[data-tranche-of="${idx}"]`).forEach((r) => {
+            r.classList.toggle("hidden", !open);
+          });
+        });
+      });
+    }
+
+    // Tabs
+    document.querySelectorAll(".app-tab").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const app = btn.getAttribute("data-app");
+        document.querySelectorAll(".app-tab").forEach((b) => {
+          b.classList.toggle("is-active", b === btn);
+          b.setAttribute("aria-selected", b === btn ? "true" : "false");
+        });
+        document.querySelectorAll(".panel").forEach((p) => {
+          const show = p.getAttribute("data-panel") === app;
+          p.hidden = !show;
+        });
+      });
+    });
+
+    document.getElementById("btn-add-buy").addEventListener("click", () => {
+      document.getElementById("dlg-buy").showModal();
+    });
+
+    renderTable();
+    console.info("[DEV demo] trace_id=demo-ui-final · Trạm Trading mock ready");
+  </script>
+</body>
+</html>
