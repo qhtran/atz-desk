@@ -81,9 +81,9 @@ dev.atz.vn only. Tiếp [UX daily chưa Quét | daily signals mở rộng | Top 
 
 ---
 
-## Test local
+## Test local (trước merge/push/deploy)
 
 ```bash
-PYTHONPATH=src/atz:. pytest tests/test_advisor_score.py tests/test_advisor_filter.py \
-  tests/test_filter_runner_advisor.py tests/test_daily_signals.py -q
+./scripts/check-dev.sh              # pytest smoke + docker healthz + API filters
+./scripts/check-dev.sh --pytest-only # nhanh, không docker
 ```
