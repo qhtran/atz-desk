@@ -193,6 +193,14 @@ class RealSsiWorker:
                 out.append(t)
         return out
 
+    def _topics_for_channel(self, channel: str, data_topics: list[str]) -> list[str]:
+        """Legacy X-Quote / X-Trade channels expect symbol topics, not DATA quote.* patterns."""
+        ch = str(channel or "").strip().upper()
+        equity_syms = [s for s in self.symbols if s not in INDEX_BOARD_SYMBOLS]
+        if ch in ("X-QUOTE", "X-TRADE", "MI"):
+            return equity_syms
+        return data_topics
+
     async def _load_board_from_redis(self, redis: aioredis.Redis) -> None:
         """Giữ snapshot phiên trước — không xóa hash khi reconnect WS."""
         raw = await redis.hgetall(HASH_KEY)
@@ -470,7 +478,8 @@ class RealSsiWorker:
                 max_size=8 * 1024 * 1024,
             ) as ws:
                 for ch in self.channels:
-                    sub = {"method": "SUBSCRIBE", "channel": ch, "topics": topics}
+                    ch_topics = self._topics_for_channel(ch, topics)
+                    sub = {"method": "SUBSCRIBE", "channel": ch, "topics": ch_topics}
                     await ws.send(json.dumps(sub))
                 log(COMPONENT, "SSI-LIVE-SUBSCRIBED", "ssi channels subscribed", channels=self.channels)
 
