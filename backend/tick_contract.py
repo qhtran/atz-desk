@@ -5,9 +5,11 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+from backend.board_universe import INDEX_SYMBOL_SET
+
 TZ_VN = timezone(timedelta(hours=7))
 
-INDEX_SYMBOLS = frozenset({"VNINDEX", "VN30", "HNXINDEX", "UPCOMINDEX"})
+INDEX_SYMBOLS = INDEX_SYMBOL_SET
 
 
 def now_iso() -> str:

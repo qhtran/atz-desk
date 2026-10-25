@@ -18,9 +18,11 @@ from __future__ import annotations
 import math
 from typing import Any, Iterable, Mapping, MutableMapping, Sequence
 
+from backend.board_universe import INDEX_SYMBOL_SET
+
 ALLOWED_OPS = frozenset({"gte", "gt", "lte", "lt", "eq", "neq", "in", "contains"})
 INDEX_KINDS = frozenset({"index"})
-INDEX_SYMBOLS = frozenset({"VNINDEX", "VN30", "HNXINDEX", "UPCOMINDEX"})
+INDEX_SYMBOLS = INDEX_SYMBOL_SET
 
 # Built-in client-friendly presets (FE can merge with custom params).
 PRESETS: dict[str, dict[str, Any]] = {

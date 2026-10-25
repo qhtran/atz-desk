@@ -27,10 +27,14 @@ priceboard:
     index_topics:
       - indexsummary.VNINDEX
       - indexsummary.VN30
+      - indexsummary.VN30F1M
+      - indexsummary.VN30F2M
       - indexsummary.HNXINDEX
       - indexsummary.UPCOMINDEX
       - trade.index.VNINDEX@tick
       - trade.index.VN30@tick
+      - trade.index.VN30F1M@tick
+      - trade.index.VN30F2M@tick
       - trade.index.HNXINDEX@tick
       - trade.index.UPCOMINDEX@tick
     # Nếu rỗng: dùng danh sách VN30 hardcode trong worker

@@ -1,7 +1,9 @@
 from backend.board_universe import (
+    INDEX_BOARD_SYMBOLS,
     default_watchlist,
     exchange_for_symbol,
     mock_equity_seeds,
+    symbols_for_market_tab,
 )
 
 
@@ -18,6 +20,18 @@ def test_default_watchlist_includes_all_segments():
     assert "VCI" in wl
     assert "SHS" in wl
     assert "ART" in wl
+
+
+def test_index_board_symbols_include_vn30_futures():
+    assert "VN30F1M" in INDEX_BOARD_SYMBOLS
+    assert "VN30F2M" in INDEX_BOARD_SYMBOLS
+
+
+def test_foreign_market_tab_uses_full_watchlist():
+    foreign = symbols_for_market_tab("FOREIGN")
+    wl = default_watchlist()
+    assert set(foreign) == set(wl)
+    assert "FPT" in foreign and "SHS" in foreign
 
 
 def test_mock_equity_seeds_has_hnx_upcom():

@@ -14,11 +14,12 @@ import os
 from pathlib import Path
 from typing import Any
 
+from backend.board_universe import INDEX_SYMBOL_SET
 from backend.observability import ERR_PB_CONFIG, log
 
 DEFAULT_MIN_VOLUME = 500_000
 
-INDEX_SYMBOLS = frozenset({"VNINDEX", "VN30", "HNXINDEX", "UPCOMINDEX"})
+INDEX_SYMBOLS = INDEX_SYMBOL_SET
 
 _CONFIG_LOGGED = False
 

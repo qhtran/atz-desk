@@ -52,6 +52,8 @@ DEFAULT_SYMBOLS = default_watchlist()
 INDEX_SEED = [
     ("VNINDEX", 1285.4),
     ("VN30", 1342.1),
+    ("VN30F1M", 1847.0),
+    ("VN30F2M", 1850.2),
     ("HNXINDEX", 238.6),
     ("UPCOMINDEX", 95.2),
 ]
@@ -136,6 +138,8 @@ class RealSsiWorker:
             or [
                 "indexsummary.VNINDEX",
                 "indexsummary.VN30",
+                "indexsummary.VN30F1M",
+                "indexsummary.VN30F2M",
                 "indexsummary.HNXINDEX",
                 "indexsummary.UPCOMINDEX",
             ]

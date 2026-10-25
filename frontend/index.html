@@ -196,6 +196,7 @@
 
     .market-bar {
       display: flex;
+      flex-wrap: wrap;
       align-items: center;
       gap: 4px;
       padding: 6px 10px;
@@ -528,7 +529,6 @@
         <option value="ma">MA</option>
         <option value="candle">Nến F1</option>
         <option value="volume">KL đột biến</option>
-        <option value="foreign">Khối ngoại</option>
         <option value="advisor">Cố vấn (0–100)</option>
       </select>
       <label for="scr-advisor-min" id="scr-advisor-min-wrap" class="text-[11px] text-gray-500" hidden>Điểm ≥</label>
@@ -550,6 +550,7 @@
       <button type="button" class="mkt-tab" data-market="VN30" data-atd-id="pb-ui:iboard.market.VN30" role="tab" aria-selected="false">VN30</button>
       <button type="button" class="mkt-tab" data-market="HNX" data-atd-id="pb-ui:iboard.market.HNX" role="tab" aria-selected="false">HNX</button>
       <button type="button" class="mkt-tab" data-market="UPCOM" data-atd-id="pb-ui:iboard.market.UPCOM" role="tab" aria-selected="false">UPCOM</button>
+      <button type="button" class="mkt-tab" data-market="FOREIGN" data-atd-id="pb-ui:iboard.market.FOREIGN" role="tab" aria-selected="false">Khối ngoại</button>
     </div>
     <div id="board-wrap" class="atz-table-wrap" data-atd-id="pb-ui:iboard.board-table">
       <table id="board-table" class="atz-table iboard">
@@ -665,14 +666,18 @@
 
   <script>
     /* ===== Constants ===== */
-    const INDEX_SYMBOLS = new Set(["VNINDEX", "VN30", "HNXINDEX", "UPCOMINDEX"]);
+    const INDEX_SYMBOLS = new Set([
+      "VNINDEX", "VN30", "VN30F1M", "VN30F2M", "HNXINDEX", "UPCOMINDEX",
+    ]);
     const INDEX_LABEL = {
       VNINDEX: "VN-INDEX",
       VN30: "VN30",
+      VN30F1M: "VN30F1M",
+      VN30F2M: "VN30F2M",
       HNXINDEX: "HNX",
       UPCOMINDEX: "UPCOM",
     };
-    const INDEX_ORDER = ["VNINDEX", "VN30", "HNXINDEX", "UPCOMINDEX"];
+    const INDEX_ORDER = ["VNINDEX", "VN30", "VN30F1M", "VN30F2M", "HNXINDEX", "UPCOMINDEX"];
     const VN30_SET = new Set([
       "ACB", "BCM", "BID", "BVH", "CTG", "FPT", "GAS", "GVR", "HDB", "HPG",
       "LPB", "MBB", "MSN", "MWG", "PLX", "SAB", "SHB", "SSB", "SSI", "STB",
@@ -690,7 +695,7 @@
     const MARKET_KEY = "atz.iboard.market";
     const APP_TAB_KEY = "atz.app.tab";
     const PORTFOLIO_KEY = "atz.app.portfolio";
-    const VALID_MARKETS = new Set(["HOSE", "VN30", "HNX", "UPCOM"]);
+    const VALID_MARKETS = new Set(["HOSE", "VN30", "HNX", "UPCOM", "FOREIGN"]);
     const VALID_APP_TABS = new Set(["iboard", "portfolio", "news"]);
     /** P1: fake depth until X-Quote map Pass — ?fake_depth=0 or localStorage pb_fake_depth=0 */
     const FAKE_DEPTH_STORAGE_KEY = "pb_fake_depth";
@@ -724,6 +729,7 @@
       flags: [],
     };
     let scrSource = "live";
+    let scrSourceBeforeForeignTab = null;
     let dailySignalSet = null;
     let dailyHitBySymbol = new Map();
     let dailyScanMeta = { filter: "", matched: 0, scanned: 0 };
@@ -734,7 +740,6 @@
       ma: "MA",
       candle: "Nến F1",
       volume: "KL đột biến",
-      foreign: "Khối ngoại",
       advisor: "Cố vấn",
     };
     let portfolio = [];
@@ -844,13 +849,24 @@
     }
 
     /* ===== Market filter (iBoard) ===== */
+    function isForeignMarketTab() {
+      return marketTab === "FOREIGN";
+    }
+
     function matchesMarketTab(symbol, row) {
+      if (isForeignMarketTab()) return true;
       const ex = resolveExchange(row);
       if (marketTab === "VN30" && !VN30_SET.has(symbol)) return false;
       if (marketTab === "HOSE" && ex !== "HOSE") return false;
       if (marketTab === "HNX" && ex !== "HNX") return false;
       if (marketTab === "UPCOM" && ex !== "UPCOM") return false;
       return true;
+    }
+
+    function matchesForeignLiveRow(row) {
+      const buy = Number(row.foreignBuy) || 0;
+      const sell = Number(row.foreignSell) || 0;
+      return buy > sell;
     }
 
     function computeTopVolSet(limit = 20) {
@@ -947,6 +963,9 @@
         if (!dailySignalSet) return true;
         return dailySignalSet.has(symbol);
       }
+      if (isForeignMarketTab()) {
+        return matchesForeignLiveRow(row);
+      }
       return matchesScreenerFilters(row);
     }
 
@@ -977,8 +996,36 @@
       updateScreenerStatus(countVisibleBoardRows());
     }
 
+    function applyForeignMarketTabMode(tab, prevTab) {
+      const selSource = document.getElementById("scr-source");
+      const selFilter = document.getElementById("scr-daily-filter");
+      if (
+        tab === "FOREIGN"
+        && (prevTab !== "FOREIGN" || dailyScanMeta.filter !== "foreign")
+      ) {
+        if (prevTab !== "FOREIGN") scrSourceBeforeForeignTab = scrSource;
+        scrSource = "daily";
+        if (selSource) selSource.value = "daily";
+        if (selFilter) selFilter.value = "foreign";
+        dailySignalSet = null;
+        dailyHitBySymbol = new Map();
+        dailyScanMeta = { filter: "foreign", matched: 0, scanned: 0 };
+      } else if (tab !== "FOREIGN" && prevTab === "FOREIGN") {
+        if (scrSourceBeforeForeignTab) {
+          scrSource = scrSourceBeforeForeignTab;
+          if (selSource) selSource.value = scrSource;
+        }
+        scrSourceBeforeForeignTab = null;
+        dailySignalSet = null;
+        dailyHitBySymbol = new Map();
+        dailyScanMeta = { filter: "", matched: 0, scanned: 0 };
+      }
+    }
+
     function setMarketTab(tab) {
       if (!VALID_MARKETS.has(tab)) tab = "HOSE";
+      const prevTab = marketTab;
+      applyForeignMarketTabMode(tab, prevTab);
       marketTab = tab;
       localStorage.setItem(MARKET_KEY, tab);
       document.querySelectorAll(".mkt-tab").forEach((btn) => {
@@ -986,6 +1033,7 @@
         btn.classList.toggle("is-active", on);
         btn.setAttribute("aria-selected", on ? "true" : "false");
       });
+      syncScreenerSourceUi();
       applyBoardFilter();
       if (scrSource === "daily" && dailySignalSet) void runDailySignalScan();
     }
@@ -1588,12 +1636,19 @@
         return;
       }
       if (scrSource === "daily") {
-        const fl = DAILY_FILTER_LABELS[dailyScanMeta.filter] || dailyScanMeta.filter;
+        const fl = isForeignMarketTab()
+          ? "Khối ngoại"
+          : (DAILY_FILTER_LABELS[dailyScanMeta.filter] || dailyScanMeta.filter);
         if (!dailySignalSet) {
-          el.textContent = `Tín hiệu ngày · full rổ · bấm Quét · ${n} mã`;
+          const prefix = isForeignMarketTab() ? "Khối ngoại" : "Tín hiệu ngày";
+          el.textContent = `${prefix} · full rổ · bấm Quét · ${n} mã`;
           return;
         }
-        el.textContent = `Tín hiệu ngày · ${fl} · ${dailyScanMeta.matched}/${dailyScanMeta.scanned} hit · ${n} mã`;
+        el.textContent = `${isForeignMarketTab() ? "Khối ngoại" : "Tín hiệu ngày"} · ${fl} · ${dailyScanMeta.matched}/${dailyScanMeta.scanned} hit · ${n} mã`;
+        return;
+      }
+      if (isForeignMarketTab()) {
+        el.textContent = `Khối ngoại · Live · NN mua ròng · ${n} mã`;
         return;
       }
       const nRules = buildScreenerRules(screenerSpec).length;
@@ -1601,11 +1656,14 @@
     }
 
     function syncScreenerSourceUi() {
+      const foreignTab = isForeignMarketTab();
       const daily = scrSource === "daily";
       const preset = scrSource === "topvol";
-      const dailyFilter = document.getElementById("scr-daily-filter").value || "rsi";
+      const selFilter = document.getElementById("scr-daily-filter");
+      if (foreignTab && daily && selFilter) selFilter.value = "foreign";
+      const dailyFilter = selFilter?.value || "rsi";
       const advisor = daily && dailyFilter === "advisor";
-      document.getElementById("scr-daily-filter").hidden = !daily;
+      document.getElementById("scr-daily-filter").hidden = !daily || foreignTab;
       document.getElementById("scr-daily-run").hidden = !daily;
       document.getElementById("scr-advisor-min-wrap").hidden = !advisor;
       document.getElementById("scr-advisor-min").hidden = !advisor;
@@ -1633,20 +1691,23 @@
         const data = await res.json();
         if (!data.ok || !Array.isArray(data.filters) || !data.filters.length) return;
         const prev = sel.value;
-        sel.innerHTML = data.filters
+        const filters = data.filters.filter((key) => key !== "foreign");
+        sel.innerHTML = filters
           .map((key) => {
             const label = DAILY_FILTER_LABELS[key] || key;
             return `<option value="${key}">${label}</option>`;
           })
           .join("");
-        if (data.filters.includes(prev)) sel.value = prev;
+        if (filters.includes(prev)) sel.value = prev;
       } catch {
         /* giữ option HTML tĩnh */
       }
     }
 
     async function runDailySignalScan() {
-      const filter = document.getElementById("scr-daily-filter").value || "rsi";
+      const filter = isForeignMarketTab()
+        ? "foreign"
+        : (document.getElementById("scr-daily-filter").value || "rsi");
       const el = document.getElementById("scr-status");
       if (el) el.textContent = "Tín hiệu ngày · đang quét…";
       try {

@@ -6,6 +6,17 @@ from typing import Literal
 
 Exchange = Literal["HOSE", "HNX", "UPCOM"]
 
+# Chỉ số / HĐTL trên index-bar iBoard (parity config/index.yaml)
+INDEX_BOARD_SYMBOLS: tuple[str, ...] = (
+    "VNINDEX",
+    "VN30",
+    "VN30F1M",
+    "VN30F2M",
+    "HNXINDEX",
+    "UPCOMINDEX",
+)
+INDEX_SYMBOL_SET = frozenset(INDEX_BOARD_SYMBOLS)
+
 VN30_SYMBOLS: tuple[str, ...] = (
     "ACB", "BCM", "BID", "BVH", "CTG", "FPT", "GAS", "GVR", "HDB", "HPG",
     "LPB", "MBB", "MSN", "MWG", "PLX", "SAB", "SHB", "SSB", "SSI", "STB",
@@ -45,6 +56,8 @@ def exchange_for_symbol(symbol: str) -> Exchange:
 def symbols_for_market_tab(market: str) -> list[str]:
     """Mã equity theo tab iBoard (không index)."""
     tab = str(market or "HOSE").strip().upper()
+    if tab == "FOREIGN":
+        return default_watchlist()
     if tab == "VN30":
         return list(VN30_SYMBOLS)
     if tab == "HNX":
