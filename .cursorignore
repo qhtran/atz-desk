@@ -86,8 +86,10 @@ docs/refs/_converted/
 
 # Scratch / agent noise
 agent-reply.md
-PROGRESS.md
 *.bak*
+
+# Archive bus cũ — không nạp context (mở khi human nêu đúng T-id)
+docs/agents/archive/
 
 # === dev.atz.vn scope (mở lại khi user @ tag hoặc yêu cầu prod/legacy) ===
 src/

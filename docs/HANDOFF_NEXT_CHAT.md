@@ -4,6 +4,12 @@
 **Nhánh deploy VPS:** `main` — commit **`acf4361`** (advisor + iBoard daily)  
 **Deploy:** `./scripts/deploy-vps.sh dev` (hoặc `--push` trước khi deploy)
 
+## Ai đọc file này
+
+- **Master (ag1):** trạng thái sản phẩm khi lập task mới.
+- **Executor (ag2):** không đọc file này nếu packet không trỏ một mục.
+- Mỗi turn: [`docs/agents/NOW.md`](agents/NOW.md). Archive `docs/agents/archive/` — không mở.
+
 ---
 
 ## Phạm vi owner
@@ -75,8 +81,7 @@
 ## Prompt gợi ý chat mới
 
 ```text
-Đọc docs/HANDOFF_NEXT_CHAT.md.
-dev.atz.vn only. Tiếp [UX daily chưa Quét | daily signals mở rộng | Top 20 iBoard | cột điểm advisor].
+Pull. Đọc docs/agents/NOW.md. Nếu Doing là việc của mình, mở đúng docs/agents/tasks/<ID>.md. Không mở archive. Xong thì cập nhật NOW (5 dòng Last executor) rồi dừng.
 ```
 
 ---
