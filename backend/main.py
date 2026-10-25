@@ -16,6 +16,9 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from backend.core.database import init_db
+from backend.core.errors import AppError, app_error_handler
+from backend.core.logging_middleware import TraceMiddleware
 from backend.debug_ui import public_debug_ui_config
 from backend.portfolio_alerts import position_alert
 from backend.identity import me_from_headers
@@ -24,6 +27,7 @@ from backend.portfolio_quotes import normalize_symbols, resolve_portfolio_quotes
 from backend.daily_signals import ALLOWED_FILTERS, scan_daily_signals
 from backend.portfolio_store import list_positions, migrate_if_empty, replace_positions
 from backend.observability import ERR_PB_REDIS, ERR_PB_SCREENER, ERR_PB_WS, log, setup
+from backend.modules.trading.router import router as trading_router
 from backend.redis_listener import HASH_KEY, REDIS_URL, RedisTickListener, load_snapshot
 from backend.screener import PRESETS, FilterEngine, build_compose_rules, find_invalid_raw_rules
 from backend.websocket_manager import ConnectionManager
@@ -39,6 +43,7 @@ listener = RedisTickListener(manager)
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    init_db()
     listener.start()
     log(COMPONENT, "API-START", "priceboard api started", frontend=str(FRONTEND_DIR), redis_url=REDIS_URL)
     yield
@@ -47,6 +52,9 @@ async def lifespan(_app: FastAPI):
 
 
 app = FastAPI(title="atz priceboard", version="0.1.0-dev", lifespan=lifespan)
+app.add_middleware(TraceMiddleware)
+app.add_exception_handler(AppError, app_error_handler)
+app.include_router(trading_router)
 
 
 @app.get("/api/debug-ui/config")
@@ -362,6 +370,11 @@ async def ws_priceboard(websocket: WebSocket) -> None:
 @app.get("/")
 async def index() -> FileResponse:
     return FileResponse(FRONTEND_DIR / "index.html")
+
+
+@app.get("/trading")
+async def trading_page() -> FileResponse:
+    return FileResponse(FRONTEND_DIR / "trading.html")
 
 
 if FRONTEND_DIR.is_dir():

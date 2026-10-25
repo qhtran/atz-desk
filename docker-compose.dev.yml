@@ -51,6 +51,8 @@ services:
       DEBUG_OVERLAY_CONFIG: /app/config/debug_overlay.yaml
       OHLCV_BARS_DIR: /app/data/ohlcv
       PORTFOLIO_DB_PATH: /app/data/portfolio.db
+      TRADING_DB_PATH: /app/data/dev_trading.db
+      TRADING_CONFIG: /app/config/trading_station.yaml
       LOG_LEVEL: INFO
     ports:
       # localhost tunnel + nginx (via Docker DNS on vnstocks_default)
@@ -59,6 +61,7 @@ services:
       - ./backend:/app/backend
       - ./frontend:/app/frontend
       - ./config/debug_overlay.yaml:/app/config/debug_overlay.yaml:ro
+      - ./config/trading_station.yaml:/app/config/trading_station.yaml:ro
       - ./data/ohlcv:/app/data/ohlcv:ro
       - ./data:/app/data
     healthcheck:
