@@ -55,9 +55,20 @@ UPCOM_SYMBOLS: tuple[str, ...] = (
 
 VN30_SET = frozenset(VN30_SYMBOLS)
 
+INDEX_EXCHANGE: dict[str, Exchange] = {
+    "VNINDEX": "HOSE",
+    "VN30": "HOSE",
+    "VN30F1M": "HOSE",
+    "VN30F2M": "HOSE",
+    "HNXINDEX": "HNX",
+    "UPCOMINDEX": "UPCOM",
+}
+
 
 def exchange_for_symbol(symbol: str) -> Exchange:
     sym = str(symbol or "").strip().upper()
+    if sym in INDEX_EXCHANGE:
+        return INDEX_EXCHANGE[sym]
     if sym in VN30_SET or sym in HOSE_EXTRA_SYMBOLS:
         return "HOSE"
     if sym in HNX_SYMBOLS:

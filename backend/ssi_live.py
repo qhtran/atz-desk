@@ -299,11 +299,13 @@ class RealSsiWorker:
             floor = None
         else:
             floor = prev.get("floor")
+        exchange = exchange_for_symbol(sym)
         return build_tick(
             symbol=sym,
             last=last,
             ref=ref,
             kind=kind,
+            exchange=exchange,
             volume=parsed.get("volume") if parsed.get("volume") is not None else prev.get("volume", 0),
             high=self._merge_extreme(parsed.get("high"), prev.get("high"), last, kind, which="high"),
             low=self._merge_extreme(parsed.get("low"), prev.get("low"), last, kind, which="low"),

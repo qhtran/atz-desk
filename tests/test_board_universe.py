@@ -12,6 +12,8 @@ def test_exchange_for_symbol_splits_boards():
     assert exchange_for_symbol("VCI") == "HOSE"
     assert exchange_for_symbol("SHS") == "HNX"
     assert exchange_for_symbol("ART") == "UPCOM"
+    assert exchange_for_symbol("HNXINDEX") == "HNX"
+    assert exchange_for_symbol("UPCOMINDEX") == "UPCOM"
 
 
 def test_default_watchlist_includes_all_segments():
