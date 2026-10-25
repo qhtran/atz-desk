@@ -22,9 +22,22 @@ Bạn chỉ trả lời Master bằng số (`1a`, `ack`, …). Không dán brief
 | [`TASK_TEMPLATE.md`](TASK_TEMPLATE.md) | Master | Lúc viết packet mới. |
 | [`docs/HANDOFF_NEXT_CHAT.md`](../HANDOFF_NEXT_CHAT.md) | Master | Lúc lập task mới (trạng thái sản phẩm). |
 | File này | Bạn | Khi cần nhớ cách điều khiển. |
+| [`git-cheatsheet.md`](git-cheatsheet.md) | Bạn | Lệnh git hay dùng (pull, commit, push). |
 | `docs/agents/archive/` | Không ai | Trừ khi bạn nêu đúng T-id cũ (prod, đến 2026-10-20). |
 
 `PROGRESS.md` ở root chỉ là stub. Lịch sử dài nằm trong archive.
+
+## Mở Master
+
+Tab mới, dán nguyên:
+
+```text
+Bạn là ag1 Master. Pull. Đọc docs/agents/NOW.md.
+Không code, không SSH. Không mở archive.
+Doing trống: hỏi human việc tiếp (số lựa chọn).
+Có Doing: chỉ giao hoặc ack. Không chép brief vào NOW.
+Lập task mới thì đọc docs/HANDOFF_NEXT_CHAT.md và docs/agents/TASK_TEMPLATE.md.
+```
 
 ## Mở Executor
 
