@@ -88,12 +88,89 @@ def _show_criteria_catalog() -> None:
         )
 
 
+
+
+def _show_advisor_board(symbols: list[str]) -> None:
+    from engine.advisor_score import compute_advisor_score, load_advisor_config
+    from engine.runner import load_frames_for_run
+    from ui.debug_overlay import dbg_anchor, dbg_breakdown_anchor
+
+    dbg_anchor("FILTER-ADVISOR")
+
+    cfg = load_advisor_config()
+    th = cfg["thresholds"]
+    flow = cfg["flow"]
+    st = cfg["short_term"]
+    st.markdown("**Cố vấn (điểm 0–100)** — một pipeline scoring, không cần bật từng filter rời.")
+    c1, c2, c3, c4 = st.columns(4)
+    buy_min = c1.number_input("Điểm tối thiểu hiển thị", 0.0, 100.0, float(th["buy_min_total"]), 1.0, key="adv_buy_min")
+    rsi_low = c2.number_input("RSI min", 1.0, 50.0, float(st["rsi_buy_zone"][0]), 1.0, key="adv_rsi_low")
+    rsi_high = c3.number_input("RSI max", 30.0, 60.0, float(st["rsi_buy_zone"][1]), 1.0, key="adv_rsi_high")
+    foreign_days = c4.number_input("Phiên KN ròng", 1, 20, int(flow["foreign_days"]), 1, key="adv_foreign_days")
+    volume_spike = st.number_input(
+        "Hệ số KL đột biến",
+        1.0,
+        10.0,
+        float(flow["volume_spike"]),
+        0.1,
+        key="adv_vol_spike",
+    )
+    run = st.button("Quét cố vấn", width="stretch", key="adv_run")
+    if not run:
+        return
+    if not symbols:
+        st.warning("Chọn ít nhất một mã.")
+        return
+    params = {
+        "thresholds": {"buy_min_total": buy_min, "sell_max_total": float(th["sell_max_total"])},
+        "flow": {"foreign_days": int(foreign_days), "volume_spike": float(volume_spike)},
+        "short_term": {"rsi_buy_zone": [float(rsi_low), float(rsi_high)]},
+    }
+    frames, missing, _ = load_frames_for_run(symbols, {"foreign"})
+    rows: list[dict] = []
+    for symbol, bars in frames.items():
+        score = compute_advisor_score(bars, params)
+        if score.total is None:
+            continue
+        if score.total < buy_min:
+            continue
+        price = float(pd.to_numeric(bars["close"], errors="coerce").iloc[-1])
+        rows.append(
+            {
+                "symbol": symbol,
+                "total": score.total,
+                "trend": score.pillars["trend"]["points"],
+                "flow": score.pillars["flow"]["points"],
+                "short_term": score.pillars["short_term"]["points"],
+                "recommendation": score.recommendation,
+                "reason": score.reason,
+                "price": price,
+                "pillars": score.pillars,
+            }
+        )
+    if missing:
+        st.warning("Không có file nến: " + ", ".join(missing))
+    if not rows:
+        st.info("Không có mã đạt ngưỡng điểm.")
+        return
+    rows.sort(key=lambda item: item["total"], reverse=True)
+    board = pd.DataFrame(rows)[
+        ["symbol", "total", "trend", "flow", "short_term", "recommendation", "reason", "price"]
+    ]
+    board.columns = ["Mã", "Điểm", "Xu hướng", "Dòng tiền", "KT ngắn hạn", "Gợi ý", "Lý do", "Giá"]
+    render_data_table(board, variant="analytical", pin="Mã", key_cols=["Điểm", "Gợi ý"], key="advisor_board")
+    for item in rows:
+        with st.expander(f"{item['symbol']} — breakdown"):
+            dbg_breakdown_anchor("FILTER-ADVISOR", item["symbol"], item["pillars"])
+            st.json(item["pillars"])
+
+
 def show_filters() -> None:
     st.subheader("Bộ lọc tín hiệu")
     _show_criteria_catalog()
     mode = st.segmented_control(
         "Chế độ",
-        ["Lọc tự do", "Top 5 mỗi ngành"],
+        ["Lọc tự do", "Cố vấn (0–100)", "Top 5 mỗi ngành"],
         default="Lọc tự do",
         key="filter_mode",
     )
@@ -101,6 +178,23 @@ def show_filters() -> None:
         from ui.industry_top import show_industry_top
 
         show_industry_top()
+        return
+    preset = [
+        str(item).strip().upper()
+        for item in st.session_state.get("filter_symbols", [])
+        if str(item).strip()
+    ]
+    preset = [item for item in preset if item in UNIVERSE]
+    symbols = st.multiselect(
+        "Mã cần lọc",
+        options=list(UNIVERSE),
+        default=preset,
+        placeholder="Chọn mã hoặc gửi từ Danh mục",
+        key="filter_symbols_select",
+    )
+    st.caption(f"Đã chọn {len(symbols)} mã.")
+    if mode == "Cố vấn (0–100)":
+        _show_advisor_board(symbols)
         return
     st.caption(f"User {current_username()}. Cấu hình được lưu theo tài khoản.")
     registry = load_registry()
@@ -111,20 +205,6 @@ def show_filters() -> None:
         user = get_user(conn, user_id)
         saved = {row["filter_name"]: row for row in list_filter_configs(conn, user_id)}
         default_names = [name for name in saved if name in registry and saved[name]["enabled"]]
-        # Ô chọn mã đặt đầu trang, full width: luôn thấy trên điện thoại.
-        preset = [
-            str(item).strip().upper()
-            for item in st.session_state.get("filter_symbols", [])
-            if str(item).strip()
-        ]
-        preset = [item for item in preset if item in UNIVERSE]
-        symbols = st.multiselect(
-            "Mã cần lọc",
-            options=list(UNIVERSE),
-            default=preset,
-            placeholder="Chọn mã hoặc gửi từ Danh mục",
-        )
-        st.caption(f"Đã chọn {len(symbols)} mã.")
         names = st.multiselect(
             "Bộ lọc đang dùng",
             options=sorted(registry),

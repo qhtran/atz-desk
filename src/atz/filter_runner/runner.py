@@ -23,6 +23,14 @@ from filter_runner.resolver import UserFilterResolver
 TZ = ZoneInfo("Asia/Ho_Chi_Minh")
 
 
+def plan_flow_kinds(plans: dict) -> set[str]:
+    """Filter names cần cột flow trên history (advisor dùng foreign_net_vol)."""
+    flows = {i["name"] for items in plans.values() for i in items if i["kind"] == "filter"}
+    if "advisor" in flows:
+        flows.add("foreign")
+    return flows
+
+
 def confidence(result) -> float:
     details = result.details or {}
     if details.get("total"):
@@ -64,7 +72,7 @@ class FilterRunner:
         if not symbol or str(quote.get("stale", "")).lower() == "true":
             return []   # quote stale (degraded) không dùng để phát tín hiệu
         plans = self.resolver.plans()
-        flows = {i["name"] for items in plans.values() for i in items if i["kind"] == "filter"}
+        flows = plan_flow_kinds(plans)
         base = self.history.base(symbol, flows)
         if base is None or base.empty:
             log("EVAL", "skip: no history bars", logging.WARNING, symbol=symbol)

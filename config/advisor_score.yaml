@@ -1,0 +1,25 @@
+advisor_score:
+  weights:
+    trend: 0.40
+    flow: 0.30
+    short_term: 0.30
+  trend:
+    ma_fast: 10
+    ma_slow: 50
+    cross_window: 2
+  flow:
+    foreign_days: 5
+    foreign_min_net_vol: 0
+    volume_avg: 20
+    volume_spike: 2.0
+  short_term:
+    rsi_length: 14
+    rsi_buy_zone: [30, 45]
+    rsi_sell_above: 70
+    bb_length: 20
+    bb_k: 2.0
+    macd_improve_bars: 2
+    macd_cross_window: 3
+  thresholds:
+    buy_min_total: 65
+    sell_max_total: 35

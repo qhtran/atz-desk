@@ -79,6 +79,8 @@ Log nên chứa các trường tối thiểu:
 | ERR-FILTER-003   | Filter temporarily disabled        | Circuit của filter đã mở                        |
 | ERR-FILTER-004   | Dedup check failed                 | Kiểm tra Redis                                  |
 
+**Filter `advisor` (cố vấn 0–100)**: không nằm trong `default_filters` của `config/filter_runner.yaml`. Bật qua SQLite `user_filter_configs` (Streamlit Bộ lọc hoặc import JSON user). Runner tự merge `foreign_net_vol` khi plan có `advisor`. `confidence` = `details.score / details.total` (total=100).
+
 ### Alert Dispatcher
 | Error Code       | Mô tả                              | Cách xử lý                                      |
 |------------------|------------------------------------|-------------------------------------------------|

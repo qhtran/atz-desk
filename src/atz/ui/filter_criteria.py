@@ -59,6 +59,14 @@ CRITERIA_ROWS = (
         "Trạng thái": "Có filter — chờ mentor",
     },
     {
+        "Nhóm": "III. Cố vấn",
+        "TT": "7",
+        "Tên tiêu chí": "Chấm điểm cố vấn 0–100",
+        "Ghi chú F1": "Xu hướng (MA) + dòng tiền (KN/KL) + KT ngắn (RSI/BB/MACD)",
+        "Bộ lọc app": "advisor",
+        "Trạng thái": "Engine + UI batch; debug overlay FILTER-ADVISOR",
+    },
+    {
         "Nhóm": "II. Chỉ báo mẫu hình",
         "TT": "—",
         "Tên tiêu chí": "(doc bị cắt)",

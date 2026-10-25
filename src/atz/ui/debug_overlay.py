@@ -268,6 +268,38 @@ def dbg_anchor(dbg_id: str) -> None:
     )
 
 
+
+
+def dbg_breakdown_anchor(base_id: str, row_key: str, payload: Any) -> None:
+    """Marker ẩn theo mã + JSON breakdown (Cố vấn / «Tại sao lọt top?»)."""
+    import json
+
+    code = sanitize_dbg_id(base_id)
+    if not code:
+        return
+    row = sanitize_token(row_key, fallback="sym")
+    full = f"{code}-{row}" if row else code
+    if not _DBG_ID_RE.match(full):
+        full = code
+    try:
+        import streamlit as st
+
+        from engine.identity import current_me
+    except Exception:
+        return
+    if not user_may_use_debug(current_me()):
+        return
+    safe = html.escape(full, quote=True)
+    atd = html.escape(f"atz-ui:{full}", quote=True)
+    blob = json.dumps(payload, ensure_ascii=False, default=str)
+    safe_blob = html.escape(blob, quote=True)
+    st.html(
+        f'<div data-atz-dbg="{safe}" data-atd-id="{atd}" data-atz-dbg-payload="{safe_blob}" '
+        f'class="atz-dbg-anchor atz-dbg-breakdown" aria-hidden="true" '
+        f'style="display:none;height:0;margin:0;padding:0;overflow:hidden"></div>'
+    )
+
+
 def dbg_table_legend(
     table_key: str,
     columns: list[str],

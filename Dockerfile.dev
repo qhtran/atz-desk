@@ -22,10 +22,12 @@ COPY frontend /app/frontend
 COPY config/priceboard.yaml /app/config/priceboard.yaml
 COPY config/ingestion.yaml /app/config/ingestion.yaml
 COPY config/sector_themes_f3.yaml /app/config/sector_themes_f3.yaml
-# F3 engine (legacy analysis — port tối thiểu, ADR 0009)
+COPY config/advisor_score.yaml /app/config/advisor_score.yaml
+# F3 + iBoard daily (legacy analysis — port tối thiểu, ADR 0009)
 COPY src/atz/analysis/f3_alerts.py src/atz/analysis/technical.py src/atz/analysis/__init__.py /app/atz_pkg/analysis/
 COPY src/atz/config.py /app/atz_pkg/config.py
 COPY src/atz/storage/__init__.py src/atz/storage/paths.py /app/atz_pkg/storage/
+COPY src/atz/engine/__init__.py src/atz/engine/advisor_score.py /app/atz_pkg/engine/
 COPY src/atz/filters/__init__.py src/atz/filters/base.py src/atz/filters/rsi.py src/atz/filters/macd.py src/atz/filters/ma.py /app/atz_pkg/filters/
 
 EXPOSE 8000

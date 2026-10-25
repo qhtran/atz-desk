@@ -207,6 +207,7 @@ async def migrate_portfolio_positions(request: Request, body: PortfolioPositions
 class DailySignalsRequest(BaseModel):
     market: str = "HOSE"
     filter: str = Field(default="rsi", alias="filter")
+    buy_min_total: float | None = Field(default=None, ge=0, le=100)
 
     model_config = {"populate_by_name": True}
 
@@ -223,6 +224,7 @@ async def iboard_daily_signals(body: DailySignalsRequest) -> dict:
         scan_daily_signals,
         market=body.market,
         filter_name=body.filter,
+        buy_min_total=body.buy_min_total,
     )
     return {
         "ok": True,

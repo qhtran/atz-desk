@@ -515,7 +515,10 @@
         <option value="rsi">RSI F1</option>
         <option value="macd">MACD F1</option>
         <option value="ma">MA</option>
+        <option value="advisor">Cố vấn (0–100)</option>
       </select>
+      <label for="scr-advisor-min" id="scr-advisor-min-wrap" class="text-[11px] text-gray-500" hidden>Điểm ≥</label>
+      <input type="number" id="scr-advisor-min" hidden min="0" max="100" step="1" value="65" style="width:52px" title="Điểm tối thiểu (cố vấn)" />
       <button type="button" class="btn-quiet" id="scr-daily-run" hidden>Quét</button>
       <label for="scr-mode" class="text-[11px] text-gray-500 scr-live-only">Ghép</label>
       <select id="scr-mode" class="scr-live-only" title="AND = tất cả điều kiện · OR = bất kỳ">
@@ -1470,8 +1473,12 @@
 
     function syncScreenerSourceUi() {
       const daily = scrSource === "daily";
+      const dailyFilter = document.getElementById("scr-daily-filter").value || "rsi";
+      const advisor = daily && dailyFilter === "advisor";
       document.getElementById("scr-daily-filter").hidden = !daily;
       document.getElementById("scr-daily-run").hidden = !daily;
+      document.getElementById("scr-advisor-min-wrap").hidden = !advisor;
+      document.getElementById("scr-advisor-min").hidden = !advisor;
       document.querySelectorAll(".scr-live-only").forEach((el) => {
         el.hidden = daily;
       });
@@ -1489,10 +1496,14 @@
       const el = document.getElementById("scr-status");
       if (el) el.textContent = "Tín hiệu ngày · đang quét…";
       try {
+        const payload = { market: marketTab, filter };
+        if (filter === "advisor") {
+          payload.buy_min_total = Number(document.getElementById("scr-advisor-min").value) || 65;
+        }
         const res = await fetch("/api/iboard/daily-signals", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ market: marketTab, filter }),
+          body: JSON.stringify(payload),
         });
         const data = await res.json();
         if (!data.ok || !Array.isArray(data.symbols)) {
@@ -1561,6 +1572,7 @@
       document.getElementById("scr-daily-run").addEventListener("click", () => runDailySignalScan());
       document.getElementById("scr-daily-filter").addEventListener("change", () => {
         dailySignalSet = null;
+        syncScreenerSourceUi();
         applyBoardFilter();
       });
       syncScreenerSourceUi();

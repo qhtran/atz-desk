@@ -19,6 +19,7 @@ from ui.debug_overlay import (
 
 def test_sanitize_dbg_id() -> None:
     assert sanitize_dbg_id("DBG-RT-BOARD") == "DBG-RT-BOARD"
+    assert sanitize_dbg_id("FILTER-ADVISOR") == "FILTER-ADVISOR"
     assert sanitize_dbg_id("dbg_nav_1") == "dbg_nav_1"
     assert sanitize_dbg_id("<script>") == ""
     assert sanitize_dbg_id("a b") == ""

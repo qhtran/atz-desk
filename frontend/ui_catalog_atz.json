@@ -35,6 +35,27 @@
       "err_codes": []
     },
     {
+      "match": "atz-ui:FILTER-ADVISOR",
+      "matchType": "prefix",
+      "breadcrumb": ["Bộ lọc", "Cố vấn 0–100"],
+      "hints": {
+        "fe": "src/atz/ui/filters_page.py — _show_advisor_board",
+        "be": "src/atz/engine/advisor_score.py, config/advisor_score.yaml",
+        "spec": "docs/specs/FILTER_SCORING_HUONG1.md"
+      },
+      "err_codes": []
+    },
+    {
+      "match": "atz-ui:DBG-TBL-advisor_board",
+      "matchType": "exact",
+      "breadcrumb": ["Bộ lọc", "Cố vấn", "Bảng điểm"],
+      "hints": {
+        "fe": "src/atz/ui/filters_page.py — render_data_table key=advisor_board",
+        "spec": "docs/specs/FILTER_SCORING_HUONG1.md §3.3"
+      },
+      "err_codes": []
+    },
+    {
       "match": "atz-ui:DBG-TBL-",
       "matchType": "prefix",
       "breadcrumb": ["Bảng dữ liệu"],
