@@ -31,13 +31,18 @@ from backend.observability import (
     log,
     setup,
 )
-from backend.board_universe import default_watchlist, exchange_for_symbol
+from backend.board_universe import INDEX_BOARD_SYMBOLS, default_watchlist, exchange_for_symbol
 from backend.tick_contract import (
     build_tick,
     parse_ssi_envelope,
     ssi_envelope_has_symbol,
     tick_has_payload,
     tick_kind_for_symbol,
+)
+from backend.ssi_rest_bootstrap import (
+    SsiRestClient,
+    bootstrap_ticks,
+    needs_rest_bootstrap,
 )
 from backend.volume_filter import load_volume_filter_settings, passes_volume_filter
 
@@ -184,42 +189,57 @@ class RealSsiWorker:
                 out.append(t)
         return out
 
-    async def _seed_skeleton(self, redis: aioredis.Redis) -> None:
-        await redis.delete(HASH_KEY)
-        pipe = redis.pipeline()
-        for sym, ref in INDEX_SEED:
-            tick = build_tick(
-                symbol=sym,
-                last=ref,
-                ref=ref,
-                kind=tick_kind_for_symbol(sym),
-                volume=0,
-                source="SSI_WS",
-            )
-            self._board[sym] = tick
-            pipe.hset(HASH_KEY, sym, json.dumps(tick, separators=(",", ":")))
-        for sym in self.symbols:
-            tick = build_tick(
-                symbol=sym,
-                last=0,
-                ref=0,
-                kind="equity",
-                exchange=exchange_for_symbol(sym),
-                volume=0,
-                source="SSI_WS",
-            )
-            # last=0 looks empty — keep row shell; FE still shows until first tick
-            self._board[sym] = tick
-            pipe.hset(HASH_KEY, sym, json.dumps(tick, separators=(",", ":")))
-        await pipe.execute()
+    async def _load_board_from_redis(self, redis: aioredis.Redis) -> None:
+        """Giữ snapshot phiên trước — không xóa hash khi reconnect WS."""
+        raw = await redis.hgetall(HASH_KEY)
+        loaded = 0
+        for _sym, payload in raw.items():
+            try:
+                row = json.loads(payload)
+            except (TypeError, json.JSONDecodeError):
+                continue
+            sym = str(row.get("symbol") or _sym).strip().upper()
+            if sym:
+                self._board[sym] = row
+                loaded += 1
+        log(COMPONENT, "SSI-LIVE-HYDRATE", "loaded redis board", rows=loaded)
+
+    async def _bootstrap_rest(self, redis: aioredis.Redis, token: str) -> None:
+        if (os.getenv("PRICEBOARD_REST_BOOTSTRAP") or "1").strip().lower() in ("0", "false", "no"):
+            return
+        data_base = (
+            os.getenv("SSI_DATA_BASE_URL")
+            or (dict(self._cfg.get("ssi") or {}).get("data_base_url"))
+            or "https://api.ssi.com.vn/api/v3/data"
+        )
+        index_need = [s for s in INDEX_BOARD_SYMBOLS if needs_rest_bootstrap(self._board.get(s))]
+        equity_need = [
+            s
+            for s in self.symbols
+            if s not in INDEX_BOARD_SYMBOLS and needs_rest_bootstrap(self._board.get(s))
+        ]
+        if not index_need and not equity_need:
+            return
+        client = SsiRestClient(token, data_base=data_base)
+        ticks = await asyncio.to_thread(
+            bootstrap_ticks,
+            client,
+            index_symbols=index_need,
+            equity_symbols=equity_need,
+        )
+        published = 0
+        for tick in ticks:
+            if not tick_has_payload(tick):
+                continue
+            await self._publish(redis, tick)
+            published += 1
         log(
             COMPONENT,
-            "SSI-LIVE-SEED",
-            "seeded redis skeleton",
-            indexes=len(INDEX_SEED),
-            equities=len(self.symbols),
-            min_volume=VOLUME_FILTER.default,
-            min_volume_by_exchange=VOLUME_FILTER.by_exchange,
+            "SSI-LIVE-REST-BOOT",
+            "rest bootstrap applied",
+            indexes=len(index_need),
+            equities=len(equity_need),
+            published=published,
         )
 
     async def _publish(self, redis: aioredis.Redis, tick: dict) -> None:
@@ -378,7 +398,8 @@ class RealSsiWorker:
         topics = self._build_topics()
         redis = aioredis.from_url(REDIS_URL, decode_responses=True)
         try:
-            await self._seed_skeleton(redis)
+            await self._load_board_from_redis(redis)
+            await self._bootstrap_rest(redis, token)
             headers = {"Authorization": f"Bearer {token}"}
             log(
                 COMPONENT,

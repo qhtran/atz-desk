@@ -26,6 +26,7 @@ COMPONENT_LOGGERS: dict[str, str] = {
     "ws": "atz.priceboard.ws",
     "worker": "atz.priceboard.ssi_worker",
     "ssi_live": "atz.priceboard.ssi_live",
+    "ssi_rest": "atz.priceboard.ssi_rest",
 }
 
 _CONFIGURED: set[str] = set()

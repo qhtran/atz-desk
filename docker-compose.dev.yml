@@ -87,8 +87,9 @@ services:
       PRICEBOARD_CHANNEL: priceboard_ticks
       PRICEBOARD_HASH: priceboard:quotes
       PRICEBOARD_CONFIG: /app/config/priceboard.yaml
-      # mock (default) | ssi — ssi cần SSI_CONSUMER_ID + SSI_CONSUMER_SECRET trong .env
-      PRICEBOARD_SOURCE: ${PRICEBOARD_SOURCE:-mock}
+      # ssi (default) | mock — mock chỉ khi test UI; ssi cần SSI_CONSUMER_* trong .env
+      PRICEBOARD_SOURCE: ${PRICEBOARD_SOURCE:-ssi}
+      PRICEBOARD_REST_BOOTSTRAP: ${PRICEBOARD_REST_BOOTSTRAP:-1}
       SSI_CONSUMER_ID: ${SSI_CONSUMER_ID:-}
       SSI_CONSUMER_SECRET: ${SSI_CONSUMER_SECRET:-}
       SSI_WS_URL: ${SSI_WS_URL:-wss://stream.ssi.com.vn/ws/v3}

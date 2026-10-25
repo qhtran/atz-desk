@@ -714,14 +714,33 @@
     const PORTFOLIO_KEY = "atz.app.portfolio";
     const VALID_MARKETS = new Set(["HOSE", "VN30", "VN30F1M", "VN30F2M", "HNX", "UPCOM", "FOREIGN"]);
     const VALID_APP_TABS = new Set(["iboard", "portfolio", "news"]);
-    /** P1: fake depth until X-Quote map Pass — ?fake_depth=0 or localStorage pb_fake_depth=0 */
+    /** Fake depth chỉ khi test ngoài phiên: ?fake_depth=1 hoặc localStorage pb_fake_depth=1 */
     const FAKE_DEPTH_STORAGE_KEY = "pb_fake_depth";
     const PB_FAKE_DEPTH = (() => {
       const q = new URLSearchParams(location.search).get("fake_depth");
       if (q === "0" || q === "false") return false;
       if (q === "1" || q === "true") return true;
-      return localStorage.getItem(FAKE_DEPTH_STORAGE_KEY) !== "0";
+      return localStorage.getItem(FAKE_DEPTH_STORAGE_KEY) === "1";
     })();
+    const TRADING_SESSIONS = [["09:00", "11:30"], ["13:00", "15:00"]];
+    function vnNowParts() {
+      const s = new Date().toLocaleString("en-GB", { timeZone: "Asia/Ho_Chi_Minh", hour12: false });
+      const [d, t] = s.split(", ");
+      const [dd, mm, yyyy] = d.split("/");
+      const [hh, mi] = t.split(":");
+      return { y: Number(yyyy), mo: Number(mm), d: Number(dd), h: Number(hh), m: Number(mi), wd: new Date(`${yyyy}-${mm}-${dd}T12:00:00+07:00`).getDay() };
+    }
+    function inTradingSession() {
+      const p = vnNowParts();
+      if (p.wd === 0 || p.wd === 6) return false;
+      const mins = p.h * 60 + p.m;
+      for (const [a, b] of TRADING_SESSIONS) {
+        const [ah, am] = a.split(":").map(Number);
+        const [bh, bm] = b.split(":").map(Number);
+        if (mins >= ah * 60 + am && mins <= bh * 60 + bm) return true;
+      }
+      return false;
+    }
     const symbolsWithServerDepth = new Set();
 
     const state = new Map();
@@ -809,7 +828,10 @@
         connecting: ["bg-[#ffd900]", "connecting…"],
         closed: ["bg-[#ff0000]", "disconnected · retrying"],
       };
-      const [cls, label] = map[status] || map.closed;
+      let [cls, label] = map[status] || map.closed;
+      if (status === "open" && !inTradingSession()) {
+        label = "connected · đóng cửa (snapshot phiên)";
+      }
       elConnDot.className = "inline-block h-2 w-2 rounded-full " + cls;
       elConnLabel.textContent = label;
     }

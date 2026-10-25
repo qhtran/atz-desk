@@ -2,8 +2,10 @@
 # Override runtime bằng ENV: PRICEBOARD_SOURCE, SSI_*, REDIS_URL, …
 
 priceboard:
-  # mock | ssi — ENV PRICEBOARD_SOURCE thắng file này
-  source: mock
+  # mock | ssi — ENV PRICEBOARD_SOURCE thắng file này (mock chỉ để test UI ngoài phiên)
+  source: ssi
+  # REST indexSummary + securitiesSummary khi hash thiếu giá (đóng cửa / reconnect)
+  rest_bootstrap: true
   # Equity volume filter (ENV PRICEBOARD_MIN_VOLUME thắng default HOSE). Index luôn giữ.
   # volume==0 (đầu ngày) vẫn hiện; 0 < volume < ngưỡng sàn thì ẩn.
   min_volume: 500000
@@ -21,6 +23,7 @@ priceboard:
   ssi:
     ws_url: wss://stream.ssi.com.vn/ws/v3
     auth_url: https://api.ssi.com.vn/api/v3/auth/token
+    data_base_url: https://api.ssi.com.vn/api/v3/data
     # Market DATA (atz-ssi-stream) + kênh legacy FastConnect user yêu cầu
     channels:
       - DATA

@@ -22,7 +22,7 @@
 | **Rổ mã theo tab (BE)** | `backend/board_universe.py` | `symbols_for_market_tab()`, `exchange_for_symbol()`, `default_watchlist()` | `tests/test_board_universe.py` |
 | **Danh sách mã hardcode (VN30 / HOSE thêm / HNX / UPCOM)** | `backend/board_universe.py` | `VN30_SYMBOLS`, `HOSE_EXTRA_SYMBOLS`, `HNX_SYMBOLS`, `UPCOM_SYMBOLS` | `tests/test_board_universe.py` |
 | **Bản sao hardcode FE (drift risk)** | `frontend/index.html` | `VN30_SET`, `HNX_SET`, `UPCOM_SET` (phải khớp BE) | — |
-| **Subscribe SSI / seed Redis** | `backend/ssi_live.py` | `RealSsiWorker.symbols`, `_build_topics()`, `_seed_skeleton()`, `_merge_tick()`, `_publish()` | `config/priceboard.yaml` → `ssi.symbols`, `index_topics` |
+| **Subscribe SSI / hydrate Redis** | `backend/ssi_live.py` | `RealSsiWorker.symbols`, `_build_topics()`, `_load_board_from_redis()`, `_bootstrap_rest()`, `_merge_tick()`, `_publish()` | `config/priceboard.yaml` → `ssi.*`, `rest_bootstrap`; REST: `backend/ssi_rest_bootstrap.py` |
 | **Mock worker** | `backend/ssi_worker.py` | `build_seed()`, `_tick_row()`, `MockSsiWorker` | `config/priceboard.yaml` → `source: mock` |
 | **Parse SSI → field tick** | `backend/tick_contract.py` | `parse_ssi_envelope()`, `build_tick()`, `tick_has_payload()` | `tests/test_tick_contract.py` |
 | **Hợp đồng JSON tick** | `backend/tick_contract.py` | `build_tick()` — `exchange`, `foreignBuy`, `foreignSell`, depth | `tests/test_tick_contract.py` |

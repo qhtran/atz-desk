@@ -28,7 +28,9 @@ Registry trong code: [`backend/observability/codes.py`](../../backend/observabil
 | ERR-PB-006 | Parse tick SSI (dự phòng) | Cập nhật `tick_contract.parse_ssi_envelope` |
 | ERR-PB-007 | WebSocket stale / handler | Client disconnect, proxy timeout |
 | ERR-PB-008 | Screener rule/request invalid | API trả `error_code` + sửa rule |
-| ERR-PB-009 | Fallback mock (thiếu SSI cred) | Bổ sung secret hoặc `PRICEBOARD_SOURCE=mock` |
+| ERR-PB-009 | Fallback mock (thiếu SSI cred) | Bổ sung secret hoặc `PRICEBOARD_SOURCE=mock` (chỉ test UI) |
+
+**Dữ liệu thật / đóng cửa:** mặc định `PRICEBOARD_SOURCE=ssi`, `PRICEBOARD_REST_BOOTSTRAP=1` — worker gọi `indexSummary` + `securitiesSummary` khi hash thiếu giá. Fake depth UI: chỉ `?fake_depth=1` hoặc `localStorage pb_fake_depth=1`.
 
 ## 3. Structured JSON
 
