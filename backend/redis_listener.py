@@ -10,7 +10,9 @@ from typing import TYPE_CHECKING
 
 import redis.asyncio as aioredis
 
+from backend.board_universe import INDEX_BOARD_SYMBOLS, INDEX_DEFAULT_REFS
 from backend.observability import ERR_PB_REDIS, log, setup
+from backend.tick_contract import build_tick
 from backend.volume_filter import load_min_volume, passes_volume_filter
 
 if TYPE_CHECKING:
@@ -25,6 +27,30 @@ HASH_KEY = os.getenv("PRICEBOARD_HASH", "priceboard:quotes")
 MIN_VOLUME = load_min_volume()
 
 
+def merge_index_stubs(rows: list[dict]) -> list[dict]:
+    """Đảm bảo snapshot WS có đủ INDEX_BOARD_SYMBOLS (stub nếu Redis thiếu)."""
+    by_sym: dict[str, dict] = {}
+    for row in rows:
+        sym = str(row.get("symbol") or "").strip().upper()
+        if sym:
+            by_sym[sym] = row
+    for sym in INDEX_BOARD_SYMBOLS:
+        if sym in by_sym:
+            continue
+        ref = float(INDEX_DEFAULT_REFS.get(sym, 0.0))
+        by_sym[sym] = build_tick(
+            symbol=sym,
+            last=ref,
+            ref=ref,
+            kind="index",
+            volume=0,
+            source="index_stub",
+        )
+    out = list(by_sym.values())
+    out.sort(key=lambda r: str(r.get("symbol", "")))
+    return out
+
+
 async def load_snapshot(redis: aioredis.Redis) -> list[dict]:
     """Load latest board state from Redis Hash for WS snapshot-on-connect."""
     raw = await redis.hgetall(HASH_KEY)
@@ -36,8 +62,7 @@ async def load_snapshot(redis: aioredis.Redis) -> list[dict]:
             continue
         if passes_volume_filter(row, MIN_VOLUME):
             rows.append(row)
-    rows.sort(key=lambda r: r.get("symbol", ""))
-    return rows
+    return merge_index_stubs(rows)
 
 
 class RedisTickListener:

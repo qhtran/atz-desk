@@ -55,6 +55,28 @@
       "err_codes": ["ERR-PB-006"]
     },
     {
+      "match": "pb-ui:iboard.index.VN30F1M",
+      "matchType": "exact",
+      "breadcrumb": ["iBoard", "Chỉ số", "VN30F1M"],
+      "hints": {
+        "fe": "frontend/index.html — idxCardHtml, INDEX_ORDER",
+        "be": "backend/board_universe.py — INDEX_BOARD_SYMBOLS; redis_listener.merge_index_stubs",
+        "spec": "config/index.yaml"
+      },
+      "err_codes": ["ERR-PB-006"]
+    },
+    {
+      "match": "pb-ui:iboard.index.VN30F2M",
+      "matchType": "exact",
+      "breadcrumb": ["iBoard", "Chỉ số", "VN30F2M"],
+      "hints": {
+        "fe": "frontend/index.html — idxCardHtml, INDEX_ORDER",
+        "be": "backend/board_universe.py — INDEX_BOARD_SYMBOLS; redis_listener.merge_index_stubs",
+        "spec": "config/index.yaml"
+      },
+      "err_codes": ["ERR-PB-006"]
+    },
+    {
       "match": "pb-ui:portfolio.",
       "matchType": "prefix",
       "breadcrumb": ["Danh mục"],

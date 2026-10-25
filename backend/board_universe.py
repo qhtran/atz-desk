@@ -17,6 +17,16 @@ INDEX_BOARD_SYMBOLS: tuple[str, ...] = (
 )
 INDEX_SYMBOL_SET = frozenset(INDEX_BOARD_SYMBOLS)
 
+# Ref mặc định khi Redis chưa có tick (khớp backend/ssi_live INDEX_SEED)
+INDEX_DEFAULT_REFS: dict[str, float] = {
+    "VNINDEX": 1285.4,
+    "VN30": 1342.1,
+    "VN30F1M": 1847.0,
+    "VN30F2M": 1850.2,
+    "HNXINDEX": 238.6,
+    "UPCOMINDEX": 95.2,
+}
+
 VN30_SYMBOLS: tuple[str, ...] = (
     "ACB", "BCM", "BID", "BVH", "CTG", "FPT", "GAS", "GVR", "HDB", "HPG",
     "LPB", "MBB", "MSN", "MWG", "PLX", "SAB", "SHB", "SSB", "SSI", "STB",

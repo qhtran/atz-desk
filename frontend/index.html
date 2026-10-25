@@ -145,19 +145,17 @@
     }
     .settings-menu button:hover { background: #1a1a1a; color: #fff; }
 
-    #index-bar {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 8px;
-      padding: 8px 10px;
+    .index-bar-wrap {
+      overflow-x: auto;
       border-bottom: 1px solid #2a2a2a;
       background: #0a0a0a;
     }
-    @media (max-width: 1100px) {
-      #index-bar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    }
-    @media (max-width: 640px) {
-      #index-bar { grid-template-columns: 1fr; }
+    #index-bar {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(140px, 1fr));
+      gap: 8px;
+      padding: 8px 10px;
+      min-width: 960px;
     }
 
     .idx-card {
@@ -494,7 +492,9 @@
 
   <!-- ===== Panel: iBoard ===== -->
   <section id="panel-iboard" class="panel is-active" data-panel="iboard" data-atd-id="pb-ui:iboard.panel" role="tabpanel">
-    <section id="index-bar" data-atd-id="pb-ui:iboard.index-bar" aria-label="Chỉ số thị trường"></section>
+    <div class="index-bar-wrap">
+      <section id="index-bar" data-atd-id="pb-ui:iboard.index-bar" aria-label="Chỉ số thị trường"></section>
+    </div>
     <div class="panel-toolbar" id="screener-toolbar" data-atd-id="pb-ui:iboard.screener">
       <label for="scr-vol-min">KL min</label>
       <input id="scr-vol-min" type="number" min="0" step="10000" value="" placeholder="tất cả" style="width:110px" title="Volume tối thiểu" />
@@ -678,6 +678,14 @@
       UPCOMINDEX: "UPCOM",
     };
     const INDEX_ORDER = ["VNINDEX", "VN30", "VN30F1M", "VN30F2M", "HNXINDEX", "UPCOMINDEX"];
+    const INDEX_STUBS = {
+      VNINDEX: { symbol: "VNINDEX", kind: "index", exchange: "HOSE", ref: 1285.4, last: 1285.4, change: 0, change_pct: 0, volume: 0 },
+      VN30: { symbol: "VN30", kind: "index", exchange: "HOSE", ref: 1342.1, last: 1342.1, change: 0, change_pct: 0, volume: 0 },
+      VN30F1M: { symbol: "VN30F1M", kind: "index", exchange: "HOSE", ref: 1847, last: 1847, change: 0, change_pct: 0, volume: 0 },
+      VN30F2M: { symbol: "VN30F2M", kind: "index", exchange: "HOSE", ref: 1850.2, last: 1850.2, change: 0, change_pct: 0, volume: 0 },
+      HNXINDEX: { symbol: "HNXINDEX", kind: "index", exchange: "HNX", ref: 238.6, last: 238.6, change: 0, change_pct: 0, volume: 0 },
+      UPCOMINDEX: { symbol: "UPCOMINDEX", kind: "index", exchange: "UPCOM", ref: 95.2, last: 95.2, change: 0, change_pct: 0, volume: 0 },
+    };
     const VN30_SET = new Set([
       "ACB", "BCM", "BID", "BVH", "CTG", "FPT", "GAS", "GVR", "HDB", "HPG",
       "LPB", "MBB", "MSN", "MWG", "PLX", "SAB", "SHB", "SSB", "SSI", "STB",
@@ -1434,8 +1442,15 @@
         </div>`;
     }
 
+    function indexRowFor(sym) {
+      const live = state.get(sym);
+      if (live) return live;
+      const stub = INDEX_STUBS[sym];
+      return stub ? { ...stub } : null;
+    }
+
     function renderIndexBar() {
-      const idxs = INDEX_ORDER.map((s) => state.get(s)).filter(Boolean);
+      const idxs = INDEX_ORDER.map((s) => indexRowFor(s)).filter(Boolean);
       elIndexBar.innerHTML = idxs.map(idxCardHtml).join("");
     }
 
@@ -2265,6 +2280,7 @@
 
     (async () => {
       await initPortfolioAuthSync();
+      renderIndexBar();
       setMarketTab(marketTab);
       setAppTab(appTab);
       loadPortfolioF3Themes();
