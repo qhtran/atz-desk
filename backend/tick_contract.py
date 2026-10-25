@@ -41,6 +41,10 @@ def tick_has_payload(tick: dict[str, Any]) -> bool:
             "ask3",
             "foreignBuy",
             "foreignSell",
+            "foreignBuyValue",
+            "foreignSellValue",
+            "foreignNetVol",
+            "foreignNetValue",
             "matchVol",
         )
     )
@@ -132,6 +136,10 @@ def build_tick(
     matchVol: float | int | None = None,
     foreignBuy: float | int | None = None,
     foreignSell: float | int | None = None,
+    foreignBuyValue: float | int | None = None,
+    foreignSellValue: float | int | None = None,
+    foreignNetVol: float | int | None = None,
+    foreignNetValue: float | int | None = None,
     source: str = "MOCK_SSI",
     extra: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
@@ -188,6 +196,10 @@ def build_tick(
         "ts": now_iso(),
         "source": source,
     }
+    if foreignNetVol is None and (foreignBuy is not None or foreignSell is not None):
+        foreignNetVol = int(round(float(foreignBuy or 0) - float(foreignSell or 0)))
+    if foreignNetValue is None and (foreignBuyValue is not None or foreignSellValue is not None):
+        foreignNetValue = int(round(float(foreignBuyValue or 0) - float(foreignSellValue or 0)))
     # Optional depth / foreign — only include when present (FE enrichDepth fills gaps)
     optional = {
         "bid1": bid1,
@@ -205,6 +217,10 @@ def build_tick(
         "matchVol": matchVol,
         "foreignBuy": foreignBuy,
         "foreignSell": foreignSell,
+        "foreignBuyValue": foreignBuyValue,
+        "foreignSellValue": foreignSellValue,
+        "foreignNetVol": foreignNetVol,
+        "foreignNetValue": foreignNetValue,
     }
     for k, v in optional.items():
         if v is not None:
@@ -411,11 +427,22 @@ def parse_ssi_envelope(msg: dict[str, Any]) -> dict[str, Any] | None:
             askVol1, askVol2, askVol3 = (avol + [None, None, None])[:3]
 
     matchVol = _first_num(body, "matchVol", "lastVol", "matchedVol", "lot", "q")
-    foreignBuy = _first_num(body, "foreignBuy", "fBuyVol", "BuyForeignQtty")
-    foreignSell = _first_num(body, "foreignSell", "fSellVol", "SellForeignQtty")
+    foreignBuy, foreignSell, foreignBuyValue, foreignSellValue = _parse_foreign_fields(body)
 
     has_depth = any(x is not None for x in (bid1, ask1))
-    has_extra = any(x is not None for x in (volume, matchVol, foreignBuy, foreignSell, high, low))
+    has_extra = any(
+        x is not None
+        for x in (
+            volume,
+            matchVol,
+            foreignBuy,
+            foreignSell,
+            foreignBuyValue,
+            foreignSellValue,
+            high,
+            low,
+        )
+    )
     if last is None and not has_depth and not has_extra:
         return None
 
@@ -446,5 +473,39 @@ def parse_ssi_envelope(msg: dict[str, Any]) -> dict[str, Any] | None:
         "matchVol": matchVol,
         "foreignBuy": foreignBuy,
         "foreignSell": foreignSell,
+        "foreignBuyValue": foreignBuyValue,
+        "foreignSellValue": foreignSellValue,
         "channel": channel or str(msg.get("type") or ""),
     }
+
+
+def _parse_foreign_fields(body: dict[str, Any]) -> tuple[float | None, float | None, float | None, float | None]:
+    """SSI room/MI: bq/sq/bv/sv (FC v3) or FBuyVol/FSellVol (legacy R)."""
+    if any(k in body for k in ("bq", "sq", "bv", "sv")):
+        return (
+            _num(body.get("bq")),
+            _num(body.get("sq")),
+            _num(body.get("bv")),
+            _num(body.get("sv")),
+        )
+    foreign_buy = _first_num(
+        body,
+        "foreignBuy",
+        "fBuyVol",
+        "FBuyVol",
+        "BuyForeignQtty",
+        "Foreignbuyvoltotal",
+        "BuyVol",
+    )
+    foreign_sell = _first_num(
+        body,
+        "foreignSell",
+        "fSellVol",
+        "FSellVol",
+        "SellForeignQtty",
+        "Foreignsellvoltotal",
+        "SellVol",
+    )
+    foreign_buy_val = _first_num(body, "foreignBuyValue", "fBuyVal", "FBuyVal", "BuyVal", "Foreignbuyvaltotal")
+    foreign_sell_val = _first_num(body, "foreignSellValue", "fSellVal", "FSellVal", "SellVal", "Foreignsellvaltotal")
+    return foreign_buy, foreign_sell, foreign_buy_val, foreign_sell_val

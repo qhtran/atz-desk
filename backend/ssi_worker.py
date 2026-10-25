@@ -169,10 +169,25 @@ def _tick_row(row: dict) -> dict:
     row["last"] = last
     row["high"] = max(float(row.get("high", last)), float(last))
     row["low"] = min(float(row.get("low", last)), float(last))
+    foreign_buy: int | None = None
+    foreign_sell: int | None = None
+    foreign_buy_val: int | None = None
+    foreign_sell_val: int | None = None
     if not is_index:
         row["volume"] = int(row.get("volume", 0)) + random.randint(0, 5_000)
         row["high"] = int(row["high"])
         row["low"] = int(row["low"])
+        if row.get("foreignBuy") is None:
+            row["foreignBuy"] = random.randint(8_000, 420_000)
+            row["foreignSell"] = random.randint(5_000, 380_000)
+        else:
+            row["foreignBuy"] = int(row["foreignBuy"]) + random.randint(0, 2_500)
+            row["foreignSell"] = int(row["foreignSell"]) + random.randint(0, 2_000)
+        foreign_buy = int(row["foreignBuy"])
+        foreign_sell = int(row["foreignSell"])
+        px = max(int(last), 1)
+        foreign_buy_val = foreign_buy * px
+        foreign_sell_val = foreign_sell * px
 
     return build_tick(
         symbol=row["symbol"],
@@ -183,6 +198,10 @@ def _tick_row(row: dict) -> dict:
         volume=row.get("volume", 0),
         high=row.get("high"),
         low=row.get("low"),
+        foreignBuy=foreign_buy,
+        foreignSell=foreign_sell,
+        foreignBuyValue=foreign_buy_val,
+        foreignSellValue=foreign_sell_val,
         source="MOCK_SSI",
     )
 

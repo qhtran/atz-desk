@@ -174,6 +174,7 @@ class RealSsiWorker:
         for sym in self.symbols:
             topics.append(f"quote.{sym}@tick")
             topics.append(f"trade.{sym}@tick")
+            topics.append(f"room.{sym}")
         # de-dupe preserve order
         seen: set[str] = set()
         out: list[str] = []
@@ -329,6 +330,16 @@ class RealSsiWorker:
             matchVol=parsed.get("matchVol") if parsed.get("matchVol") is not None else prev.get("matchVol"),
             foreignBuy=parsed.get("foreignBuy") if parsed.get("foreignBuy") is not None else prev.get("foreignBuy"),
             foreignSell=parsed.get("foreignSell") if parsed.get("foreignSell") is not None else prev.get("foreignSell"),
+            foreignBuyValue=(
+                parsed.get("foreignBuyValue")
+                if parsed.get("foreignBuyValue") is not None
+                else prev.get("foreignBuyValue")
+            ),
+            foreignSellValue=(
+                parsed.get("foreignSellValue")
+                if parsed.get("foreignSellValue") is not None
+                else prev.get("foreignSellValue")
+            ),
             source="SSI_WS",
             extra={"ssi_channel": parsed.get("channel") or ""},
         )

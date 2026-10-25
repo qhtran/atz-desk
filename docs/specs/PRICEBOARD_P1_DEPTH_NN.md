@@ -68,8 +68,11 @@ flowchart LR
 | `askVol1..3` | X-Quote | `offerVolN`, `BestOfferVolN` | _TBD_ | |
 | `last` / `matchVol` | X-Trade / DATA | `matchedPrice`, `matchedVol`, `lot` | _TBD_ | |
 | `volume` | DATA / MI | `totalVol`, `nmVolume` | _TBD_ | |
-| `foreignBuy` | MI | `fBuyVol`, `BuyForeignQtty` | _TBD_ | |
-| `foreignSell` | MI | `fSellVol`, `SellForeignQtty` | _TBD_ | |
+| `foreignBuy` | MI / room | `bq`, `fBuyVol`, `FBuyVol`, `BuyForeignQtty` | bq | KL mua NN |
+| `foreignSell` | MI / room | `sq`, `fSellVol`, `FSellVol`, `SellForeignQtty` | sq | KL bán NN |
+| `foreignBuyValue` | room | `bv`, `FBuyVal`, `BuyVal` | bv | GT mua |
+| `foreignSellValue` | room | `sv`, `FSellVal`, `SellVal` | sv | GT bán |
+| `foreignNetVol` / `foreignNetValue` | FE+BE | derived | buy − sell | Cột Ròng |
 | `tradeValue` (index) | DATA indexsummary | — | _TBD_ | Index card GT (Tỷ) |
 
 ---

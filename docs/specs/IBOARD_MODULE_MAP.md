@@ -31,7 +31,7 @@
 | **WS endpoint** | `backend/main.py` | `@app.websocket("/ws/priceboard")` | `docs/specs/PRICEBOARD_DEBUG.md` |
 | **Index bar (VN-INDEX, VN30, …)** | `frontend/index.html` | `INDEX_ORDER`, `applyIndex()`, `inIndexBasket()`, `computeBasketStats()` | `backend/board_universe.py` → `INDEX_BOARD_SYMBOLS` |
 | **Cột depth 3 bước** | `frontend/index.html` | `applyEquity()`, `enrichDepth()`, cột `data-f=bid*`, `ask*` | `docs/specs/PRICEBOARD_P1_DEPTH_NN.md` |
-| **Cột ĐTNN Mua/Bán** | `frontend/index.html` | `data-f=fbuy`, `data-f=fsell`; `matchesForeignLiveRow()` (tab Khối ngoại) | `docs/specs/PRICEBOARD_P1_DEPTH_NN.md` §4 |
+| **Cột ĐTNN (6 — SSI)** | `frontend/index.html` | KL: `fbuy`,`fsell`,`fnet`; GT: `fbuyv`,`fsellv`,`fnetv`; tab Khối ngoại: `matchesForeignLiveRow()` | `tick_contract._parse_foreign_fields` (bq/sq/bv/sv) + `room.{sym}` |
 | **Tín hiệu ngày / quét rổ** | `backend/daily_signals.py` | `scan_daily_signals()`, `symbols_for_market_tab(market)` | `backend/main.py` → `/api/iboard/daily-signals` |
 | **Config runtime** | `config/priceboard.yaml` | `min_volume`, `min_volume_by_exchange`, `ssi.channels`, `ssi.symbols` | ENV `PRICEBOARD_*`, `SSI_*` |
 | **Debug overlay / ui_ref** | `frontend/debug-overlay.js`, `frontend/ui_catalog.json` | `pb-ui:iboard.market.*`, `pb-ui:iboard.equity.row.*` | `docs/specs/PRICEBOARD_DEBUG.md` |
@@ -58,8 +58,8 @@
 | Layer | Field | Ghi chú |
 |-------|--------|---------|
 | Parse SSI | `fBuyVol`, `fSellVol`, `BuyForeignQtty`, `SellForeignQtty`, `foreignBuy`, `foreignSell` | `tick_contract.parse_ssi_envelope` |
-| Tick JSON | `foreignBuy`, `foreignSell` | Không có `foreignBuyValue`, `foreignNet`, `foreignSellValue` |
-| FE | Cột «Mua», «Bán» | Chỉ KL; không cột GT / ròng |
+| Tick JSON | `foreignBuy`, `foreignSell`, `foreignBuyValue`, `foreignSellValue`, `foreignNetVol` | GT parse từ SSI; FE hiển thị 3 cột KL (Mua/Bán/Ròng) |
+| Subscribe | `ssi_live._build_topics` | `room.{SYMBOL}` cho room ngoại |
 
 ---
 

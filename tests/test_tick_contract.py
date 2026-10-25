@@ -201,6 +201,47 @@ def test_parse_mi_foreign_only_no_last():
     assert parsed["foreignSell"] == 22000
 
 
+def test_parse_room_foreign_bq_sq():
+    parsed = parse_ssi_envelope(
+        {
+            "channel": "MI",
+            "data": {
+                "s": "FPT",
+                "bq": "120000",
+                "sq": "95000",
+                "bv": "11280000000",
+                "sv": "8935500000",
+            },
+        }
+    )
+    assert parsed is not None
+    assert parsed["symbol"] == "FPT"
+    assert parsed["foreignBuy"] == 120000
+    assert parsed["foreignSell"] == 95000
+    assert parsed["foreignBuyValue"] == 11280000000
+    assert parsed["foreignSellValue"] == 8935500000
+
+
+def test_build_tick_foreign_net_vol():
+    from backend.tick_contract import build_tick
+
+    tick = build_tick(symbol="HPG", last=25000, ref=25000, foreignBuy=100, foreignSell=40)
+    assert tick["foreignNetVol"] == 60
+
+
+def test_build_tick_foreign_net_value():
+    from backend.tick_contract import build_tick
+
+    tick = build_tick(
+        symbol="HPG",
+        last=25000,
+        ref=25000,
+        foreignBuyValue=1_000_000,
+        foreignSellValue=400_000,
+    )
+    assert tick["foreignNetValue"] == 600_000
+
+
 def test_ssi_envelope_has_symbol_false_on_heartbeat():
     assert not ssi_envelope_has_symbol({"method": "PING", "channel": "HEARTBEAT"})
 

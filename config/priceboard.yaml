@@ -42,6 +42,7 @@ priceboard:
       - trade.index.HNXINDEX@tick
       - trade.index.UPCOMINDEX@tick
     # Nếu rỗng: dùng danh sách VN30 hardcode trong worker
+    # Worker cũng subscribe room.{SYMBOL} (ĐTNN bq/sq trên kênh MI/DATA)
     symbols: []
     reconnect_initial_seconds: 2
     reconnect_max_seconds: 60

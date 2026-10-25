@@ -247,7 +247,7 @@
       width: 100%;
       min-width: 720px;
     }
-    .atz-table.iboard { min-width: 1480px; }
+    .atz-table.iboard { min-width: 1720px; }
     .atz-table th,
     .atz-table td {
       border-bottom: 1px solid #2a2a2a;
@@ -568,7 +568,8 @@
             <th colspan="3" class="grp-match text-[#ffd900]">Khớp lệnh</th>
             <th colspan="6" class="grp-sell text-[#ff0000]">Bên Bán</th>
             <th rowspan="2" class="num">Tổng KL</th>
-            <th colspan="2">Nước ngoài</th>
+            <th colspan="3" class="text-gray-300">ĐTNN · KL</th>
+            <th colspan="3" class="text-gray-300">ĐTNN · GT (VND)</th>
           </tr>
           <tr>
             <th class="grp-buy num">G3</th>
@@ -588,6 +589,10 @@
             <th class="grp-sell num">KL3</th>
             <th class="num">Mua</th>
             <th class="num">Bán</th>
+            <th class="num">Ròng</th>
+            <th class="num">Mua</th>
+            <th class="num">Bán</th>
+            <th class="num">Ròng</th>
           </tr>
         </thead>
         <tbody id="board-body"></tbody>
@@ -1198,6 +1203,13 @@
       if (v == null || v === "") return "—";
       return Math.round(Number(v) || 0).toLocaleString("en-US");
     }
+    /** GT khối ngoại — SSI streaming VND (full số, không chia tỷ). */
+    function fmtForeignValue(v) {
+      if (v == null || v === "") return "—";
+      const n = Math.round(Number(v) || 0);
+      if (!Number.isFinite(n)) return "—";
+      return n.toLocaleString("en-US");
+    }
     function fmtChange(v) {
       if (v == null || v === "") return "0";
       const n = Number(v);
@@ -1372,9 +1384,48 @@
       row.askVol2 = row.askVol2 ?? rnd(5) * 70;
       row.askVol3 = row.askVol3 ?? rnd(6) * 50;
       row.matchVol = row.matchVol ?? Math.max(10, Math.floor((Number(row.volume) || 0) % 5000) || rnd(7) * 10);
-      row.foreignBuy = row.foreignBuy ?? rnd(8) * 1000;
-      row.foreignSell = row.foreignSell ?? rnd(9) * 800;
+      if (row.foreignBuy == null && row.foreignSell == null) {
+        const fb = rnd(8) * 1000;
+        const fs = rnd(9) * 800;
+        row.foreignBuy = fb;
+        row.foreignSell = fs;
+        const px = Math.max(Number(row.last) || 0, 1);
+        row.foreignBuyValue = fb * px;
+        row.foreignSellValue = fs * px;
+      }
       return row;
+    }
+
+    function foreignNetVol(row) {
+      if (row.foreignNetVol != null && row.foreignNetVol !== "") return Number(row.foreignNetVol);
+      const buy = Number(row.foreignBuy);
+      const sell = Number(row.foreignSell);
+      if (!Number.isFinite(buy) && !Number.isFinite(sell)) return null;
+      return (Number.isFinite(buy) ? buy : 0) - (Number.isFinite(sell) ? sell : 0);
+    }
+
+    function foreignNetValue(row) {
+      if (row.foreignNetValue != null && row.foreignNetValue !== "") return Number(row.foreignNetValue);
+      const buy = Number(row.foreignBuyValue);
+      const sell = Number(row.foreignSellValue);
+      if (!Number.isFinite(buy) && !Number.isFinite(sell)) return null;
+      return (Number.isFinite(buy) ? buy : 0) - (Number.isFinite(sell) ? sell : 0);
+    }
+
+    function paintForeignNetCell(el, net, { valueMode = false } = {}) {
+      if (!el) return;
+      if (net == null || !Number.isFinite(net)) {
+        el.textContent = "—";
+        el.className = "num tabular-nums";
+        return;
+      }
+      if (valueMode) {
+        const abs = fmtForeignValue(Math.abs(net));
+        el.textContent = net > 0 ? "+" + abs : net < 0 ? "-" + abs : abs;
+      } else {
+        el.textContent = fmtChange(net);
+      }
+      el.className = "num tabular-nums " + changeTone(net);
     }
 
     /* ===== iBoard rows ===== */
@@ -1408,7 +1459,11 @@
         <td class="num tabular-nums grp-sell text-gray-300" data-f="askVol3"></td>
         <td class="num tabular-nums" data-f="vol"></td>
         <td class="num tabular-nums" data-f="fbuy"></td>
-        <td class="num tabular-nums" data-f="fsell"></td>`;
+        <td class="num tabular-nums" data-f="fsell"></td>
+        <td class="num tabular-nums" data-f="fnet"></td>
+        <td class="num tabular-nums" data-f="fbuyv"></td>
+        <td class="num tabular-nums" data-f="fsellv"></td>
+        <td class="num tabular-nums" data-f="fnetv"></td>`;
       tr.querySelector(".pin-btn").addEventListener("click", (ev) => {
         ev.preventDefault();
         ev.stopPropagation();
@@ -1571,6 +1626,10 @@
       tr.querySelector('[data-f="vol"]').textContent = fmtVol(row.volume);
       tr.querySelector('[data-f="fbuy"]').textContent = fmtVol(row.foreignBuy);
       tr.querySelector('[data-f="fsell"]').textContent = fmtVol(row.foreignSell);
+      paintForeignNetCell(tr.querySelector('[data-f="fnet"]'), foreignNetVol(row));
+      tr.querySelector('[data-f="fbuyv"]').textContent = fmtForeignValue(row.foreignBuyValue);
+      tr.querySelector('[data-f="fsellv"]').textContent = fmtForeignValue(row.foreignSellValue);
+      paintForeignNetCell(tr.querySelector('[data-f="fnetv"]'), foreignNetValue(row), { valueMode: true });
       patchAdvisorCell(tr, row.symbol);
 
       if (flash && prev && prev.last !== row.last) {
