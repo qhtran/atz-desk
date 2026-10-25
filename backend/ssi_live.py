@@ -37,6 +37,7 @@ from backend.tick_contract import (
     parse_ssi_envelope,
     ssi_envelope_has_symbol,
     tick_has_payload,
+    tick_kind_for_symbol,
 )
 from backend.volume_filter import load_min_volume, passes_volume_filter
 
@@ -190,7 +191,7 @@ class RealSsiWorker:
                 symbol=sym,
                 last=ref,
                 ref=ref,
-                kind="index",
+                kind=tick_kind_for_symbol(sym),
                 volume=0,
                 source="SSI_WS",
             )

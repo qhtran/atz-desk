@@ -142,8 +142,8 @@ def build_seed(equity_count: int | None = None) -> list[dict]:
     seed: list[dict] = [
         {"symbol": "VNINDEX", "exchange": "HOSE", "kind": "index", "ref": 1285.4, "last": 1285.4, "volume": 0},
         {"symbol": "VN30", "exchange": "HOSE", "kind": "index", "ref": 1342.1, "last": 1342.1, "volume": 0},
-        {"symbol": "VN30F1M", "exchange": "HOSE", "kind": "index", "ref": 1847.0, "last": 1847.0, "volume": 0},
-        {"symbol": "VN30F2M", "exchange": "HOSE", "kind": "index", "ref": 1850.2, "last": 1850.2, "volume": 0},
+        {"symbol": "VN30F1M", "exchange": "HOSE", "kind": "equity", "ref": 1847.0, "last": 1847.0, "volume": 0},
+        {"symbol": "VN30F2M", "exchange": "HOSE", "kind": "equity", "ref": 1850.2, "last": 1850.2, "volume": 0},
         {"symbol": "HNXINDEX", "exchange": "HNX", "kind": "index", "ref": 238.6, "last": 238.6, "volume": 0},
         {"symbol": "UPCOMINDEX", "exchange": "UPCOM", "kind": "index", "ref": 95.2, "last": 95.2, "volume": 0},
     ]
