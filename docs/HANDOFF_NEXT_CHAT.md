@@ -1,7 +1,7 @@
 # Handoff — priceboard dev (chat tiếp theo)
 
 **Cập nhật:** 2026-10-25 (sync HEAD)  
-**Nhánh deploy VPS:** `main` — commit **`7ae3da5`** (OHLCV seed iBoard + script VPS)  
+**Nhánh deploy VPS:** `main` — commit **`6fe7f21`** (P1 prep depth HĐTL + OHLCV seed)  
 **Deploy:** `./scripts/deploy-vps.sh dev` (hoặc `--push` trước khi deploy)
 
 ## Ai đọc file này
@@ -24,6 +24,7 @@
 
 | Commit | Nội dung |
 |--------|----------|
+| **`6fe7f21`** | **P1 prep depth HĐTL:** partial tick, publish depth-only, FE không fake khi WS đã có bid/ask |
 | **`7ae3da5`** | **OHLCV EOD seed:** `backend/ohlcv_seed.py`, `./scripts/seed-iboard-ohlcv.sh` (container `vnstocks`) |
 | **`39d7fe7`** | Tab sàn **VN30F1M** / **VN30F2M** trên market-bar (HĐTL depth board) |
 | `c41b2f7` / `d399410` | Index-bar luôn có VN30F1M/F2M; tab **Khối ngoại** |
@@ -79,12 +80,13 @@
 
 | # | Hướng | Vì sao | Pass gợi ý |
 |---|--------|--------|------------|
-| **B** | **HĐTL depth UX** (VN30F1M/F2M) | Tab sàn đã ship; depth vẫn **fake** (`enrichDepth`) tới P1 map X-Quote | Spec `docs/specs/PRICEBOARD_P1_DEPTH_NN.md` — partial tick + tắt fake khi WS có `bid1`; **capture schema cần giờ mở cửa** |
+| **B** | **HĐTL depth — verify phiên mở** | Prep ship `6fe7f21`; ngoài giờ sổ lệnh thường trống → UI có thể vẫn hiện số **tạm** | Trong giờ giao dịch: tab VN30F1M, depth đổi theo SSI; spec `PRICEBOARD_P1_DEPTH_NN.md` |
 
 Khác:
 
 1. ~~UX Tín hiệu ngày / filter mở rộng / Top 20 / cột CV~~ — ship `2e9ee5d`.
 2. ~~OHLCV EOD seed iBoard~~ — ship `7ae3da5` + verify VPS.
+3. ~~HĐTL depth P1 prep~~ — ship `6fe7f21`; **pass** khi verify trong phiên.
 3. **Parity / cutover** — ADR 0007 (prod ngoài scope mặc định).
 4. **CapitalLedger / NAV** — optional Danh mục.
 
