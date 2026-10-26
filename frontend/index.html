@@ -752,6 +752,7 @@
 
     const state = new Map();
     const sparkHist = new Map();
+    let sparkTradingDate = null;
     let ws = null;
     let retryMs = 1000;
     let pingTimer = null;
@@ -1259,12 +1260,100 @@
     const SPARK_H = 36;
     const SPARK_PAD_Y = 2;
     const SPARK_PLOT_H = 32;
+    const SPARK_RENDER_MAX = 100;
+    const SESSION_TRADING_MINUTES = 270;
+    const SPARK_MORNING_START = 9 * 60;
+    const SPARK_MORNING_END = 11 * 60 + 30;
+    const SPARK_AFTERNOON_START = 13 * 60;
+    const SPARK_AFTERNOON_END = 15 * 60;
 
-    function pushSpark(symbol, value) {
+    function vnPartsFromTs(tsSec) {
+      const s = new Date(Number(tsSec) * 1000).toLocaleString("en-GB", {
+        timeZone: "Asia/Ho_Chi_Minh",
+        hour12: false,
+      });
+      const [d, t] = s.split(", ");
+      const [dd, mm, yyyy] = d.split("/");
+      const [hh, mi] = t.split(":");
+      return {
+        y: Number(yyyy),
+        mo: Number(mm),
+        d: Number(dd),
+        h: Number(hh),
+        m: Number(mi),
+        wd: new Date(`${yyyy}-${mm}-${dd}T12:00:00+07:00`).getDay(),
+      };
+    }
+
+    function tradingSessionXFromTs(tsSec) {
+      const p = vnPartsFromTs(tsSec);
+      const mins = p.h * 60 + p.m;
+      if (mins < SPARK_MORNING_START) return 0;
+      if (mins <= SPARK_MORNING_END) return (mins - SPARK_MORNING_START) / SESSION_TRADING_MINUTES;
+      if (mins < SPARK_AFTERNOON_START) return (SPARK_MORNING_END - SPARK_MORNING_START) / SESSION_TRADING_MINUTES;
+      if (mins <= SPARK_AFTERNOON_END) {
+        const elapsed = (SPARK_MORNING_END - SPARK_MORNING_START) + (mins - SPARK_AFTERNOON_START);
+        return elapsed / SESSION_TRADING_MINUTES;
+      }
+      return 1;
+    }
+
+    function decimateSparkPoints(points, maxN) {
+      if (!points || points.length <= maxN) return points || [];
+      const out = [];
+      for (let i = 0; i < maxN; i++) {
+        const idx = Math.round((i / Math.max(maxN - 1, 1)) * (points.length - 1));
+        out.push(points[idx]);
+      }
+      return out;
+    }
+
+    function normalizeSparkPoints(raw, fallbackLast) {
+      if (!raw || !raw.length) {
+        if (fallbackLast != null) return [[Math.floor(Date.now() / 1000), Number(fallbackLast)]];
+        return [];
+      }
+      if (Array.isArray(raw[0])) return raw.map((p) => [Number(p[0]), Number(p[1])]);
+      return raw.map((v, i) => [Math.floor(Date.now() / 1000) - (raw.length - i), Number(v)]);
+    }
+
+    async function fetchIndexSpark() {
+      try {
+        const res = await fetch("/api/iboard/index-spark");
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!data || !data.ok) return;
+        const td = data.trading_date || null;
+        if (sparkTradingDate && td && td !== sparkTradingDate) sparkHist.clear();
+        if (td) sparkTradingDate = td;
+        for (const [sym, pts] of Object.entries(data.series || {})) {
+          if (!Array.isArray(pts) || !pts.length) continue;
+          const byTs = new Map();
+          for (const p of normalizeSparkPoints(pts)) byTs.set(p[0], p[1]);
+          const existing = sparkHist.get(sym) || [];
+          for (const p of existing) byTs.set(p[0], p[1]);
+          const merged = [...byTs.entries()].sort((a, b) => a[0] - b[0]).map(([t, v]) => [t, v]);
+          sparkHist.set(sym, merged);
+        }
+      } catch (_) {}
+    }
+
+    function pushSpark(symbol, value, tsSec) {
+      if (!inTradingSession()) return;
+      const ts = tsSec != null ? Number(tsSec) : Math.floor(Date.now() / 1000);
+      const bucket = ts - (ts % 60);
+      const price = Number(value) || 0;
       const arr = sparkHist.get(symbol) || [];
-      arr.push(Number(value) || 0);
-      while (arr.length > 40) arr.shift();
+      if (arr.length && arr[arr.length - 1][0] === bucket) {
+        arr[arr.length - 1][1] = price;
+      } else {
+        arr.push([bucket, price]);
+      }
       sparkHist.set(symbol, arr);
+    }
+
+    function sparkPointsFor(symbol, fallbackLast) {
+      return normalizeSparkPoints(sparkHist.get(symbol), fallbackLast);
     }
 
     function sparkStroke(change) {
@@ -1274,9 +1363,10 @@
       return "#ffd900";
     }
 
-    /** Geometry for index spark: hist + level lines (ref/high/low/last). */
-    function sparkGeom(values, levels) {
-      const nums = (values || []).map(Number).filter((v) => Number.isFinite(v));
+    /** Geometry for index spark: [[ts, value], ...] + level lines (ref/high/low/last). */
+    function sparkGeom(points, levels) {
+      const series = decimateSparkPoints(normalizeSparkPoints(points), SPARK_RENDER_MAX);
+      const nums = series.map((p) => Number(p[1])).filter((v) => Number.isFinite(v));
       if (!nums.length) return null;
       const extras = [levels?.ref, levels?.high, levels?.low, levels?.last]
         .map(Number)
@@ -1284,10 +1374,14 @@
       const min = Math.min(...nums, ...extras);
       const max = Math.max(...nums, ...extras);
       const span = max - min || 1;
-      const n = nums.length;
       const yOf = (v) => SPARK_H - SPARK_PAD_Y - ((v - min) / span) * SPARK_PLOT_H;
-      const xOf = (i) => (i / Math.max(n - 1, 1)) * SPARK_W;
-      const pts = nums.map((v, i) => ({ x: xOf(i), y: yOf(v) }));
+      const pts = series.map((p, i) => ({
+        x: tradingSessionXFromTs(p[0]) * SPARK_W,
+        y: yOf(Number(p[1])),
+      }));
+      if (pts.length === 1) {
+        pts[0].x = Math.max(pts[0].x, tradingSessionXFromTs(Math.floor(Date.now() / 1000)) * SPARK_W);
+      }
       const lineD = pts
         .map((p, i) => (i === 0 ? "M" : "L") + p.x.toFixed(1) + " " + p.y.toFixed(1))
         .join(" ");
@@ -1318,8 +1412,8 @@
     }
 
     /** Full SVG markup for first paint (idxCardHtml). */
-    function renderSparkSvg(symbol, values, levels, change) {
-      const g = sparkGeom(values, levels);
+    function renderSparkSvg(symbol, points, levels, change) {
+      const g = sparkGeom(points, levels);
       const stroke = sparkStroke(change);
       const gid = "spark-grad-" + String(symbol || "x").replace(/[^A-Za-z0-9_-]/g, "");
       if (!g) {
@@ -1347,9 +1441,9 @@
     }
 
     /** Patch existing SVG nodes — no innerHTML on the card. */
-    function patchSparkSvg(svg, values, levels, change) {
+    function patchSparkSvg(svg, points, levels, change) {
       if (!svg) return;
-      const g = sparkGeom(values, levels);
+      const g = sparkGeom(points, levels);
       const stroke = sparkStroke(change);
       if (!g) return;
       const setLine = (key, y) => {
@@ -1503,7 +1597,7 @@
     }
 
     function idxCardHtml(row) {
-      const hist = sparkHist.get(row.symbol) || [Number(row.last)];
+      const hist = sparkPointsFor(row.symbol, row.last);
       const tone = changeTone(row.change);
       const label = INDEX_LABEL[row.symbol] || row.symbol;
       const st = computeBasketStats(row.symbol);
@@ -1582,7 +1676,7 @@
 
     function applyIndex(row, { flash = false } = {}) {
       const prev = state.get(row.symbol);
-      pushSpark(row.symbol, row.last);
+      if (inTradingSession()) pushSpark(row.symbol, row.last);
       state.set(row.symbol, row);
       let card = elIndexBar.querySelector(`[data-idx="${row.symbol}"]`);
       if (!card) {
@@ -1602,7 +1696,7 @@
       pctEl.className = "tabular-nums text-[12px] font-medium " + tone;
       patchSparkSvg(
         card.querySelector("svg.spark"),
-        sparkHist.get(row.symbol) || [],
+        sparkPointsFor(row.symbol, row.last),
         sparkLevelsFromRow(row),
         row.change,
       );
@@ -2318,25 +2412,26 @@
         elBody.innerHTML = "";
         elIndexBar.innerHTML = "";
         state.clear();
-        sparkHist.clear();
         const rows = [...msg.rows].sort((a, b) => {
           const ai = INDEX_SYMBOLS.has(a.symbol) ? 0 : 1;
           const bi = INDEX_SYMBOLS.has(b.symbol) ? 0 : 1;
           if (ai !== bi) return ai - bi;
           return String(a.symbol).localeCompare(String(b.symbol));
         });
-        rows.forEach((r) => {
-          if (INDEX_SYMBOLS.has(r.symbol)) pushSpark(r.symbol, r.last);
-          applyRow(r, { flash: false });
+        void fetchIndexSpark().then(() => {
+          rows.forEach((r) => {
+            if (INDEX_SYMBOLS.has(r.symbol) && inTradingSession()) pushSpark(r.symbol, r.last);
+            applyRow(r, { flash: false });
+          });
+          renderIndexBar();
+          rows.forEach((r) => {
+            if (INDEX_SYMBOLS.has(r.symbol)) applyIndex(r, { flash: false });
+          });
+          restorePinnedRows();
+          applyBoardFilter();
+          refreshAllIndexStats();
+          renderPortfolioTable();
         });
-        renderIndexBar();
-        rows.forEach((r) => {
-          if (INDEX_SYMBOLS.has(r.symbol)) applyIndex(r, { flash: false });
-        });
-        restorePinnedRows();
-        applyBoardFilter();
-        refreshAllIndexStats();
-        renderPortfolioTable();
         return;
       }
       if (msg.type === "remove" && msg.symbol) {
@@ -2388,6 +2483,7 @@
 
     (async () => {
       await initPortfolioAuthSync();
+      await fetchIndexSpark();
       renderIndexBar();
       setMarketTab(marketTab);
       setAppTab(appTab);

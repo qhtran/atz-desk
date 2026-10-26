@@ -50,6 +50,7 @@ from backend.ssi_rest_bootstrap import (
     bootstrap_ticks,
     needs_rest_bootstrap,
 )
+from backend.index_spark import record_index_spark
 from backend.volume_filter import load_volume_filter_settings, passes_volume_filter
 
 setup("ssi_live")
@@ -366,6 +367,7 @@ class RealSsiWorker:
             body = json.dumps(tick, ensure_ascii=False, separators=(",", ":"))
             await redis.hset(HASH_KEY, sym, body)
             await redis.publish(CHANNEL, body)
+            await record_index_spark(redis, tick)
         except Exception as exc:  # noqa: BLE001
             log(
                 COMPONENT,

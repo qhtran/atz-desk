@@ -52,6 +52,7 @@ services:
       OHLCV_BARS_DIR: /app/data/ohlcv
       PORTFOLIO_DB_PATH: /app/data/portfolio.db
       TRADING_DB_PATH: /app/data/dev_trading.db
+      MARKET_DB_PATH: /app/data/market.db
       TRADING_CONFIG: /app/config/trading_station.yaml
       LOG_LEVEL: INFO
     ports:
@@ -99,11 +100,13 @@ services:
       SSI_AUTH_URL: ${SSI_AUTH_URL:-https://api.ssi.com.vn/api/v3/auth/token}
       PRICEBOARD_SSI_CHANNELS: ${PRICEBOARD_SSI_CHANNELS:-DATA,X-Quote,X-Trade,MI}
       MOCK_TICK_INTERVAL_MS: "250"
+      MARKET_DB_PATH: /app/data/market.db
       LOG_LEVEL: INFO
     command: ["python", "-m", "backend.ssi_worker"]
     volumes:
       - ./backend:/app/backend
       - ./config/priceboard.yaml:/app/config/priceboard.yaml:ro
+      - ./data:/app/data
     networks:
       - priceboard_dev
 

@@ -19,6 +19,7 @@ from typing import Any, Protocol
 import redis.asyncio as aioredis
 
 from backend.board_universe import mock_equity_seeds
+from backend.index_spark import record_index_spark
 from backend.observability import ERR_PB_REDIS_IO, ERR_PB_SSI_FALLBACK, ERR_PB_SSI_SESSION, log, setup
 from backend.tick_contract import build_tick
 from backend.volume_filter import load_volume_filter_settings, passes_volume_filter
@@ -51,6 +52,7 @@ async def _publish_or_hide(redis: aioredis.Redis, tick: dict) -> None:
         body = json.dumps(tick, ensure_ascii=False, separators=(",", ":"))
         await redis.hset(HASH_KEY, sym, body)
         await redis.publish(CHANNEL, body)
+        await record_index_spark(redis, tick)
     except Exception as exc:  # noqa: BLE001
         log(
             COMPONENT,

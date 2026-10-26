@@ -29,7 +29,7 @@
 | **Lọc KL tối thiểu (ẩn mã)** | `backend/volume_filter.py` | `VolumeFilterSettings`, `load_volume_filter_settings()`, `passes_volume_filter()` | `tests/test_volume_filter.py` |
 | **WS snapshot + fan-out** | `backend/redis_listener.py` | `load_snapshot()`, `merge_index_stubs()` | — |
 | **WS endpoint** | `backend/main.py` | `@app.websocket("/ws/priceboard")` | `docs/specs/PRICEBOARD_DEBUG.md` |
-| **Index bar (VN-INDEX, VN30, …)** | `frontend/index.html` | `INDEX_ORDER`, `applyIndex()`, `inIndexBasket()`, `computeBasketStats()` | `backend/board_universe.py` → `INDEX_BOARD_SYMBOLS` |
+| **Index bar (VN-INDEX, VN30, …)** | `frontend/index.html` | `INDEX_ORDER`, `applyIndex()`, `fetchIndexSpark()`, spark theo trục phiên VN | `GET /api/iboard/index-spark` ← `backend/index_spark.py` + `data/market.db` |
 | **Cột depth 3 bước** | `frontend/index.html` | `applyEquity()`, `enrichDepth()`, cột `data-f=bid*`, `ask*` | `docs/specs/PRICEBOARD_P1_DEPTH_NN.md` |
 | **Cột ĐTNN (6 — SSI)** | `frontend/index.html` | KL: `fbuy`,`fsell`,`fnet`; GT: `fbuyv`,`fsellv`,`fnetv`; tab Khối ngoại: `matchesForeignLiveRow()` | `tick_contract._parse_foreign_fields` (bq/sq/bv/sv) + `room.{sym}` |
 | **Tín hiệu ngày / quét rổ** | `backend/daily_signals.py` | `scan_daily_signals()`, `symbols_for_market_tab(market)` | `backend/main.py` → `/api/iboard/daily-signals` |

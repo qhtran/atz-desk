@@ -17,6 +17,8 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from backend.core.database import init_db
+from backend.index_spark import load_index_spark
+from backend.market_db import init_market_db
 from backend.core.errors import AppError, app_error_handler
 from backend.core.logging_middleware import TraceMiddleware
 from backend.debug_ui import public_debug_ui_config
@@ -44,6 +46,7 @@ listener = RedisTickListener(manager)
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     init_db()
+    init_market_db()
     listener.start()
     log(COMPONENT, "API-START", "priceboard api started", frontend=str(FRONTEND_DIR), redis_url=REDIS_URL)
     yield
@@ -218,6 +221,19 @@ class DailySignalsRequest(BaseModel):
     buy_min_total: float | None = Field(default=None, ge=0, le=100)
 
     model_config = {"populate_by_name": True}
+
+
+@app.get("/api/iboard/index-spark")
+async def iboard_index_spark(symbols: str | None = None) -> dict:
+    """Intraday 1m series for index-bar spark (SQLite + Redis cache)."""
+    sym_list = None
+    if symbols and symbols.strip():
+        sym_list = [s.strip().upper() for s in symbols.split(",") if s.strip()]
+    redis = aioredis.from_url(REDIS_URL, decode_responses=True)
+    try:
+        return await load_index_spark(redis, symbols=sym_list)
+    finally:
+        await redis.aclose()
 
 
 @app.get("/api/iboard/daily-signals/filters")
