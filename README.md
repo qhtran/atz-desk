@@ -1,29 +1,41 @@
-# atz.vn / vnstocks
+# ATZ Desk
 
-Ứng dụng Streamlit theo dõi, sàng lọc và cảnh báo realtime cổ phiếu Việt Nam. Web sau Authentik (`auth.atz.vn`). Không đặt lệnh tự động.
+**Tagline:** *Realtime · Tín hiệu · Một bàn.*
+
+ATZ Desk là bàn làm việc giao dịch trên web (dev: [dev.atz.vn](https://dev.atz.vn)): bảng giá realtime, iBoard theo sàn, quét filter ngày, phân tích mã (chart). Repo GitHub: **`atz-desk`**.
+
+Ứng dụng legacy **atz.vn** (Streamlit) vẫn có thể chạy song song trên cùng VPS; stack active dev là FastAPI + SPA trong `backend/`, `frontend/`, `docker-compose.dev.yml`.
+
+## Glossary (tránh nhầm tên)
+
+| Tên | Ý nghĩa |
+|-----|---------|
+| **ATZ Desk** | Sản phẩm / app (UI, API dev.atz.vn) |
+| **iBoard** | Module bảng điện + panel phân tích mã |
+| **vnstock** | Thư viện dữ liệu (gói thành viên Gold) — dùng khi **seed EOD** → `data/ohlcv`, không gọi mỗi lần mở chart |
+| **priceboard** | Tên kỹ thuật nội bộ: Redis keys, WS `/ws/priceboard`, `config/priceboard.yaml` |
 
 ## Tài liệu
 
 | File | Nội dung |
 |------|----------|
-| [docs/architecture.md](docs/architecture.md) | Kiến trúc 6 module + index feed |
-| [docs/troubleshooting.md](docs/troubleshooting.md) | Debug label, error code, health, sự cố |
-| [docs/adr/0001-target-folder-layout.md](docs/adr/0001-target-folder-layout.md) | Target tổ chức thư mục (deferred rename sâu) |
-| [docs/adr/0002-src-atz-layout-safe.md](docs/adr/0002-src-atz-layout-safe.md) | Layout `src/atz` + PYTHONPATH (đã làm) |
+| [docs/specs/IBOARD_MODULE_MAP.md](docs/specs/IBOARD_MODULE_MAP.md) | Bản đồ module ATZ Desk / iBoard (dev) |
+| [docs/architecture.md](docs/architecture.md) | Kiến trúc 6 module + index feed (legacy/prod) |
+| [docs/troubleshooting.md](docs/troubleshooting.md) | Debug label, error code (prod Streamlit + ops) |
 | [AGENTS.md](AGENTS.md) | Quy tắc làm việc Bot / GPC |
 
-## Cấu trúc code
+## Cấu trúc code (dev ATZ Desk)
 
-- Code Python: `src/atz/` (packages giữ tên cũ: `ingestion`, `filter_runner`, …)
-- Config YAML: `config/`
-- Docs: `docs/`
-- `PYTHONPATH` trỏ `src/atz` (Dockerfile + pytest)
+- **API / WS:** `backend/` (FastAPI)
+- **SPA:** `frontend/index.html`
+- **Dev compose:** `docker-compose.dev.yml` (project `atz_desk`)
+- Legacy Python prod: `src/atz/` — ngoài phạm vi dev trừ khi user mở lại
 
 ## Chạy nhanh (tóm tắt)
 
-- **Local:** venv + `PYTHONPATH=src/atz` + Streamlit `src/atz/app.py`; Redis hostname `redis` cần Docker network như trên VPS.
-- **VPS:** code `/opt/vnstocks`, `docker compose` (image chung `vnstocks-vnstocks`), services `vnstocks`, `atz-ingestion`, `atz-filter-runner`, `atz-alert`, `atz-position`, `atz-index`, `atz-redis`.
-- **Test:** `pytest` (`pythonpath=src/atz`, `testpaths=tests`).
+- **Dev Desk:** `docker compose -f docker-compose.dev.yml up --build` → API `http://127.0.0.1:8000`, WS `/ws/priceboard`
+- **VPS dev deploy:** clone `/opt/atz-desk` (script `scripts/deploy-vps.sh dev`); prod/ingestion legacy có thể vẫn ở `/opt/vnstocks`
+- **Test:** `pytest` (`testpaths=tests`)
 
 Secret chỉ nằm trong `.env*` / `.pip_index` trên máy chạy — không commit.
 

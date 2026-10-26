@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Deploy vnstocks lên VPS qua SSH (git pull + docker compose).
+# Deploy ATZ Desk / legacy stack lên VPS qua SSH (git pull + docker compose).
 #
 # Cấu hình: copy scripts/deploy-vps.env.example → scripts/deploy-vps.env (không commit).
 #
@@ -19,6 +19,7 @@ fi
 
 : "${ATZ_VPS_SSH:?Set ATZ_VPS_SSH in scripts/deploy-vps.env (vd. vps hoặc user@host)}"
 : "${ATZ_VPS_DIR:=/opt/vnstocks}"
+: "${ATZ_VPS_DIR_DEV:=/opt/atz-desk}"
 
 TARGET="${1:-dev}"
 shift || true
@@ -132,6 +133,7 @@ EOF
 
 case "$TARGET" in
   dev)
+    ATZ_VPS_DIR="${ATZ_VPS_DIR_DEV:-/opt/atz-desk}"
     services="${EXTRA_SERVICES:-api ssi-worker}"
     run_remote "docker-compose.dev.yml" "$services" "$services" ""
     ;;
@@ -145,7 +147,7 @@ case "$TARGET" in
     ;;
   *)
     echo "Usage: $0 {dev|prod} [--push] [--dry-run] [--services \"a b\"]" >&2
-    echo "  dev  — dev.atz.vn (docker-compose.dev.yml, mặc định api ssi-worker)" >&2
+    echo "  dev  — ATZ Desk dev.atz.vn (docker-compose.dev.yml, mặc định api ssi-worker)" >&2
     echo "  prod — atz.vn (docker-compose.yml, mặc định vnstocks --no-deps)" >&2
     exit 2
     ;;

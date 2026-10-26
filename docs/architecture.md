@@ -224,7 +224,7 @@ Stack **dev** (`dev.atz.vn`) Docker **tách** prod; **cutover đích:** thay sou
 
 | Thành phần | Chi tiết |
 |------------|----------|
-| Compose | `docker-compose.dev.yml` · project name **`atz_priceboard`** · containers `atz-priceboard-api-dev`, `atz-redis-dev`, `atz-ssi-worker-dev` |
+| Compose | `docker-compose.dev.yml` · project name **`atz_desk`** · containers `atz-desk-api-dev`, `atz-redis-dev`, `atz-ssi-worker-dev` |
 | Bind | Host `127.0.0.1:8000` (API+WS+UI) · `127.0.0.1:6380` (Redis dev) |
 | Data path | Worker → Redis Hash `priceboard:quotes` + Pub/Sub `priceboard_ticks` → FastAPI WS `/ws/priceboard` → `frontend/index.html` |
 | Nguồn | `PRICEBOARD_SOURCE=mock\|ssi` · live: `wss://stream.ssi.com.vn/ws/v3` (không ghi `idx:quote:*`) |

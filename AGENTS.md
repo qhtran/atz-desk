@@ -1,5 +1,12 @@
 # Quy tắc làm việc (Bot + GPC)
 
+## Tên sản phẩm (glossary)
+
+- **ATZ Desk** — app dev.atz.vn (`backend/`, `frontend/`, repo `atz-desk`).
+- **iBoard** — module bảng điện UI; debug id `pb-ui:iboard.*`.
+- **vnstock** — thư viện dữ liệu (Gold); **không** đồng nghĩa repo. Seed OHLCV: `backend/ohlcv_seed.py`.
+- **priceboard** — tên kỹ thuật (Redis, WS path, YAML config); giữ khi sửa ingestion.
+
 ## 0. Tài liệu
 - Kiến trúc / vận hành: `docs/architecture.md`, `docs/troubleshooting.md`
 - Target layout (chưa bắt buộc refactor): `docs/adr/0001-target-folder-layout.md`

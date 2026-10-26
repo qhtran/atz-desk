@@ -14,7 +14,7 @@
     {
       "match": "pb-ui:iboard.search",
       "matchType": "exact",
-      "breadcrumb": ["iBoard", "Tìm mã"],
+      "breadcrumb": ["ATZ Desk", "iBoard", "Tìm mã"],
       "hints": {
         "fe": "frontend/index.html — searchQuery, rowVisible()",
         "spec": "docs/bots/HANDOFF_NEXT_CHAT.md"
@@ -24,7 +24,7 @@
     {
       "match": "pb-ui:iboard.screener",
       "matchType": "prefix",
-      "breadcrumb": ["iBoard", "Bộ lọc screener"],
+      "breadcrumb": ["ATZ Desk", "iBoard", "Bộ lọc screener"],
       "hints": {
         "fe": "frontend/index.html — screenerSpec, rowVisible(), applyBoardFilter()",
         "be": "backend/main.py — POST /api/screener",
@@ -35,7 +35,7 @@
     {
       "match": "pb-ui:iboard.equity.row.",
       "matchType": "prefix",
-      "breadcrumb": ["iBoard", "Bảng cổ phiếu"],
+      "breadcrumb": ["ATZ Desk", "iBoard", "Bảng cổ phiếu"],
       "hints": {
         "fe": "frontend/index.html — applyEquity(), data-f cells",
         "be": "backend/tick_contract.py — parse_ssi_envelope",
@@ -46,7 +46,7 @@
     {
       "match": "pb-ui:iboard.index.",
       "matchType": "prefix",
-      "breadcrumb": ["iBoard", "Chỉ số"],
+      "breadcrumb": ["ATZ Desk", "iBoard", "Chỉ số"],
       "hints": {
         "fe": "frontend/index.html — patchIndexCard(), renderSparkSvg()",
         "be": "backend/tick_contract.py — index summary parse",
@@ -57,7 +57,7 @@
     {
       "match": "pb-ui:iboard.index.VN30F1M",
       "matchType": "exact",
-      "breadcrumb": ["iBoard", "Chỉ số", "VN30F1M"],
+      "breadcrumb": ["ATZ Desk", "iBoard", "Chỉ số", "VN30F1M"],
       "hints": {
         "fe": "frontend/index.html — idxCardHtml, INDEX_ORDER",
         "be": "backend/board_universe.py — INDEX_BOARD_SYMBOLS; redis_listener.merge_index_stubs",
@@ -68,7 +68,7 @@
     {
       "match": "pb-ui:iboard.market.VN30F1M",
       "matchType": "exact",
-      "breadcrumb": ["iBoard", "Tab sàn", "VN30F1M"],
+      "breadcrumb": ["ATZ Desk", "iBoard", "Tab sàn", "VN30F1M"],
       "hints": {
         "fe": "frontend/index.html — marketTab VN30F1M, FUTURES_BOARD_SYMBOLS",
         "be": "backend/board_universe.py — symbols_for_market_tab",
@@ -79,7 +79,7 @@
     {
       "match": "pb-ui:iboard.market.VN30F2M",
       "matchType": "exact",
-      "breadcrumb": ["iBoard", "Tab sàn", "VN30F2M"],
+      "breadcrumb": ["ATZ Desk", "iBoard", "Tab sàn", "VN30F2M"],
       "hints": {
         "fe": "frontend/index.html — marketTab VN30F2M, FUTURES_BOARD_SYMBOLS",
         "be": "backend/board_universe.py — symbols_for_market_tab",
@@ -90,7 +90,7 @@
     {
       "match": "pb-ui:iboard.index.VN30F2M",
       "matchType": "exact",
-      "breadcrumb": ["iBoard", "Chỉ số", "VN30F2M"],
+      "breadcrumb": ["ATZ Desk", "iBoard", "Chỉ số", "VN30F2M"],
       "hints": {
         "fe": "frontend/index.html — idxCardHtml, INDEX_ORDER",
         "be": "backend/board_universe.py — INDEX_BOARD_SYMBOLS; redis_listener.merge_index_stubs",
@@ -101,7 +101,7 @@
     {
       "match": "pb-ui:iboard.symbol-detail",
       "matchType": "exact",
-      "breadcrumb": ["iBoard", "Phân tích mã"],
+      "breadcrumb": ["ATZ Desk", "iBoard", "Phân tích mã"],
       "hints": {
         "fe": "frontend/index.html — openSymbolDetail(), SymbolDetailChart (vendor LWC)",
         "be": "backend/symbol_analysis.py, equity_spark.py — bars, intraday, scan_filter_markers",
@@ -112,7 +112,7 @@
     {
       "match": "pb-ui:iboard.symbol-detail.chart",
       "matchType": "exact",
-      "breadcrumb": ["iBoard", "Phân tích mã", "Chart LWC"],
+      "breadcrumb": ["ATZ Desk", "iBoard", "Phân tích mã", "Chart LWC"],
       "hints": {
         "fe": "frontend/index.html — #symbol-detail-lwc, range toolbar",
         "be": "GET /api/iboard/symbol-bars, symbol-intraday",
@@ -123,7 +123,7 @@
     {
       "match": "pb-ui:iboard.equity.row.",
       "matchType": "prefix",
-      "breadcrumb": ["iBoard", "Dòng CP", "XHT spark"],
+      "breadcrumb": ["ATZ Desk", "iBoard", "Dòng CP", "XHT spark"],
       "hints": {
         "fe": "frontend/index.html — data-f=trendSpark, pushSpark equity",
         "spec": "docs/specs/IBOARD_MODULE_MAP.md"

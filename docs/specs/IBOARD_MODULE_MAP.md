@@ -1,7 +1,7 @@
-# iBoard priceboard — bản đồ module (dev.atz.vn)
+# ATZ Desk — iBoard module map (dev.atz.vn)
 
 **Mục đích:** Tra cứu nhanh *sửa ở đâu* — agent/human **@ file này** thay vì quét repo.  
-**Phạm vi:** FastAPI priceboard (`backend/`, `frontend/index.html`, `config/priceboard.yaml`).  
+**Phạm vi:** ATZ Desk dev stack (`backend/`, `frontend/index.html`, `config/priceboard.yaml`).  
 **Prod Streamlit:** ngoài bảng này trừ khi user mở lại phạm vi prod.
 
 ---
