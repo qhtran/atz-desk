@@ -25,6 +25,9 @@ ALLOWED_FILTERS = frozenset(
         "bollinger",
         "adx",
         "atr",
+        "rs_index",
+        "breakout_52w",
+        "stochastic",
     }
 )
 
@@ -61,6 +64,52 @@ def _advisor_engine():
     from engine.advisor_score import compute_advisor_score, load_advisor_config
 
     return compute_advisor_score, load_advisor_config
+
+
+def _normalize_filter_names(filter_name: str, filters: list[str] | None) -> list[str]:
+    if filters:
+        raw = [str(f).strip().lower() for f in filters if str(f).strip()]
+    else:
+        raw = [str(filter_name or "rsi").strip().lower()]
+    out: list[str] = []
+    for name in raw:
+        if name not in ALLOWED_FILTERS or name in out:
+            continue
+        out.append(name)
+    return out
+
+
+def _advisor_hit(bars: pd.DataFrame, buy_min_total: float | None) -> tuple[bool, dict[str, Any] | None]:
+    compute, load_cfg = _advisor_engine()
+    cfg = load_cfg()
+    th = cfg["thresholds"]
+    floor = float(buy_min_total if buy_min_total is not None else th["buy_min_total"])
+    params = {
+        "thresholds": {
+            "buy_min_total": floor,
+            "sell_max_total": float(th["sell_max_total"]),
+        },
+    }
+    try:
+        score = compute(bars, params)
+    except Exception:
+        return False, None
+    if score.total is None or float(score.total) < floor:
+        return False, None
+    return True, {
+        "signal_type": score.recommendation,
+        "reason": score.reason,
+        "total": score.total,
+        "trend": score.pillars["trend"]["points"],
+        "flow": score.pillars["flow"]["points"],
+        "short_term": score.pillars["short_term"]["points"],
+    }
+
+
+def _plugin_params(name: str, index_bars: pd.DataFrame | None) -> dict[str, Any] | None:
+    if name == "rs_index":
+        return {"index_bars": index_bars}
+    return None
 
 
 def scan_advisor_scores(
@@ -115,25 +164,31 @@ def scan_daily_signals(
     *,
     market: str = "HOSE",
     filter_name: str = "rsi",
+    filters: list[str] | None = None,
+    combine: str = "and",
     symbols: list[str] | None = None,
     bars_dir: Path | None = None,
     buy_min_total: float | None = None,
     use_cache: bool = True,
 ) -> tuple[list[dict[str, Any]], int, int]:
-    """Quét mã; trả (hits, scanned, matched_count)."""
-    name = str(filter_name or "rsi").strip().lower()
+    """Quét mã; trả (hits, scanned, matched_count). Hỗ trợ nhiều filter (AND/OR)."""
+    names = _normalize_filter_names(filter_name, filters)
+    if not names:
+        return [], 0, 0
+    combine_or = str(combine or "and").strip().lower() == "or"
     day = _trading_day_key()
     sym_key: tuple[str, ...] | None = None
     if symbols is not None:
         sym_key = tuple(sorted(str(s).upper() for s in symbols))
-    cache_key = (market.upper(), name, buy_min_total, sym_key)
+    names_key = tuple(names)
+    cache_key = (market.upper(), names_key, combine_or, buy_min_total, sym_key)
     if use_cache:
         cached = _scan_cache.get(cache_key)
         if cached and cached[0] == day:
             hits, scanned, matched = cached[1], cached[2], cached[3]
             return list(hits), scanned, matched
 
-    if name == "advisor":
+    if names == ["advisor"]:
         hits, scanned, matched = scan_advisor_scores(
             market=market,
             symbols=symbols,
@@ -143,12 +198,9 @@ def scan_daily_signals(
         if use_cache:
             _scan_cache[cache_key] = (day, hits, scanned, matched)
         return hits, scanned, matched
-    registry = _filter_registry()
-    module = registry.get(name)
-    if module is None:
-        return [], 0, 0
 
-    evaluate = module.evaluate
+    registry = _filter_registry()
+    index_bars = load_symbol_bars("VNINDEX", bars_dir) if "rs_index" in names else None
     universe = symbols or symbols_for_market_tab(market)
     hits: list[dict[str, Any]] = []
     scanned = 0
@@ -157,20 +209,72 @@ def scan_daily_signals(
         if bars is None or bars.empty:
             continue
         scanned += 1
-        try:
-            result = evaluate(bars, None)
-        except Exception:
+        matched_names: list[str] = []
+        reasons: list[str] = []
+        advisor_extra: dict[str, Any] | None = None
+        failed_and = False
+        for name in names:
+            if name == "advisor":
+                ok, extra = _advisor_hit(bars, buy_min_total)
+                if ok:
+                    matched_names.append("advisor")
+                    advisor_extra = extra
+                    if extra and extra.get("reason"):
+                        reasons.append(f"advisor: {extra['reason']}")
+                elif not combine_or:
+                    failed_and = True
+                    break
+                continue
+            module = registry.get(name)
+            if module is None:
+                if not combine_or:
+                    failed_and = True
+                    break
+                continue
+            try:
+                result = module.evaluate(bars, _plugin_params(name, index_bars))
+            except Exception:
+                if not combine_or:
+                    failed_and = True
+                    break
+                continue
+            if getattr(result, "matched", False):
+                matched_names.append(name)
+                reason = getattr(result, "reason", "")
+                if reason:
+                    reasons.append(f"{name}: {reason}")
+            elif not combine_or:
+                failed_and = True
+                break
+        if failed_and:
             continue
-        if not getattr(result, "matched", False):
+        if combine_or:
+            if not matched_names:
+                continue
+        elif len(matched_names) != len(names):
             continue
-        hits.append(
-            {
-                "symbol": sym.upper(),
-                "filter": name,
-                "signal_type": getattr(result, "signal_type", ""),
-                "reason": getattr(result, "reason", ""),
-            }
-        )
+        row: dict[str, Any] = {
+            "symbol": sym.upper(),
+            "filter": ",".join(matched_names),
+            "filters": list(matched_names),
+            "signal_type": "mua",
+            "reason": "; ".join(reasons),
+        }
+        if advisor_extra:
+            row.update(advisor_extra)
+            row["signal_type"] = advisor_extra.get("signal_type", row["signal_type"])
+        elif matched_names:
+            first = matched_names[0]
+            mod = registry.get(first)
+            if mod is not None:
+                try:
+                    r0 = mod.evaluate(bars, _plugin_params(first, index_bars))
+                    row["signal_type"] = getattr(r0, "signal_type", "mua")
+                except Exception:
+                    pass
+        hits.append(row)
+    if "advisor" in names:
+        hits.sort(key=lambda row: float(row.get("total") or 0), reverse=True)
     matched = len(hits)
     if use_cache:
         _scan_cache[cache_key] = (day, hits, scanned, matched)

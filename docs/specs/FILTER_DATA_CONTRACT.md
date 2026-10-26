@@ -16,6 +16,9 @@
 | bollinger | daily | 20 | C | ohlcv CSV |
 | adx | daily | ~30 | H,L,C | ohlcv CSV |
 | atr | daily | ~35 | H,L,C,O | ohlcv CSV |
+| rs_index | daily | 60 | C + VNINDEX | ohlcv CSV |
+| breakout_52w | daily | 252 | H,C | ohlcv CSV |
+| stochastic | daily | ~20 | H,L,C | ohlcv CSV |
 
 ## Hàng đợi P1 (daily OHLCV — F-01…F-10)
 
@@ -24,10 +27,10 @@
 | F-01 | Bollinger | 20 | C (+ H,L) | **Shipped** iBoard |
 | F-02 | ADX | 28 | H,L,C | **Shipped** iBoard |
 | F-03 | ATR | 15 | H,L,C | **Shipped** iBoard |
-| F-04 | RS vs VNINDEX | 60 | C + index C |
-| F-05 | Breakout 52w | 252 | H,C |
+| F-04 | RS vs VNINDEX | 60 | C + index C | **Shipped** iBoard |
+| F-05 | Breakout 52w | 252 | H,C | **Shipped** iBoard |
 | F-06 | MA cross | 50 | C | **Shipped** (filter `ma`) |
-| F-07 | Stochastic | 14 | H,L,C |
+| F-07 | Stochastic | 14 | H,L,C | **Shipped** iBoard |
 | F-08 | Foreign streak | N | foreign_net series |
 | F-09 | Liquidity | 20 | V, GT |
 | F-10 | Market regime | 200 | VNINDEX C |

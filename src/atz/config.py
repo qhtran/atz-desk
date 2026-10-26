@@ -81,6 +81,13 @@ ADX_MIN = 25.0          # ngưỡng xu hướng mạnh
 ATR_LENGTH = 14
 ATR_AVG = 20
 ATR_SPIKE = 1.25        # ATR phiên cuối / TB ATR
+RS_INDEX_LOOKBACK = 60
+RS_INDEX_MIN_EDGE = 0.0   # % vượt VNINDEX
+BREAKOUT_LOOKBACK = 252
+STOCH_K = 14
+STOCH_D = 3
+STOCH_OVERSOLD = 20
+STOCH_OVERBOUGHT = 80
 # Top KL phiên (F1 mục 5): so với TB 10 phiên trước, sàn thanh khoản
 VOLUME_LEADERS_AVG = 10
 VOLUME_LEADERS_MIN_AVG = 500_000

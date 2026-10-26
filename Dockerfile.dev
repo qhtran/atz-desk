@@ -32,6 +32,7 @@ COPY src/atz/filters/__init__.py src/atz/filters/base.py src/atz/filters/_net.py
     src/atz/filters/rsi.py src/atz/filters/macd.py src/atz/filters/ma.py \
     src/atz/filters/candle.py src/atz/filters/volume.py src/atz/filters/foreign.py \
     src/atz/filters/bollinger.py src/atz/filters/adx.py src/atz/filters/atr.py \
+    src/atz/filters/rs_index.py src/atz/filters/breakout_52w.py src/atz/filters/stochastic.py \
     /app/atz_pkg/filters/
 
 EXPOSE 8000

@@ -11,6 +11,7 @@ def test_package_registry_lists_the_six_filters() -> None:
     assert set(found) == {
         "ma", "rsi", "macd", "bollinger", "volume", "candle", "foreign", "proprietary",
         "ichimoku", "mcdx", "adx", "atr", "advisor",
+        "rs_index", "breakout_52w", "stochastic",
     }
 
 

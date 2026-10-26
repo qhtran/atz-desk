@@ -232,6 +232,24 @@
     }
     .daily-scan-banner strong { color: #ffd900; font-weight: 600; }
 
+    .scr-daily-filters {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px 10px;
+      max-width: min(920px, 100%);
+      padding: 2px 0;
+    }
+    .scr-daily-filters label {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      color: #a3a3a3;
+      white-space: nowrap;
+    }
+    .scr-daily-filters input[type="checkbox"] { accent-color: #ffd900; }
+
     /* ===== Shared table component (.atz-table) ===== */
     .atz-table-wrap {
       overflow: auto;
@@ -529,14 +547,7 @@
         <option value="daily">Tín hiệu ngày</option>
         <option value="topvol">Top 20 KL phiên</option>
       </select>
-      <select id="scr-daily-filter" hidden title="Filter OHLCV (F1)">
-        <option value="rsi">RSI F1</option>
-        <option value="macd">MACD F1</option>
-        <option value="ma">MA</option>
-        <option value="candle">Nến F1</option>
-        <option value="volume">KL đột biến</option>
-        <option value="advisor">Cố vấn (0–100)</option>
-      </select>
+      <div id="scr-daily-filters" class="scr-daily-filters" hidden aria-label="Bộ lọc tín hiệu ngày"></div>
       <label for="scr-advisor-min" id="scr-advisor-min-wrap" class="text-[11px] text-gray-500" hidden>Điểm ≥</label>
       <input type="number" id="scr-advisor-min" hidden min="0" max="100" step="1" value="65" style="width:52px" title="Điểm tối thiểu (cố vấn)" />
       <button type="button" class="btn-quiet" id="scr-daily-run" hidden>Quét</button>
@@ -549,7 +560,7 @@
       <span class="text-[11px] text-gray-500" id="scr-status">WS live · FilterEngine</span>
     </div>
     <div id="daily-scan-banner" class="daily-scan-banner" hidden>
-      Chế độ <strong>Tín hiệu ngày</strong> — đang hiển thị full rổ tab sàn; bấm <strong>Quét</strong> để lọc theo filter OHLCV.
+      Chế độ <strong>Tín hiệu ngày</strong> — tick filter cần quét, chọn <strong>AND/OR</strong>, rồi bấm <strong>Quét</strong>.
     </div>
     <div class="market-bar" role="tablist" aria-label="Rổ thị trường">
       <button type="button" class="mkt-tab is-active" data-market="HOSE" data-atd-id="pb-ui:iboard.market.HOSE" role="tab" aria-selected="true">HOSE</button>
@@ -776,7 +787,7 @@
     let scrSourceBeforeForeignTab = null;
     let dailySignalSet = null;
     let dailyHitBySymbol = new Map();
-    let dailyScanMeta = { filter: "", matched: 0, scanned: 0 };
+    let dailyScanMeta = { filters: [], combine: "and", matched: 0, scanned: 0 };
     let topVolSet = new Set();
     const DAILY_FILTER_LABELS = {
       rsi: "RSI F1",
@@ -788,6 +799,9 @@
       bollinger: "Bollinger",
       adx: "ADX",
       atr: "ATR đột biến",
+      rs_index: "RS vs VNINDEX",
+      breakout_52w: "Breakout 52w",
+      stochastic: "Stochastic",
     };
     let portfolio = [];
     let pfAuthenticated = false;
@@ -978,7 +992,7 @@
     function patchAdvisorCell(tr, symbol) {
       const td = ensureAdvisorCell(tr);
       const hit = dailyHitBySymbol.get(symbol);
-      const showCol = scrSource === "daily" && dailyScanMeta.filter === "advisor" && dailySignalSet;
+      const showCol = scrSource === "daily" && dailyFiltersIncludeAdvisor() && dailySignalSet;
       if (!showCol || !hit || hit.total == null) {
         td.textContent = "";
         td.removeAttribute("title");
@@ -998,7 +1012,7 @@
     }
 
     function refreshAdvisorColumnUi() {
-      const show = scrSource === "daily" && dailyScanMeta.filter === "advisor" && !!dailySignalSet;
+      const show = scrSource === "daily" && dailyFiltersIncludeAdvisor() && !!dailySignalSet;
       setAdvisorColumnVisible(show);
       if (!show) return;
       elBody.querySelectorAll("tr[data-symbol]").forEach((tr) => {
@@ -1054,20 +1068,34 @@
       updateScreenerStatus(countVisibleBoardRows());
     }
 
+    function getSelectedDailyFilters() {
+      const box = document.getElementById("scr-daily-filters");
+      if (!box) return [];
+      return [...box.querySelectorAll('input[type="checkbox"]:checked')].map((el) => el.value);
+    }
+
+    function dailyFiltersIncludeAdvisor() {
+      const f = dailyScanMeta.filters?.length ? dailyScanMeta.filters : getSelectedDailyFilters();
+      return f.includes("advisor");
+    }
+
+    function formatDailyFiltersLabel(filters) {
+      if (!filters || !filters.length) return "—";
+      return filters.map((k) => DAILY_FILTER_LABELS[k] || k).join(", ");
+    }
+
     function applyForeignMarketTabMode(tab, prevTab) {
       const selSource = document.getElementById("scr-source");
-      const selFilter = document.getElementById("scr-daily-filter");
       if (
         tab === "FOREIGN"
-        && (prevTab !== "FOREIGN" || dailyScanMeta.filter !== "foreign")
+        && (prevTab !== "FOREIGN" || !(dailyScanMeta.filters || []).includes("foreign"))
       ) {
         if (prevTab !== "FOREIGN") scrSourceBeforeForeignTab = scrSource;
         scrSource = "daily";
         if (selSource) selSource.value = "daily";
-        if (selFilter) selFilter.value = "foreign";
         dailySignalSet = null;
         dailyHitBySymbol = new Map();
-        dailyScanMeta = { filter: "foreign", matched: 0, scanned: 0 };
+        dailyScanMeta = { filters: ["foreign"], combine: "and", matched: 0, scanned: 0 };
       } else if (tab !== "FOREIGN" && prevTab === "FOREIGN") {
         if (scrSourceBeforeForeignTab) {
           scrSource = scrSourceBeforeForeignTab;
@@ -1076,7 +1104,7 @@
         scrSourceBeforeForeignTab = null;
         dailySignalSet = null;
         dailyHitBySymbol = new Map();
-        dailyScanMeta = { filter: "", matched: 0, scanned: 0 };
+        dailyScanMeta = { filters: [], combine: "and", matched: 0, scanned: 0 };
       }
     }
 
@@ -1886,13 +1914,14 @@
       if (scrSource === "daily") {
         const fl = isForeignMarketTab()
           ? "Khối ngoại"
-          : (DAILY_FILTER_LABELS[dailyScanMeta.filter] || dailyScanMeta.filter);
+          : formatDailyFiltersLabel(dailyScanMeta.filters);
+        const mode = dailyScanMeta.combine === "or" ? "OR" : "AND";
         if (!dailySignalSet) {
           const prefix = isForeignMarketTab() ? "Khối ngoại" : "Tín hiệu ngày";
-          el.textContent = `${prefix} · full rổ · bấm Quét · ${n} mã`;
+          el.textContent = `${prefix} · full rổ · chọn filter · Quét · ${n} mã`;
           return;
         }
-        el.textContent = `${isForeignMarketTab() ? "Khối ngoại" : "Tín hiệu ngày"} · ${fl} · ${dailyScanMeta.matched}/${dailyScanMeta.scanned} hit · ${n} mã`;
+        el.textContent = `${isForeignMarketTab() ? "Khối ngoại" : "Tín hiệu ngày"} · ${mode} · ${fl} · ${dailyScanMeta.matched}/${dailyScanMeta.scanned} hit · ${n} mã`;
         return;
       }
       if (isFuturesMarketTab()) {
@@ -1911,16 +1940,14 @@
       const foreignTab = isForeignMarketTab();
       const daily = scrSource === "daily";
       const preset = scrSource === "topvol";
-      const selFilter = document.getElementById("scr-daily-filter");
-      if (foreignTab && daily && selFilter) selFilter.value = "foreign";
-      const dailyFilter = selFilter?.value || "rsi";
-      const advisor = daily && dailyFilter === "advisor";
-      document.getElementById("scr-daily-filter").hidden = !daily || foreignTab;
+      const advisor = daily && !foreignTab && getSelectedDailyFilters().includes("advisor");
+      const filterBox = document.getElementById("scr-daily-filters");
+      if (filterBox) filterBox.hidden = !daily || foreignTab;
       document.getElementById("scr-daily-run").hidden = !daily;
       document.getElementById("scr-advisor-min-wrap").hidden = !advisor;
       document.getElementById("scr-advisor-min").hidden = !advisor;
       document.querySelectorAll(".scr-live-only").forEach((el) => {
-        el.hidden = daily || preset;
+        el.hidden = preset;
       });
       [
         "scr-vol-min", "scr-pct-min", "scr-pct-max",
@@ -1929,42 +1956,61 @@
         const node = document.getElementById(id);
         if (node) node.disabled = daily || preset;
       });
-      if (!daily || !dailySignalSet || dailyFilter !== "advisor") {
-        if (!daily || dailyFilter !== "advisor") setAdvisorColumnVisible(false);
+      if (!daily || !dailySignalSet || !dailyFiltersIncludeAdvisor()) {
+        if (!daily || !dailyFiltersIncludeAdvisor()) setAdvisorColumnVisible(false);
       }
       syncDailyScanBanner();
     }
 
     async function loadDailyFilterOptions() {
-      const sel = document.getElementById("scr-daily-filter");
-      if (!sel) return;
+      const box = document.getElementById("scr-daily-filters");
+      if (!box) return;
+      const prev = new Set(getSelectedDailyFilters());
       try {
         const res = await fetch("/api/iboard/daily-signals/filters");
         const data = await res.json();
         if (!data.ok || !Array.isArray(data.filters) || !data.filters.length) return;
-        const prev = sel.value;
         const filters = data.filters.filter((key) => key !== "foreign");
-        sel.innerHTML = filters
+        box.innerHTML = filters
           .map((key) => {
             const label = DAILY_FILTER_LABELS[key] || key;
-            return `<option value="${key}">${label}</option>`;
+            const checked = prev.size ? prev.has(key) : key === "rsi";
+            return `<label><input type="checkbox" value="${key}" data-daily-filter="${key}"${checked ? " checked" : ""} /> ${label}</label>`;
           })
           .join("");
-        if (filters.includes(prev)) sel.value = prev;
       } catch {
-        /* giữ option HTML tĩnh */
+        if (!box.innerHTML.trim()) {
+          box.innerHTML = Object.entries(DAILY_FILTER_LABELS)
+            .filter(([key]) => key !== "foreign")
+            .map(([key, label]) => `<label><input type="checkbox" value="${key}" data-daily-filter="${key}"${key === "rsi" ? " checked" : ""} /> ${label}</label>`)
+            .join("");
+        }
       }
     }
 
+    function clearDailyScanResults() {
+      dailySignalSet = null;
+      dailyHitBySymbol = new Map();
+      dailyScanMeta = {
+        filters: getSelectedDailyFilters(),
+        combine: document.getElementById("scr-mode")?.value === "or" ? "or" : "and",
+        matched: 0,
+        scanned: 0,
+      };
+    }
+
     async function runDailySignalScan() {
-      const filter = isForeignMarketTab()
-        ? "foreign"
-        : (document.getElementById("scr-daily-filter").value || "rsi");
+      const filters = isForeignMarketTab() ? ["foreign"] : getSelectedDailyFilters();
+      const combine = document.getElementById("scr-mode")?.value === "or" ? "or" : "and";
       const el = document.getElementById("scr-status");
+      if (!filters.length) {
+        if (el) el.textContent = "Tín hiệu ngày · chọn ít nhất 1 filter";
+        return;
+      }
       if (el) el.textContent = "Tín hiệu ngày · đang quét…";
       try {
-        const payload = { market: marketTab, filter };
-        if (filter === "advisor") {
+        const payload = { market: marketTab, filters, combine, filter: filters[0] };
+        if (filters.includes("advisor")) {
           payload.buy_min_total = Number(document.getElementById("scr-advisor-min").value) || 65;
         }
         const res = await fetch("/api/iboard/daily-signals", {
@@ -1976,7 +2022,7 @@
         if (!data.ok || !Array.isArray(data.symbols)) {
           dailySignalSet = new Set();
           dailyHitBySymbol = new Map();
-          dailyScanMeta = { filter, matched: 0, scanned: 0 };
+          dailyScanMeta = { filters, combine, matched: 0, scanned: 0 };
           applyBoardFilter();
           return;
         }
@@ -1989,7 +2035,8 @@
           });
         }
         dailyScanMeta = {
-          filter: data.filter || filter,
+          filters: Array.isArray(data.filters) ? data.filters : filters,
+          combine: data.combine || combine,
           matched: data.matched ?? dailySignalSet.size,
           scanned: data.scanned ?? 0,
         };
@@ -2013,6 +2060,7 @@
         change_pct_max: safeNum(document.getElementById("scr-pct-max").value),
         flags,
       };
+      if (scrSource === "daily") clearDailyScanResults();
       applyBoardFilter();
     }
 
@@ -2045,23 +2093,22 @@
         if (scrSource !== "daily") {
           dailySignalSet = null;
           dailyHitBySymbol = new Map();
-          dailyScanMeta = { filter: "", matched: 0, scanned: 0 };
+          dailyScanMeta = { filters: [], combine: "and", matched: 0, scanned: 0 };
         }
         syncScreenerSourceUi();
         applyBoardFilter();
       });
       document.getElementById("scr-daily-run").addEventListener("click", () => runDailySignalScan());
-      document.getElementById("scr-daily-filter").addEventListener("change", () => {
-        dailySignalSet = null;
-        dailyHitBySymbol = new Map();
-        dailyScanMeta = {
-          filter: document.getElementById("scr-daily-filter").value || "rsi",
-          matched: 0,
-          scanned: 0,
-        };
-        syncScreenerSourceUi();
-        applyBoardFilter();
-      });
+      const filterBox = document.getElementById("scr-daily-filters");
+      if (filterBox) {
+        filterBox.addEventListener("change", (ev) => {
+          if (ev.target && ev.target.matches('input[type="checkbox"]')) {
+            clearDailyScanResults();
+            syncScreenerSourceUi();
+            applyBoardFilter();
+          }
+        });
+      }
       void loadDailyFilterOptions();
       syncScreenerSourceUi();
     }

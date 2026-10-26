@@ -218,6 +218,8 @@ async def migrate_portfolio_positions(request: Request, body: PortfolioPositions
 class DailySignalsRequest(BaseModel):
     market: str = "HOSE"
     filter: str = Field(default="rsi", alias="filter")
+    filters: list[str] | None = Field(default=None, alias="filters")
+    combine: str = Field(default="and", alias="combine")
     buy_min_total: float | None = Field(default=None, ge=0, le=100)
 
     model_config = {"populate_by_name": True}
@@ -244,10 +246,13 @@ async def iboard_daily_signal_filters() -> dict:
 @app.post("/api/iboard/daily-signals")
 async def iboard_daily_signals(body: DailySignalsRequest) -> dict:
     """Quét OHLCV — subset mã match filter (iBoard chế độ Tín hiệu ngày)."""
+    active = body.filters if body.filters else [body.filter]
     hits, scanned, matched = await asyncio.to_thread(
         scan_daily_signals,
         market=body.market,
         filter_name=body.filter,
+        filters=body.filters,
+        combine=body.combine,
         buy_min_total=body.buy_min_total,
     )
     return {
@@ -256,7 +261,9 @@ async def iboard_daily_signals(body: DailySignalsRequest) -> dict:
         "hits": hits,
         "scanned": scanned,
         "matched": matched,
-        "filter": body.filter,
+        "filter": active[0] if len(active) == 1 else ",".join(active),
+        "filters": active,
+        "combine": body.combine,
         "market": body.market.upper(),
     }
 

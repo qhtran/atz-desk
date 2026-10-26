@@ -51,7 +51,46 @@ def test_scan_daily_signals_monkeypatch(monkeypatch):
 def test_allowed_filters_includes_advisor():
     assert "advisor" in ALLOWED_FILTERS
     assert {"candle", "volume", "foreign"} <= ALLOWED_FILTERS
-    assert {"bollinger", "adx", "atr", "ma"} <= ALLOWED_FILTERS
+    assert {"bollinger", "adx", "atr", "ma", "rs_index", "breakout_52w", "stochastic"} <= ALLOWED_FILTERS
+
+
+def test_scan_daily_signals_multi_and(monkeypatch):
+    clear_daily_scan_cache()
+    calls = {"rsi": 0, "ma": 0}
+
+    class _Res:
+        matched = True
+        signal_type = "mua"
+        reason = "ok"
+
+    def make_mod(name):
+        class _Mod:
+            @staticmethod
+            def evaluate(_bars, _params):
+                calls[name] += 1
+                return _Res()
+
+        return _Mod()
+
+    monkeypatch.setattr(
+        "backend.daily_signals._filter_registry",
+        lambda: {"rsi": make_mod("rsi"), "ma": make_mod("ma")},
+    )
+    import pandas as pd
+
+    monkeypatch.setattr(
+        "backend.daily_signals.load_symbol_bars",
+        lambda sym, bars_dir=None: pd.DataFrame(
+            {"close": [1.0] * 30, "high": [2.0] * 30, "low": [0.5] * 30, "open": [1.0] * 30, "volume": [1.0] * 30}
+        ),
+    )
+    hits, scanned, matched = scan_daily_signals(
+        market="VN30", filters=["rsi", "ma"], combine="and", use_cache=False
+    )
+    assert scanned >= 1
+    assert matched == len(hits)
+    assert calls["rsi"] >= 1 and calls["ma"] >= 1
+    assert hits[0]["filters"] == ["rsi", "ma"]
 
 
 def test_scan_daily_signals_cache_same_day(monkeypatch):

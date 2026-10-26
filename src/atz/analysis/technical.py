@@ -141,6 +141,48 @@ def mfi(high, low, close, volume, length: int = C.MFI_LENGTH) -> pd.Series:
     return (100 - 100 / (1 + ratio)).where(neg != 0, 100.0).where(pos.notna())
 
 
+
+
+def stochastic(
+    high: pd.Series,
+    low: pd.Series,
+    close: pd.Series,
+    k_length: int = 14,
+    d_length: int = 3,
+) -> tuple[pd.Series, pd.Series]:
+    """%K và %D (SMA của %K)."""
+    lowest = low.rolling(k_length, min_periods=k_length).min()
+    highest = high.rolling(k_length, min_periods=k_length).max()
+    span = highest - lowest
+    k_line = 100 * (close - lowest) / span
+    k_line = k_line.where(span != 0)
+    d_line = k_line.rolling(d_length, min_periods=d_length).mean()
+    return k_line, d_line
+
+
+def rs_vs_index(
+    stock: pd.DataFrame,
+    index: pd.DataFrame,
+    lookback: int = 60,
+) -> float | None:
+    """Chênh lệch % tăng cổ phiếu trừ index trên lookback phiên (cùng cột time)."""
+    if stock is None or index is None or stock.empty or index.empty:
+        return None
+    s = stock[["time", "close"]].copy()
+    i = index[["time", "close"]].rename(columns={"close": "idx_close"})
+    merged = s.merge(i, on="time", how="inner")
+    if len(merged) < lookback + 1:
+        return None
+    tail = merged.tail(lookback + 1)
+    s0, s1 = float(tail["close"].iloc[0]), float(tail["close"].iloc[-1])
+    i0, i1 = float(tail["idx_close"].iloc[0]), float(tail["idx_close"].iloc[-1])
+    if s0 == 0 or i0 == 0:
+        return None
+    stock_ret = s1 / s0 - 1
+    idx_ret = i1 / i0 - 1
+    return round((stock_ret - idx_ret) * 100, 2)
+
+
 def enrich(frame: pd.DataFrame) -> pd.DataFrame:
     """Thêm toàn bộ cột chỉ báo dùng trên đồ thị và bảng dòng tiền."""
     w = frame.copy()
