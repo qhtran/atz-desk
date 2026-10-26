@@ -31,7 +31,12 @@ from backend.observability import (
     log,
     setup,
 )
-from backend.board_universe import INDEX_BOARD_SYMBOLS, default_watchlist, exchange_for_symbol
+from backend.board_universe import (
+    FUTURES_BOARD_SYMBOLS,
+    INDEX_BOARD_SYMBOLS,
+    default_watchlist,
+    exchange_for_symbol,
+)
 from backend.tick_contract import (
     build_tick,
     parse_ssi_envelope,
@@ -174,16 +179,31 @@ class RealSsiWorker:
     def request_stop(self) -> None:
         self._stop.set()
 
+    def _equity_like_symbols(self) -> list[str]:
+        """Mã cần depth quote (cổ phiếu + HĐTL). HĐTL nằm INDEX_BOARD nhưng parse như equity."""
+        out: list[str] = []
+        seen: set[str] = set()
+        for sym in [*self.symbols, *FUTURES_BOARD_SYMBOLS]:
+            s = str(sym or "").strip().upper()
+            if not s or s in seen:
+                continue
+            if s in INDEX_BOARD_SYMBOLS and s not in FUTURES_BOARD_SYMBOLS:
+                continue
+            seen.add(s)
+            out.append(s)
+        return out
+
+    def _append_quote_topics(self, topics: list[str], sym: str) -> None:
+        topics.append(f"quote.{sym}@tick")
+        topics.append(f"quote.{sym}")
+        topics.append(f"trade.{sym}@tick")
+        topics.append(f"room.{sym}")
+        topics.append(f"market.{sym}")
+
     def _build_topics(self) -> list[str]:
         topics = list(self.index_topics)
-        for sym in self.symbols:
-            if sym in INDEX_BOARD_SYMBOLS:
-                continue
-            topics.append(f"quote.{sym}@tick")
-            topics.append(f"quote.{sym}")
-            topics.append(f"trade.{sym}@tick")
-            topics.append(f"room.{sym}")
-            topics.append(f"market.{sym}")
+        for sym in self._equity_like_symbols():
+            self._append_quote_topics(topics, sym)
         # de-dupe preserve order
         seen: set[str] = set()
         out: list[str] = []
@@ -196,9 +216,8 @@ class RealSsiWorker:
     def _topics_for_channel(self, channel: str, data_topics: list[str]) -> list[str]:
         """Legacy X-Quote / X-Trade channels expect symbol topics, not DATA quote.* patterns."""
         ch = str(channel or "").strip().upper()
-        equity_syms = [s for s in self.symbols if s not in INDEX_BOARD_SYMBOLS]
         if ch in ("X-QUOTE", "X-TRADE", "MI"):
-            return equity_syms
+            return self._equity_like_symbols()
         return data_topics
 
     async def _load_board_from_redis(self, redis: aioredis.Redis) -> None:

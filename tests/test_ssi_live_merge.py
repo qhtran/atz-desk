@@ -1,7 +1,32 @@
 """Regression: SSI live merge must keep board exchange (HNX/UPCOM tabs)."""
 
+from backend.board_universe import FUTURES_BOARD_SYMBOLS
 from backend.ssi_live import RealSsiWorker
 from backend.tick_contract import build_tick
+
+
+def test_build_topics_includes_futures_quote_depth():
+    worker = RealSsiWorker()
+    topics = worker._build_topics()
+    for sym in FUTURES_BOARD_SYMBOLS:
+        assert f"quote.{sym}" in topics
+        assert f"quote.{sym}@tick" in topics
+        assert f"trade.{sym}@tick" in topics
+        assert f"room.{sym}" in topics
+    assert "quote.VNINDEX" not in topics
+    assert "indexsummary.VN30F1M" in topics
+
+
+def test_topics_for_channel_x_quote_includes_futures():
+    worker = RealSsiWorker()
+    data_topics = worker._build_topics()
+    xq = worker._topics_for_channel("X-Quote", data_topics)
+    for sym in FUTURES_BOARD_SYMBOLS:
+        assert sym in xq
+    assert "VNINDEX" not in xq
+    assert "FPT" in xq or "HPG" in xq
+    assert worker._topics_for_channel("DATA", data_topics) is data_topics
+    assert "quote.VN30F1M" in worker._topics_for_channel("DATA", data_topics)
 
 
 def test_merge_tick_preserves_hnx_exchange():
