@@ -4,6 +4,8 @@
 **Phạm vi:** ATZ Desk dev stack (`backend/`, `frontend/index.html`, `config/priceboard.yaml`).  
 **Prod Streamlit:** ngoài bảng này trừ khi user mở lại phạm vi prod.
 
+**Nginx dev:** upstream `atz-desk-api-dev` — file mẫu [`deploy/nginx_dev.conf`](../../deploy/nginx_dev.conf); VPS: `./scripts/apply-dev-atz-nginx.sh` (hoặc tự chạy sau `./scripts/deploy-vps.sh dev`).
+
 ---
 
 ## Luồng dữ liệu (1 dòng)

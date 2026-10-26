@@ -111,6 +111,13 @@ if [[ "${ATZ_COMPOSE_FILE}" == "docker-compose.dev.yml" ]]; then
     echo "healthz: FAIL sau 60s — xem: docker compose -f ${ATZ_COMPOSE_FILE} logs api --tail 40" >&2
     exit 1
   fi
+  if [[ -f deploy/nginx_dev.conf ]] && docker ps --format '{{.Names}}' | grep -qx nginx-reverse-proxy; then
+    echo "==> sync nginx dev.atz.vn (deploy/nginx_dev.conf)"
+    docker cp deploy/nginx_dev.conf nginx-reverse-proxy:/etc/nginx/conf.d/dev.atz.vn.conf
+    docker exec nginx-reverse-proxy nginx -t
+    docker exec nginx-reverse-proxy nginx -s reload
+    echo "nginx dev.atz.vn: OK"
+  fi
 fi
 EOF
 )"
