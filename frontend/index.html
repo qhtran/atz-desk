@@ -327,12 +327,42 @@
     }
     .symbol-detail-chart-wrap {
       padding: 10px 12px 16px;
-      overflow: auto;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      min-height: 420px;
     }
-    .symbol-detail-chart-wrap svg.price-chart {
+    .symbol-detail-range-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 8px;
+      align-items: center;
+    }
+    .symbol-detail-range-bar button {
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 4px;
+      border: 1px solid #2a2a2a;
+      background: #141414;
+      color: #a3a3a3;
+      cursor: pointer;
+    }
+    .symbol-detail-range-bar button.is-active {
+      border-color: #ffd900;
+      color: #ffd900;
+    }
+    .symbol-detail-ohlc-legend {
+      font-size: 11px;
+      color: #a3a3a3;
+      margin-bottom: 6px;
+      min-height: 1.2em;
+      font-variant-numeric: tabular-nums;
+    }
+    #symbol-detail-lwc {
       width: 100%;
       min-width: 480px;
-      height: 280px;
+      height: 380px;
       background: #0a0a0a;
       border: 1px solid #2a2a2a;
     }
@@ -720,8 +750,10 @@
         </div>
         <div class="symbol-detail-body">
           <div id="symbol-detail-filters" class="symbol-detail-filters" aria-label="Bộ lọc phân tích"></div>
-          <div class="symbol-detail-chart-wrap">
-            <svg id="symbol-detail-chart" class="price-chart" viewBox="0 0 640 280" aria-label="Biểu đồ giá"></svg>
+          <div class="symbol-detail-chart-wrap" data-atd-id="pb-ui:iboard.symbol-detail.chart">
+            <div id="symbol-detail-range-bar" class="symbol-detail-range-bar" aria-label="Khung thời gian"></div>
+            <div id="symbol-detail-ohlc-legend" class="symbol-detail-ohlc-legend"></div>
+            <div id="symbol-detail-lwc" aria-label="Biểu đồ giá"></div>
             <div id="symbol-detail-meta" class="symbol-detail-meta"></div>
           </div>
         </div>
@@ -801,6 +833,7 @@
     </div>
   </section>
 
+  <script src="/vendor/lightweight-charts.standalone.production.js"></script>
   <script>
     /* ===== Constants ===== */
     const INDEX_SYMBOLS = new Set([
@@ -926,6 +959,11 @@
     let symbolDetailMarkers = [];
     let symbolDetailActiveFilter = "";
     let symbolDetailFilterList = null;
+    let symbolDetailRange = "1y";
+    const SYMBOL_DETAIL_RANGES = ["1d", "1m", "3m", "6m", "1y", "3y", "5y"];
+    const SYMBOL_DETAIL_RANGE_LABEL = {
+      "1d": "1d", "1m": "1m", "3m": "3m", "6m": "6m", "1y": "1y", "3y": "3y", "5y": "5y",
+    };
 
     const elConnDot = document.getElementById("conn-dot");
     const elConnLabel = document.getElementById("conn-label");
@@ -2218,53 +2256,284 @@
       applyBoardFilter();
     }
 
-    const PRICE_CHART_W = 640;
-    const PRICE_CHART_H = 280;
-    const PRICE_CHART_PAD = { l: 48, r: 12, t: 12, b: 28 };
+    const SymbolDetailChart = (() => {
+      let chart = null;
+      let candleSeries = null;
+      let volumeSeries = null;
+      let lineSeries = null;
+      let ma10Series = null;
+      let ma50Series = null;
+      let resizeObs = null;
+      let mode = "daily";
 
-    function renderPriceChartSvg(bars, markers) {
-      const svg = document.getElementById("symbol-detail-chart");
-      if (!svg || !bars || !bars.length) {
-        if (svg) svg.innerHTML = "";
+      function lwc() {
+        return window.LightweightCharts;
+      }
+
+      function ensureChart() {
+        const el = document.getElementById("symbol-detail-lwc");
+        if (!el || !lwc()) return false;
+        if (chart) return true;
+        chart = lwc().createChart(el, {
+          layout: { background: { color: "#0a0a0a" }, textColor: "#a3a3a3" },
+          grid: { vertLines: { color: "#2a2a2a" }, horzLines: { color: "#2a2a2a" } },
+          rightPriceScale: { borderColor: "#2a2a2a" },
+          timeScale: { borderColor: "#2a2a2a", timeVisible: true, secondsVisible: false },
+          crosshair: { mode: lwc().CrosshairMode?.Normal ?? 0 },
+        });
+        chart.timeScale().fitContent();
+        if (!resizeObs && typeof ResizeObserver !== "undefined") {
+          resizeObs = new ResizeObserver(() => {
+            if (!chart || !el.clientWidth) return;
+            chart.applyOptions({ width: el.clientWidth, height: el.clientHeight || 380 });
+            chart.timeScale().fitContent();
+          });
+          resizeObs.observe(el);
+        }
+        chart.subscribeCrosshairMove((param) => updateOhlcLegend(param));
+        return true;
+      }
+
+      function removeSeries(ref) {
+        if (ref && chart) {
+          try {
+            chart.removeSeries(ref);
+          } catch (_) {}
+        }
+        return null;
+      }
+
+      function clearAllSeries() {
+        candleSeries = removeSeries(candleSeries);
+        volumeSeries = removeSeries(volumeSeries);
+        lineSeries = removeSeries(lineSeries);
+        ma10Series = removeSeries(ma10Series);
+        ma50Series = removeSeries(ma50Series);
+      }
+
+      function dailyTime(raw) {
+        const s = String(raw || "").slice(0, 10);
+        return s.length === 10 ? s : null;
+      }
+
+      function movingAverage(bars, period) {
+        const out = [];
+        for (let i = 0; i < bars.length; i++) {
+          if (i < period - 1) continue;
+          let sum = 0;
+          for (let j = i - period + 1; j <= i; j++) sum += Number(bars[j].close);
+          const t = dailyTime(bars[i].time);
+          if (t) out.push({ time: t, value: sum / period });
+        }
+        return out;
+      }
+
+      function updateOhlcLegend(param) {
+        const leg = document.getElementById("symbol-detail-ohlc-legend");
+        if (!leg) return;
+        const s = param?.seriesData;
+        let bar = null;
+        if (candleSeries && s?.get(candleSeries)) bar = s.get(candleSeries);
+        else if (lineSeries && s?.get(lineSeries)) {
+          const pt = s.get(lineSeries);
+          if (pt) bar = { open: pt.value, high: pt.value, low: pt.value, close: pt.value };
+        }
+        if (!bar) {
+          if (mode === "daily" && symbolDetailBars.length) {
+            const last = symbolDetailBars[symbolDetailBars.length - 1];
+            bar = last;
+          }
+        }
+        if (!bar) {
+          leg.textContent = "";
+          return;
+        }
+        const fmt = (v) => (Number.isFinite(Number(v)) ? Number(v).toLocaleString("en-US", { maximumFractionDigits: 2 }) : "—");
+        leg.textContent = `O ${fmt(bar.open)}  H ${fmt(bar.high)}  L ${fmt(bar.low)}  C ${fmt(bar.close)}`;
+      }
+
+      function setDaily(bars, markers) {
+        if (!ensureChart()) return;
+        mode = "daily";
+        clearAllSeries();
+        const rows = (bars || [])
+          .map((b) => {
+            const t = dailyTime(b.time);
+            if (!t) return null;
+            return {
+              time: t,
+              open: Number(b.open),
+              high: Number(b.high),
+              low: Number(b.low),
+              close: Number(b.close),
+              volume: Number(b.volume) || 0,
+            };
+          })
+          .filter(Boolean);
+        if (!rows.length) {
+          updateOhlcLegend(null);
+          return;
+        }
+        candleSeries = chart.addCandlestickSeries({
+          upColor: "#00c853",
+          downColor: "#ff1744",
+          borderVisible: false,
+          wickUpColor: "#00c853",
+          wickDownColor: "#ff1744",
+        });
+        candleSeries.setData(rows.map(({ volume, ...ohlc }) => ohlc));
+        volumeSeries = chart.addHistogramSeries({
+          priceFormat: { type: "volume" },
+          priceScaleId: "",
+        });
+        chart.priceScale("").applyOptions({ scaleMargins: { top: 0.75, bottom: 0 } });
+        volumeSeries.setData(
+          rows.map((r) => ({
+            time: r.time,
+            value: r.volume,
+            color: r.close >= r.open ? "rgba(0,200,83,0.35)" : "rgba(255,23,68,0.35)",
+          })),
+        );
+        ma10Series = chart.addLineSeries({ color: "#ffd900", lineWidth: 1, title: "MA10" });
+        ma50Series = chart.addLineSeries({ color: "#42a5f5", lineWidth: 1, title: "MA50" });
+        ma10Series.setData(movingAverage(rows, 10));
+        ma50Series.setData(movingAverage(rows, 50));
+        applyMarkers(markers);
+        chart.timeScale().fitContent();
+        updateOhlcLegend(null);
+      }
+
+      function setIntraday(points) {
+        if (!ensureChart()) return;
+        mode = "intraday";
+        clearAllSeries();
+        const rows = (points || [])
+          .map((p) => {
+            const ts = Number(Array.isArray(p) ? p[0] : p.time);
+            const val = Number(Array.isArray(p) ? p[1] : p.close ?? p.value);
+            if (!Number.isFinite(ts) || !Number.isFinite(val)) return null;
+            return { time: ts, value: val };
+          })
+          .filter(Boolean);
+        if (!rows.length) {
+          updateOhlcLegend(null);
+          return;
+        }
+        lineSeries = chart.addLineSeries({ color: "#ffd900", lineWidth: 2 });
+        lineSeries.setData(rows);
+        chart.timeScale().applyOptions({ timeVisible: true, secondsVisible: false });
+        chart.timeScale().fitContent();
+        updateOhlcLegend(null);
+      }
+
+      function applyMarkers(markers) {
+        if (!candleSeries || mode !== "daily") return;
+        const mapped = (markers || [])
+          .map((m) => {
+            const t = dailyTime(m.time);
+            if (!t) return null;
+            const ban = m.signal_type === "ban";
+            return {
+              time: t,
+              position: ban ? "aboveBar" : "belowBar",
+              color: ban ? "#ff1744" : "#00c853",
+              shape: ban ? "arrowDown" : "arrowUp",
+              text: (m.reason || "").slice(0, 40),
+            };
+          })
+          .filter(Boolean);
+        candleSeries.setMarkers(mapped);
+      }
+
+      function dispose() {
+        clearAllSeries();
+        if (resizeObs) {
+          const el = document.getElementById("symbol-detail-lwc");
+          if (el) resizeObs.unobserve(el);
+          resizeObs = null;
+        }
+        if (chart) {
+          chart.remove();
+          chart = null;
+        }
+        const leg = document.getElementById("symbol-detail-ohlc-legend");
+        if (leg) leg.textContent = "";
+      }
+
+      return { setDaily, setIntraday, applyMarkers, dispose, isDaily: () => mode === "daily" };
+    })();
+
+    function renderSymbolDetailRangeBar() {
+      const bar = document.getElementById("symbol-detail-range-bar");
+      if (!bar) return;
+      bar.innerHTML = SYMBOL_DETAIL_RANGES.map((r) => {
+        const active = r === symbolDetailRange ? " is-active" : "";
+        const label = SYMBOL_DETAIL_RANGE_LABEL[r] || r;
+        return `<button type="button" data-range="${r}" class="${active.trim()}">${label}</button>`;
+      }).join("");
+      bar.querySelectorAll("button[data-range]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const next = btn.dataset.range;
+          if (!next || next === symbolDetailRange) return;
+          symbolDetailRange = next;
+          renderSymbolDetailRangeBar();
+          loadSymbolDetailChartData();
+        });
+      });
+    }
+
+    async function loadSymbolDetailChartData() {
+      if (!symbolDetailSymbol) return;
+      const meta = document.getElementById("symbol-detail-meta");
+      const sym = symbolDetailSymbol;
+      const row = state.get(sym);
+      const fallbackLast = row?.last;
+      if (symbolDetailRange === "1d") {
+        if (meta && symbolDetailActiveFilter) {
+          meta.textContent = "Filter daily — chuyển 3m+ để xem marker trên chart.";
+        } else if (meta && !symbolDetailActiveFilter) {
+          meta.textContent = "Intraday phiên · chọn bộ lọc (marker chỉ trên daily).";
+        }
+        try {
+          const res = await fetch("/api/iboard/symbol-intraday?symbol=" + encodeURIComponent(sym));
+          const data = await res.json();
+          let pts = data.ok && Array.isArray(data.series) ? data.series : [];
+          if (!pts.length) pts = sparkPointsFor(sym, fallbackLast);
+          symbolDetailBars = [];
+          SymbolDetailChart.setIntraday(pts);
+          if (meta && !symbolDetailActiveFilter && !pts.length) {
+            meta.textContent = "Chưa có intraday — chờ tick trong phiên hoặc OHLCV daily (đổi range).";
+          }
+        } catch {
+          SymbolDetailChart.setIntraday(sparkPointsFor(sym, fallbackLast));
+          if (meta) meta.textContent = "Lỗi tải intraday — dùng spark local nếu có.";
+        }
         return;
       }
-      const closes = bars.map((b) => Number(b.close)).filter((v) => Number.isFinite(v));
-      if (!closes.length) return;
-      const times = bars.map((b) => String(b.time || ""));
-      const min = Math.min(...closes);
-      const max = Math.max(...closes);
-      const span = max - min || 1;
-      const plotW = PRICE_CHART_W - PRICE_CHART_PAD.l - PRICE_CHART_PAD.r;
-      const plotH = PRICE_CHART_H - PRICE_CHART_PAD.t - PRICE_CHART_PAD.b;
-      const xAt = (i) => PRICE_CHART_PAD.l + (i / Math.max(bars.length - 1, 1)) * plotW;
-      const yAt = (v) => PRICE_CHART_PAD.t + plotH - ((v - min) / span) * plotH;
-      const lineD = closes.map((v, i) => `${i === 0 ? "M" : "L"}${xAt(i).toFixed(1)} ${yAt(v).toFixed(1)}`).join(" ");
-      const markerByTime = new Map((markers || []).map((m) => [String(m.time), m]));
-      let markerSvg = "";
-      times.forEach((t, i) => {
-        const m = markerByTime.get(t);
-        if (!m) return;
-        const color = m.signal_type === "ban" ? "#ff0000" : "#00ff00";
-        const cx = xAt(i).toFixed(1);
-        const cy = yAt(closes[i]).toFixed(1);
-        markerSvg += `<circle cx="${cx}" cy="${cy}" r="4" fill="${color}" stroke="#0a0a0a" stroke-width="1"><title>${(m.reason || "").replace(/"/g, "'")}</title></circle>`;
-      });
-      const y0 = yAt(min).toFixed(1);
-      const y1 = yAt(max).toFixed(1);
-      svg.innerHTML = `
-        <line x1="${PRICE_CHART_PAD.l}" y1="${y0}" x2="${PRICE_CHART_W - PRICE_CHART_PAD.r}" y2="${y0}" stroke="#2a2a2a" stroke-width="1"/>
-        <line x1="${PRICE_CHART_PAD.l}" y1="${y1}" x2="${PRICE_CHART_W - PRICE_CHART_PAD.r}" y2="${y1}" stroke="#2a2a2a" stroke-width="1"/>
-        <text x="4" y="${y1}" fill="#737373" font-size="10">${Math.round(max).toLocaleString("en-US")}</text>
-        <text x="4" y="${y0}" fill="#737373" font-size="10">${Math.round(min).toLocaleString("en-US")}</text>
-        <path d="${lineD}" fill="none" stroke="#ffd900" stroke-width="1.8" stroke-linejoin="round"/>
-        ${markerSvg}
-        <text x="${PRICE_CHART_PAD.l}" y="${PRICE_CHART_H - 6}" fill="#737373" font-size="9">${times[0] || ""}</text>
-        <text x="${PRICE_CHART_W - PRICE_CHART_PAD.r - 60}" y="${PRICE_CHART_H - 6}" fill="#737373" font-size="9">${times[times.length - 1] || ""}</text>`;
+      const q = new URLSearchParams({ symbol: sym, range: symbolDetailRange });
+      try {
+        const res = await fetch("/api/iboard/symbol-bars?" + q.toString());
+        const data = await res.json();
+        symbolDetailBars = data.ok && Array.isArray(data.bars) ? data.bars : [];
+        if (symbolDetailActiveFilter) {
+          await selectSymbolDetailFilter(symbolDetailActiveFilter);
+        } else {
+          SymbolDetailChart.setDaily(symbolDetailBars, symbolDetailMarkers);
+          if (meta) {
+            meta.textContent = symbolDetailBars.length
+              ? "Chọn một bộ lọc để xem điểm tín hiệu trên chart."
+              : "Chưa có OHLCV local cho mã này.";
+          }
+        }
+      } catch {
+        if (meta) meta.textContent = "Lỗi tải OHLCV";
+      }
     }
 
     function closeSymbolDetail() {
       const backdrop = document.getElementById("symbol-detail-backdrop");
       if (backdrop) backdrop.hidden = true;
+      SymbolDetailChart.dispose();
       symbolDetailSymbol = null;
       symbolDetailActiveFilter = "";
     }
@@ -2310,19 +2579,27 @@
       renderSymbolDetailFilterButtons();
       const meta = document.getElementById("symbol-detail-meta");
       if (meta) meta.textContent = "Đang tải marker…";
+      if (symbolDetailRange === "1d") {
+        if (meta) meta.textContent = "Filter daily — chuyển 3m+ để xem marker trên chart.";
+        return;
+      }
       try {
-        const q = new URLSearchParams({ symbol: symbolDetailSymbol, filter: filterName, limit: "252" });
+        const q = new URLSearchParams({
+          symbol: symbolDetailSymbol,
+          filter: filterName,
+          range: symbolDetailRange,
+        });
         const res = await fetch("/api/iboard/symbol-filter-history?" + q.toString());
         const data = await res.json();
         if (!data.ok) {
           if (meta) meta.textContent = data.error || "Không tải được lịch sử filter";
           symbolDetailMarkers = [];
-          renderPriceChartSvg(symbolDetailBars, []);
+          SymbolDetailChart.setDaily(symbolDetailBars, []);
           return;
         }
         symbolDetailBars = Array.isArray(data.bars) ? data.bars : symbolDetailBars;
         symbolDetailMarkers = Array.isArray(data.markers) ? data.markers : [];
-        renderPriceChartSvg(symbolDetailBars, symbolDetailMarkers);
+        SymbolDetailChart.setDaily(symbolDetailBars, symbolDetailMarkers);
         const last = data.last || {};
         if (last.history === false) {
           if (meta) {
@@ -2346,6 +2623,7 @@
       symbolDetailSymbol = sym;
       symbolDetailActiveFilter = "";
       symbolDetailMarkers = [];
+      symbolDetailRange = "1y";
       const backdrop = document.getElementById("symbol-detail-backdrop");
       const title = document.getElementById("symbol-detail-title");
       const quote = document.getElementById("symbol-detail-quote");
@@ -2357,18 +2635,11 @@
       } else if (quote) quote.textContent = "";
       if (meta) meta.textContent = "Đang tải biểu đồ…";
       if (backdrop) backdrop.hidden = false;
-      renderPriceChartSvg([], []);
+      SymbolDetailChart.dispose();
+      renderSymbolDetailRangeBar();
       await loadSymbolDetailFilterCatalog();
       renderSymbolDetailFilterButtons();
-      try {
-        const res = await fetch("/api/iboard/symbol-bars?symbol=" + encodeURIComponent(sym) + "&limit=252");
-        const data = await res.json();
-        symbolDetailBars = data.ok && Array.isArray(data.bars) ? data.bars : [];
-        renderPriceChartSvg(symbolDetailBars, []);
-        if (meta) meta.textContent = symbolDetailBars.length ? "Chọn một bộ lọc để xem điểm tín hiệu." : "Chưa có OHLCV local cho mã này.";
-      } catch {
-        if (meta) meta.textContent = "Lỗi tải OHLCV";
-      }
+      await loadSymbolDetailChartData();
     }
 
     function wireSymbolDetailPanel() {

@@ -52,8 +52,20 @@ CREATE TABLE IF NOT EXISTS ingest_log (
     PRIMARY KEY (trading_date, symbol, source)
 );
 
+CREATE TABLE IF NOT EXISTS equity_intraday_1m (
+    symbol TEXT NOT NULL,
+    trading_date TEXT NOT NULL,
+    minute_ts INTEGER NOT NULL,
+    open REAL NOT NULL,
+    high REAL NOT NULL,
+    low REAL NOT NULL,
+    close REAL NOT NULL,
+    PRIMARY KEY (symbol, trading_date, minute_ts)
+);
+
 CREATE INDEX IF NOT EXISTS idx_equity_eod_date ON equity_eod(trading_date);
 CREATE INDEX IF NOT EXISTS idx_index_1m_date ON index_intraday_1m(trading_date, symbol);
+CREATE INDEX IF NOT EXISTS idx_equity_1m_date ON equity_intraday_1m(trading_date, symbol);
 """
 
 
@@ -152,3 +164,100 @@ def load_index_series_map(
         pts = load_index_minute_series(sym, trading_date, path=path)
         out[sym] = [[ts, val] for ts, val in pts]
     return out
+
+
+def upsert_equity_minute_bar(
+    symbol: str,
+    trading_date: str,
+    minute_ts: int,
+    last: float,
+    *,
+    path: Path | None = None,
+) -> None:
+    sym = symbol.strip().upper()
+    price = float(last)
+    conn = connect(path)
+    try:
+        row = conn.execute(
+            """
+            SELECT open, high, low FROM equity_intraday_1m
+            WHERE symbol = ? AND trading_date = ? AND minute_ts = ?
+            """,
+            (sym, trading_date, minute_ts),
+        ).fetchone()
+        if row is None:
+            conn.execute(
+                """
+                INSERT INTO equity_intraday_1m
+                    (symbol, trading_date, minute_ts, open, high, low, close)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (sym, trading_date, minute_ts, price, price, price, price),
+            )
+        else:
+            hi = max(float(row["high"]), price)
+            lo = min(float(row["low"]), price)
+            conn.execute(
+                """
+                UPDATE equity_intraday_1m
+                SET high = ?, low = ?, close = ?
+                WHERE symbol = ? AND trading_date = ? AND minute_ts = ?
+                """,
+                (hi, lo, price, sym, trading_date, minute_ts),
+            )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def load_equity_minute_series(
+    symbol: str,
+    trading_date: str,
+    *,
+    path: Path | None = None,
+) -> list[tuple[int, float]]:
+    sym = symbol.strip().upper()
+    conn = connect(path)
+    try:
+        rows = conn.execute(
+            """
+            SELECT minute_ts, close FROM equity_intraday_1m
+            WHERE symbol = ? AND trading_date = ?
+            ORDER BY minute_ts ASC
+            """,
+            (sym, trading_date),
+        ).fetchall()
+        return [(int(r["minute_ts"]), float(r["close"])) for r in rows]
+    finally:
+        conn.close()
+
+
+def load_equity_minute_ohlc(
+    symbol: str,
+    trading_date: str,
+    *,
+    path: Path | None = None,
+) -> list[dict[str, float | int]]:
+    sym = symbol.strip().upper()
+    conn = connect(path)
+    try:
+        rows = conn.execute(
+            """
+            SELECT minute_ts, open, high, low, close FROM equity_intraday_1m
+            WHERE symbol = ? AND trading_date = ?
+            ORDER BY minute_ts ASC
+            """,
+            (sym, trading_date),
+        ).fetchall()
+        return [
+            {
+                "time": int(r["minute_ts"]),
+                "open": float(r["open"]),
+                "high": float(r["high"]),
+                "low": float(r["low"]),
+                "close": float(r["close"]),
+            }
+            for r in rows
+        ]
+    finally:
+        conn.close()

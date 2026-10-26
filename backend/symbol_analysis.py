@@ -16,6 +16,28 @@ from backend.daily_signals import (
 from backend.portfolio_f3 import load_symbol_bars
 
 _CHART_COLS = ("time", "open", "high", "low", "close", "volume")
+CHART_LIMIT_MAX = 1300
+
+# ~phiên giao dịch (calendar approx) cho preset FireAnt
+RANGE_SESSION_LIMIT: dict[str, int] = {
+    "1m": 22,
+    "3m": 66,
+    "6m": 132,
+    "1y": 252,
+    "3y": 756,
+    "5y": 1260,
+}
+
+
+def chart_limit_from_query(*, range_key: str | None = None, limit: int | None = None) -> int:
+    """Map query `range` (1m–5y) hoặc `limit` thô → số nến daily."""
+    if range_key:
+        key = str(range_key).strip().lower()
+        if key in RANGE_SESSION_LIMIT:
+            return RANGE_SESSION_LIMIT[key]
+    if limit is not None:
+        return max(1, min(int(limit), CHART_LIMIT_MAX))
+    return 252
 
 
 def load_bars_for_chart(
@@ -31,7 +53,8 @@ def load_bars_for_chart(
     frame = load_symbol_bars(sym, bars_dir)
     if frame is None or frame.empty:
         return []
-    tail = frame.tail(max(1, min(int(limit), 500)))
+    cap = max(1, min(int(limit), CHART_LIMIT_MAX))
+    tail = frame.tail(cap)
     out: list[dict[str, Any]] = []
     for _, row in tail.iterrows():
         rec: dict[str, Any] = {}
@@ -85,7 +108,8 @@ def scan_filter_markers(
         base["error"] = "no_bars"
         return base
 
-    bars = bars.tail(max(1, min(int(limit), 500))).reset_index(drop=True)
+    cap = max(1, min(int(limit), CHART_LIMIT_MAX))
+    bars = bars.tail(cap).reset_index(drop=True)
     base["bars"] = load_bars_for_chart(sym, limit=limit, bars_dir=bars_dir)
 
     if name == "advisor":

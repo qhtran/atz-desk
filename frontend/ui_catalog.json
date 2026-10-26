@@ -103,8 +103,19 @@
       "matchType": "exact",
       "breadcrumb": ["iBoard", "Phân tích mã"],
       "hints": {
-        "fe": "frontend/index.html — openSymbolDetail(), renderPriceChartSvg()",
-        "be": "backend/symbol_analysis.py — scan_filter_markers",
+        "fe": "frontend/index.html — openSymbolDetail(), SymbolDetailChart (vendor LWC)",
+        "be": "backend/symbol_analysis.py, equity_spark.py — bars, intraday, scan_filter_markers",
+        "spec": "docs/specs/IBOARD_MODULE_MAP.md"
+      },
+      "err_codes": []
+    },
+    {
+      "match": "pb-ui:iboard.symbol-detail.chart",
+      "matchType": "exact",
+      "breadcrumb": ["iBoard", "Phân tích mã", "Chart LWC"],
+      "hints": {
+        "fe": "frontend/index.html — #symbol-detail-lwc, range toolbar",
+        "be": "GET /api/iboard/symbol-bars, symbol-intraday",
         "spec": "docs/specs/IBOARD_MODULE_MAP.md"
       },
       "err_codes": []

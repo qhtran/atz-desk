@@ -27,7 +27,8 @@ from backend.identity import me_from_headers
 from backend.portfolio_f3 import batch_f3_alerts, load_f3_sector_themes
 from backend.portfolio_quotes import normalize_symbols, resolve_portfolio_quotes
 from backend.daily_signals import ALLOWED_FILTERS, scan_daily_signals
-from backend.symbol_analysis import load_bars_for_chart, scan_filter_markers
+from backend.equity_spark import load_equity_intraday
+from backend.symbol_analysis import chart_limit_from_query, load_bars_for_chart, scan_filter_markers
 from backend.portfolio_store import list_positions, migrate_if_empty, replace_positions
 from backend.observability import ERR_PB_REDIS, ERR_PB_SCREENER, ERR_PB_WS, log, setup
 from backend.modules.trading.router import router as trading_router
@@ -270,13 +271,31 @@ async def iboard_daily_signals(body: DailySignalsRequest) -> dict:
 
 
 @app.get("/api/iboard/symbol-bars")
-async def iboard_symbol_bars(symbol: str, limit: int = 252) -> dict:
-    """OHLCV daily cho chart phân tích mã."""
+async def iboard_symbol_bars(
+    symbol: str,
+    limit: int = 252,
+    range: str | None = None,
+) -> dict:
+    """OHLCV daily cho chart phân tích mã (preset range 1m–5y)."""
     sym = str(symbol or "").strip().upper()
     if not sym:
         raise HTTPException(status_code=400, detail="symbol required")
-    bars = await asyncio.to_thread(load_bars_for_chart, sym, limit=min(max(limit, 1), 500))
-    return {"ok": True, "symbol": sym, "bars": bars}
+    cap = chart_limit_from_query(range_key=range, limit=limit)
+    bars = await asyncio.to_thread(load_bars_for_chart, sym, limit=cap)
+    return {"ok": True, "symbol": sym, "range": (range or "").strip().lower() or None, "limit": cap, "bars": bars}
+
+
+@app.get("/api/iboard/symbol-intraday")
+async def iboard_symbol_intraday(symbol: str, trading_date: str | None = None) -> dict:
+    """Intraday 1m phiên VN cho preset chart 1d."""
+    sym = str(symbol or "").strip().upper()
+    if not sym:
+        raise HTTPException(status_code=400, detail="symbol required")
+    redis = aioredis.from_url(REDIS_URL, decode_responses=True)
+    try:
+        return await load_equity_intraday(redis, sym, trading_date=trading_date)
+    finally:
+        await redis.aclose()
 
 
 @app.get("/api/iboard/symbol-filter-history")
@@ -284,6 +303,7 @@ async def iboard_symbol_filter_history(
     symbol: str,
     filter: str,
     limit: int = 252,
+    range: str | None = None,
     buy_min_total: float | None = None,
 ) -> dict:
     """Marker lịch sử một filter trên mã."""
@@ -291,11 +311,12 @@ async def iboard_symbol_filter_history(
     name = str(filter or "").strip().lower()
     if not sym or not name:
         raise HTTPException(status_code=400, detail="symbol and filter required")
+    cap = chart_limit_from_query(range_key=range, limit=limit)
     payload = await asyncio.to_thread(
         scan_filter_markers,
         sym,
         name,
-        limit=min(max(limit, 1), 500),
+        limit=cap,
         buy_min_total=buy_min_total,
     )
     if not payload.get("ok"):

@@ -4,7 +4,13 @@ from __future__ import annotations
 
 import pandas as pd
 
-from backend.symbol_analysis import load_bars_for_chart, scan_filter_markers
+from backend.symbol_analysis import chart_limit_from_query, load_bars_for_chart, scan_filter_markers
+
+
+def test_chart_limit_from_query_range_presets():
+    assert chart_limit_from_query(range_key="1m") == 22
+    assert chart_limit_from_query(range_key="5y") == 1260
+    assert chart_limit_from_query(limit=9999) == 1300
 
 
 def test_load_bars_for_chart_from_csv(monkeypatch, tmp_path):
