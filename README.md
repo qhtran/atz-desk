@@ -36,7 +36,7 @@ ATZ Desk là bàn làm việc giao dịch trên web (dev: [dev.atz.vn](https://d
 - **Dev Desk (local Docker):** `docker compose -f docker-compose.dev.yml up --build` → API `http://127.0.0.1:8000`, WS `/ws/priceboard`
 - **Deploy dev.atz.vn (từ Mac/laptop):**
   1. `cp scripts/deploy-vps.env.example scripts/deploy-vps.env` → sửa `ATZ_VPS_SSH=` (SSH alias tới VPS)
-  2. Từ **thư mục gốc repo:** `./scripts/deploy-vps.sh dev` (hoặc `./scripts/deploy-dev.sh`)
+  2. Từ **thư mục gốc repo:** `./deploy-dev` (hoặc `./scripts/deploy-vps.sh dev`)
   3. Script pull `/opt/atz-desk` trên VPS, rebuild API/worker, **sync nginx** `dev.atz.vn`
 - **Trên VPS (không cần file .env SSH):** `cd /opt/atz-desk && ./scripts/deploy-vps.sh dev-local`
 - **Chỉ sync nginx:** `./scripts/apply-dev-atz-nginx.sh` (trên VPS)
