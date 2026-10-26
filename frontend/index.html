@@ -250,6 +250,99 @@
     }
     .scr-daily-filters input[type="checkbox"] { accent-color: #ffd900; }
 
+    .th-trend, .td-trend-spark {
+      width: 92px;
+      min-width: 92px;
+      max-width: 92px;
+      padding: 0 4px !important;
+      vertical-align: middle;
+    }
+    .td-trend-spark .spark { display: block; width: 88px; height: 36px; }
+
+    .symbol-detail-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.55);
+      z-index: 9000;
+      display: flex;
+      align-items: stretch;
+      justify-content: flex-end;
+    }
+    .symbol-detail-backdrop[hidden] { display: none !important; }
+    .symbol-detail-panel {
+      width: min(920px, 100vw);
+      max-width: 100%;
+      background: #0f0f0f;
+      border-left: 1px solid #2a2a2a;
+      display: flex;
+      flex-direction: column;
+      max-height: 100vh;
+    }
+    .symbol-detail-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      border-bottom: 1px solid #2a2a2a;
+      gap: 12px;
+    }
+    .symbol-detail-body {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      gap: 0;
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+    }
+    @media (max-width: 720px) {
+      .symbol-detail-body { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+    }
+    .symbol-detail-filters {
+      border-right: 1px solid #2a2a2a;
+      overflow: auto;
+      padding: 8px;
+      max-height: calc(100vh - 120px);
+    }
+    .symbol-detail-filters button {
+      display: block;
+      width: 100%;
+      text-align: left;
+      margin: 0 0 4px;
+      padding: 6px 8px;
+      font-size: 11px;
+      background: #141414;
+      border: 1px solid #2a2a2a;
+      color: #d4d4d4;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .symbol-detail-filters button.is-active {
+      border-color: #ffd900;
+      color: #ffd900;
+    }
+    .symbol-detail-filters button .hit-badge {
+      float: right;
+      color: #00ff00;
+      font-size: 10px;
+    }
+    .symbol-detail-chart-wrap {
+      padding: 10px 12px 16px;
+      overflow: auto;
+    }
+    .symbol-detail-chart-wrap svg.price-chart {
+      width: 100%;
+      min-width: 480px;
+      height: 280px;
+      background: #0a0a0a;
+      border: 1px solid #2a2a2a;
+    }
+    .symbol-detail-meta {
+      font-size: 11px;
+      color: #a3a3a3;
+      margin-top: 8px;
+      min-height: 2.5em;
+    }
+
     /* ===== Shared table component (.atz-table) ===== */
     .atz-table-wrap {
       overflow: auto;
@@ -577,6 +670,7 @@
           <tr>
             <th rowspan="2" class="th-pin" title="Ghim">★</th>
             <th rowspan="2" class="th-sym">Mã CK</th>
+            <th rowspan="2" class="th-trend" title="Xu hướng phiên">XHT</th>
             <th rowspan="2" class="num th-advisor" id="th-advisor-col" hidden title="Điểm cố vấn 0–100">CV</th>
             <th rowspan="2" class="num">Trần</th>
             <th rowspan="2" class="num">Sàn</th>
@@ -614,6 +708,24 @@
         </thead>
         <tbody id="board-body"></tbody>
       </table>
+    </div>
+    <div id="symbol-detail-backdrop" class="symbol-detail-backdrop" hidden data-atd-id="pb-ui:iboard.symbol-detail">
+      <div class="symbol-detail-panel" role="dialog" aria-labelledby="symbol-detail-title">
+        <div class="symbol-detail-head">
+          <div>
+            <div id="symbol-detail-title" class="text-lg font-semibold text-[#ffd900]">—</div>
+            <div id="symbol-detail-quote" class="text-[12px] text-gray-400 tabular-nums"></div>
+          </div>
+          <button type="button" class="btn-quiet" id="symbol-detail-close" aria-label="Đóng">✕</button>
+        </div>
+        <div class="symbol-detail-body">
+          <div id="symbol-detail-filters" class="symbol-detail-filters" aria-label="Bộ lọc phân tích"></div>
+          <div class="symbol-detail-chart-wrap">
+            <svg id="symbol-detail-chart" class="price-chart" viewBox="0 0 640 280" aria-label="Biểu đồ giá"></svg>
+            <div id="symbol-detail-meta" class="symbol-detail-meta"></div>
+          </div>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -808,6 +920,12 @@
     };
     let portfolio = [];
     let pfAuthenticated = false;
+    let equitySparkTimer = null;
+    let symbolDetailSymbol = null;
+    let symbolDetailBars = [];
+    let symbolDetailMarkers = [];
+    let symbolDetailActiveFilter = "";
+    let symbolDetailFilterList = null;
 
     const elConnDot = document.getElementById("conn-dot");
     const elConnLabel = document.getElementById("conn-label");
@@ -1624,9 +1742,12 @@
       tr = document.createElement("tr");
       tr.id = "row-" + symbol;
       tr.dataset.symbol = symbol;
+      tr.dataset.atdId = "pb-ui:iboard.equity.row." + symbol;
+      tr.classList.add("equity-row");
       tr.innerHTML = `
         <td class="pin-cell"><button type="button" class="pin-btn" aria-label="Ghim ${symbol}" aria-pressed="false">★</button></td>
         <td class="sym" data-f="symbol"></td>
+        <td class="td-trend-spark" data-f="trendSpark" data-atd-id="pb-ui:iboard.equity.row.${symbol}.spark"></td>
         <td class="num tabular-nums text-[#ffd900] advisor-col" data-f="advisor" hidden></td>
         <td class="num tabular-nums text-[#ff00ff]" data-f="ceil"></td>
         <td class="num tabular-nums text-[#00ffff]" data-f="floor"></td>
@@ -1658,8 +1779,35 @@
         ev.stopPropagation();
         togglePin(symbol);
       });
+      tr.addEventListener("click", (ev) => {
+        if (ev.target.closest(".pin-btn")) return;
+        if (INDEX_SYMBOLS.has(symbol) && !FUTURES_BOARD_SYMBOLS.has(symbol)) return;
+        openSymbolDetail(symbol);
+      });
       elBody.appendChild(tr);
       return tr;
+    }
+
+    function refreshEquitySparkCell(tr, symbol) {
+      if (!tr) return;
+      const cell = tr.querySelector('[data-f="trendSpark"]');
+      if (!cell) return;
+      const row = state.get(symbol);
+      if (!row) return;
+      const pts = sparkPointsFor(symbol, row.last);
+      const chg = row.change != null ? row.change : row.last - row.ref;
+      cell.innerHTML = renderSparkSvg(symbol, pts, sparkLevelsFromRow(row), chg);
+    }
+
+    function scheduleEquitySparkRefresh() {
+      if (equitySparkTimer) return;
+      equitySparkTimer = setTimeout(() => {
+        equitySparkTimer = null;
+        elBody.querySelectorAll("tr.equity-row[data-symbol]").forEach((tr) => {
+          if (tr.style.display === "none") return;
+          refreshEquitySparkCell(tr, tr.dataset.symbol);
+        });
+      }, 200);
     }
 
     function idxCardHtml(row) {
@@ -1820,6 +1968,9 @@
       tr.querySelector('[data-f="fsellv"]').textContent = fmtForeignValue(row.foreignSellValue);
       paintForeignNetCell(tr.querySelector('[data-f="fnetv"]'), foreignNetValue(row), { valueMode: true });
       patchAdvisorCell(tr, row.symbol);
+      if (inTradingSession()) pushSpark(row.symbol, row.last);
+      refreshEquitySparkCell(tr, row.symbol);
+      scheduleEquitySparkRefresh();
 
       if (flash && prev && prev.last !== row.last) {
         flashCell(lastEl, row.change || (row.last > prev.last ? 1 : -1));
@@ -2066,6 +2217,170 @@
       if (scrSource === "daily") clearDailyScanResults();
       applyBoardFilter();
     }
+
+    const PRICE_CHART_W = 640;
+    const PRICE_CHART_H = 280;
+    const PRICE_CHART_PAD = { l: 48, r: 12, t: 12, b: 28 };
+
+    function renderPriceChartSvg(bars, markers) {
+      const svg = document.getElementById("symbol-detail-chart");
+      if (!svg || !bars || !bars.length) {
+        if (svg) svg.innerHTML = "";
+        return;
+      }
+      const closes = bars.map((b) => Number(b.close)).filter((v) => Number.isFinite(v));
+      if (!closes.length) return;
+      const times = bars.map((b) => String(b.time || ""));
+      const min = Math.min(...closes);
+      const max = Math.max(...closes);
+      const span = max - min || 1;
+      const plotW = PRICE_CHART_W - PRICE_CHART_PAD.l - PRICE_CHART_PAD.r;
+      const plotH = PRICE_CHART_H - PRICE_CHART_PAD.t - PRICE_CHART_PAD.b;
+      const xAt = (i) => PRICE_CHART_PAD.l + (i / Math.max(bars.length - 1, 1)) * plotW;
+      const yAt = (v) => PRICE_CHART_PAD.t + plotH - ((v - min) / span) * plotH;
+      const lineD = closes.map((v, i) => `${i === 0 ? "M" : "L"}${xAt(i).toFixed(1)} ${yAt(v).toFixed(1)}`).join(" ");
+      const markerByTime = new Map((markers || []).map((m) => [String(m.time), m]));
+      let markerSvg = "";
+      times.forEach((t, i) => {
+        const m = markerByTime.get(t);
+        if (!m) return;
+        const color = m.signal_type === "ban" ? "#ff0000" : "#00ff00";
+        const cx = xAt(i).toFixed(1);
+        const cy = yAt(closes[i]).toFixed(1);
+        markerSvg += `<circle cx="${cx}" cy="${cy}" r="4" fill="${color}" stroke="#0a0a0a" stroke-width="1"><title>${(m.reason || "").replace(/"/g, "'")}</title></circle>`;
+      });
+      const y0 = yAt(min).toFixed(1);
+      const y1 = yAt(max).toFixed(1);
+      svg.innerHTML = `
+        <line x1="${PRICE_CHART_PAD.l}" y1="${y0}" x2="${PRICE_CHART_W - PRICE_CHART_PAD.r}" y2="${y0}" stroke="#2a2a2a" stroke-width="1"/>
+        <line x1="${PRICE_CHART_PAD.l}" y1="${y1}" x2="${PRICE_CHART_W - PRICE_CHART_PAD.r}" y2="${y1}" stroke="#2a2a2a" stroke-width="1"/>
+        <text x="4" y="${y1}" fill="#737373" font-size="10">${Math.round(max).toLocaleString("en-US")}</text>
+        <text x="4" y="${y0}" fill="#737373" font-size="10">${Math.round(min).toLocaleString("en-US")}</text>
+        <path d="${lineD}" fill="none" stroke="#ffd900" stroke-width="1.8" stroke-linejoin="round"/>
+        ${markerSvg}
+        <text x="${PRICE_CHART_PAD.l}" y="${PRICE_CHART_H - 6}" fill="#737373" font-size="9">${times[0] || ""}</text>
+        <text x="${PRICE_CHART_W - PRICE_CHART_PAD.r - 60}" y="${PRICE_CHART_H - 6}" fill="#737373" font-size="9">${times[times.length - 1] || ""}</text>`;
+    }
+
+    function closeSymbolDetail() {
+      const backdrop = document.getElementById("symbol-detail-backdrop");
+      if (backdrop) backdrop.hidden = true;
+      symbolDetailSymbol = null;
+      symbolDetailActiveFilter = "";
+    }
+
+    async function loadSymbolDetailFilterCatalog() {
+      if (symbolDetailFilterList) return symbolDetailFilterList;
+      try {
+        const res = await fetch("/api/iboard/daily-signals/filters");
+        const data = await res.json();
+        if (data.ok && Array.isArray(data.filters)) {
+          symbolDetailFilterList = data.filters.filter((f) => f !== "foreign");
+          return symbolDetailFilterList;
+        }
+      } catch (_) {}
+      symbolDetailFilterList = Object.keys(DAILY_FILTER_LABELS).filter((f) => f !== "foreign");
+      return symbolDetailFilterList;
+    }
+
+    function renderSymbolDetailFilterButtons() {
+      const box = document.getElementById("symbol-detail-filters");
+      if (!box || !symbolDetailFilterList) return;
+      const hit = dailyHitBySymbol.get(symbolDetailSymbol);
+      box.innerHTML = symbolDetailFilterList
+        .map((key) => {
+          const label = DAILY_FILTER_LABELS[key] || key;
+          const active = key === symbolDetailActiveFilter ? " is-active" : "";
+          let badge = "";
+          if (hit) {
+            const fs = Array.isArray(hit.filters) ? hit.filters : String(hit.filter || "").split(",");
+            if (fs.includes(key)) badge = '<span class="hit-badge">●</span>';
+          }
+          return `<button type="button" data-filter="${key}" class="${active.trim()}">${label}${badge}</button>`;
+        })
+        .join("");
+      box.querySelectorAll("button[data-filter]").forEach((btn) => {
+        btn.addEventListener("click", () => selectSymbolDetailFilter(btn.dataset.filter));
+      });
+    }
+
+    async function selectSymbolDetailFilter(filterName) {
+      if (!symbolDetailSymbol || !filterName) return;
+      symbolDetailActiveFilter = filterName;
+      renderSymbolDetailFilterButtons();
+      const meta = document.getElementById("symbol-detail-meta");
+      if (meta) meta.textContent = "Đang tải marker…";
+      try {
+        const q = new URLSearchParams({ symbol: symbolDetailSymbol, filter: filterName, limit: "252" });
+        const res = await fetch("/api/iboard/symbol-filter-history?" + q.toString());
+        const data = await res.json();
+        if (!data.ok) {
+          if (meta) meta.textContent = data.error || "Không tải được lịch sử filter";
+          symbolDetailMarkers = [];
+          renderPriceChartSvg(symbolDetailBars, []);
+          return;
+        }
+        symbolDetailBars = Array.isArray(data.bars) ? data.bars : symbolDetailBars;
+        symbolDetailMarkers = Array.isArray(data.markers) ? data.markers : [];
+        renderPriceChartSvg(symbolDetailBars, symbolDetailMarkers);
+        const last = data.last || {};
+        if (last.history === false) {
+          if (meta) {
+            meta.textContent = last.reason || "Không có marker lịch sử trên chart.";
+            if (last.total != null) meta.textContent += ` Điểm CV: ${Math.round(last.total)}.`;
+          }
+        } else {
+          const n = symbolDetailMarkers.length;
+          if (meta) {
+            meta.textContent = `${DAILY_FILTER_LABELS[filterName] || filterName}: ${n} điểm tín hiệu · phiên cuối: ${last.reason || "—"}`;
+          }
+        }
+      } catch {
+        if (meta) meta.textContent = "Lỗi tải lịch sử filter";
+      }
+    }
+
+    async function openSymbolDetail(symbol) {
+      const sym = String(symbol || "").toUpperCase();
+      if (!sym) return;
+      symbolDetailSymbol = sym;
+      symbolDetailActiveFilter = "";
+      symbolDetailMarkers = [];
+      const backdrop = document.getElementById("symbol-detail-backdrop");
+      const title = document.getElementById("symbol-detail-title");
+      const quote = document.getElementById("symbol-detail-quote");
+      const meta = document.getElementById("symbol-detail-meta");
+      if (title) title.textContent = sym;
+      const row = state.get(sym);
+      if (quote && row) {
+        quote.textContent = `${fmtPrice(row.last, row.kind)} · ${fmtPct(row.change_pct != null ? row.change_pct : 0)}`;
+      } else if (quote) quote.textContent = "";
+      if (meta) meta.textContent = "Đang tải biểu đồ…";
+      if (backdrop) backdrop.hidden = false;
+      renderPriceChartSvg([], []);
+      await loadSymbolDetailFilterCatalog();
+      renderSymbolDetailFilterButtons();
+      try {
+        const res = await fetch("/api/iboard/symbol-bars?symbol=" + encodeURIComponent(sym) + "&limit=252");
+        const data = await res.json();
+        symbolDetailBars = data.ok && Array.isArray(data.bars) ? data.bars : [];
+        renderPriceChartSvg(symbolDetailBars, []);
+        if (meta) meta.textContent = symbolDetailBars.length ? "Chọn một bộ lọc để xem điểm tín hiệu." : "Chưa có OHLCV local cho mã này.";
+      } catch {
+        if (meta) meta.textContent = "Lỗi tải OHLCV";
+      }
+    }
+
+    function wireSymbolDetailPanel() {
+      document.getElementById("symbol-detail-close")?.addEventListener("click", closeSymbolDetail);
+      document.getElementById("symbol-detail-backdrop")?.addEventListener("click", (ev) => {
+        if (ev.target.id === "symbol-detail-backdrop") closeSymbolDetail();
+      });
+      document.addEventListener("keydown", (ev) => {
+        if (ev.key === "Escape") closeSymbolDetail();
+      });
+    }
+    wireSymbolDetailPanel();
 
     function wireScreenerToolbar() {
       const ids = [

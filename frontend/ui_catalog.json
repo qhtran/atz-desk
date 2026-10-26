@@ -99,6 +99,27 @@
       "err_codes": ["ERR-PB-006"]
     },
     {
+      "match": "pb-ui:iboard.symbol-detail",
+      "matchType": "exact",
+      "breadcrumb": ["iBoard", "Phân tích mã"],
+      "hints": {
+        "fe": "frontend/index.html — openSymbolDetail(), renderPriceChartSvg()",
+        "be": "backend/symbol_analysis.py — scan_filter_markers",
+        "spec": "docs/specs/IBOARD_MODULE_MAP.md"
+      },
+      "err_codes": []
+    },
+    {
+      "match": "pb-ui:iboard.equity.row.",
+      "matchType": "prefix",
+      "breadcrumb": ["iBoard", "Dòng CP", "XHT spark"],
+      "hints": {
+        "fe": "frontend/index.html — data-f=trendSpark, pushSpark equity",
+        "spec": "docs/specs/IBOARD_MODULE_MAP.md"
+      },
+      "err_codes": ["ERR-PB-006"]
+    },
+    {
       "match": "pb-ui:portfolio.",
       "matchType": "prefix",
       "breadcrumb": ["Danh mục"],

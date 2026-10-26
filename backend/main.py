@@ -27,6 +27,7 @@ from backend.identity import me_from_headers
 from backend.portfolio_f3 import batch_f3_alerts, load_f3_sector_themes
 from backend.portfolio_quotes import normalize_symbols, resolve_portfolio_quotes
 from backend.daily_signals import ALLOWED_FILTERS, scan_daily_signals
+from backend.symbol_analysis import load_bars_for_chart, scan_filter_markers
 from backend.portfolio_store import list_positions, migrate_if_empty, replace_positions
 from backend.observability import ERR_PB_REDIS, ERR_PB_SCREENER, ERR_PB_WS, log, setup
 from backend.modules.trading.router import router as trading_router
@@ -266,6 +267,40 @@ async def iboard_daily_signals(body: DailySignalsRequest) -> dict:
         "combine": body.combine,
         "market": body.market.upper(),
     }
+
+
+@app.get("/api/iboard/symbol-bars")
+async def iboard_symbol_bars(symbol: str, limit: int = 252) -> dict:
+    """OHLCV daily cho chart phân tích mã."""
+    sym = str(symbol or "").strip().upper()
+    if not sym:
+        raise HTTPException(status_code=400, detail="symbol required")
+    bars = await asyncio.to_thread(load_bars_for_chart, sym, limit=min(max(limit, 1), 500))
+    return {"ok": True, "symbol": sym, "bars": bars}
+
+
+@app.get("/api/iboard/symbol-filter-history")
+async def iboard_symbol_filter_history(
+    symbol: str,
+    filter: str,
+    limit: int = 252,
+    buy_min_total: float | None = None,
+) -> dict:
+    """Marker lịch sử một filter trên mã."""
+    sym = str(symbol or "").strip().upper()
+    name = str(filter or "").strip().lower()
+    if not sym or not name:
+        raise HTTPException(status_code=400, detail="symbol and filter required")
+    payload = await asyncio.to_thread(
+        scan_filter_markers,
+        sym,
+        name,
+        limit=min(max(limit, 1), 500),
+        buy_min_total=buy_min_total,
+    )
+    if not payload.get("ok"):
+        return payload
+    return payload
 
 
 class ScreenerRequest(BaseModel):
