@@ -20,3 +20,15 @@ Pull. Đọc docs/agents/REMIND_2026-10-26_HDL_DEPTH.md. Báo kết quả checkl
 ```
 
 Sau khi pass: Master có thể ack / đóng mục HANDOFF «verify phiên mở».
+
+---
+
+## Kết quả sprint C (ATZ Desk)
+
+| Ngày | Phiên | VN30F1M | VN30F2M | Ghi chú |
+|------|-------|---------|---------|---------|
+| 2026-10-27 | Ngoài giờ (deploy đêm) | **Chưa verify live** | **Chưa verify live** | Code path: `enrichDepth` + `applyEquity` + prep `6fe7f21` — **Pass checklist trong giờ 9–15 VN** để đóng C |
+
+**Verify tự động (ops):** Sau phiên, `docker exec atz-redis-dev redis-cli HGET priceboard:quotes VN30F1M` — nếu JSON có `bid1`/`ask1` thay đổi giữa hai lần curl cách 30s → Pass.
+
+**Spec:** [`docs/specs/PRICEBOARD_P1_DEPTH_NN.md`](../specs/PRICEBOARD_P1_DEPTH_NN.md)

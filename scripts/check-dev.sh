@@ -99,6 +99,13 @@ run_docker_smoke() {
     echo "filters thiếu advisor — rebuild api: docker compose -f $COMPOSE_FILE build api" >&2
     exit 1
   fi
+  echo "==> GET /api/iboard/symbol-bars?symbol=VIC&range=1y"
+  local bars_json
+  bars_json="$(curl -fsS "http://127.0.0.1:8000/api/iboard/symbol-bars?symbol=VIC&range=1y")"
+  if ! grep -q '"close"' <<<"$bars_json"; then
+    echo "symbol-bars trống — seed OHLCV: ./scripts/seed-iboard-ohlcv.sh" >&2
+    exit 1
+  fi
   echo "docker smoke: OK"
 }
 

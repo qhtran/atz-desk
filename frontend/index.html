@@ -960,6 +960,9 @@
     let symbolDetailActiveFilter = "";
     let symbolDetailFilterList = null;
     let symbolDetailRange = "1y";
+    let symbolDetailBars1m = [];
+    let symbolDetailIntradayFrozen = false;
+    let symbolDetailIntradayRefreshTimer = null;
     const SYMBOL_DETAIL_RANGES = ["1d", "1m", "3m", "6m", "1y", "3y", "5y"];
     const SYMBOL_DETAIL_RANGE_LABEL = {
       "1d": "1d", "1m": "1m", "3m": "3m", "6m": "6m", "1y": "1y", "3y": "3y", "5y": "5y",
@@ -2009,6 +2012,9 @@
       if (inTradingSession()) pushSpark(row.symbol, row.last);
       refreshEquitySparkCell(tr, row.symbol);
       scheduleEquitySparkRefresh();
+      if (symbolDetailSymbol === row.symbol && symbolDetailRange === "1d") {
+        scheduleSymbolDetailIntradayRefresh();
+      }
 
       if (flash && prev && prev.last !== row.last) {
         flashCell(lastEl, row.change || (row.last > prev.last ? 1 : -1));
@@ -2334,7 +2340,10 @@
         const s = param?.seriesData;
         let bar = null;
         if (candleSeries && s?.get(candleSeries)) bar = s.get(candleSeries);
-        else if (lineSeries && s?.get(lineSeries)) {
+        else if (mode === "intraday" && candleSeries && symbolDetailBars1m.length) {
+          const last = symbolDetailBars1m[symbolDetailBars1m.length - 1];
+          if (last) bar = last;
+        } else if (lineSeries && s?.get(lineSeries)) {
           const pt = s.get(lineSeries);
           if (pt) bar = { open: pt.value, high: pt.value, low: pt.value, close: pt.value };
         }
@@ -2403,10 +2412,40 @@
         updateOhlcLegend(null);
       }
 
-      function setIntraday(points) {
+      function setIntraday(arg) {
         if (!ensureChart()) return;
         mode = "intraday";
         clearAllSeries();
+        const opts = arg && typeof arg === "object" && !Array.isArray(arg) ? arg : { points: arg };
+        const bars1m = Array.isArray(opts.bars1m) ? opts.bars1m : [];
+        const points = opts.points || [];
+        if (bars1m.length) {
+          const ohlc = bars1m
+            .map((b) => {
+              const t = Number(b.time);
+              const o = Number(b.open);
+              const h = Number(b.high);
+              const l = Number(b.low);
+              const c = Number(b.close);
+              if (!Number.isFinite(t) || !Number.isFinite(c)) return null;
+              return { time: t, open: o, high: h, low: l, close: c };
+            })
+            .filter(Boolean);
+          if (ohlc.length) {
+            candleSeries = chart.addCandlestickSeries({
+              upColor: "#00c853",
+              downColor: "#ff1744",
+              borderVisible: false,
+              wickUpColor: "#00c853",
+              wickDownColor: "#ff1744",
+            });
+            candleSeries.setData(ohlc);
+            chart.timeScale().applyOptions({ timeVisible: true, secondsVisible: false });
+            chart.timeScale().fitContent();
+            updateOhlcLegend(null);
+            return;
+          }
+        }
         const rows = (points || [])
           .map((p) => {
             const ts = Number(Array.isArray(p) ? p[0] : p.time);
@@ -2482,6 +2521,38 @@
       });
     }
 
+    function formatIntradayMeta(sym, ptsLen, frozen, tradingDate) {
+      if (symbolDetailActiveFilter) {
+        return "Filter daily — chuyển 3m+ để xem marker trên chart.";
+      }
+      const td = tradingDate || "—";
+      const n = ptsLen || 0;
+      if (frozen) {
+        return `Phiên đóng · ${td} · ${n} điểm 1m (spark/API). Marker filter: chọn range daily.`;
+      }
+      if (n === 0) {
+        return `Intraday ${td} · chưa có bar — chờ tick trong phiên hoặc đổi range daily.`;
+      }
+      return `Intraday ${td} · ${n} điểm · chọn bộ lọc (marker chỉ trên daily).`;
+    }
+
+    function refreshSymbolDetail1dFromSpark() {
+      if (!symbolDetailSymbol || symbolDetailRange !== "1d") return;
+      const backdrop = document.getElementById("symbol-detail-backdrop");
+      if (backdrop?.hidden) return;
+      const sym = symbolDetailSymbol;
+      const pts = sparkPointsFor(sym, state.get(sym)?.last);
+      SymbolDetailChart.setIntraday({ points: pts, bars1m: symbolDetailBars1m });
+    }
+
+    function scheduleSymbolDetailIntradayRefresh() {
+      if (symbolDetailIntradayRefreshTimer) clearTimeout(symbolDetailIntradayRefreshTimer);
+      symbolDetailIntradayRefreshTimer = setTimeout(() => {
+        symbolDetailIntradayRefreshTimer = null;
+        refreshSymbolDetail1dFromSpark();
+      }, 1500);
+    }
+
     async function loadSymbolDetailChartData() {
       if (!symbolDetailSymbol) return;
       const meta = document.getElementById("symbol-detail-meta");
@@ -2489,23 +2560,20 @@
       const row = state.get(sym);
       const fallbackLast = row?.last;
       if (symbolDetailRange === "1d") {
-        if (meta && symbolDetailActiveFilter) {
-          meta.textContent = "Filter daily — chuyển 3m+ để xem marker trên chart.";
-        } else if (meta && !symbolDetailActiveFilter) {
-          meta.textContent = "Intraday phiên · chọn bộ lọc (marker chỉ trên daily).";
-        }
         try {
           const res = await fetch("/api/iboard/symbol-intraday?symbol=" + encodeURIComponent(sym));
           const data = await res.json();
           let pts = data.ok && Array.isArray(data.series) ? data.series : [];
+          symbolDetailBars1m = data.ok && Array.isArray(data.bars_1m) ? data.bars_1m : [];
+          symbolDetailIntradayFrozen = Boolean(data.frozen);
+          const td = data.trading_date || "";
           if (!pts.length) pts = sparkPointsFor(sym, fallbackLast);
           symbolDetailBars = [];
-          SymbolDetailChart.setIntraday(pts);
-          if (meta && !symbolDetailActiveFilter && !pts.length) {
-            meta.textContent = "Chưa có intraday — chờ tick trong phiên hoặc OHLCV daily (đổi range).";
-          }
+          SymbolDetailChart.setIntraday({ points: pts, bars1m: symbolDetailBars1m });
+          if (meta) meta.textContent = formatIntradayMeta(sym, symbolDetailBars1m.length || pts.length, symbolDetailIntradayFrozen, td);
         } catch {
-          SymbolDetailChart.setIntraday(sparkPointsFor(sym, fallbackLast));
+          symbolDetailBars1m = [];
+          SymbolDetailChart.setIntraday({ points: sparkPointsFor(sym, fallbackLast), bars1m: [] });
           if (meta) meta.textContent = "Lỗi tải intraday — dùng spark local nếu có.";
         }
         return;

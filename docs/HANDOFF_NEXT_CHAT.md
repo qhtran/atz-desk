@@ -1,8 +1,8 @@
-# Handoff — priceboard dev (chat tiếp theo)
+# Handoff — ATZ Desk (dev.atz.vn)
 
-**Cập nhật:** 2026-10-25 (sync HEAD)  
-**Nhánh deploy VPS:** `main` — commit **`6fe7f21`** (P1 prep depth HĐTL + OHLCV seed)  
-**Deploy:** `./scripts/deploy-vps.sh dev` (hoặc `--push` trước khi deploy)
+**Cập nhật:** 2026-10-27  
+**Repo:** [atz-desk](https://github.com/qhtran/atz-desk) · VPS dev clone **`/opt/atz-desk`**  
+**Deploy:** `./deploy-dev` (hoặc `./scripts/deploy-vps.sh dev` / trên VPS `./scripts/deploy-vps.sh dev-local`)
 
 ## Ai đọc file này
 
@@ -14,95 +14,67 @@
 
 ## Phạm vi owner
 
-- **Active:** `dev.atz.vn` — `backend/`, `frontend/`, `docker-compose.dev.yml`
-- **Không** phát triển prod Streamlit / cutover prod trừ khi owner mở lại (ADR 0009)
-- **Một bảng iBoard** — lọc ngày = subset trên cùng `#board-table` (không tab bảng riêng)
+- **Active:** **ATZ Desk** — `dev.atz.vn` — `backend/`, `frontend/`, `docker-compose.dev.yml` (project `atz_desk`, container `atz-desk-api-dev`)
+- **Legacy prod:** `/opt/vnstocks` (Streamlit, ingestion) — ngoài scope dev trừ ops seed OHLCV
+- **Một bảng iBoard** — lọc ngày = subset trên cùng `#board-table`
 
 ---
 
 ## Đã ship (gần nhất)
 
-| Commit | Nội dung |
-|--------|----------|
-| **`6fe7f21`** | **P1 prep depth HĐTL:** partial tick, publish depth-only, FE không fake khi WS đã có bid/ask |
-| **`7ae3da5`** | **OHLCV EOD seed:** `backend/ohlcv_seed.py`, `./scripts/seed-iboard-ohlcv.sh` (container `vnstocks`) |
-| **`39d7fe7`** | Tab sàn **VN30F1M** / **VN30F2M** trên market-bar (HĐTL depth board) |
-| `c41b2f7` / `d399410` | Index-bar luôn có VN30F1M/F2M; tab **Khối ngoại** |
-| **`2e9ee5d`** | **Daily UX:** full rổ + banner trước Quét; filter OHLCV `candle\|volume\|foreign`; **Top 20 KL phiên** (WS); cột CV cố vấn + tooltip |
-| **`774158d`** | `./scripts/check-dev.sh` — smoke pytest + docker healthz + API filters |
-| **`78711b7`** | Bus agent: `docs/agents/NOW.md` + archive (PROGRESS stub) |
-| **`acf4361`** | **Advisor 0–100** + `POST /api/iboard/daily-signals` (`rsi\|macd\|ma\|advisor`, `buy_min_total`) |
-| `6228f95`… | Danh mục Phases A–D (portfolio API, Authentik, F3, …) |
+| Commit / epic | Nội dung |
+|---------------|----------|
+| **LWC + panel phân tích** | Chart FireAnt-style: nến daily, range 1d–5y, MA10/50, marker filter; `equity_spark` + `symbol-intraday` |
+| **Rebrand ATZ Desk** | Repo `atz-desk`, `./deploy-dev`, nginx `atz-desk-api-dev`, glossary vnstock vs Desk |
+| **Filters P1** | Multi-filter daily, bollinger/adx/…, `rs_index`, `market_regime`, … |
+| **`6fe7f21`** | P1 prep depth HĐTL (partial tick, depth-only publish) |
+| **`7ae3da5`** | OHLCV EOD seed: `backend/ohlcv_seed.py`, `./scripts/seed-iboard-ohlcv.sh` |
+| **`2e9ee5d`** | Daily UX, Top 20 KL, cột CV cố vấn |
 
-**Spec:** `docs/specs/FILTER_SCORING_HUONG1.md` — P1–P3 xong; P4+ (đa TF, smart money) ngoài scope.
-
-**API Danh mục (giữ):** `GET/PUT /api/portfolio/positions`, `POST .../migrate`, `GET /api/account/me`, quotes, F3 alerts, sectors/f3.
+**Spec chart:** [`docs/specs/IBOARD_MODULE_MAP.md`](specs/IBOARD_MODULE_MAP.md)
 
 ---
 
-## iBoard — cách dùng (đã verify dev.atz.vn)
+## iBoard — cách dùng
 
-1. **Live WS** — lọc tick (FilterEngine), bảng đầy mã theo tab sàn (kể cả **VN30F1M/F2M**, **Khối ngoại**).
-2. **Tín hiệu ngày** — trước **Quét:** full rổ + banner (không còn ẩn hết mã như bản cũ); sau Quét subset OHLCV.
-3. Sau **Quét:** status dạng `Tín hiệu ngày · {filter} · {matched}/{scanned} hit · N mã`.
-4. **Cố vấn:** filter **Cố vấn (0–100)** + **Điểm ≥** (mặc định 65; thử 40–50 nếu ít hit) + **Quét** (cột CV + tooltip sau Quét).
-5. **Top 20 KL phiên** — nguồn toolbar (WS snapshot).
+1. **Live WS** — bảng theo tab (kể cả **VN30F1M/F2M**, **Khối ngoại**).
+2. **Tín hiệu ngày** — Quét trên OHLCV `data/ohlcv/*.csv`.
+3. **Phân tích mã** — cột XHT / click mã → panel LWC + sidebar filter (marker trên daily ≥3m).
+4. **Preset 1d** — intraday phiên (`equity_intraday_1m` + spark); marker filter chỉ daily.
 
-**API:**
-
-- `GET /api/iboard/daily-signals/filters`
-- `POST /api/iboard/daily-signals` `{ "market": "HOSE|VN30|...", "filter": "rsi|macd|ma|candle|volume|foreign|advisor", "buy_min_total": 65? }`  
-  → `symbols[]`, `hits[]` (advisor có `total`, `trend`, `flow`, `short_term`).
-
-**Dữ liệu:** quét đọc `data/ohlcv/{SYMBOL}.csv` (mount VPS). `scanned=0` → thiếu/cũ OHLCV.
-
-**Owner chốt (lọc):** không tab 「Bộ lọc tín hiệu」riêng trên SPA; Streamlit vẫn có Bộ lọc + chế độ Cố vấn (legacy UI, khác stack priceboard).
+**API (chart):** `GET /api/iboard/symbol-bars?range=`, `symbol-filter-history`, `symbol-intraday`
 
 ---
 
-## Ops dev VPS (bắt buộc đọc)
+## Ops dev VPS
 
 | Mục | Chi tiết |
 |-----|----------|
-| **Branch** | `scripts/deploy-vps.env` → **`ATZ_VPS_BRANCH=main`**. Deploy nhánh feature (vd. `feature/priceboard-debug-trace`) → dev thiếu advisor/daily API. |
-| **Rebuild** | Sau đổi `Dockerfile.dev` / `atz_pkg/engine` → `docker compose -f docker-compose.dev.yml build api` (+ recreate). Bind mount `backend/` + `frontend/`; engine advisor **trong image**. |
-| **Kiểm tra nhanh** | VPS: `curl http://127.0.0.1:8000/api/iboard/daily-signals/filters` → có `"advisor"`. |
-| Worker | `PRICEBOARD_SOURCE=ssi\|mock`; watchlist ≈ `board_universe` |
-| Mount | `data/ohlcv` (**ro** trong container `api`), `data/portfolio.db`, `config/debug_overlay.yaml` |
-| **OHLCV seed (EOD)** | **`./scripts/seed-iboard-ohlcv.sh`** (VPS: tự dùng container `vnstocks` + restart `api` dev). Local có vnstock: fallback `python3 -m backend.ohlcv_seed`. Verify: `POST …/daily-signals` → `scanned>0`. Filter `foreign` cần `data/flow`. |
-| Filter runner | Filter `advisor` qua user config SQLite — xem `docs/troubleshooting.md` mục Filter Runner |
+| **Deploy** | Laptop: `./deploy-dev` · VPS: `cd /opt/atz-desk && ./scripts/deploy-vps.sh dev-local` |
+| **Nginx** | `./scripts/apply-dev-atz-nginx.sh` (auto sau deploy dev) |
+| **Branch** | `scripts/deploy-vps.env` → `ATZ_VPS_BRANCH=main` |
+| **Mount** | `data/ohlcv` (ro api), `data/market.db`, symlink từ `/opt/vnstocks/data` nếu cần |
+| **OHLCV EOD** | `./scripts/seed-iboard-ohlcv.sh` — ưu tiên `python3 -m backend.ohlcv_seed` nếu có vnstock; else container `vnstocks` |
+| **Cron gợi ý** | Sau **15:05 VN** các ngày giao dịch: `cd /opt/atz-desk && ./scripts/seed-iboard-ohlcv.sh --market HOSE` (tuần 1 lần `--market ALL`) |
+| **Verify data** | `curl 'http://127.0.0.1:8000/api/iboard/symbol-bars?symbol=VIC&range=1y'` → bars; `POST daily-signals` HOSE → `scanned>0` |
 
 ---
 
-## Việc tiếp (gợi ý)
+## Việc tiếp (sprint A→B→C)
 
-**Ưu tiên owner (2026-10-25, ngoài giờ / CN):**
+| Phase | Trạng thái | Ghi chú |
+|-------|------------|---------|
+| **A** Ops + OHLCV | Done trong sprint | HANDOFF + seed path Desk |
+| **B** Chart 1d đủ | Done trong sprint | Nến 1m + refresh WS + UX frozen |
+| **C** HĐTL depth phiên | Checklist | Xem [`docs/agents/REMIND_2026-10-26_HDL_DEPTH.md`](agents/REMIND_2026-10-26_HDL_DEPTH.md) — verify **trong giờ 9–15 VN** |
 
-| # | Hướng | Vì sao | Pass gợi ý |
-|---|--------|--------|------------|
-| **B** | **HĐTL depth — verify phiên mở** | Prep ship `6fe7f21`; ngoài giờ sổ lệnh thường trống → UI có thể vẫn hiện số **tạm** | Trong giờ giao dịch: tab VN30F1M, depth đổi theo SSI; spec `PRICEBOARD_P1_DEPTH_NN.md` |
-
-Khác:
-
-1. ~~UX Tín hiệu ngày / filter mở rộng / Top 20 / cột CV~~ — ship `2e9ee5d`.
-2. ~~OHLCV EOD seed iBoard~~ — ship `7ae3da5` + verify VPS.
-3. ~~HĐTL depth P1 prep~~ — ship `6fe7f21`; **pass** khi verify trong phiên.
-4. **Parity / cutover** — ADR 0007 (prod ngoài scope mặc định).
-5. **CapitalLedger / NAV** — optional Danh mục.
+Khác (backlog): prod cutover ADR 0009, CapitalLedger, filter intraday.
 
 ---
 
-## Prompt gợi ý chat mới
-
-```text
-Pull. Đọc docs/agents/NOW.md. Nếu Doing là việc của mình, mở đúng docs/agents/tasks/<ID>.md. Không mở archive. Xong thì cập nhật NOW (5 dòng Last executor) rồi dừng.
-```
-
----
-
-## Test local (trước merge/push/deploy)
+## Test local
 
 ```bash
-./scripts/check-dev.sh              # pytest smoke + docker healthz + API filters
-./scripts/check-dev.sh --pytest-only # nhanh, không docker
+./scripts/check-dev.sh              # pytest + docker healthz + API smoke (filters + symbol-bars)
+./scripts/check-dev.sh --pytest-only
 ```

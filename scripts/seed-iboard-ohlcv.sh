@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
-# Refresh data/ohlcv cho iBoard «Tín hiệu ngày» (dev.atz.vn).
+# Refresh data/ohlcv cho ATZ Desk / iBoard (dev.atz.vn).
 #
-# VPS: host thường không có vnstock — script seed qua container prod `vnstocks` (rw data/ohlcv).
-# Local: nếu không có container, fallback `python3 -m backend.ohlcv_seed` (venv + requirements.txt).
+# Chạy từ repo gốc (/opt/atz-desk trên VPS). Ghi vào data/ohlcv (symlink data/ prod OK).
+#
+# Thứ tự: (1) python3 -m backend.ohlcv_seed nếu import vnstock OK
+#         (2) else docker exec container legacy ATZ_OHLCV_SEED_CONTAINER (mặc định vnstocks).
 #
 #   ./scripts/seed-iboard-ohlcv.sh
 #   ./scripts/seed-iboard-ohlcv.sh --market VN30 --limit 5
@@ -123,14 +125,14 @@ raise SystemExit(0 if fail == 0 else 1)
 "
 }
 
-if docker inspect "$CONTAINER" >/dev/null 2>&1; then
-  echo "==> seed qua docker container: ${CONTAINER}"
-  seed_via_docker
-elif python3 -c "import vnstock" >/dev/null 2>&1; then
+if python3 -c "import vnstock" >/dev/null 2>&1; then
   echo "==> seed local (python3 -m backend.ohlcv_seed)"
   seed_via_module
+elif docker inspect "$CONTAINER" >/dev/null 2>&1; then
+  echo "==> seed qua docker container: ${CONTAINER}"
+  seed_via_docker
 else
-  echo "Không có container ${CONTAINER} và không import được vnstock — cần một trong hai." >&2
+  echo "Không import được vnstock và không có container ${CONTAINER}." >&2
   exit 1
 fi
 

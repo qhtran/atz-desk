@@ -40,7 +40,8 @@ ATZ Desk là bàn làm việc giao dịch trên web (dev: [dev.atz.vn](https://d
   3. Script pull `/opt/atz-desk` trên VPS, rebuild API/worker, **sync nginx** `dev.atz.vn`
 - **Trên VPS (không cần file .env SSH):** `cd /opt/atz-desk && ./scripts/deploy-vps.sh dev-local`
 - **Chỉ sync nginx:** `./scripts/apply-dev-atz-nginx.sh` (trên VPS)
-- **Test:** `pytest` (`testpaths=tests`)
+- **OHLCV EOD (VPS):** `cd /opt/atz-desk && ./scripts/seed-iboard-ohlcv.sh --market HOSE` — cron sau **15:05 VN** ngày giao dịch; tuần 1 lần `--market ALL`
+- **Test:** `./scripts/check-dev.sh` hoặc `pytest` (`testpaths=tests`)
 
 **Lỗi thường gặp:** `No such file` → chưa `cd` vào repo; `Set ATZ_VPS_SSH` → thiếu `scripts/deploy-vps.env`; `Permission denied` → `chmod +x scripts/deploy-vps.sh`
 
