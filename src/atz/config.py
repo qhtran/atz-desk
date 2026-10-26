@@ -76,6 +76,11 @@ MFI_HOT = 80
 MFI_COLD = 20
 VOLUME_AVG = 20
 VOLUME_SPIKE = 1.5       # KL phiên cuối / TB20 để ghi chú "đột biến"
+ADX_LENGTH = 14
+ADX_MIN = 25.0          # ngưỡng xu hướng mạnh
+ATR_LENGTH = 14
+ATR_AVG = 20
+ATR_SPIKE = 1.25        # ATR phiên cuối / TB ATR
 # Top KL phiên (F1 mục 5): so với TB 10 phiên trước, sàn thanh khoản
 VOLUME_LEADERS_AVG = 10
 VOLUME_LEADERS_MIN_AVG = 500_000

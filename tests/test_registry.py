@@ -10,7 +10,7 @@ def test_package_registry_lists_the_six_filters() -> None:
     found = load_registry()
     assert set(found) == {
         "ma", "rsi", "macd", "bollinger", "volume", "candle", "foreign", "proprietary",
-        "ichimoku", "mcdx",
+        "ichimoku", "mcdx", "adx", "atr", "advisor",
     }
 
 

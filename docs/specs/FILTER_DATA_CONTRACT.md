@@ -13,17 +13,20 @@
 | volume | daily | ~20 | V (+ avg) | ohlcv CSV |
 | foreign | daily | ~5 | flow KN | `data/flow` |
 | advisor | daily | ~60 | O,H,L,C,V | ohlcv + engine YAML |
+| bollinger | daily | 20 | C | ohlcv CSV |
+| adx | daily | ~30 | H,L,C | ohlcv CSV |
+| atr | daily | ~35 | H,L,C,O | ohlcv CSV |
 
 ## Hàng đợi P1 (daily OHLCV — F-01…F-10)
 
-| ID | Filter | min_bars | Columns |
-|----|--------|----------|---------|
-| F-01 | Bollinger | 20 | C (+ H,L) |
-| F-02 | ADX | 28 | H,L,C |
-| F-03 | ATR | 15 | H,L,C |
+| ID | Filter | min_bars | Columns | Trạng thái |
+|----|--------|----------|---------|------------|
+| F-01 | Bollinger | 20 | C (+ H,L) | **Shipped** iBoard |
+| F-02 | ADX | 28 | H,L,C | **Shipped** iBoard |
+| F-03 | ATR | 15 | H,L,C | **Shipped** iBoard |
 | F-04 | RS vs VNINDEX | 60 | C + index C |
 | F-05 | Breakout 52w | 252 | H,C |
-| F-06 | MA cross | 50 | C |
+| F-06 | MA cross | 50 | C | **Shipped** (filter `ma`) |
 | F-07 | Stochastic | 14 | H,L,C |
 | F-08 | Foreign streak | N | foreign_net series |
 | F-09 | Liquidity | 20 | V, GT |

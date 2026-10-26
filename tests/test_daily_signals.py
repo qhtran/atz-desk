@@ -51,6 +51,7 @@ def test_scan_daily_signals_monkeypatch(monkeypatch):
 def test_allowed_filters_includes_advisor():
     assert "advisor" in ALLOWED_FILTERS
     assert {"candle", "volume", "foreign"} <= ALLOWED_FILTERS
+    assert {"bollinger", "adx", "atr", "ma"} <= ALLOWED_FILTERS
 
 
 def test_scan_daily_signals_cache_same_day(monkeypatch):

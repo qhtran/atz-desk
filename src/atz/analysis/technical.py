@@ -21,6 +21,47 @@ def bollinger(close: pd.Series, length: int = C.BB_LENGTH, k: float = C.BB_STD):
     return mid - k * sigma, mid, mid + k * sigma
 
 
+
+
+def _true_range(high: pd.Series, low: pd.Series, close: pd.Series) -> pd.Series:
+    prev_close = close.shift(1)
+    tr1 = high - low
+    tr2 = (high - prev_close).abs()
+    tr3 = (low - prev_close).abs()
+    return pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
+
+
+def _wilder_smooth(series: pd.Series, length: int) -> pd.Series:
+    return series.ewm(alpha=1 / length, adjust=False, min_periods=length).mean()
+
+
+def atr(high: pd.Series, low: pd.Series, close: pd.Series, length: int = 14) -> pd.Series:
+    """Average True Range (Wilder)."""
+    return _wilder_smooth(_true_range(high, low, close), length)
+
+
+def adx(
+    high: pd.Series,
+    low: pd.Series,
+    close: pd.Series,
+    length: int = 14,
+) -> tuple[pd.Series, pd.Series, pd.Series]:
+    """ADX, +DI, -DI (Wilder)."""
+    tr = _true_range(high, low, close)
+    up_move = high.diff()
+    down_move = -low.diff()
+    plus_dm = up_move.where((up_move > down_move) & (up_move > 0), 0.0)
+    minus_dm = down_move.where((down_move > up_move) & (down_move > 0), 0.0)
+    atr_s = _wilder_smooth(tr, length)
+    plus_di = 100 * _wilder_smooth(plus_dm, length) / atr_s
+    minus_di = 100 * _wilder_smooth(minus_dm, length) / atr_s
+    denom = plus_di + minus_di
+    dx = (plus_di - minus_di).abs() / denom * 100
+    dx = dx.where(denom != 0)
+    adx_line = _wilder_smooth(dx, length)
+    return adx_line, plus_di, minus_di
+
+
 def rsi(close: pd.Series, length: int = C.RSI_LENGTH) -> pd.Series:
     """RSI kiểu Wilder."""
     delta = close.diff()

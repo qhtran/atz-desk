@@ -13,7 +13,20 @@ import pandas as pd
 from backend.board_universe import symbols_for_market_tab
 from backend.portfolio_f3 import _ensure_legacy_path, _legacy_atz_root, load_symbol_bars
 
-ALLOWED_FILTERS = frozenset({"rsi", "macd", "ma", "candle", "volume", "foreign", "advisor"})
+ALLOWED_FILTERS = frozenset(
+    {
+        "rsi",
+        "macd",
+        "ma",
+        "candle",
+        "volume",
+        "foreign",
+        "advisor",
+        "bollinger",
+        "adx",
+        "atr",
+    }
+)
 
 _VN_TZ = ZoneInfo("Asia/Ho_Chi_Minh")
 _scan_cache: dict[tuple[Any, ...], tuple[str, list[dict[str, Any]], int, int]] = {}
