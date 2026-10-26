@@ -454,20 +454,152 @@
       color: #737373;
       font-size: 12px;
     }
+
+    /* Site header — desktop + mobile (tránh vỡ hàng trên cùng) */
+    html, body { overflow-x: clip; }
+    .site-header {
+      border-bottom: 1px solid #2a2a2a;
+      background: #0a0a0a;
+    }
+    .site-header-inner {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 12px;
+      min-width: 0;
+    }
+    .site-header-brand {
+      flex-shrink: 0;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      color: #fff;
+    }
+    .site-header-nav {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      min-width: 0;
+      flex: 1 1 auto;
+    }
+    .site-header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+      margin-left: auto;
+      min-width: 0;
+    }
+
+    @media (max-width: 640px) {
+      .site-header-inner {
+        flex-wrap: wrap;
+        row-gap: 4px;
+        column-gap: 8px;
+        padding: 6px 10px 4px;
+      }
+      .site-header-brand { order: 1; }
+      .site-header-actions {
+        order: 2;
+        margin-left: auto;
+      }
+      .site-header-nav {
+        order: 3;
+        flex: 1 1 100%;
+        width: 100%;
+        overflow-x: auto;
+        overflow-y: hidden;
+        flex-wrap: nowrap;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+        border-top: 1px solid #1f1f1f;
+        padding-top: 4px;
+        margin: 0 -10px;
+        padding-left: 10px;
+        padding-right: 10px;
+      }
+      .site-header-nav .app-tab {
+        flex-shrink: 0;
+        white-space: nowrap;
+        padding: 0 10px;
+      }
+      .search-wrap input {
+        width: 112px;
+        max-width: 32vw;
+        font-size: 16px; /* chống iOS auto-zoom */
+      }
+      #clock { display: none; }
+      /* Index cards: ẩn spark để không đè chữ giá trên thẻ hẹp */
+      .idx-spark-wrap { display: none; }
+      #index-bar {
+        grid-template-columns: repeat(6, minmax(148px, 1fr));
+        min-width: 920px;
+        gap: 6px;
+        padding: 6px 8px;
+      }
+      .idx-card { padding: 8px; }
+      .idx-card-top { gap: 0; }
+      .panel-toolbar {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+      }
+      .panel-toolbar label,
+      .panel-toolbar .inline-flex,
+      .panel-toolbar select,
+      .panel-toolbar input,
+      .panel-toolbar .btn-quiet,
+      .panel-toolbar #scr-status {
+        flex-shrink: 0;
+      }
+      .panel-toolbar input[type="number"],
+      .panel-toolbar select {
+        font-size: 16px;
+      }
+      .market-bar {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+      }
+      .market-bar .mkt-tab { flex-shrink: 0; }
+      .index-bar-wrap,
+      .panel-toolbar,
+      .site-header-nav,
+      .market-bar,
+      .atz-table-wrap {
+        scrollbar-width: thin;
+        scrollbar-color: #3a3a3a transparent;
+      }
+      .index-bar-wrap::-webkit-scrollbar,
+      .panel-toolbar::-webkit-scrollbar,
+      .site-header-nav::-webkit-scrollbar,
+      .market-bar::-webkit-scrollbar,
+      .atz-table-wrap::-webkit-scrollbar {
+        height: 3px;
+      }
+      .index-bar-wrap::-webkit-scrollbar-thumb,
+      .panel-toolbar::-webkit-scrollbar-thumb,
+      .site-header-nav::-webkit-scrollbar-thumb,
+      .market-bar::-webkit-scrollbar-thumb,
+      .atz-table-wrap::-webkit-scrollbar-thumb {
+        background: #3a3a3a;
+        border-radius: 2px;
+      }
+    }
   </style>
 </head>
 <body class="bg-[#0a0a0a] font-sans text-[13px] antialiased tracking-tight leading-tight">
-  <header class="border-b border-[#2a2a2a] bg-[#0a0a0a]">
-    <div class="flex items-center justify-between gap-3 px-3 py-2">
-      <div class="flex items-center gap-1 min-w-0 flex-wrap">
-        <span class="text-[13px] font-semibold tracking-tight text-white shrink-0 pr-3">atz · Realtime</span>
-        <nav class="flex items-center gap-0" role="tablist" aria-label="Chức năng">
-          <button type="button" class="app-tab is-active" data-app="iboard" data-atd-id="pb-ui:app.tab.iboard" role="tab" aria-selected="true">Giao dịch iBoard</button>
-          <button type="button" class="app-tab" data-app="portfolio" data-atd-id="pb-ui:app.tab.portfolio" role="tab" aria-selected="false">Danh mục</button>
-          <button type="button" class="app-tab" data-app="news" data-atd-id="pb-ui:app.tab.news" role="tab" aria-selected="false">Tin tức / Nghiên cứu</button>
-        </nav>
-      </div>
-      <div class="flex items-center gap-2 shrink-0">
+  <header class="site-header">
+    <div class="site-header-inner">
+      <span class="site-header-brand">atz · Realtime</span>
+      <nav class="site-header-nav" role="tablist" aria-label="Chức năng">
+        <button type="button" class="app-tab is-active" data-app="iboard" data-atd-id="pb-ui:app.tab.iboard" role="tab" aria-selected="true">Giao dịch iBoard</button>
+        <button type="button" class="app-tab" data-app="portfolio" data-atd-id="pb-ui:app.tab.portfolio" role="tab" aria-selected="false">Danh mục</button>
+        <button type="button" class="app-tab" data-app="news" data-atd-id="pb-ui:app.tab.news" role="tab" aria-selected="false">Tin tức / Nghiên cứu</button>
+      </nav>
+      <div class="site-header-actions">
         <label class="search-wrap" title="Tìm mã / ngành" id="global-search-wrap" data-atd-id="pb-ui:iboard.search">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <circle cx="11" cy="11" r="7"></circle>

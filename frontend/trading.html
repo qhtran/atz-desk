@@ -118,6 +118,83 @@
     details.pos > summary::-webkit-details-marker { display: none; }
     .chev { display: inline-block; transition: transform 0.15s; color: #737373; }
     details[open] .chev { transform: rotate(90deg); }
+
+    /* Site header — desktop + mobile (tránh vỡ hàng trên cùng) */
+    html, body { overflow-x: clip; }
+    .site-header {
+      border-bottom: 1px solid #2a2a2a;
+      background: #0a0a0a;
+    }
+    .site-header-inner {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 6px 12px;
+      min-width: 0;
+    }
+    .site-header-brand {
+      flex-shrink: 0;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: #fff;
+    }
+    .site-header-nav {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      min-width: 0;
+      flex: 1 1 auto;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .site-header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+      margin-left: auto;
+      font-size: 11px;
+      color: #737373;
+    }
+
+    @media (max-width: 640px) {
+      .demo-banner {
+        font-size: 10px;
+        padding: 5px 10px;
+        line-height: 1.35;
+      }
+      .site-header-inner {
+        flex-wrap: wrap;
+        row-gap: 4px;
+        column-gap: 8px;
+        padding: 6px 10px 4px;
+      }
+      .site-header-brand { order: 1; }
+      .site-header-actions {
+        order: 2;
+        margin-left: auto;
+      }
+      .site-header-nav {
+        order: 3;
+        flex: 1 1 100%;
+        width: 100%;
+        overflow-x: auto;
+        overflow-y: hidden;
+        flex-wrap: nowrap;
+        scrollbar-width: thin;
+        border-top: 1px solid #1f1f1f;
+        padding-top: 4px;
+        margin: 0 -10px;
+        padding-left: 10px;
+        padding-right: 10px;
+      }
+      .site-header-nav .app-tab {
+        flex-shrink: 0;
+        white-space: nowrap;
+        padding: 0 10px;
+      }
+    }
   </style>
 </head>
 <body class="font-sans antialiased">
@@ -126,20 +203,18 @@
     <a class="underline hover:text-white" href="/">← về board live</a>
   </div>
 
-  <header class="border-b border-[#2a2a2a] bg-[#0a0a0a]">
-    <div class="flex items-center justify-between gap-3 px-3 py-1.5">
-      <div class="flex items-center gap-3 min-w-0">
-        <div class="font-bold text-[13px] tracking-tight text-white shrink-0">atz <span class="text-ssi-ref">DEV</span></div>
-        <nav class="flex items-center overflow-x-auto" role="tablist" aria-label="App tabs">
-          <button type="button" class="app-tab" data-app="iboard" role="tab">Giao dịch iBoard</button>
-          <button type="button" class="app-tab" data-app="signals" role="tab">Bộ lọc tín hiệu</button>
-          <button type="button" class="app-tab is-active" data-app="trading" role="tab" aria-selected="true">Trạm Trading</button>
-          <button type="button" class="app-tab" data-app="assets" role="tab">QL tài sản</button>
-          <button type="button" class="app-tab" data-app="portfolio" role="tab">Danh mục</button>
-          <button type="button" class="app-tab" data-app="news" role="tab">Tin tức</button>
-        </nav>
-      </div>
-      <div class="flex items-center gap-2 shrink-0 text-[11px] text-neutral-500">
+  <header class="site-header">
+    <div class="site-header-inner">
+      <div class="site-header-brand">atz <span class="text-ssi-ref">DEV</span></div>
+      <nav class="site-header-nav" role="tablist" aria-label="App tabs">
+        <button type="button" class="app-tab" data-app="iboard" role="tab">Giao dịch iBoard</button>
+        <button type="button" class="app-tab" data-app="signals" role="tab">Bộ lọc tín hiệu</button>
+        <button type="button" class="app-tab is-active" data-app="trading" role="tab" aria-selected="true">Trạm Trading</button>
+        <button type="button" class="app-tab" data-app="assets" role="tab">QL tài sản</button>
+        <button type="button" class="app-tab" data-app="portfolio" role="tab">Danh mục</button>
+        <button type="button" class="app-tab" data-app="news" role="tab">Tin tức</button>
+      </nav>
+      <div class="site-header-actions">
         <span class="hidden sm:inline">trace <code class="text-neutral-400">demo-ui-final</code></span>
         <span class="px-1.5 py-0.5 rounded border border-[#2a2a2a] bg-[#111] text-ssi-up">SSI_WS</span>
       </div>
