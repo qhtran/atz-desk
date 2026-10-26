@@ -176,6 +176,7 @@ class RealSsiWorker:
         )
         self._board: dict[str, dict] = {}
         self._parse_warn_at: float = 0.0
+        self._futures_sample_at: float = 0.0
         self._futures_contracts = load_futures_contract_map(ssi)
         self._contract_to_board = invert_contract_map(self._futures_contracts)
         if self._futures_contracts:
@@ -526,6 +527,20 @@ class RealSsiWorker:
                     ch_topics = self._topics_for_channel(ch, topics)
                     sub = {"method": "SUBSCRIBE", "channel": ch, "topics": ch_topics}
                     await ws.send(json.dumps(sub))
+                    if str(ch).upper() in ("X-QUOTE", "X-TRADE", "DATA"):
+                        fut_topics = [
+                            t
+                            for t in ch_topics
+                            if any(c in str(t) for c in self._contract_to_board)
+                        ]
+                        log(
+                            COMPONENT,
+                            "SSI-LIVE-SUBSCRIBED",
+                            "ssi channel subscribed",
+                            channel=ch,
+                            topics=len(ch_topics),
+                            futures_topics=fut_topics[:12],
+                        )
                 log(COMPONENT, "SSI-LIVE-SUBSCRIBED", "ssi channels subscribed", channels=self.channels)
 
                 while not self._stop.is_set():
@@ -579,6 +594,28 @@ class RealSsiWorker:
                                 )
                         continue
                     parsed = self._remap_futures_symbol(parsed)
+                    if parsed.get("contract") or parsed.get("symbol") in FUTURES_BOARD_SYMBOLS:
+                        now = time.time()
+                        if now - self._futures_sample_at >= 20.0:
+                            self._futures_sample_at = now
+                            log(
+                                COMPONENT,
+                                "DBG-20261026-HDT-SSI-SAMPLE",
+                                "futures envelope sample",
+                                channel=channel,
+                                symbol=parsed.get("symbol"),
+                                contract=parsed.get("contract"),
+                                last=parsed.get("last"),
+                                bid1=parsed.get("bid1"),
+                                ask1=parsed.get("ask1"),
+                                bidVol1=parsed.get("bidVol1"),
+                                askVol1=parsed.get("askVol1"),
+                                body_keys=sorted(
+                                    (msg.get("data") or {}).keys()
+                                    if isinstance(msg.get("data"), dict)
+                                    else []
+                                )[:40],
+                            )
                     tick = self._merge_tick(parsed)
                     if parsed.get("contract"):
                         extra = dict(tick.get("extra") or {})
