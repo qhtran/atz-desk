@@ -51,7 +51,18 @@ def test_scan_daily_signals_monkeypatch(monkeypatch):
 def test_allowed_filters_includes_advisor():
     assert "advisor" in ALLOWED_FILTERS
     assert {"candle", "volume", "foreign"} <= ALLOWED_FILTERS
-    assert {"bollinger", "adx", "atr", "ma", "rs_index", "breakout_52w", "stochastic"} <= ALLOWED_FILTERS
+    assert {
+        "bollinger",
+        "adx",
+        "atr",
+        "ma",
+        "rs_index",
+        "breakout_52w",
+        "stochastic",
+        "foreign_streak",
+        "liquidity",
+        "market_regime",
+    } <= ALLOWED_FILTERS
 
 
 def test_scan_daily_signals_multi_and(monkeypatch):

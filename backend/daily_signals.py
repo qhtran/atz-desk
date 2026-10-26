@@ -28,6 +28,9 @@ ALLOWED_FILTERS = frozenset(
         "rs_index",
         "breakout_52w",
         "stochastic",
+        "foreign_streak",
+        "liquidity",
+        "market_regime",
     }
 )
 
@@ -107,9 +110,33 @@ def _advisor_hit(bars: pd.DataFrame, buy_min_total: float | None) -> tuple[bool,
 
 
 def _plugin_params(name: str, index_bars: pd.DataFrame | None) -> dict[str, Any] | None:
-    if name == "rs_index":
+    if name in {"rs_index", "market_regime"}:
         return {"index_bars": index_bars}
     return None
+
+
+def _index_bars_for_scan(names: list[str], bars_dir: Path | None) -> pd.DataFrame | None:
+    if "rs_index" in names or "market_regime" in names:
+        return load_symbol_bars("VNINDEX", bars_dir)
+    return None
+
+
+def _market_regime_blocks(names: list[str], combine_or: bool, index_bars: pd.DataFrame | None) -> bool:
+    """AND + market_regime: nếu VNINDEX không uptrend thì không quét mã."""
+    if combine_or or "market_regime" not in names or len(names) == 1:
+        return False
+    registry = _filter_registry()
+    mod = registry.get("market_regime")
+    if mod is None or index_bars is None or index_bars.empty:
+        return True
+    try:
+        result = mod.evaluate(
+            index_bars.iloc[:1],
+            {"index_bars": index_bars},
+        )
+    except Exception:
+        return True
+    return not getattr(result, "matched", False) or getattr(result, "signal_type", "") != "mua"
 
 
 def scan_advisor_scores(
@@ -200,7 +227,9 @@ def scan_daily_signals(
         return hits, scanned, matched
 
     registry = _filter_registry()
-    index_bars = load_symbol_bars("VNINDEX", bars_dir) if "rs_index" in names else None
+    index_bars = _index_bars_for_scan(names, bars_dir)
+    if _market_regime_blocks(names, combine_or, index_bars):
+        return [], 0, 0
     universe = symbols or symbols_for_market_tab(market)
     hits: list[dict[str, Any]] = []
     scanned = 0

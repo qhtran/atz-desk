@@ -12,6 +12,7 @@ def test_package_registry_lists_the_six_filters() -> None:
         "ma", "rsi", "macd", "bollinger", "volume", "candle", "foreign", "proprietary",
         "ichimoku", "mcdx", "adx", "atr", "advisor",
         "rs_index", "breakout_52w", "stochastic",
+        "foreign_streak", "liquidity", "market_regime",
     }
 
 

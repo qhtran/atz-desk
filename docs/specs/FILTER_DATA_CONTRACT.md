@@ -19,6 +19,9 @@
 | rs_index | daily | 60 | C + VNINDEX | ohlcv CSV |
 | breakout_52w | daily | 252 | H,C | ohlcv CSV |
 | stochastic | daily | ~20 | H,L,C | ohlcv CSV |
+| foreign_streak | daily | N | foreign_net_vol | ohlcv + flow |
+| liquidity | daily | 20 | V, GT | ohlcv CSV |
+| market_regime | daily | 200 | VNINDEX C | ohlcv CSV |
 
 ## Hàng đợi P1 (daily OHLCV — F-01…F-10)
 
@@ -31,9 +34,9 @@
 | F-05 | Breakout 52w | 252 | H,C | **Shipped** iBoard |
 | F-06 | MA cross | 50 | C | **Shipped** (filter `ma`) |
 | F-07 | Stochastic | 14 | H,L,C | **Shipped** iBoard |
-| F-08 | Foreign streak | N | foreign_net series |
-| F-09 | Liquidity | 20 | V, GT |
-| F-10 | Market regime | 200 | VNINDEX C |
+| F-08 | Foreign streak | N | foreign_net series | **Shipped** iBoard |
+| F-09 | Liquidity | 20 | V, GT | **Shipped** iBoard |
+| F-10 | Market regime | 200 | VNINDEX C | **Shipped** iBoard (gate AND) |
 
 **Archive đủ P1:** `equity_eod` + `foreign_eod` trong `data/market.db` (job `market_ingest` / mở rộng `ohlcv_seed`).
 
