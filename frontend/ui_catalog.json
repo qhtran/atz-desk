@@ -135,7 +135,7 @@
       "matchType": "prefix",
       "breadcrumb": ["Danh mục"],
       "hints": {
-        "fe": "frontend/index.html — portfolio localStorage",
+        "fe": "frontend/index.html — portfolio localStorage; F3 multi-checkbox #pf-f3-themes + preview #pf-f3-preview-table",
         "spec": "docs/bots/HANDOFF_NEXT_CHAT.md"
       },
       "err_codes": []

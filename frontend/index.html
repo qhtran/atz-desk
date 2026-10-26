@@ -485,6 +485,49 @@
     #portfolio-table td.pf-pl-up { color: #00c853; font-weight: 700; }
     #portfolio-table td.pf-pl-down { color: #ff3d00; font-weight: 700; }
 
+    .pf-f3-sector-panel {
+      margin: 0 12px 10px;
+      padding: 10px 12px;
+      border: 1px solid #2a2a2a;
+      background: #0f0f0f;
+      border-radius: 6px;
+    }
+    .pf-f3-themes {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 14px;
+      max-height: 88px;
+      overflow-y: auto;
+      margin-bottom: 8px;
+    }
+    .pf-f3-theme-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: #d4d4d4;
+      cursor: pointer;
+      user-select: none;
+    }
+    .pf-f3-theme-chip input { accent-color: #ffd900; }
+    .pf-f3-preview-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+      font-size: 11px;
+      color: #a3a3a3;
+    }
+    .pf-f3-preview-wrap {
+      max-height: 160px;
+      overflow: auto;
+      border: 1px solid #2a2a2a;
+    }
+    #pf-f3-preview-table { font-size: 12px; }
+    #pf-f3-preview-table .sym { font-weight: 600; color: #ffd900; }
+    .pf-in-portfolio { font-size: 11px; color: #737373; }
+
     .pin-btn {
       display: inline-flex;
       align-items: center;
@@ -772,14 +815,29 @@
       <label for="pf-avg">Giá TB</label>
       <input id="pf-avg" type="number" min="0" step="100" value="0" style="width:112px" />
       <button type="button" class="btn-quiet primary" id="pf-add">Thêm</button>
-      <label for="pf-f3-sector" class="ml-2">Ngành F3</label>
-      <select id="pf-f3-sector" style="max-width:180px">
-        <option value="">— Chọn ngành —</option>
-      </select>
-      <button type="button" class="btn-quiet" id="pf-f3-merge" title="Merge mã ngành vào danh mục (không ghi đè SL/Giá TB)">
-        Thêm mã ngành
-      </button>
+      <button type="button" class="btn-quiet" id="pf-clear-all" title="Xóa toàn bộ mã trong danh mục">Xóa tất cả</button>
       <span class="text-[11px] text-gray-500 ml-auto" id="pf-summary">NAV —</span>
+    </div>
+    <div class="pf-f3-sector-panel" data-atd-id="pb-ui:portfolio.f3-picker">
+      <div class="text-[11px] text-gray-400 mb-1">Ngành F3 — chọn ngành để xem mã (không tự thêm vào danh mục)</div>
+      <div id="pf-f3-themes" class="pf-f3-themes" role="group" aria-label="Chọn ngành F3"></div>
+      <div class="pf-f3-preview-bar">
+        <span id="pf-f3-preview-count">0 mã hiển thị</span>
+        <button type="button" class="btn-quiet primary" id="pf-f3-add-all" disabled>Thêm tất cả (chưa có trong DM)</button>
+      </div>
+      <div class="atz-table-wrap pf-f3-preview-wrap">
+        <table class="atz-table" id="pf-f3-preview-table">
+          <thead>
+            <tr>
+              <th class="th-sym">Mã</th>
+              <th>Ngành</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="pf-f3-preview-body"></tbody>
+        </table>
+        <div id="pf-f3-preview-empty" class="empty-hint" hidden>Chọn ít nhất một ngành để xem danh sách mã.</div>
+      </div>
     </div>
     <div class="atz-table-wrap panel-tall">
       <table class="atz-table" id="portfolio-table">
@@ -2867,23 +2925,112 @@
       });
     }
 
+    function pfDefaultQtyAvg() {
+      return {
+        qty: Number(document.getElementById("pf-qty")?.value) || 100,
+        avg: Number(document.getElementById("pf-avg")?.value) || 0,
+      };
+    }
+
+    function pfSelectedF3ThemeIds() {
+      const box = document.getElementById("pf-f3-themes");
+      if (!box) return [];
+      return [...box.querySelectorAll('input[type="checkbox"][data-f3-id]:checked')].map((el) => el.dataset.f3Id);
+    }
+
+    function pfSymbolsFromSelectedThemes() {
+      const ids = new Set(pfSelectedF3ThemeIds());
+      const bySym = new Map();
+      pfF3Themes.forEach((t) => {
+        if (!ids.has(t.id)) return;
+        (t.symbols || []).forEach((sym) => {
+          const code = String(sym).trim().toUpperCase();
+          if (!code) return;
+          const names = bySym.get(code) || [];
+          if (!names.includes(t.name)) names.push(t.name);
+          bySym.set(code, names);
+        });
+      });
+      return [...bySym.entries()]
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .map(([symbol, themeNames]) => ({ symbol, themeNames }));
+    }
+
+    function addPortfolioSymbol(symbol, { qty, avg } = {}) {
+      const code = String(symbol || "").trim().toUpperCase();
+      if (!code) return false;
+      const q = qty != null ? Number(qty) : pfDefaultQtyAvg().qty;
+      const a = avg != null ? Number(avg) : pfDefaultQtyAvg().avg;
+      if (q <= 0) return false;
+      if (portfolio.some((p) => p.symbol === code)) return false;
+      portfolio.push({ symbol: code, qty: q, avg: a });
+      return true;
+    }
+
+    function renderF3PreviewTable() {
+      const body = document.getElementById("pf-f3-preview-body");
+      const empty = document.getElementById("pf-f3-preview-empty");
+      const countEl = document.getElementById("pf-f3-preview-count");
+      const addAllBtn = document.getElementById("pf-f3-add-all");
+      if (!body) return;
+      const rows = pfSymbolsFromSelectedThemes();
+      body.innerHTML = "";
+      if (empty) empty.hidden = rows.length > 0;
+      let addable = 0;
+      rows.forEach(({ symbol, themeNames }) => {
+        const inPf = portfolio.some((p) => p.symbol === symbol);
+        if (!inPf) addable += 1;
+        const tr = document.createElement("tr");
+        const action = inPf
+          ? '<span class="pf-in-portfolio">Đã có</span>'
+          : `<button type="button" class="btn-quiet primary" data-pf-add-one="${symbol}">Thêm</button>`;
+        tr.innerHTML = `
+          <td class="sym">${symbol}</td>
+          <td class="text-gray-400 text-[11px]">${themeNames.map((n) => String(n).replace(/</g, "")).join(", ")}</td>
+          <td class="text-right">${action}</td>`;
+        body.appendChild(tr);
+      });
+      body.querySelectorAll("[data-pf-add-one]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const { qty, avg } = pfDefaultQtyAvg();
+          if (addPortfolioSymbol(btn.dataset.pfAddOne, { qty, avg })) {
+            savePortfolio();
+            renderPortfolioTable();
+          }
+        });
+      });
+      if (countEl) {
+        countEl.textContent =
+          rows.length === 0
+            ? "0 mã hiển thị — chọn ngành bên trên"
+            : `${rows.length} mã · ${addable} chưa có trong danh mục`;
+      }
+      if (addAllBtn) addAllBtn.disabled = addable === 0;
+    }
+
     async function loadPortfolioF3Themes() {
       try {
         const res = await fetch("/api/portfolio/sectors/f3");
         const data = await res.json();
         if (!data.ok || !Array.isArray(data.themes)) return;
+        const prev = new Set(pfSelectedF3ThemeIds());
         pfF3Themes = data.themes;
-        const sel = document.getElementById("pf-f3-sector");
-        if (!sel) return;
-        const cur = sel.value;
-        sel.innerHTML = '<option value="">— Chọn ngành —</option>';
+        const box = document.getElementById("pf-f3-themes");
+        if (!box) return;
+        box.innerHTML = "";
         pfF3Themes.forEach((t) => {
-          const opt = document.createElement("option");
-          opt.value = t.id;
-          opt.textContent = t.name;
-          sel.appendChild(opt);
+          const label = document.createElement("label");
+          label.className = "pf-f3-theme-chip";
+          const cb = document.createElement("input");
+          cb.type = "checkbox";
+          cb.dataset.f3Id = t.id;
+          cb.checked = prev.has(t.id);
+          cb.addEventListener("change", () => renderF3PreviewTable());
+          label.appendChild(cb);
+          label.appendChild(document.createTextNode(t.name || t.id));
+          box.appendChild(label);
         });
-        if (cur) sel.value = cur;
+        renderF3PreviewTable();
       } catch {
         /* offline */
       }
@@ -3055,6 +3202,7 @@
         });
       });
       schedulePortfolioSideEffects();
+      renderF3PreviewTable();
     }
 
     function patchPortfolioSymbol(symbol, { flash = false } = {}) {
@@ -3101,23 +3249,24 @@
       elPfSummary.textContent = `NAV ${Math.round(nav).toLocaleString("en-US")} · P/L ${Math.round(nav - cost).toLocaleString("en-US")}`;
     }
 
-    document.getElementById("pf-f3-merge").addEventListener("click", () => {
-      const id = String(document.getElementById("pf-f3-sector").value || "");
-      const theme = pfF3Themes.find((t) => t.id === id);
-      if (!theme || !Array.isArray(theme.symbols)) return;
-      const defaultQty = Number(document.getElementById("pf-qty").value) || 100;
+    document.getElementById("pf-f3-add-all")?.addEventListener("click", () => {
+      const { qty, avg } = pfDefaultQtyAvg();
       let added = 0;
-      theme.symbols.forEach((sym) => {
-        const code = String(sym).trim().toUpperCase();
-        if (!code) return;
-        if (portfolio.some((p) => p.symbol === code)) return;
-        portfolio.push({ symbol: code, qty: defaultQty, avg: 0 });
-        added += 1;
+      pfSymbolsFromSelectedThemes().forEach(({ symbol }) => {
+        if (addPortfolioSymbol(symbol, { qty, avg })) added += 1;
       });
       if (added > 0) {
         savePortfolio();
         renderPortfolioTable();
       }
+    });
+
+    document.getElementById("pf-clear-all")?.addEventListener("click", () => {
+      if (!portfolio.length) return;
+      if (!window.confirm("Xóa toàn bộ mã trong danh mục?")) return;
+      portfolio = [];
+      savePortfolio();
+      renderPortfolioTable();
     });
 
     document.getElementById("pf-add").addEventListener("click", () => {
