@@ -47,5 +47,10 @@ priceboard:
     # Nếu rỗng: dùng danh sách VN30 hardcode trong worker
     # Worker cũng subscribe room.{SYMBOL} (ĐTNN bq/sq trên kênh MI/DATA)
     symbols: []
+    # HĐTL depth: SSI X-Quote dùng mã hợp đồng (không phải VN30F1M).
+    # Override: ENV PRICEBOARD_FUTURES_CONTRACTS=VN30F1M:41I1GB000,VN30F2M:41I1GC000
+    futures_contracts:
+      VN30F1M: 41I1GB000
+      VN30F2M: 41I1GC000
     reconnect_initial_seconds: 2
     reconnect_max_seconds: 60

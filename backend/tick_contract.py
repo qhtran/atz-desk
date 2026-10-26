@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from backend.board_universe import FUTURES_SYMBOL_SET, INDEX_SYMBOL_SET
+from backend.futures_contracts import looks_like_vn30_futures_contract
 
 TZ_VN = timezone(timedelta(hours=7))
 
@@ -92,7 +93,8 @@ def _scale_equity_px(px: float | None, symbol: str) -> float | None:
     if px is None:
         return None
     kind = tick_kind_for_symbol(symbol)
-    if kind == "index" or symbol in FUTURES_SYMBOL_SET:
+    sym = str(symbol or "").strip().upper()
+    if kind == "index" or sym in FUTURES_SYMBOL_SET or looks_like_vn30_futures_contract(sym):
         return px
     if 0 < px < 500:
         return round(px * 1000)

@@ -37,6 +37,7 @@ from backend.board_universe import (
     default_watchlist,
     exchange_for_symbol,
 )
+from backend.futures_contracts import invert_contract_map, load_futures_contract_map
 from backend.tick_contract import (
     build_tick,
     parse_ssi_envelope,
@@ -175,22 +176,47 @@ class RealSsiWorker:
         )
         self._board: dict[str, dict] = {}
         self._parse_warn_at: float = 0.0
+        self._futures_contracts = load_futures_contract_map(ssi)
+        self._contract_to_board = invert_contract_map(self._futures_contracts)
+        if self._futures_contracts:
+            log(
+                COMPONENT,
+                "SSI-FUTURES-MAP",
+                "HĐTL board→contract",
+                contracts=self._futures_contracts,
+            )
 
     def request_stop(self) -> None:
         self._stop.set()
 
+    def _remap_futures_symbol(self, parsed: dict[str, Any]) -> dict[str, Any]:
+        """X-Quote dùng mã HĐ (41I1…) → ghi board VN30F1M/F2M."""
+        sym = str(parsed.get("symbol") or "").strip().upper()
+        board = self._contract_to_board.get(sym)
+        if not board:
+            return parsed
+        out = dict(parsed)
+        out["symbol"] = board
+        out["kind"] = "equity"
+        out["contract"] = sym
+        return out
+
     def _equity_like_symbols(self) -> list[str]:
-        """Mã cần depth quote (cổ phiếu + HĐTL). HĐTL nằm INDEX_BOARD nhưng parse như equity."""
+        """Mã depth: cổ phiếu + mã HĐ SSI (không dùng VN30F* cho X-Quote)."""
         out: list[str] = []
         seen: set[str] = set()
-        for sym in [*self.symbols, *FUTURES_BOARD_SYMBOLS]:
+        for sym in self.symbols:
             s = str(sym or "").strip().upper()
-            if not s or s in seen:
-                continue
-            if s in INDEX_BOARD_SYMBOLS and s not in FUTURES_BOARD_SYMBOLS:
+            if not s or s in seen or s in INDEX_BOARD_SYMBOLS:
                 continue
             seen.add(s)
             out.append(s)
+        for board in FUTURES_BOARD_SYMBOLS:
+            code = self._futures_contracts.get(board) or board
+            c = str(code).strip().upper()
+            if c and c not in seen:
+                seen.add(c)
+                out.append(c)
         return out
 
     def _append_quote_topics(self, topics: list[str], sym: str) -> None:
@@ -552,7 +578,12 @@ class RealSsiWorker:
                                     body_keys=sorted(body.keys()) if isinstance(body, dict) else [],
                                 )
                         continue
+                    parsed = self._remap_futures_symbol(parsed)
                     tick = self._merge_tick(parsed)
+                    if parsed.get("contract"):
+                        extra = dict(tick.get("extra") or {})
+                        extra["contract"] = parsed["contract"]
+                        tick["extra"] = extra
                     if not tick_has_payload(tick):
                         continue
                     await self._publish(redis, tick, merged=True)
