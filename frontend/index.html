@@ -1335,6 +1335,7 @@
           const merged = [...byTs.entries()].sort((a, b) => a[0] - b[0]).map(([t, v]) => [t, v]);
           sparkHist.set(sym, merged);
         }
+        refreshIndexSparkSvgs();
       } catch (_) {}
     }
 
@@ -1375,18 +1376,36 @@
       const max = Math.max(...nums, ...extras);
       const span = max - min || 1;
       const yOf = (v) => SPARK_H - SPARK_PAD_Y - ((v - min) / span) * SPARK_PLOT_H;
-      const pts = series.map((p, i) => ({
+      const pts = series.map((p) => ({
         x: tradingSessionXFromTs(p[0]) * SPARK_W,
         y: yOf(Number(p[1])),
       }));
+      let lineD;
+      let areaD;
+      let markerX;
+      let markerY;
       if (pts.length === 1) {
-        pts[0].x = Math.max(pts[0].x, tradingSessionXFromTs(Math.floor(Date.now() / 1000)) * SPARK_W);
+        const yLast = pts[0].y;
+        const ref = Number(levels?.ref);
+        if (Number.isFinite(ref)) {
+          const yRef = yOf(ref);
+          lineD = `M0 ${yRef.toFixed(1)} L${SPARK_W} ${yLast.toFixed(1)}`;
+        } else {
+          lineD = `M0 ${yLast.toFixed(1)} L${SPARK_W} ${yLast.toFixed(1)}`;
+        }
+        markerX = SPARK_W;
+        markerY = yLast;
+        areaD = lineD + ` L${SPARK_W} ${SPARK_H} L0 ${SPARK_H} Z`;
+      } else {
+        lineD = pts
+          .map((p, i) => (i === 0 ? "M" : "L") + p.x.toFixed(1) + " " + p.y.toFixed(1))
+          .join(" ");
+        const last = pts[pts.length - 1];
+        markerX = last.x;
+        markerY = last.y;
+        areaD = lineD + " L" + last.x.toFixed(1) + " " + SPARK_H + " L0 " + SPARK_H + " Z";
       }
-      const lineD = pts
-        .map((p, i) => (i === 0 ? "M" : "L") + p.x.toFixed(1) + " " + p.y.toFixed(1))
-        .join(" ");
-      const last = pts[pts.length - 1];
-      const areaD = lineD + " L" + last.x.toFixed(1) + " " + SPARK_H + " L0 " + SPARK_H + " Z";
+      const last = { x: markerX, y: markerY };
       const yLevel = (key) => {
         const v = Number(levels?.[key]);
         return Number.isFinite(v) ? yOf(v) : null;
@@ -1400,6 +1419,21 @@
         yHigh: yLevel("high"),
         yLow: yLevel("low"),
       };
+    }
+
+    /** Re-render index sparks after hydrate (off-hours flat ref→last line). */
+    function refreshIndexSparkSvgs() {
+      INDEX_ORDER.forEach((sym) => {
+        const row = indexRowFor(sym);
+        const card = elIndexBar.querySelector(`[data-idx="${sym}"]`);
+        if (!row || !card) return;
+        patchSparkSvg(
+          card.querySelector("svg.spark"),
+          sparkPointsFor(sym, row.last),
+          sparkLevelsFromRow(row),
+          row.change,
+        );
+      });
     }
 
     function sparkLevelsFromRow(row) {
