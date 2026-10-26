@@ -1385,17 +1385,12 @@
       let markerX;
       let markerY;
       if (pts.length === 1) {
+        // Ngoài giờ / chưa có bar 1m: đường ngang tại đóng cửa (không ref→last — tránh fill tam giác).
         const yLast = pts[0].y;
-        const ref = Number(levels?.ref);
-        if (Number.isFinite(ref)) {
-          const yRef = yOf(ref);
-          lineD = `M0 ${yRef.toFixed(1)} L${SPARK_W} ${yLast.toFixed(1)}`;
-        } else {
-          lineD = `M0 ${yLast.toFixed(1)} L${SPARK_W} ${yLast.toFixed(1)}`;
-        }
+        lineD = `M0 ${yLast.toFixed(1)} L${SPARK_W} ${yLast.toFixed(1)}`;
         markerX = SPARK_W;
         markerY = yLast;
-        areaD = lineD + ` L${SPARK_W} ${SPARK_H} L0 ${SPARK_H} Z`;
+        areaD = "";
       } else {
         lineD = pts
           .map((p, i) => (i === 0 ? "M" : "L") + p.x.toFixed(1) + " " + p.y.toFixed(1))
@@ -1468,7 +1463,7 @@
               ${lineY(g.yRef, "#737373", "ref")}
               ${lineY(g.yHigh, "#66ff66", "high")}
               ${lineY(g.yLow, "#ff6666", "low")}
-              <path data-spark="area" d="${g.areaD}" fill="url(#${gid})" stroke="none" />
+              <path data-spark="area" d="${g.areaD || "M0 0"}" fill="url(#${gid})" stroke="none" opacity="${g.areaD ? "1" : "0"}" />
               <path data-spark="line" d="${g.lineD}" fill="none" stroke="${stroke}" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" />
               <circle data-spark="marker" cx="${g.markerX.toFixed(1)}" cy="${g.markerY.toFixed(1)}" r="2" fill="${stroke}" stroke="#0a0a0a" stroke-width="0.6" />
             </svg>`;
@@ -1500,7 +1495,10 @@
       const marker = svg.querySelector('[data-spark="marker"]');
       const gradTop = svg.querySelector('[data-spark="grad-top"]');
       const gradBot = svg.querySelector('[data-spark="grad-bot"]');
-      if (area) area.setAttribute("d", g.areaD);
+      if (area) {
+        area.setAttribute("d", g.areaD || "M0 0");
+        area.setAttribute("opacity", g.areaD ? "1" : "0");
+      }
       if (line) {
         line.setAttribute("d", g.lineD);
         line.setAttribute("stroke", stroke);
