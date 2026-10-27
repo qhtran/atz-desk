@@ -3,6 +3,34 @@ body.pb-dbg-on {
   cursor: crosshair !important;
 }
 
+/* Mobile / touch: luôn hiện — toggle Inspect (thay ⌘⇧D). */
+.pb-dbg-fab {
+  position: fixed;
+  left: max(12px, env(safe-area-inset-left, 0px));
+  bottom: max(12px, env(safe-area-inset-bottom, 0px));
+  z-index: 2147483005;
+  min-width: 52px;
+  min-height: 44px;
+  padding: 10px 14px;
+  border: 1px solid #1e3a8a;
+  border-radius: 999px;
+  background: #1e293b;
+  color: #e2e8f0;
+  font: 600 12px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 0.04em;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  pointer-events: auto;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.pb-dbg-fab.is-on {
+  background: #1d4ed8;
+  border-color: #60a5fa;
+  color: #fff;
+}
+
 .pb-dbg-badge {
   position: fixed;
   right: 12px;
@@ -16,6 +44,15 @@ body.pb-dbg-on {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
   pointer-events: none;
   max-width: min(340px, 92vw);
+}
+
+@media (max-width: 720px) {
+  .pb-dbg-badge {
+    right: 12px;
+    left: auto;
+    bottom: max(64px, calc(12px + env(safe-area-inset-bottom, 0px)));
+    max-width: min(260px, calc(100vw - 24px));
+  }
 }
 
 .pb-dbg-toast {

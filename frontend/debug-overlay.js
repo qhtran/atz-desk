@@ -81,6 +81,17 @@
     return window.__pbDbg;
   }
 
+  function syncFab() {
+    if (!els.fab) return;
+    var on = !!(api() && api().on);
+    els.fab.setAttribute("aria-pressed", on ? "true" : "false");
+    els.fab.classList.toggle("is-on", on);
+    els.fab.textContent = on ? "DBG ON" : "DBG";
+    els.fab.title = on
+      ? "Tắt Inspect (tương đương ⌘⇧D)"
+      : "Bật Inspect — tap để pin, copy ui_ref (tương đương ⌘⇧D)";
+  }
+
   function setOn(v) {
     var a = api();
     a.on = !!v;
@@ -90,6 +101,7 @@
     document.body.classList.toggle("pb-dbg-on", a.on);
     if (els.shield) els.shield.style.display = a.on ? "block" : "none";
     if (els.badge) els.badge.style.display = a.on ? "block" : "none";
+    syncFab();
     if (!a.on) {
       hideHighlight();
       closePanel();
@@ -99,7 +111,7 @@
 
   function toggle() {
     setOn(!api().on);
-    toast(api().on ? "Inspect ON · click để pin" : "Inspect OFF");
+    toast(api().on ? "Inspect ON · tap/click để pin" : "Inspect OFF");
   }
 
   function hashDom(el) {
@@ -492,10 +504,22 @@
   }
 
   function mountUi() {
+    els.fab = document.createElement("button");
+    els.fab.type = "button";
+    els.fab.id = "pb-dbg-fab";
+    els.fab.className = "pb-dbg-fab";
+    els.fab.setAttribute("aria-label", "Toggle Inspect debug");
+    els.fab.setAttribute("data-atd-id", "pb-ui:debug.fab");
+    els.fab.addEventListener("click", function (ev) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      toggle();
+    });
+
     els.badge = document.createElement("div");
     els.badge.className = "pb-dbg-badge";
     els.badge.innerHTML =
-      "Inspect ON · ⌘⇧D / Ctrl⇧D · Esc tắt<br/>Click pin · Copy JSON cho Cursor";
+      "Inspect ON · ⌘⇧D / nút DBG · Esc tắt<br/>Tap/click pin · Copy JSON / ui_ref";
 
     els.toast = document.createElement("div");
     els.toast.className = "pb-dbg-toast";
@@ -504,6 +528,17 @@
     els.shield.className = "pb-dbg-shield";
     els.shield.style.display = "none";
     els.shield.addEventListener("mousemove", onShieldMove, true);
+    els.shield.addEventListener(
+      "touchmove",
+      function (ev) {
+        if (!api().on || !ev.touches || !ev.touches[0]) return;
+        onShieldMove({
+          clientX: ev.touches[0].clientX,
+          clientY: ev.touches[0].clientY,
+        });
+      },
+      true
+    );
     els.shield.addEventListener("click", onShieldClick, true);
 
     els.highlight = document.createElement("div");
@@ -533,6 +568,7 @@
     document.body.appendChild(els.highlight);
     document.body.appendChild(els.hoverLabel);
     document.body.appendChild(els.badge);
+    document.body.appendChild(els.fab);
     document.body.appendChild(els.toast);
     document.body.appendChild(els.panel);
 
@@ -549,6 +585,7 @@
     document.getElementById("pb-dbg-copy-ref").addEventListener("click", function () {
       if (els.panelRef) copyText(els.panelRef.textContent || "");
     });
+    syncFab();
   }
 
   function onKey(ev) {
@@ -616,6 +653,7 @@
     document.body.classList.toggle("pb-dbg-on", api().on);
     els.shield.style.display = api().on ? "block" : "none";
     els.badge.style.display = api().on ? "block" : "none";
+    syncFab();
 
     if (!window.__pbDbgKeyBound) {
       window.addEventListener("keydown", onKey, true);
