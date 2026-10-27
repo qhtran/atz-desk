@@ -35,7 +35,7 @@
 | **Cột depth 3 bước** | `frontend/index.html` | `applyEquity()`, `enrichDepth()`, cột `data-f=bid*`, `ask*` | `docs/specs/PRICEBOARD_P1_DEPTH_NN.md` |
 | **Cột ĐTNN (6 — SSI)** | `frontend/index.html` | KL: `fbuy`,`fsell`,`fnet`; GT: `fbuyv`,`fsellv`,`fnetv`; tab Khối ngoại: `matchesForeignLiveRow()` | `tick_contract._parse_foreign_fields` (bq/sq/bv/sv) + `room.{sym}` |
 | **Tín hiệu ngày / quét rổ** | `backend/daily_signals.py` | `scan_daily_signals()`, `symbols_for_market_tab(market)` | `backend/main.py` → `/api/iboard/daily-signals` |
-| **Cột XHT + panel phân tích mã** | `frontend/index.html` | `refreshEquitySparkCell()`, `openSymbolDetail()`, `SymbolDetailChart` (LWC), range `1d·1m·…·5y` | `GET /api/iboard/symbol-bars?range=`, `symbol-filter-history`, `symbol-intraday` ← `symbol_analysis.py`, `equity_spark.py` |
+| **Cột XHT + panel phân tích mã** | `frontend/index.html` | `fetchEquitySpark()`, `refreshEquitySparkCell()`, `openSymbolDetail()`, `SymbolDetailChart` (LWC), range `1d·1m·…·5y` | `GET /api/iboard/equity-spark`, `symbol-bars`, `symbol-filter-history`, `symbol-intraday` ← `equity_spark.py`, `symbol_analysis.py` |
 | **Config runtime** | `config/priceboard.yaml` | `min_volume`, `min_volume_by_exchange`, `ssi.channels`, `ssi.symbols` | ENV `PRICEBOARD_*`, `SSI_*` |
 | **Debug overlay / ui_ref** | `frontend/debug-overlay.js`, `frontend/ui_catalog.json` | `pb-ui:iboard.market.*`, `pb-ui:iboard.equity.row.*` | `docs/specs/PRICEBOARD_DEBUG.md` |
 

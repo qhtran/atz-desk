@@ -232,6 +232,23 @@ def load_equity_minute_series(
         conn.close()
 
 
+def load_equity_series_map(
+    symbols: list[str],
+    trading_date: str,
+    *,
+    path: Path | None = None,
+) -> dict[str, list[list[float | int]]]:
+    """Bulk close series for XHT / equity spark hydrate (mirrors load_index_series_map)."""
+    out: dict[str, list[list[float | int]]] = {}
+    for sym in symbols:
+        key = str(sym or "").strip().upper()
+        if not key:
+            continue
+        pts = load_equity_minute_series(key, trading_date, path=path)
+        out[key] = [[ts, val] for ts, val in pts]
+    return out
+
+
 def load_equity_minute_ohlc(
     symbol: str,
     trading_date: str,

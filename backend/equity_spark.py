@@ -20,10 +20,12 @@ from backend.market_db import (
     init_market_db,
     load_equity_minute_ohlc,
     load_equity_minute_series,
+    load_equity_series_map,
     upsert_equity_minute_bar,
 )
 
 EQUITY_SPARK_PREFIX = os.getenv("PRICEBOARD_EQUITY_SPARK_PREFIX", "priceboard:equity_spark")
+EQUITY_SPARK_MAX_SYMBOLS = int(os.getenv("PRICEBOARD_EQUITY_SPARK_MAX_SYMBOLS", "400"))
 
 
 def _redis_key(trading_date: str, symbol: str) -> str:
@@ -114,4 +116,60 @@ async def load_equity_intraday(
         "frozen": is_frozen(),
         "series": series,
         "bars_1m": bars_1m,
+    }
+
+
+def _normalize_equity_symbols(symbols: list[str] | None) -> list[str]:
+    """Dedupe, drop index-bar symbols, cap list size for board hydrate."""
+    seen: set[str] = set()
+    out: list[str] = []
+    for raw in symbols or []:
+        sym = str(raw or "").strip().upper()
+        if not sym or sym in INDEX_SYMBOL_SET or sym in seen:
+            continue
+        seen.add(sym)
+        out.append(sym)
+        if len(out) >= EQUITY_SPARK_MAX_SYMBOLS:
+            break
+    return out
+
+
+async def load_equity_spark(
+    redis: Any,
+    symbols: list[str] | None = None,
+    trading_date: str | None = None,
+) -> dict[str, Any]:
+    """Bulk 1m close series for iBoard XHT column (same cache shape as index-spark)."""
+    syms = _normalize_equity_symbols(symbols)
+    td = trading_date or trading_date_for()
+    init_market_db()
+    out: dict[str, list[list[float | int]]] = {}
+    missing: list[str] = []
+    for sym in syms:
+        key = _redis_key(td, sym)
+        cached = await redis.get(key)
+        if cached:
+            try:
+                out[sym] = json.loads(cached)
+                continue
+            except (TypeError, json.JSONDecodeError):
+                pass
+        missing.append(sym)
+    if missing:
+        from_db = load_equity_series_map(missing, td)
+        for sym in missing:
+            pts = from_db.get(sym, [])
+            out[sym] = pts
+            if pts:
+                trimmed = pts[-MAX_SERIES_POINTS:] if len(pts) > MAX_SERIES_POINTS else pts
+                await redis.set(
+                    _redis_key(td, sym),
+                    json.dumps(trimmed, separators=(",", ":")),
+                    ex=INDEX_SPARK_TTL_SEC,
+                )
+    return {
+        "ok": True,
+        "trading_date": td,
+        "frozen": is_frozen(),
+        "series": out,
     }
