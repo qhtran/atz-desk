@@ -1568,25 +1568,50 @@
       return raw.map((v, i) => [Math.floor(Date.now() / 1000) - (raw.length - i), Number(v)]);
     }
 
+    function mergeSparkSeriesPayload(data) {
+      if (!data || !data.ok) return;
+      const td = data.trading_date || null;
+      if (sparkTradingDate && td && td !== sparkTradingDate) sparkHist.clear();
+      if (td) sparkTradingDate = td;
+      for (const [sym, pts] of Object.entries(data.series || {})) {
+        if (!Array.isArray(pts) || !pts.length) continue;
+        const byTs = new Map();
+        for (const p of normalizeSparkPoints(pts)) byTs.set(p[0], p[1]);
+        const existing = sparkHist.get(sym) || [];
+        for (const p of existing) byTs.set(p[0], p[1]);
+        const merged = [...byTs.entries()].sort((a, b) => a[0] - b[0]).map(([t, v]) => [t, v]);
+        sparkHist.set(sym, merged);
+      }
+    }
+
     async function fetchIndexSpark() {
       try {
         const res = await fetch("/api/iboard/index-spark");
         if (!res.ok) return;
         const data = await res.json();
-        if (!data || !data.ok) return;
-        const td = data.trading_date || null;
-        if (sparkTradingDate && td && td !== sparkTradingDate) sparkHist.clear();
-        if (td) sparkTradingDate = td;
-        for (const [sym, pts] of Object.entries(data.series || {})) {
-          if (!Array.isArray(pts) || !pts.length) continue;
-          const byTs = new Map();
-          for (const p of normalizeSparkPoints(pts)) byTs.set(p[0], p[1]);
-          const existing = sparkHist.get(sym) || [];
-          for (const p of existing) byTs.set(p[0], p[1]);
-          const merged = [...byTs.entries()].sort((a, b) => a[0] - b[0]).map(([t, v]) => [t, v]);
-          sparkHist.set(sym, merged);
-        }
+        mergeSparkSeriesPayload(data);
         refreshIndexSparkSvgs();
+      } catch (_) {}
+    }
+
+    /** Hydrate XHT cột CP — cùng sparkHist / renderSparkSvg như card VNINDEX. */
+    async function fetchEquitySpark(symbols) {
+      const list = [];
+      const seen = new Set();
+      for (const raw of symbols || []) {
+        const sym = String(raw || "").trim().toUpperCase();
+        if (!sym || INDEX_SYMBOLS.has(sym) || seen.has(sym)) continue;
+        seen.add(sym);
+        list.push(sym);
+        if (list.length >= 400) break;
+      }
+      if (!list.length) return;
+      try {
+        const res = await fetch("/api/iboard/equity-spark?symbols=" + encodeURIComponent(list.join(",")));
+        if (!res.ok) return;
+        const data = await res.json();
+        mergeSparkSeriesPayload(data);
+        scheduleEquitySparkRefresh();
       } catch (_) {}
     }
 
@@ -3306,7 +3331,10 @@
           if (ai !== bi) return ai - bi;
           return String(a.symbol).localeCompare(String(b.symbol));
         });
-        void fetchIndexSpark().then(() => {
+        const equitySyms = rows
+          .map((r) => r && r.symbol)
+          .filter((s) => s && !INDEX_SYMBOLS.has(s));
+        void Promise.all([fetchIndexSpark(), fetchEquitySpark(equitySyms)]).then(() => {
           rows.forEach((r) => {
             if (INDEX_SYMBOLS.has(r.symbol) && inTradingSession()) pushSpark(r.symbol, r.last);
             applyRow(r, { flash: false });

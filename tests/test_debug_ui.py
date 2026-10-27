@@ -73,3 +73,15 @@ def test_api_debug_ui_config_route(monkeypatch, tmp_path: Path):
     body = r.json()
     assert "enabled" in body
     assert body["storageKey"] == "pb-dbg-on"
+
+
+def test_debug_overlay_has_mobile_fab_toggle():
+    """Nút DBG mobile — tương đương ⌘⇧D (toggle Inspect + copy tag)."""
+    root = Path(__file__).resolve().parents[1]
+    js = (root / "frontend" / "debug-overlay.js").read_text(encoding="utf-8")
+    css = (root / "frontend" / "debug-overlay.css").read_text(encoding="utf-8")
+    assert 'id = "pb-dbg-fab"' in js or 'id="pb-dbg-fab"' in js
+    assert "pb-dbg-fab" in css
+    assert "syncFab" in js
+    assert "els.fab.addEventListener(\"click\"" in js or "els.fab.addEventListener('click'" in js
+    assert "touchmove" in js

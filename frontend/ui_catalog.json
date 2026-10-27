@@ -125,7 +125,8 @@
       "matchType": "prefix",
       "breadcrumb": ["ATZ Desk", "iBoard", "Dòng CP", "XHT spark"],
       "hints": {
-        "fe": "frontend/index.html — data-f=trendSpark, pushSpark equity",
+        "fe": "frontend/index.html — data-f=trendSpark, fetchEquitySpark + pushSpark, renderSparkSvg (cùng VNINDEX)",
+        "be": "GET /api/iboard/equity-spark ← backend/equity_spark.load_equity_spark",
         "spec": "docs/specs/IBOARD_MODULE_MAP.md"
       },
       "err_codes": ["ERR-PB-006"]

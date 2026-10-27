@@ -27,7 +27,7 @@ from backend.identity import me_from_headers
 from backend.portfolio_f3 import batch_f3_alerts, load_f3_sector_themes
 from backend.portfolio_quotes import normalize_symbols, resolve_portfolio_quotes
 from backend.daily_signals import ALLOWED_FILTERS, scan_daily_signals
-from backend.equity_spark import load_equity_intraday
+from backend.equity_spark import load_equity_intraday, load_equity_spark
 from backend.symbol_analysis import chart_limit_from_query, load_bars_for_chart, scan_filter_markers
 from backend.portfolio_store import list_positions, migrate_if_empty, replace_positions
 from backend.observability import ERR_PB_REDIS, ERR_PB_SCREENER, ERR_PB_WS, log, setup
@@ -236,6 +236,19 @@ async def iboard_index_spark(symbols: str | None = None) -> dict:
     redis = aioredis.from_url(REDIS_URL, decode_responses=True)
     try:
         return await load_index_spark(redis, symbols=sym_list)
+    finally:
+        await redis.aclose()
+
+
+@app.get("/api/iboard/equity-spark")
+async def iboard_equity_spark(symbols: str | None = None) -> dict:
+    """Bulk 1m series for iBoard XHT column (same contract shape as index-spark)."""
+    sym_list: list[str] = []
+    if symbols and symbols.strip():
+        sym_list = [s.strip().upper() for s in symbols.split(",") if s.strip()]
+    redis = aioredis.from_url(REDIS_URL, decode_responses=True)
+    try:
+        return await load_equity_spark(redis, symbols=sym_list)
     finally:
         await redis.aclose()
 
