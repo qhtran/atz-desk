@@ -113,4 +113,19 @@ Debug id: giữ `pb-ui:portfolio.f3-*`, bổ sung `pb-ui:iboard.f3.board`, `pb-u
 
 ## 5. Cửa dừng
 
-Sau khi có `intent.md` + `spec.md` → **chờ duyệt** trước Bước 3 (`plan.md`) và code production.
+Bản docs này (Bước 1–2) dừng trước code. Bản triển khai đi tiếp ở mục 6 — không có `plan.md` riêng vì packet yêu cầu code luôn theo danh sách file ở mục 4.
+
+## 6. Chỉnh khi triển khai (so với mục 1–4)
+
+Những điểm spec lệch code trên `main` (kể cả commit `feat(portfolio): F3 multi-checkbox preview…`) và cách đã xử lý:
+
+1. **Accordion thay chip + preview hẹp** (commit 26/10). Preview multi-checkbox và nút «Thêm tất cả» không còn. Mỗi dòng mã giữ nút **Thêm** trong cột Mã để vẫn đưa mã vào danh mục — không thêm cột thứ 6.
+2. **Vị trí UI:** `#pf-f3-*` nằm tab **Danh mục** của SPA (`frontend/index.html`), không phải lưới giá iBoard. Giữ `pb-ui:portfolio.f3-picker`, thêm `pb-ui:iboard.f3.board` và `pb-ui:iboard.f3.sector.<id>`.
+3. **Contract HTTP giữ `ok: true`.** Ví dụ JSON ở mục 1 bỏ field này; client hiện tại đọc `data.ok`. `backend/main.py` không đổi schema.
+4. **Câu cảnh báo là trạng thái ngày**, đúng ví dụ «Giá trên MA50 · BB giữa · …», không phải câu sự kiện legacy trong `docs/specs/F3_ALERTS.md` (`xu hướng ngày`, `giảm thủng hỗ trợ`). `tests/test_f3_alerts.py` vẫn khóa engine legacy `analysis.f3_alerts` — module đó không còn được `portfolio_f3` gọi.
+5. **Mức S/R trong câu chữ là VND** (cùng `_desk_to_vnd`: OHLCV nhỏ hơn 1000 thì nhân 1000). Ví dụ spec `98.5` là đơn vị nghìn đồng trên CSV; cột Giá SPA hiển thị `98,500`.
+6. **% và Δ ngành** lấy từ dòng WS (`state.change_pct`) khi mã có trên bảng giá. `GET /api/portfolio/quotes` chỉ có `price` / `avg_volume_10`, không có % — dùng để lấp giá khi mã chưa có tick.
+7. **Đồ thị:** spark tái dùng `renderSparkSvg` + `GET /api/iboard/equity-spark`. Bấm spark gọi `openSymbolDetail` (chart intraday sẵn có, gồm `/api/iboard/symbol-intraday`). Cột 4 không ghép intraday alert — bảng danh mục bên dưới vẫn ghép F3 + intraday như cũ.
+8. **`_ensure_legacy_path` giữ trong `portfolio_f3.py`** vì `daily_signals` dùng để nạp filter. Chỉ đường alert F3 bỏ `analysis.f3_alerts`. `Dockerfile.dev` vẫn copy package legacy cho filter / `tests/test_f3_alerts.py`.
+9. **File thêm ngoài mục 4** (cần để config vào image dev và catalog debug): `Dockerfile.dev`, `docker-compose.dev.yml`, `frontend/ui_catalog.json`.
+10. **Cache:** server `(symbol, session_date)`; trình duyệt cache text đến khi tải lại trang, không gọi lại mỗi tick WS. Mở ngành (hoặc «Mở tất cả») mới batch các mã chưa có trong cache.

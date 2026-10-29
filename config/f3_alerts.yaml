@@ -1,0 +1,21 @@
+# Ngưỡng cảnh báo kỹ thuật F3 (khung ngày). UI không hardcode các số này.
+# Mức S/R trong câu chữ được đổi sang VND cùng quy tắc giá SPA (×1000 nếu < 1000).
+
+version: f3-alerts-1
+ma_periods: [20, 50, 100, 200]
+min_bars: 20
+bollinger:
+  period: 20
+  stdev: 2.0
+  # Khoảng giữa dải (0–0.5): |vị trí − 0.5| ≤ mid_band → «BB giữa».
+  mid_band: 0.15
+  stdev_ddof: 0
+ichimoku:
+  tenkan: 9
+  kijun: 26
+  senkou_b: 52
+  displacement: 26
+swing:
+  lookback: 5
+  # «gần» hỗ trợ/kháng cự khi lệch ≤ near_pct % so với giá đóng cửa.
+  near_pct: 1.5

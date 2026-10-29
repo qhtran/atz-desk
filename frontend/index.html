@@ -492,40 +492,69 @@
       background: #0f0f0f;
       border-radius: 6px;
     }
-    .pf-f3-themes {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px 14px;
-      max-height: 88px;
-      overflow-y: auto;
-      margin-bottom: 8px;
-    }
-    .pf-f3-theme-chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 12px;
-      color: #d4d4d4;
-      cursor: pointer;
-      user-select: none;
-    }
-    .pf-f3-theme-chip input { accent-color: #ffd900; }
-    .pf-f3-preview-bar {
+    .pf-f3-toolbar {
       display: flex;
       flex-wrap: wrap;
       align-items: center;
       gap: 8px;
-      margin-bottom: 6px;
+      margin-bottom: 8px;
       font-size: 11px;
       color: #a3a3a3;
     }
-    .pf-f3-preview-wrap {
-      max-height: 160px;
+    .pf-f3-accordion {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: min(52vh, 520px);
       overflow: auto;
-      border: 1px solid #2a2a2a;
     }
-    #pf-f3-preview-table { font-size: 12px; }
-    #pf-f3-preview-table .sym { font-weight: 600; color: #ffd900; }
+    .pf-f3-item {
+      border: 1px solid #2a2a2a;
+      border-radius: 4px;
+      background: #141414;
+    }
+    .pf-f3-head {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 8px;
+      background: transparent;
+      border: 0;
+      color: #e5e5e5;
+      cursor: pointer;
+      text-align: left;
+      font-size: 12px;
+    }
+    .pf-f3-head:hover { background: rgba(255, 217, 0, 0.06); }
+    .pf-f3-caret { width: 12px; color: #ffd900; }
+    .pf-f3-name { font-weight: 600; margin-right: auto; }
+    .pf-f3-meta, .pf-f3-delta { font-size: 11px; color: #a3a3a3; }
+    .pf-f3-body {
+      max-height: 260px;
+      overflow: auto;
+      border-top: 1px solid #2a2a2a;
+    }
+    .pf-f3-table { font-size: 12px; }
+    .pf-f3-table .sym { font-weight: 600; color: #ffd900; white-space: nowrap; }
+    .pf-f3-table td.pf-f3-alert {
+      font-size: 11px;
+      line-height: 1.35;
+      color: #d4d4d4;
+      white-space: normal;
+      min-width: 160px;
+      max-width: 320px;
+    }
+    .pf-f3-community { color: #737373; font-size: 11px; white-space: nowrap; }
+    .pf-f3-chart-btn {
+      display: block;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      cursor: pointer;
+      line-height: 0;
+    }
+    .pf-f3-chart-btn .spark { display: block; width: 88px; height: 36px; }
     .pf-in-portfolio { font-size: 11px; color: #737373; }
 
     .pin-btn {
@@ -819,25 +848,14 @@
       <span class="text-[11px] text-gray-500 ml-auto" id="pf-summary">NAV —</span>
     </div>
     <div class="pf-f3-sector-panel" data-atd-id="pb-ui:portfolio.f3-picker">
-      <div class="text-[11px] text-gray-400 mb-1">Ngành F3 — chọn ngành để xem mã (không tự thêm vào danh mục)</div>
-      <div id="pf-f3-themes" class="pf-f3-themes" role="group" aria-label="Chọn ngành F3"></div>
-      <div class="pf-f3-preview-bar">
-        <span id="pf-f3-preview-count">0 mã hiển thị</span>
-        <button type="button" class="btn-quiet primary" id="pf-f3-add-all" disabled>Thêm tất cả (chưa có trong DM)</button>
+      <div class="pf-f3-toolbar">
+        <span>Ngành F3 — mở ngành để xem giá, đồ thị, cảnh báo</span>
+        <span id="pf-f3-preview-count">0 ngành</span>
+        <button type="button" class="btn-quiet" id="pf-f3-expand-all">Mở tất cả</button>
+        <button type="button" class="btn-quiet" id="pf-f3-collapse-all">Đóng</button>
       </div>
-      <div class="atz-table-wrap pf-f3-preview-wrap">
-        <table class="atz-table" id="pf-f3-preview-table">
-          <thead>
-            <tr>
-              <th class="th-sym">Mã</th>
-              <th>Ngành</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody id="pf-f3-preview-body"></tbody>
-        </table>
-        <div id="pf-f3-preview-empty" class="empty-hint" hidden>Chọn ít nhất một ngành để xem danh sách mã.</div>
-      </div>
+      <div id="pf-f3-themes" class="pf-f3-accordion" data-atd-id="pb-ui:iboard.f3.board" role="region" aria-label="Bảng ngành F3"></div>
+      <div id="pf-f3-preview-empty" class="empty-hint" hidden>Không tải được danh sách ngành F3.</div>
     </div>
     <div class="atz-table-wrap panel-tall">
       <table class="atz-table" id="portfolio-table">
@@ -1717,10 +1735,10 @@
     }
 
     /** Full SVG markup for first paint (idxCardHtml). */
-    function renderSparkSvg(symbol, points, levels, change) {
+    function renderSparkSvg(symbol, points, levels, change, idPrefix) {
       const g = sparkGeom(points, levels);
       const stroke = sparkStroke(change);
-      const gid = "spark-grad-" + String(symbol || "x").replace(/[^A-Za-z0-9_-]/g, "");
+      const gid = (idPrefix || "spark-grad-") + String(symbol || "x").replace(/[^A-Za-z0-9_-]/g, "");
       if (!g) {
         return `<svg class="spark" viewBox="0 0 ${SPARK_W} ${SPARK_H}" aria-hidden="true"></svg>`;
       }
@@ -1931,6 +1949,7 @@
           if (tr.style.display === "none") return;
           refreshEquitySparkCell(tr, tr.dataset.symbol);
         });
+        refreshF3SparkCells();
       }, 200);
     }
 
@@ -2929,7 +2948,10 @@
     const pfQuoteCache = new Map();
     const pfF3Cache = new Map();
     const pfIntradayCache = new Map();
+    const f3AlertInflight = new Set();
     let pfF3Themes = [];
+    let pfF3BoardReady = false;
+    let pfF3LoadPromise = null;
     let pfSideTimer = null;
 
     function joinPortfolioAlertCell(f3Text, intradayText) {
@@ -2957,28 +2979,14 @@
       };
     }
 
-    function pfSelectedF3ThemeIds() {
-      const box = document.getElementById("pf-f3-themes");
-      if (!box) return [];
-      return [...box.querySelectorAll('input[type="checkbox"][data-f3-id]:checked')].map((el) => el.dataset.f3Id);
-    }
-
-    function pfSymbolsFromSelectedThemes() {
-      const ids = new Set(pfSelectedF3ThemeIds());
-      const bySym = new Map();
-      pfF3Themes.forEach((t) => {
-        if (!ids.has(t.id)) return;
-        (t.symbols || []).forEach((sym) => {
-          const code = String(sym).trim().toUpperCase();
-          if (!code) return;
-          const names = bySym.get(code) || [];
-          if (!names.includes(t.name)) names.push(t.name);
-          bySym.set(code, names);
-        });
-      });
-      return [...bySym.entries()]
-        .sort((a, b) => a[0].localeCompare(b[0]))
-        .map(([symbol, themeNames]) => ({ symbol, themeNames }));
+    function escHtml(value) {
+      return String(value ?? "").replace(/[&<>"']/g, (ch) => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      }[ch]));
     }
 
     function addPortfolioSymbol(symbol, { qty, avg } = {}) {
@@ -2992,73 +3000,324 @@
       return true;
     }
 
-    function renderF3PreviewTable() {
-      const body = document.getElementById("pf-f3-preview-body");
-      const empty = document.getElementById("pf-f3-preview-empty");
-      const countEl = document.getElementById("pf-f3-preview-count");
-      const addAllBtn = document.getElementById("pf-f3-add-all");
-      if (!body) return;
-      const rows = pfSymbolsFromSelectedThemes();
-      body.innerHTML = "";
-      if (empty) empty.hidden = rows.length > 0;
-      let addable = 0;
-      rows.forEach(({ symbol, themeNames }) => {
-        const inPf = portfolio.some((p) => p.symbol === symbol);
-        if (!inPf) addable += 1;
-        const tr = document.createElement("tr");
-        const action = inPf
-          ? '<span class="pf-in-portfolio">Đã có</span>'
-          : `<button type="button" class="btn-quiet primary" data-pf-add-one="${symbol}">Thêm</button>`;
-        tr.innerHTML = `
-          <td class="sym">${symbol}</td>
-          <td class="text-gray-400 text-[11px]">${themeNames.map((n) => String(n).replace(/</g, "")).join(", ")}</td>
-          <td class="text-right">${action}</td>`;
-        body.appendChild(tr);
-      });
-      body.querySelectorAll("[data-pf-add-one]").forEach((btn) => {
-        btn.addEventListener("click", () => {
-          const { qty, avg } = pfDefaultQtyAvg();
-          if (addPortfolioSymbol(btn.dataset.pfAddOne, { qty, avg })) {
-            savePortfolio();
-            renderPortfolioTable();
-          }
-        });
-      });
-      if (countEl) {
-        countEl.textContent =
-          rows.length === 0
-            ? "0 mã hiển thị — chọn ngành bên trên"
-            : `${rows.length} mã · ${addable} chưa có trong danh mục`;
+    function f3PriceView(symbol) {
+      const row = state.get(symbol);
+      if (row && Number(row.last) > 0) {
+        return {
+          last: Number(row.last),
+          change: row.change,
+          pct: row.change_pct,
+          levels: sparkLevelsFromRow(row),
+        };
       }
-      if (addAllBtn) addAllBtn.disabled = addable === 0;
+      const quote = pfQuoteCache.get(symbol);
+      if (quote && quote.price != null && Number(quote.price) > 0) {
+        const last = Number(quote.price);
+        return { last, change: null, pct: null, levels: { last } };
+      }
+      return null;
     }
 
-    async function loadPortfolioF3Themes() {
-      try {
-        const res = await fetch("/api/portfolio/sectors/f3");
-        const data = await res.json();
-        if (!data.ok || !Array.isArray(data.themes)) return;
-        const prev = new Set(pfSelectedF3ThemeIds());
-        pfF3Themes = data.themes;
-        const box = document.getElementById("pf-f3-themes");
-        if (!box) return;
-        box.innerHTML = "";
-        pfF3Themes.forEach((t) => {
-          const label = document.createElement("label");
-          label.className = "pf-f3-theme-chip";
-          const cb = document.createElement("input");
-          cb.type = "checkbox";
-          cb.dataset.f3Id = t.id;
-          cb.checked = prev.has(t.id);
-          cb.addEventListener("change", () => renderF3PreviewTable());
-          label.appendChild(cb);
-          label.appendChild(document.createTextNode(t.name || t.id));
-          box.appendChild(label);
-        });
-        renderF3PreviewTable();
-      } catch {
-        /* offline */
+    function paintF3SectorDelta(section) {
+      const theme = pfF3Themes.find((item) => item.id === section.dataset.f3Id);
+      const el = section.querySelector("[data-f3-delta]");
+      if (!el || !theme) return;
+      const pcts = [];
+      (theme.symbols || []).forEach((raw) => {
+        const row = state.get(String(raw || "").trim().toUpperCase());
+        if (!row || row.change_pct == null || row.change_pct === "") return;
+        const n = Number(row.change_pct);
+        if (Number.isFinite(n)) pcts.push(n);
+      });
+      if (!pcts.length) {
+        el.textContent = "";
+        el.className = "pf-f3-delta";
+        return;
       }
+      const avg = pcts.reduce((sum, n) => sum + n, 0) / pcts.length;
+      el.textContent = "Δ " + fmtPct(avg);
+      el.className = "pf-f3-delta " + changeTone(avg);
+    }
+
+    function f3SectorTableHtml(theme) {
+      const held = new Set(portfolio.map((item) => item.symbol));
+      const rows = (theme && theme.symbols ? theme.symbols : []).map((raw) => {
+        const sym = String(raw || "").trim().toUpperCase();
+        if (!sym) return "";
+        const action = held.has(sym)
+          ? '<span class="pf-in-portfolio">Đã có</span>'
+          : `<button type="button" class="btn-quiet primary" data-pf-add-one="${escHtml(sym)}">Thêm</button>`;
+        const alertText = pfF3Cache.get(sym) || "—";
+        return `<tr data-f3-sym="${escHtml(sym)}">
+          <td class="sym"><span>${escHtml(sym)}</span> <span data-f3-action>${action}</span></td>
+          <td class="num" data-f3-px><span data-f3-last>—</span> <span data-f3-pct>—</span></td>
+          <td class="td-trend-spark" data-f3-chart></td>
+          <td class="pf-f3-alert" data-f3-alert title="${escHtml(alertText)}">${escHtml(alertText)}</td>
+          <td class="pf-f3-community">Sắp có</td>
+        </tr>`;
+      }).join("");
+      return `<table class="atz-table pf-f3-table">
+        <thead><tr>
+          <th class="th-sym">Mã</th>
+          <th>Giá</th>
+          <th>Đồ thị</th>
+          <th>Cảnh báo KT</th>
+          <th>Cộng đồng</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+    }
+
+    function patchF3Symbol(symbol, opts = {}) {
+      if (!symbol || typeof CSS === "undefined" || !CSS.escape) return;
+      const nodes = document.querySelectorAll(`#pf-f3-themes tr[data-f3-sym="${CSS.escape(symbol)}"]`);
+      if (!nodes.length) return;
+      const view = f3PriceView(symbol);
+      const alertText = pfF3Cache.get(symbol) || "—";
+      nodes.forEach((tr) => {
+        const body = tr.closest(".pf-f3-body");
+        if (body && body.hidden) return;
+        const lastEl = tr.querySelector("[data-f3-last]");
+        const pctEl = tr.querySelector("[data-f3-pct]");
+        const alertEl = tr.querySelector("[data-f3-alert]");
+        const chartEl = tr.querySelector("[data-f3-chart]");
+        if (alertEl && alertEl.textContent !== alertText) {
+          alertEl.textContent = alertText;
+          alertEl.title = alertText;
+        }
+        if (view && lastEl) {
+          const next = fmtPrice(view.last);
+          const prev = lastEl.textContent;
+          lastEl.textContent = next;
+          const tone = view.pct != null && view.pct !== ""
+            ? changeTone(view.pct)
+            : view.change != null
+              ? changeTone(view.change)
+              : "";
+          if (pctEl) {
+            pctEl.textContent = view.pct != null && view.pct !== "" ? fmtPct(view.pct) : "—";
+            pctEl.className = tone;
+          }
+          lastEl.className = "tabular-nums " + tone;
+          if (opts.flash && prev && prev !== "—" && prev !== next) {
+            const ch = view.change != null ? view.change : view.pct != null ? view.pct : 1;
+            flashCell(lastEl, ch);
+          }
+        }
+        if (chartEl && opts.spark !== false) {
+          const pts = sparkPointsFor(symbol, view ? view.last : null);
+          const chg = view && view.change != null ? view.change : 0;
+          const svg = renderSparkSvg(symbol, pts, view ? view.levels : null, chg, "f3-spark-");
+          chartEl.innerHTML = `<button type="button" class="pf-f3-chart-btn" data-f3-open="${escHtml(symbol)}" title="Mở đồ thị trong phiên" aria-label="Đồ thị ${escHtml(symbol)}">${svg}</button>`;
+        }
+        const section = tr.closest(".pf-f3-item");
+        if (section) paintF3SectorDelta(section);
+      });
+    }
+
+    function refreshF3SparkCells() {
+      document.querySelectorAll("#pf-f3-themes .pf-f3-body:not([hidden]) tr[data-f3-sym]").forEach((tr) => {
+        patchF3Symbol(tr.dataset.f3Sym);
+      });
+    }
+
+    function refreshOpenF3FromState() {
+      document.querySelectorAll("#pf-f3-themes .pf-f3-body:not([hidden]) tr[data-f3-sym]").forEach((tr) => {
+        patchF3Symbol(tr.dataset.f3Sym, { spark: false });
+      });
+      document.querySelectorAll("#pf-f3-themes .pf-f3-item").forEach((section) => {
+        const body = section.querySelector(".pf-f3-body");
+        if (body && !body.hidden) paintF3SectorDelta(section);
+      });
+    }
+
+    function syncF3InPortfolioFlags() {
+      const held = new Set(portfolio.map((item) => item.symbol));
+      document.querySelectorAll("#pf-f3-themes tr[data-f3-sym]").forEach((tr) => {
+        const cell = tr.querySelector("[data-f3-action]");
+        if (!cell) return;
+        const sym = tr.dataset.f3Sym;
+        const hasBtn = cell.querySelector("[data-pf-add-one]");
+        if (held.has(sym) && hasBtn) {
+          cell.innerHTML = '<span class="pf-in-portfolio">Đã có</span>';
+        } else if (!held.has(sym) && !hasBtn) {
+          cell.innerHTML = `<button type="button" class="btn-quiet primary" data-pf-add-one="${escHtml(sym)}">Thêm</button>`;
+        }
+      });
+    }
+
+    async function hydrateF3Sector(symbols) {
+      const syms = [];
+      const seen = new Set();
+      (symbols || []).forEach((raw) => {
+        const sym = String(raw || "").trim().toUpperCase();
+        if (!sym || seen.has(sym)) return;
+        seen.add(sym);
+        syms.push(sym);
+      });
+      if (!syms.length) return;
+      const needQuotes = syms.filter((sym) => {
+        const row = state.get(sym);
+        if (row && Number(row.last) > 0) return false;
+        const quote = pfQuoteCache.get(sym);
+        return !(quote && quote.price != null && Number(quote.price) > 0);
+      });
+      if (needQuotes.length) {
+        try {
+          const res = await fetch("/api/portfolio/quotes?symbols=" + encodeURIComponent(needQuotes.join(",")));
+          const data = await res.json();
+          if (data.ok && data.quotes) {
+            Object.entries(data.quotes).forEach(([sym, quote]) => pfQuoteCache.set(sym, quote));
+          }
+        } catch {
+          /* offline */
+        }
+      }
+      syms.forEach((sym) => patchF3Symbol(sym));
+      void fetchEquitySpark(syms);
+      void ensureF3Alerts(syms);
+    }
+
+    async function ensureF3Alerts(symbols) {
+      const need = [];
+      (symbols || []).forEach((raw) => {
+        const sym = String(raw || "").trim().toUpperCase();
+        if (!sym || pfF3Cache.has(sym) || f3AlertInflight.has(sym)) return;
+        f3AlertInflight.add(sym);
+        need.push(sym);
+      });
+      if (!need.length) return;
+      try {
+        const res = await fetch("/api/portfolio/alerts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ symbols: need }),
+        });
+        const data = await res.json();
+        if (data.ok && data.alerts) {
+          need.forEach((sym) => pfF3Cache.set(sym, data.alerts[sym] || "—"));
+          applyPortfolioAlertCells();
+        }
+      } catch {
+        /* offline — leave uncached so the next open retries */
+      } finally {
+        need.forEach((sym) => f3AlertInflight.delete(sym));
+      }
+      need.forEach((sym) => patchF3Symbol(sym, { spark: false }));
+    }
+
+    function setF3SectorOpen(section, open, opts = {}) {
+      const body = section.querySelector(".pf-f3-body");
+      const head = section.querySelector(".pf-f3-head");
+      const caret = section.querySelector(".pf-f3-caret");
+      if (!body || !head) return;
+      if (open && body.dataset.built !== "1") {
+        const theme = pfF3Themes.find((item) => item.id === section.dataset.f3Id);
+        body.innerHTML = f3SectorTableHtml(theme);
+        body.dataset.built = "1";
+      }
+      body.hidden = !open;
+      head.setAttribute("aria-expanded", open ? "true" : "false");
+      if (caret) caret.textContent = open ? "▾" : "▸";
+      if (!open || opts.hydrate === false) return;
+      const theme = pfF3Themes.find((item) => item.id === section.dataset.f3Id);
+      void hydrateF3Sector((theme && theme.symbols) || []);
+      paintF3SectorDelta(section);
+    }
+
+    function setAllF3Sectors(open) {
+      const syms = [];
+      document.querySelectorAll("#pf-f3-themes .pf-f3-item").forEach((section) => {
+        setF3SectorOpen(section, open, { hydrate: false });
+        if (!open) return;
+        const theme = pfF3Themes.find((item) => item.id === section.dataset.f3Id);
+        ((theme && theme.symbols) || []).forEach((sym) => syms.push(sym));
+      });
+      if (open) void hydrateF3Sector(syms);
+    }
+
+    function renderF3Board(themes) {
+      const box = document.getElementById("pf-f3-themes");
+      const empty = document.getElementById("pf-f3-preview-empty");
+      const countEl = document.getElementById("pf-f3-preview-count");
+      if (!box) return;
+      box.innerHTML = "";
+      if (!themes.length) {
+        if (empty) {
+          empty.hidden = false;
+          empty.textContent = "Không có ngành F3.";
+        }
+        if (countEl) countEl.textContent = "0 ngành";
+        return;
+      }
+      if (empty) empty.hidden = true;
+      themes.forEach((theme) => {
+        const count = (theme.symbols || []).length;
+        const section = document.createElement("section");
+        section.className = "pf-f3-item";
+        section.dataset.f3Id = theme.id;
+        section.dataset.atdId = "pb-ui:iboard.f3.sector." + theme.id;
+        section.innerHTML = `
+          <button type="button" class="pf-f3-head" aria-expanded="false">
+            <span class="pf-f3-caret" aria-hidden="true">▸</span>
+            <span class="pf-f3-name">${escHtml(theme.name || theme.id)}</span>
+            <span class="pf-f3-meta">${count} mã</span>
+            <span class="pf-f3-delta" data-f3-delta></span>
+          </button>
+          <div class="pf-f3-body" hidden></div>`;
+        box.appendChild(section);
+      });
+      if (countEl) countEl.textContent = `${themes.length} ngành`;
+    }
+
+    function onF3BoardClick(ev) {
+      const addBtn = ev.target.closest("[data-pf-add-one]");
+      if (addBtn) {
+        ev.preventDefault();
+        const { qty, avg } = pfDefaultQtyAvg();
+        if (addPortfolioSymbol(addBtn.dataset.pfAddOne, { qty, avg })) {
+          savePortfolio();
+          renderPortfolioTable();
+        }
+        return;
+      }
+      const chartBtn = ev.target.closest("[data-f3-open]");
+      if (chartBtn) {
+        ev.preventDefault();
+        openSymbolDetail(chartBtn.dataset.f3Open);
+        return;
+      }
+      const head = ev.target.closest(".pf-f3-head");
+      if (!head) return;
+      const section = head.closest(".pf-f3-item");
+      if (!section) return;
+      setF3SectorOpen(section, head.getAttribute("aria-expanded") !== "true");
+    }
+
+    function loadPortfolioF3Themes() {
+      if (pfF3BoardReady) {
+        refreshOpenF3FromState();
+        return Promise.resolve();
+      }
+      if (pfF3LoadPromise) return pfF3LoadPromise;
+      pfF3LoadPromise = (async () => {
+        try {
+          const res = await fetch("/api/portfolio/sectors/f3");
+          const data = await res.json();
+          if (!data.ok || !Array.isArray(data.themes)) throw new Error("f3 themes");
+          pfF3Themes = data.themes;
+          renderF3Board(pfF3Themes);
+          pfF3BoardReady = true;
+        } catch {
+          pfF3LoadPromise = null;
+          const empty = document.getElementById("pf-f3-preview-empty");
+          if (empty) {
+            empty.hidden = false;
+            empty.textContent = "Không tải được danh sách ngành F3.";
+          }
+        }
+      })();
+      return pfF3LoadPromise;
     }
 
     function schedulePortfolioSideEffects() {
@@ -3227,7 +3486,8 @@
         });
       });
       schedulePortfolioSideEffects();
-      renderF3PreviewTable();
+      syncF3InPortfolioFlags();
+      refreshOpenF3FromState();
     }
 
     function patchPortfolioSymbol(symbol, { flash = false } = {}) {
@@ -3274,17 +3534,9 @@
       elPfSummary.textContent = `NAV ${Math.round(nav).toLocaleString("en-US")} · P/L ${Math.round(nav - cost).toLocaleString("en-US")}`;
     }
 
-    document.getElementById("pf-f3-add-all")?.addEventListener("click", () => {
-      const { qty, avg } = pfDefaultQtyAvg();
-      let added = 0;
-      pfSymbolsFromSelectedThemes().forEach(({ symbol }) => {
-        if (addPortfolioSymbol(symbol, { qty, avg })) added += 1;
-      });
-      if (added > 0) {
-        savePortfolio();
-        renderPortfolioTable();
-      }
-    });
+    document.getElementById("pf-f3-themes")?.addEventListener("click", onF3BoardClick);
+    document.getElementById("pf-f3-expand-all")?.addEventListener("click", () => setAllF3Sectors(true));
+    document.getElementById("pf-f3-collapse-all")?.addEventListener("click", () => setAllF3Sectors(false));
 
     document.getElementById("pf-clear-all")?.addEventListener("click", () => {
       if (!portfolio.length) return;
@@ -3315,6 +3567,7 @@
     function fanOutRealtime(symbol, opts = {}) {
       applyBoardFilterForSymbol(symbol);
       patchPortfolioSymbol(symbol, opts);
+      patchF3Symbol(symbol, { flash: !!opts.flash, spark: false });
     }
 
     /* ===== WS ===== */

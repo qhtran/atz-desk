@@ -42,4 +42,4 @@ Trên **ATZ Desk / iBoard** (`dev.atz.vn`), người dùng mở **danh mục c�
 
 ## Cửa dừng SDLC
 
-Bước 1–2: chỉ `intent.md` + `spec.md`. **Chờ duyệt `spec.md`** trước khi viết `plan.md` / code production.
+Bước 1–2 viết `intent.md` + `spec.md`. Triển khai đi theo [`spec.md`](spec.md) mục 6 (không có `plan.md` riêng).

@@ -15,9 +15,13 @@ Dành cho Cursor Agent trên MacBook. Cập nhật: 2026-10-27 (Asia/Saigon).
 | Mục | Chi tiết |
 |-----|----------|
 | Files | [`intent.md`](intent.md), [`spec.md`](spec.md), file này |
-| Branch | `cursor/f3-sdlc-intent-spec-9e73` |
-| PR | https://github.com/qhtran/atz-desk/pull/10 (docs-only) |
-| Quyết định user | **1c** — chỉ merge PR docs, **chưa** `plan.md`, **chưa** code production |
+| Branch docs | `cursor/f3-sdlc-intent-spec-9e73` |
+| PR docs | https://github.com/qhtran/atz-desk/pull/10 (docs-only, chưa merge) |
+| Quyết định user lúc viết docs | **1c** — chờ duyệt spec trước code |
+
+## Đã làm tiếp (Bước 3+)
+
+Accordion 5 cột + engine native nằm trên branch triển khai (PR riêng, gồm cả 3 file docs này). Chi tiết lệch spec: [`spec.md`](spec.md) mục 6. Không còn `plan.md`. Chưa merge PR #10.
 
 ## Quyết định đã chốt trong spec
 
@@ -50,4 +54,4 @@ git pull origin cursor/f3-sdlc-intent-spec-9e73
 # git checkout main && git pull origin main
 ```
 
-Đọc lần lượt: `HANDOFF.md` → `intent.md` → `spec.md`. Chưa viết `plan.md` / chưa code trừ khi user chọn tiếp Bước 3.
+Đọc lần lượt: `HANDOFF.md` → `intent.md` → `spec.md` (mục 6 là phần đã triển khai). Nhánh mock `cursor/f3-preview-html-9e73` không có trên remote và không nằm trong bản này.
