@@ -40,3 +40,10 @@
 - `intent`: understand | plan | ask | code | verify | git | blocked
 - Khi hỏi user: luôn đưa lựa chọn sẵn (`1a`, `1b`, `2c`…) — user chỉ cần trả lời số, không phải gõ tag.
 - Chi tiết: `.cursor/rules/debug-tags.mdc`
+
+## Cursor Cloud specific instructions
+
+- Stack dev trên Cloud Agent là native, không dùng `docker-compose.dev.yml` (compose cần network ngoài `vnstocks_default`). `start` bật Redis `127.0.0.1:6379`, worker mock (`tmux` session `atz-ssi-mock`, `PRICEBOARD_SOURCE=mock`) và API (`tmux` session `atz-api`, cổng 8000).
+- Python ở `/opt/atz-venv`. `uvicorn` và `pytest` nằm trên `/usr/local/bin`. Đặt `REDIS_URL=redis://127.0.0.1:6379/0` — mặc định trong `backend/redis_listener.py` là hostname Docker `redis`.
+- Không cần secret SSI cho mock. Health: `curl -fsS http://127.0.0.1:8000/healthz` (kỳ vọng `"ok": true`).
+- Smoke test giống `scripts/check-dev.sh --pytest-only`: `PYTHONPATH=src/atz:. pytest -q` với các file liệt kê trong script đó (`tests/test_daily_signals.py` … `tests/test_ohlcv_seed.py`). UI: `http://127.0.0.1:8000/` và `/trading`.
