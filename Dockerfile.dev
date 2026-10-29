@@ -6,7 +6,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     FRONTEND_DIR=/app/frontend \
     OHLCV_BARS_DIR=/app/data/ohlcv \
-    F3_THEMES_CONFIG=/app/config/sector_themes_f3.yaml
+    F3_THEMES_CONFIG=/app/config/sector_themes_f3.yaml \
+    F3_ALERTS_CONFIG=/app/config/f3_alerts.yaml
 
 WORKDIR /app
 
@@ -22,6 +23,7 @@ COPY frontend /app/frontend
 COPY config/priceboard.yaml /app/config/priceboard.yaml
 COPY config/ingestion.yaml /app/config/ingestion.yaml
 COPY config/sector_themes_f3.yaml /app/config/sector_themes_f3.yaml
+COPY config/f3_alerts.yaml /app/config/f3_alerts.yaml
 COPY config/advisor_score.yaml /app/config/advisor_score.yaml
 # F3 + iBoard daily (legacy analysis — port tối thiểu, ADR 0009)
 COPY src/atz/analysis/f3_alerts.py src/atz/analysis/candles.py src/atz/analysis/technical.py src/atz/analysis/__init__.py /app/atz_pkg/analysis/

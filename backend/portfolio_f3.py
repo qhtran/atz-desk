@@ -1,16 +1,21 @@
-"""F3 daily alerts for dev SPA — wraps analysis.f3_alerts + sector themes YAML."""
+"""F3 sector themes + daily alerts for the dev SPA.
+
+Alerts come from ``backend.f3_indicators`` and are cached per
+``(symbol, session_date)``. ``_ensure_legacy_path`` stays so
+``daily_signals`` can still load screener filters from the legacy package.
+"""
 
 from __future__ import annotations
 
 import os
 import sys
 from datetime import date
-from functools import lru_cache
 from pathlib import Path
 
 import pandas as pd
 import yaml
 
+from backend.f3_indicators import alert_column_for_bars
 from backend.portfolio_quotes import DEFAULT_BARS_DIR, normalize_symbols
 
 F3_THEMES_PATH = Path(
@@ -35,14 +40,6 @@ def _ensure_legacy_path() -> None:
     pkg = str(_legacy_atz_root())
     if pkg not in sys.path:
         sys.path.insert(0, pkg)
-
-
-@lru_cache(maxsize=1)
-def _alert_column_fn():
-    _ensure_legacy_path()
-    from analysis.f3_alerts import alert_column_for_bars
-
-    return alert_column_for_bars
 
 
 def load_f3_sector_themes(path: Path | None = None) -> list[dict]:
@@ -110,8 +107,7 @@ def f3_alert_for_symbol(
     if use_cache and cache_key in _f3_cache:
         return _f3_cache[cache_key]
     bars = load_symbol_bars(sym, bars_dir)
-    alert_column = _alert_column_fn()
-    text = alert_column(sym, bars, session_date=day)
+    text = alert_column_for_bars(sym, bars, session_date=day)
     if use_cache:
         _f3_cache[cache_key] = text
     return text

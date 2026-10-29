@@ -132,11 +132,22 @@
       "err_codes": ["ERR-PB-006"]
     },
     {
+      "match": "pb-ui:iboard.f3.",
+      "matchType": "prefix",
+      "breadcrumb": ["ATZ Desk", "iBoard", "F3 ngành"],
+      "hints": {
+        "fe": "frontend/index.html — accordion #pf-f3-themes, 5 cột (mã, giá, spark, cảnh báo, cộng đồng stub)",
+        "be": "GET /api/portfolio/sectors/f3, POST /api/portfolio/alerts, GET /api/iboard/equity-spark",
+        "spec": "spec.md"
+      },
+      "err_codes": []
+    },
+    {
       "match": "pb-ui:portfolio.",
       "matchType": "prefix",
       "breadcrumb": ["Danh mục"],
       "hints": {
-        "fe": "frontend/index.html — portfolio localStorage; F3 multi-checkbox #pf-f3-themes + preview #pf-f3-preview-table",
+        "fe": "frontend/index.html — portfolio localStorage; F3 accordion #pf-f3-themes (5 cột, pb-ui:iboard.f3.*)",
         "spec": "docs/bots/HANDOFF_NEXT_CHAT.md"
       },
       "err_codes": []
