@@ -35,7 +35,7 @@ Pull. Đọc docs/agents/NOW.md. Nếu Doing là việc của mình, mở đúng
 
 | ID | Việc | Ghi chú |
 |----|------|---------|
-| — | — | Smoke desk-dev/prod; P4 Streamlit sau ổn định |
+| — | — | Smoke alerts bằng `scripts/mock_tick_generator.py`; P4 Streamlit sau ổn định |
 
 ## Master commands
 
@@ -56,10 +56,10 @@ chuỗi 3 trục xong trên branch cursor/daily-signals-vector-baf6:
 
 ```text
 task: T-option-b-rt-quant
-result: Pass — stream listener + /ws/stream/alerts + pytest 3
+result: Pass — + mock_tick_generator.py cho smoke ngoài giờ GD
 status: doing
 pytest: Pass (3)
-master_ack: pending (commit/deploy smoke)
+master_ack: pending (commit mock script / smoke)
 ```
 
 Khi ack: Doing về trống; chuyển packet sang `docs/agents/archive/tasks/`. Không chép brief vào file này.

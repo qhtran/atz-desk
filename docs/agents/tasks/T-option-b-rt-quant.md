@@ -13,7 +13,7 @@ Redis tick → vectorized RSI/MA/volume → WS `/ws/stream/alerts` (không chặ
 - [x] `QuantStreamListener` + `evaluate_rings` (pandas batch)
 - [x] WS contract JSON alert
 - [x] pytest Pass
-- [ ] Smoke desk-dev: WS alerts nhận tin (khi có tick)
+- [ ] Smoke desk-dev: `REDIS_URL=redis://127.0.0.1:6380/0 python3 scripts/mock_tick_generator.py` + WS alerts
 
 ## Ngoài phạm vi
 

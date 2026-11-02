@@ -42,6 +42,12 @@ ATZ Desk là bàn làm việc giao dịch trên web (dev: [dev.atz.vn](https://d
 - **Chỉ sync nginx:** `./scripts/apply-dev-atz-nginx.sh` (trên VPS)
 - **OHLCV EOD (VPS):** `cd /opt/atz-desk && ./scripts/seed-iboard-ohlcv.sh --market HOSE` — cron sau **15:05 VN** ngày giao dịch; tuần 1 lần `--market ALL`
 - **Test:** `./scripts/check-dev.sh` hoặc `pytest` (`testpaths=tests`)
+- **Mock ticks (Option B, ngoài giờ GD):** bơm Redis `priceboard_ticks` để smoke `/ws/stream/alerts`
+  ```bash
+  # Desk-dev Redis publish trên host (compose map 6380)
+  REDIS_URL=redis://127.0.0.1:6380/0 python3 scripts/mock_tick_generator.py --seed-trend down
+  # Dừng: Ctrl+C
+  ```
 
 **Lỗi thường gặp:** `No such file` → chưa `cd` vào repo; `Set ATZ_VPS_SSH` → thiếu `scripts/deploy-vps.env`; `Permission denied` → `chmod +x scripts/deploy-vps.sh`
 
