@@ -13,30 +13,16 @@ def test_symbols_for_market_tab():
 
 
 def test_scan_daily_signals_monkeypatch(monkeypatch):
-    class _Res:
-        matched = True
-        signal_type = "mua"
-        reason = "test"
-
-    def fake_eval(_bars, _params):
-        return _Res()
-
-    class _Mod:
-        @staticmethod
-        def evaluate(bars, params):
-            return fake_eval(bars, params)
-
-    monkeypatch.setattr(
-        "backend.daily_signals._filter_registry",
-        lambda: {"rsi": _Mod()},
-    )
-    monkeypatch.setattr(
-        "backend.daily_signals.load_symbol_bars",
-        lambda sym, bars_dir=None: object(),  # truthy non-empty handled below
-    )
+    from backend.filters._types import BatchSignal
 
     import pandas as pd
 
+    def fake_rsi_batch(panels, params=None):
+        return {sym: BatchSignal(True, "mua", "test", None) for sym in panels}
+
+    import backend.filters as bf
+
+    monkeypatch.setitem(bf.BATCH_EVALUATORS, "rsi", fake_rsi_batch)
     monkeypatch.setattr(
         "backend.daily_signals.load_symbol_bars",
         lambda sym, bars_dir=None: pd.DataFrame({"close": [1.0] * 30, "volume": [1.0] * 30}),
@@ -46,6 +32,13 @@ def test_scan_daily_signals_monkeypatch(monkeypatch):
     assert scanned >= 1
     assert matched == len(hits)
     assert hits[0]["symbol"] in symbols_for_market_tab("VN30")
+    # FE contract (Bước 5): SPA đọc symbol/filters/filter/signal_type/reason
+    row = hits[0]
+    assert isinstance(row["symbol"], str) and row["symbol"]
+    assert isinstance(row.get("filters"), list) and "rsi" in row["filters"]
+    assert "rsi" in str(row.get("filter") or "")
+    assert row.get("signal_type")
+    assert "reason" in row
 
 
 def test_allowed_filters_includes_advisor():
@@ -83,10 +76,19 @@ def test_scan_daily_signals_multi_and(monkeypatch):
 
         return _Mod()
 
-    monkeypatch.setattr(
-        "backend.daily_signals._filter_registry",
-        lambda: {"rsi": make_mod("rsi"), "ma": make_mod("ma")},
-    )
+    from backend.filters._types import BatchSignal
+    import backend.filters as bf
+
+    def fake_rsi_batch(panels, params=None):
+        calls["rsi"] += 1
+        return {sym: BatchSignal(True, "mua", "ok", None) for sym in panels}
+
+    def fake_ma_batch(panels, params=None):
+        calls["ma"] += 1
+        return {sym: BatchSignal(True, "mua", "ok", None) for sym in panels}
+
+    monkeypatch.setitem(bf.BATCH_EVALUATORS, "rsi", fake_rsi_batch)
+    monkeypatch.setitem(bf.BATCH_EVALUATORS, "ma", fake_ma_batch)
     import pandas as pd
 
     monkeypatch.setattr(
@@ -108,21 +110,14 @@ def test_scan_daily_signals_cache_same_day(monkeypatch):
     clear_daily_scan_cache()
     calls = {"n": 0}
 
-    class _Res:
-        matched = True
-        signal_type = "mua"
-        reason = "test"
+    from backend.filters._types import BatchSignal
+    import backend.filters as bf
 
-    class _Mod:
-        @staticmethod
-        def evaluate(bars, params):
-            calls["n"] += 1
-            return _Res()
+    def fake_rsi_batch(panels, params=None):
+        calls["n"] += 1
+        return {sym: BatchSignal(True, "mua", "test", None) for sym in panels}
 
-    monkeypatch.setattr(
-        "backend.daily_signals._filter_registry",
-        lambda: {"rsi": _Mod()},
-    )
+    monkeypatch.setitem(bf.BATCH_EVALUATORS, "rsi", fake_rsi_batch)
     import pandas as pd
 
     monkeypatch.setattr(
@@ -171,3 +166,115 @@ def test_scan_advisor_monkeypatch(monkeypatch):
     assert matched == len(hits)
     assert hits[0]["total"] == 72.0
     assert hits[0]["filter"] == "advisor"
+
+
+def test_native_bollinger_matches_legacy():
+    from backend.filters.bollinger_batch import evaluate_bollinger_batch
+    from backend.portfolio_f3 import _ensure_legacy_path
+    from tests.bars import frame
+
+    _ensure_legacy_path()
+    from filters.bollinger import evaluate as legacy_bollinger
+
+    import pandas as pd
+
+    samples = {
+        "AAA": frame([10.0 - i * 0.5 for i in range(25)]),
+        "BBB": frame([20.0 + i * 0.3 for i in range(25)]),
+        "CCC": frame([5.0] * 25),
+    }
+    batch = evaluate_bollinger_batch(samples)
+    for sym, bars in samples.items():
+        leg = legacy_bollinger(bars)
+        bat = batch[sym]
+        assert bat.matched == leg.matched
+        assert bat.signal_type == leg.signal_type
+        assert bat.reason == leg.reason
+
+
+def test_native_ma_matches_legacy():
+    from backend.filters.ma_batch import evaluate_ma_batch
+    from backend.portfolio_f3 import _ensure_legacy_path
+    from tests.bars import frame
+
+    _ensure_legacy_path()
+    from filters.ma import evaluate as legacy_ma
+
+    params = {"fast": 2, "slow": 4}
+    samples = {
+        "UP": frame([1, 1, 1, 1, 1, 3]),
+        "DOWN": frame([5, 5, 5, 5, 5, 1]),
+        "SHORT": frame([1, 2, 3]),
+    }
+    batch = evaluate_ma_batch(samples, params)
+    for sym, bars in samples.items():
+        leg = legacy_ma(bars, params)
+        bat = batch[sym]
+        assert bat.matched == leg.matched, sym
+        assert bat.signal_type == leg.signal_type, sym
+        assert bat.reason == leg.reason, sym
+
+
+def test_native_ma_periods_10_20_cross():
+    from backend.filters.ma_batch import evaluate_ma_batch
+    from tests.bars import frame
+
+    closes = [float(i) for i in range(1, 25)] + [30.0, 35.0]
+    samples = {"TREND": frame(closes)}
+    batch = evaluate_ma_batch(samples, {"fast": 10, "slow": 20, "ma_type": "sma"})
+    assert "TREND" in batch
+    assert batch["TREND"].signal_type in {"mua", "ban", "giu"}
+
+
+def test_native_volume_matches_legacy():
+    from backend.filters.volume_batch import evaluate_volume_batch
+    from backend.portfolio_f3 import _ensure_legacy_path
+    from tests.bars import frame
+
+    _ensure_legacy_path()
+    from filters.volume import evaluate as legacy_volume
+
+    params = {"length": 20, "spike": 1.5}
+    samples = {
+        "BUY": frame(
+            [10.0] * 20 + [12.0],
+            [100.0] * 20 + [1000.0],
+            [10.0] * 20 + [11.0],
+        ),
+        "SELL": frame(
+            [10.0] * 20 + [8.0],
+            [100.0] * 20 + [1000.0],
+            [10.0] * 20 + [11.0],
+        ),
+        "QUIET": frame([10.0] * 21),
+    }
+    batch = evaluate_volume_batch(samples, params)
+    for sym, bars in samples.items():
+        leg = legacy_volume(bars, params)
+        bat = batch[sym]
+        assert bat.matched == leg.matched, sym
+        assert bat.signal_type == leg.signal_type, sym
+        assert bat.reason == leg.reason, sym
+
+
+def test_native_rsi_co_ban_matches_legacy():
+    from backend.filters.rsi_batch import evaluate_rsi_batch
+    from backend.portfolio_f3 import _ensure_legacy_path
+    from tests.bars import frame
+
+    _ensure_legacy_path()
+    from filters.rsi import evaluate as legacy_rsi
+
+    params = {"mode": "co_ban", "length": 14, "oversold": 30, "overbought": 70}
+    samples = {
+        "DOWN": frame([100 - i for i in range(20)]),
+        "UP": frame([50 + i for i in range(20)]),
+        "FLAT": frame([10.0] * 20),
+    }
+    batch = evaluate_rsi_batch(samples, params)
+    for sym, bars in samples.items():
+        leg = legacy_rsi(bars, params)
+        bat = batch[sym]
+        assert bat.matched == leg.matched, sym
+        assert bat.signal_type == leg.signal_type, sym
+        assert bat.reason == leg.reason, sym

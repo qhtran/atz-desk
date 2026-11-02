@@ -1,6 +1,6 @@
 # NOW — bus lớp 1 (dev.atz.vn)
 
-**Cập nhật:** 2026-10-25  
+**Cập nhật:** 2026-11-03  
 **Phạm vi:** `dev.atz.vn` — `backend/`, `frontend/`, `docker-compose.dev.yml`. Prod Streamlit ngoài board.
 
 Đọc file này mỗi turn. Không changelog. Không mở `docs/agents/archive/` trừ khi human nêu đúng T-id. Human đọc `docs/agents/RUNBOOK.md` khi cần nhớ cách điều khiển; agent không đọc file đó mỗi turn.
@@ -35,7 +35,7 @@ Pull. Đọc docs/agents/NOW.md. Nếu Doing là việc của mình, mở đúng
 
 | ID | Việc | Ghi chú |
 |----|------|---------|
-| — | — | trống — Master giao từ HANDOFF khi human chọn |
+| — | — | trống — chờ human: mở PR / merge `main` / deploy VPS |
 
 ## Master commands
 
@@ -43,14 +43,23 @@ Pull. Đọc docs/agents/NOW.md. Nếu Doing là việc của mình, mở đúng
 idle
 ```
 
+## Milestone (done)
+
+```text
+chuỗi 3 trục xong trên branch cursor/daily-signals-vector-baf6:
+1) Data Ingestion — slim WS ticks + enrichDepth gate
+2) Quant Engine — daily_signals vectorized RSI/Bollinger/ma/volume
+3) Infra/Docker Edge — nginx :8080 + FE relative /api /ws (T-step5)
+```
+
 ## Last executor
 
 ```text
-task: —
-result: —
+task: T-step5-fe-api-ws-sync
+result: Pass — Bước 5+6 commit/push; milestone 3 trục done
 status: idle
-pytest: —
-master_ack: yes (T-hdtl-depth-p1-prep archived)
+pytest: Pass (11)
+master_ack: yes (chuỗi vector+edge idle — chờ PR/merge/deploy)
 ```
 
 Khi ack: Doing về trống; chuyển packet sang `docs/agents/archive/tasks/`. Không chép brief vào file này.

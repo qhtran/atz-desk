@@ -1,13 +1,9 @@
-# Dev image: FastAPI priceboard + mock SSI worker (Python 3.11, auto-reload)
-FROM python:3.11-slim-bookworm
+# Dev image: FastAPI priceboard + SSI worker (multi-stage — runtime immutable, dev target optional reload)
+FROM python:3.11-slim-bookworm AS pydeps
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    FRONTEND_DIR=/app/frontend \
-    OHLCV_BARS_DIR=/app/data/ohlcv \
-    F3_THEMES_CONFIG=/app/config/sector_themes_f3.yaml \
-    F3_ALERTS_CONFIG=/app/config/f3_alerts.yaml
+    PIP_DISABLE_PIP_VERSION_CHECK=1
 
 WORKDIR /app
 
@@ -18,6 +14,13 @@ RUN apt-get update \
 COPY backend/requirements.txt /app/backend/requirements.txt
 RUN pip install --no-cache-dir -r /app/backend/requirements.txt
 
+FROM pydeps AS runtime
+
+ENV FRONTEND_DIR=/app/frontend \
+    OHLCV_BARS_DIR=/app/data/ohlcv \
+    F3_THEMES_CONFIG=/app/config/sector_themes_f3.yaml \
+    F3_ALERTS_CONFIG=/app/config/f3_alerts.yaml
+
 COPY backend /app/backend
 COPY frontend /app/frontend
 COPY config/priceboard.yaml /app/config/priceboard.yaml
@@ -25,7 +28,6 @@ COPY config/ingestion.yaml /app/config/ingestion.yaml
 COPY config/sector_themes_f3.yaml /app/config/sector_themes_f3.yaml
 COPY config/f3_alerts.yaml /app/config/f3_alerts.yaml
 COPY config/advisor_score.yaml /app/config/advisor_score.yaml
-# F3 + iBoard daily (legacy analysis — port tối thiểu, ADR 0009)
 COPY src/atz/analysis/f3_alerts.py src/atz/analysis/candles.py src/atz/analysis/technical.py src/atz/analysis/__init__.py /app/atz_pkg/analysis/
 COPY src/atz/config.py /app/atz_pkg/config.py
 COPY src/atz/storage/__init__.py src/atz/storage/paths.py /app/atz_pkg/storage/
@@ -40,5 +42,9 @@ COPY src/atz/filters/__init__.py src/atz/filters/base.py src/atz/filters/_net.py
 
 EXPOSE 8000
 
-# Default: API with reload. Override command for ssi-worker service.
+CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+# Hot-reload target — dùng với compose profile dev-bind
+FROM runtime AS dev
+
 CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-dir", "/app/backend", "--reload-dir", "/app/frontend"]

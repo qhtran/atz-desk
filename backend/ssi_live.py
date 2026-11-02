@@ -40,6 +40,7 @@ from backend.board_universe import (
 from backend.futures_contracts import invert_contract_map, load_futures_contract_map
 from backend.tick_contract import (
     build_tick,
+    slim_ws_tick,
     parse_ssi_envelope,
     ssi_envelope_has_symbol,
     tick_has_payload,
@@ -365,9 +366,10 @@ class RealSsiWorker:
                 )
                 await redis.publish(CHANNEL, remove)
                 return
-            body = json.dumps(tick, ensure_ascii=False, separators=(",", ":"))
-            await redis.hset(HASH_KEY, sym, body)
-            await redis.publish(CHANNEL, body)
+            full_body = json.dumps(tick, ensure_ascii=False, separators=(",", ":"))
+            ws_body = json.dumps(slim_ws_tick(tick), ensure_ascii=False, separators=(",", ":"))
+            await redis.hset(HASH_KEY, sym, full_body)
+            await redis.publish(CHANNEL, ws_body)
             await record_index_spark(redis, tick)
             await record_equity_spark(redis, tick)
         except Exception as exc:  # noqa: BLE001

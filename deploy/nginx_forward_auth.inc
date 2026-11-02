@@ -1,0 +1,19 @@
+# Snippet: Authentik ForwardAuth (nginx auth_request)
+# Include trong server {} sau khi có location /outpost.goauthentik.io proxy tới authentik-server:9000
+#
+# Bật trên VPS: áp dụng nginx_dev.conf (đã wired). Compose: set ENABLE_FORWARD_AUTH=1 + network authentik.
+#
+# auth_request /outpost.goauthentik.io/auth/nginx;
+# error_page 401 = @goauthentik_proxy_signin;
+# auth_request_set $auth_cookie $upstream_http_set_cookie;
+# add_header Set-Cookie $auth_cookie;
+# auth_request_set $authentik_username $upstream_http_x_authentik_username;
+# auth_request_set $authentik_groups $upstream_http_x_authentik_groups;
+# auth_request_set $authentik_email $upstream_http_x_authentik_email;
+# auth_request_set $authentik_name $upstream_http_x_authentik_name;
+# auth_request_set $authentik_uid $upstream_http_x_authentik_uid;
+# proxy_set_header X-authentik-username $authentik_username;
+# proxy_set_header X-authentik-groups $authentik_groups;
+# proxy_set_header X-authentik-email $authentik_email;
+# proxy_set_header X-authentik-name $authentik_name;
+# proxy_set_header X-authentik-uid $authentik_uid;

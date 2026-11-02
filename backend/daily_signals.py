@@ -6,11 +6,12 @@ from datetime import datetime
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
-from zoneinfo import ZoneInfo
 
 import pandas as pd
 
 from backend.board_universe import symbols_for_market_tab
+from backend.filters import BATCH_EVALUATORS, NATIVE_BATCH_FILTERS
+from backend.filters._types import BatchSignal
 from backend.portfolio_f3 import _ensure_legacy_path, _legacy_atz_root, load_symbol_bars
 
 ALLOWED_FILTERS = frozenset(
@@ -33,6 +34,8 @@ ALLOWED_FILTERS = frozenset(
         "market_regime",
     }
 )
+
+from zoneinfo import ZoneInfo
 
 _VN_TZ = ZoneInfo("Asia/Ho_Chi_Minh")
 _scan_cache: dict[tuple[Any, ...], tuple[str, list[dict[str, Any]], int, int]] = {}
@@ -57,7 +60,7 @@ def _filter_registry() -> dict[str, Any]:
     from filters import load_registry
 
     reg = load_registry(filters_dir)
-    plugin_filters = ALLOWED_FILTERS - {"advisor"}
+    plugin_filters = ALLOWED_FILTERS - {"advisor"} - NATIVE_BATCH_FILTERS
     return {k: v for k, v in reg.items() if k in plugin_filters}
 
 
@@ -79,6 +82,51 @@ def _normalize_filter_names(filter_name: str, filters: list[str] | None) -> list
         if name not in ALLOWED_FILTERS or name in out:
             continue
         out.append(name)
+    return out
+
+
+def load_universe_panels(
+    universe: list[str],
+    bars_dir: Path | None,
+) -> tuple[dict[str, pd.DataFrame], int]:
+    """Load OHLCV panels once (I/O only); returns (symbol -> bars, scanned count)."""
+    panels: dict[str, pd.DataFrame] = {}
+    scanned = 0
+    for sym in universe:
+        bars = load_symbol_bars(sym, bars_dir)
+        if bars is None or bars.empty:
+            continue
+        scanned += 1
+        panels[str(sym).upper()] = bars
+    return panels, scanned
+
+
+def _batch_signal_for_filter(
+    name: str,
+    panels: dict[str, pd.DataFrame],
+    index_bars: pd.DataFrame | None,
+) -> dict[str, BatchSignal]:
+    if name in NATIVE_BATCH_FILTERS:
+        fn = BATCH_EVALUATORS[name]
+        return fn(panels)
+    registry = _filter_registry()
+    module = registry.get(name)
+    out: dict[str, BatchSignal] = {}
+    if module is None:
+        return out
+    params = _plugin_params(name, index_bars)
+    for sym, bars in panels.items():
+        try:
+            result = module.evaluate(bars, params)
+        except Exception:
+            out[sym] = BatchSignal(False, "giu", "", None)
+            continue
+        out[sym] = BatchSignal(
+            bool(getattr(result, "matched", False)),
+            str(getattr(result, "signal_type", "giu") or "giu"),
+            str(getattr(result, "reason", "") or ""),
+            getattr(result, "details", None),
+        )
     return out
 
 
@@ -139,6 +187,68 @@ def _market_regime_blocks(names: list[str], combine_or: bool, index_bars: pd.Dat
     return not getattr(result, "matched", False) or getattr(result, "signal_type", "") != "mua"
 
 
+def _combine_panel_hits(
+    panels: dict[str, pd.DataFrame],
+    names: list[str],
+    combine_or: bool,
+    per_filter: dict[str, dict[str, BatchSignal]],
+    buy_min_total: float | None,
+) -> list[dict[str, Any]]:
+    hits: list[dict[str, Any]] = []
+    for sym in sorted(panels.keys()):
+        matched_names: list[str] = []
+        reasons: list[str] = []
+        advisor_extra: dict[str, Any] | None = None
+        for name in names:
+            if name == "advisor":
+                ok, extra = _advisor_hit(panels[sym], buy_min_total)
+                if ok:
+                    matched_names.append("advisor")
+                    advisor_extra = extra
+                    if extra and extra.get("reason"):
+                        reasons.append(f"advisor: {extra['reason']}")
+                elif not combine_or:
+                    break
+                continue
+            sig = per_filter.get(name, {}).get(sym)
+            if sig is None:
+                if not combine_or:
+                    matched_names = []
+                    break
+                continue
+            if sig.matched:
+                matched_names.append(name)
+                if sig.reason:
+                    reasons.append(f"{name}: {sig.reason}")
+            elif not combine_or:
+                matched_names = []
+                break
+        if combine_or:
+            if not matched_names:
+                continue
+        elif len(matched_names) != len(names):
+            continue
+        row: dict[str, Any] = {
+            "symbol": sym.upper(),
+            "filter": ",".join(matched_names),
+            "filters": list(matched_names),
+            "signal_type": "mua",
+            "reason": "; ".join(reasons),
+        }
+        if advisor_extra:
+            row.update(advisor_extra)
+            row["signal_type"] = advisor_extra.get("signal_type", row["signal_type"])
+        elif matched_names:
+            first = matched_names[0]
+            sig0 = per_filter.get(first, {}).get(sym)
+            if sig0 is not None and sig0.matched:
+                row["signal_type"] = sig0.signal_type or "mua"
+        hits.append(row)
+    if "advisor" in names:
+        hits.sort(key=lambda row: float(row.get("total") or 0), reverse=True)
+    return hits
+
+
 def scan_advisor_scores(
     *,
     market: str = "HOSE",
@@ -158,13 +268,9 @@ def scan_advisor_scores(
         },
     }
     universe = symbols or symbols_for_market_tab(market)
+    panels, scanned = load_universe_panels(universe, bars_dir)
     hits: list[dict[str, Any]] = []
-    scanned = 0
-    for sym in universe:
-        bars = load_symbol_bars(sym, bars_dir)
-        if bars is None or bars.empty:
-            continue
-        scanned += 1
+    for sym, bars in panels.items():
         try:
             score = compute(bars, params)
         except Exception:
@@ -226,84 +332,22 @@ def scan_daily_signals(
             _scan_cache[cache_key] = (day, hits, scanned, matched)
         return hits, scanned, matched
 
-    registry = _filter_registry()
     index_bars = _index_bars_for_scan(names, bars_dir)
     if _market_regime_blocks(names, combine_or, index_bars):
         return [], 0, 0
+
     universe = symbols or symbols_for_market_tab(market)
-    hits: list[dict[str, Any]] = []
-    scanned = 0
-    for sym in universe:
-        bars = load_symbol_bars(sym, bars_dir)
-        if bars is None or bars.empty:
+    panels, scanned = load_universe_panels(universe, bars_dir)
+    if not panels:
+        return [], 0, 0
+
+    per_filter: dict[str, dict[str, BatchSignal]] = {}
+    for name in names:
+        if name == "advisor":
             continue
-        scanned += 1
-        matched_names: list[str] = []
-        reasons: list[str] = []
-        advisor_extra: dict[str, Any] | None = None
-        failed_and = False
-        for name in names:
-            if name == "advisor":
-                ok, extra = _advisor_hit(bars, buy_min_total)
-                if ok:
-                    matched_names.append("advisor")
-                    advisor_extra = extra
-                    if extra and extra.get("reason"):
-                        reasons.append(f"advisor: {extra['reason']}")
-                elif not combine_or:
-                    failed_and = True
-                    break
-                continue
-            module = registry.get(name)
-            if module is None:
-                if not combine_or:
-                    failed_and = True
-                    break
-                continue
-            try:
-                result = module.evaluate(bars, _plugin_params(name, index_bars))
-            except Exception:
-                if not combine_or:
-                    failed_and = True
-                    break
-                continue
-            if getattr(result, "matched", False):
-                matched_names.append(name)
-                reason = getattr(result, "reason", "")
-                if reason:
-                    reasons.append(f"{name}: {reason}")
-            elif not combine_or:
-                failed_and = True
-                break
-        if failed_and:
-            continue
-        if combine_or:
-            if not matched_names:
-                continue
-        elif len(matched_names) != len(names):
-            continue
-        row: dict[str, Any] = {
-            "symbol": sym.upper(),
-            "filter": ",".join(matched_names),
-            "filters": list(matched_names),
-            "signal_type": "mua",
-            "reason": "; ".join(reasons),
-        }
-        if advisor_extra:
-            row.update(advisor_extra)
-            row["signal_type"] = advisor_extra.get("signal_type", row["signal_type"])
-        elif matched_names:
-            first = matched_names[0]
-            mod = registry.get(first)
-            if mod is not None:
-                try:
-                    r0 = mod.evaluate(bars, _plugin_params(first, index_bars))
-                    row["signal_type"] = getattr(r0, "signal_type", "mua")
-                except Exception:
-                    pass
-        hits.append(row)
-    if "advisor" in names:
-        hits.sort(key=lambda row: float(row.get("total") or 0), reverse=True)
+        per_filter[name] = _batch_signal_for_filter(name, panels, index_bars)
+
+    hits = _combine_panel_hits(panels, names, combine_or, per_filter, buy_min_total)
     matched = len(hits)
     if use_cache:
         _scan_cache[cache_key] = (day, hits, scanned, matched)

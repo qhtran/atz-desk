@@ -214,7 +214,7 @@ def build_tick(
         foreignNetVol = int(round(float(foreignBuy or 0) - float(foreignSell or 0)))
     if foreignNetValue is None and (foreignBuyValue is not None or foreignSellValue is not None):
         foreignNetValue = int(round(float(foreignBuyValue or 0) - float(foreignSellValue or 0)))
-    # Optional depth / foreign — only include when present (FE enrichDepth fills gaps)
+    # Optional depth / foreign — only include when present
     optional = {
         "bid1": bid1,
         "bid2": bid2,
@@ -242,6 +242,59 @@ def build_tick(
     if extra:
         tick.update(extra)
     return tick
+
+
+_WS_TICK_KEYS = frozenset(
+    {
+        "type",
+        "symbol",
+        "kind",
+        "last",
+        "ref",
+        "change",
+        "change_pct",
+        "volume",
+        "high",
+        "low",
+        "ceil",
+        "floor",
+        "bid1",
+        "bid2",
+        "bid3",
+        "bidVol1",
+        "bidVol2",
+        "bidVol3",
+        "ask1",
+        "ask2",
+        "ask3",
+        "askVol1",
+        "askVol2",
+        "askVol3",
+        "matchVol",
+        "foreignBuy",
+        "foreignSell",
+        "foreignBuyValue",
+        "foreignSellValue",
+        "foreignNetVol",
+        "foreignNetValue",
+        "source",
+    }
+)
+
+
+def slim_ws_tick(tick: dict[str, Any]) -> dict[str, Any]:
+    """Minimal tick for Pub/Sub → WebSocket (Redis hash keeps full `build_tick` body)."""
+    if tick.get("type") == "remove":
+        return {"type": "remove", "symbol": tick.get("symbol")}
+    out: dict[str, Any] = {}
+    for key in _WS_TICK_KEYS:
+        if key in tick and tick[key] is not None:
+            out[key] = tick[key]
+    if "type" not in out:
+        out["type"] = "tick"
+    if "symbol" not in out and tick.get("symbol"):
+        out["symbol"] = tick["symbol"]
+    return out
 
 
 def _ssi_envelope_body(msg: dict[str, Any]) -> dict[str, Any] | None:

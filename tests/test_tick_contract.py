@@ -7,6 +7,7 @@ import pytest
 from backend.tick_contract import (
     build_tick,
     parse_ssi_envelope,
+    slim_ws_tick,
     ssi_envelope_has_symbol,
     tick_has_payload,
     tick_kind_for_symbol,
@@ -266,3 +267,18 @@ def test_ssi_envelope_has_symbol_false_on_heartbeat():
 def test_tick_has_payload_depth_only_equity():
     assert tick_has_payload({"kind": "equity", "last": 0, "ref": 0, "bid1": 1.0}) is True
     assert tick_has_payload({"kind": "equity", "last": 0, "ref": 0}) is False
+
+
+def test_slim_ws_tick_strips_nonessential_fields():
+    tick = build_tick(symbol="FPT", last=100, ref=99, bid1=99, source="SSI_WS")
+    tick["ts"] = "2026-11-02T10:00:00+07:00"
+    tick["exchange"] = "HOSE"
+    tick["channel"] = "X-QUOTE"
+    tick["extra"] = {"raw": 1}
+    slim = slim_ws_tick(tick)
+    assert slim["symbol"] == "FPT"
+    assert slim["bid1"] == 99
+    assert "ts" not in slim
+    assert "exchange" not in slim
+    assert "channel" not in slim
+    assert "extra" not in slim
