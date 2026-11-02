@@ -76,11 +76,12 @@ def test_scan_daily_signals_multi_and(monkeypatch):
         calls["rsi"] += 1
         return {sym: BatchSignal(True, "mua", "ok", None) for sym in panels}
 
+    def fake_ma_batch(panels, params=None):
+        calls["ma"] += 1
+        return {sym: BatchSignal(True, "mua", "ok", None) for sym in panels}
+
     monkeypatch.setitem(bf.BATCH_EVALUATORS, "rsi", fake_rsi_batch)
-    monkeypatch.setattr(
-        "backend.daily_signals._filter_registry",
-        lambda: {"ma": make_mod("ma")},
-    )
+    monkeypatch.setitem(bf.BATCH_EVALUATORS, "ma", fake_ma_batch)
     import pandas as pd
 
     monkeypatch.setattr(
@@ -182,6 +183,71 @@ def test_native_bollinger_matches_legacy():
         assert bat.matched == leg.matched
         assert bat.signal_type == leg.signal_type
         assert bat.reason == leg.reason
+
+
+def test_native_ma_matches_legacy():
+    from backend.filters.ma_batch import evaluate_ma_batch
+    from backend.portfolio_f3 import _ensure_legacy_path
+    from tests.bars import frame
+
+    _ensure_legacy_path()
+    from filters.ma import evaluate as legacy_ma
+
+    params = {"fast": 2, "slow": 4}
+    samples = {
+        "UP": frame([1, 1, 1, 1, 1, 3]),
+        "DOWN": frame([5, 5, 5, 5, 5, 1]),
+        "SHORT": frame([1, 2, 3]),
+    }
+    batch = evaluate_ma_batch(samples, params)
+    for sym, bars in samples.items():
+        leg = legacy_ma(bars, params)
+        bat = batch[sym]
+        assert bat.matched == leg.matched, sym
+        assert bat.signal_type == leg.signal_type, sym
+        assert bat.reason == leg.reason, sym
+
+
+def test_native_ma_periods_10_20_cross():
+    from backend.filters.ma_batch import evaluate_ma_batch
+    from tests.bars import frame
+
+    closes = [float(i) for i in range(1, 25)] + [30.0, 35.0]
+    samples = {"TREND": frame(closes)}
+    batch = evaluate_ma_batch(samples, {"fast": 10, "slow": 20, "ma_type": "sma"})
+    assert "TREND" in batch
+    assert batch["TREND"].signal_type in {"mua", "ban", "giu"}
+
+
+def test_native_volume_matches_legacy():
+    from backend.filters.volume_batch import evaluate_volume_batch
+    from backend.portfolio_f3 import _ensure_legacy_path
+    from tests.bars import frame
+
+    _ensure_legacy_path()
+    from filters.volume import evaluate as legacy_volume
+
+    params = {"length": 20, "spike": 1.5}
+    samples = {
+        "BUY": frame(
+            [10.0] * 20 + [12.0],
+            [100.0] * 20 + [1000.0],
+            [10.0] * 20 + [11.0],
+        ),
+        "SELL": frame(
+            [10.0] * 20 + [8.0],
+            [100.0] * 20 + [1000.0],
+            [10.0] * 20 + [11.0],
+        ),
+        "QUIET": frame([10.0] * 21),
+    }
+    batch = evaluate_volume_batch(samples, params)
+    for sym, bars in samples.items():
+        leg = legacy_volume(bars, params)
+        bat = batch[sym]
+        assert bat.matched == leg.matched, sym
+        assert bat.signal_type == leg.signal_type, sym
+        assert bat.reason == leg.reason, sym
 
 
 def test_native_rsi_co_ban_matches_legacy():
