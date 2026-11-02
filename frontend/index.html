@@ -953,14 +953,6 @@
     const PORTFOLIO_KEY = "atz.app.portfolio";
     const VALID_MARKETS = new Set(["HOSE", "VN30", "VN30F1M", "VN30F2M", "HNX", "UPCOM", "FOREIGN"]);
     const VALID_APP_TABS = new Set(["iboard", "portfolio", "news"]);
-    /** Fake depth chỉ khi test ngoài phiên: ?fake_depth=1 hoặc localStorage pb_fake_depth=1 */
-    const FAKE_DEPTH_STORAGE_KEY = "pb_fake_depth";
-    const PB_FAKE_DEPTH = (() => {
-      const q = new URLSearchParams(location.search).get("fake_depth");
-      if (q === "0" || q === "false") return false;
-      if (q === "1" || q === "true") return true;
-      return localStorage.getItem(FAKE_DEPTH_STORAGE_KEY) === "1";
-    })();
     const TRADING_SESSIONS = [["09:00", "11:30"], ["13:00", "15:00"]];
     function vnNowParts() {
       const s = new Date().toLocaleString("en-GB", { timeZone: "Asia/Ho_Chi_Minh", hour12: false });
@@ -979,6 +971,13 @@
         if (mins >= ah * 60 + am && mins <= bh * 60 + bm) return true;
       }
       return false;
+    }
+    /** Chỉ test ops: ?fake_depth=1 và ngoài phiên giao dịch — không localStorage, không fake trong phiên. */
+    function pbFakeDepthEnabled() {
+      const q = new URLSearchParams(location.search).get("fake_depth");
+      if (q === "0" || q === "false") return false;
+      if (q !== "1" && q !== "true") return false;
+      return !inTradingSession();
     }
     const symbolsWithServerDepth = new Set();
 
@@ -1812,7 +1811,7 @@
         symbolsWithServerDepth.add(row.symbol);
       }
       if (row.bid1 != null && row.ask1 != null) return row;
-      if (!PB_FAKE_DEPTH || (row.symbol && symbolsWithServerDepth.has(row.symbol))) return row;
+      if (!pbFakeDepthEnabled()) return row;
       const last = Number(row.last);
       const ceil = Number(row.ceil);
       const floor = Number(row.floor);

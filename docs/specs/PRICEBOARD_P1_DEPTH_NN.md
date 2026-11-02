@@ -1,8 +1,8 @@
 # Plan P1 — Map depth / NN (X-Quote · X-Trade · MI)
 
-**Trạng thái:** Draft sẵn sàng code · **chưa** implement  
-**Branch:** `feature/realtime-fastapi`  
-**Ngày:** 2026-10-21  
+**Trạng thái:** P1 partial tick **đã implement** qua `backend/tick_contract.py` + merge `ssi_live._partial_from_tick` (publish khi `last is None` nhưng có depth / foreign / matchVol / meta). P1.1–P1.4 live verify VPS **còn mở**.  
+**Branch:** `main` (dev.atz.vn)  
+**Ngày:** 2026-10-21 · cập nhật trạng thái 2026-11-02  
 **Phụ thuộc:** P0 tick giờ mở cửa (capture schema thật) · **không** đụng `stream.d` / sshd / UFW / `atz-redis` prod
 
 ---
@@ -29,15 +29,15 @@ flowchart LR
   Parse -->|last bắt buộc| Merge["ssi_live._merge_tick"]
   Merge --> Redis["priceboard:quotes + pub"]
   Redis --> FE["index.html"]
-  FE --> Fake["enrichDepth fake nếu thiếu bid1/ask1"]
+  FE --> Fake["enrichDepth chỉ khi ?fake_depth=1 ngoài phiên"]
 ```
 
 | Thành phần | Đã có | Gap |
 |------------|-------|-----|
 | Subscribe | `config/priceboard.yaml` channels đủ 4 kênh | Chưa xác nhận payload thật từng kênh trên VPS |
-| Parse | Alias best-effort (`bidPrice1`, `BestBid1`, `offer*`, `fBuyVol`…) | **Drop** nếu `last is None` → X-Quote-only / MI-only có thể mất |
-| Merge | Giữ prev khi field `None` | OK — cần parse trả partial depth |
-| FE | Cột + render | `enrichDepth` **bịa** depth/NN khi thiếu → che lỗi map |
+| Parse | Alias best-effort + **partial tick** (`tick_has_payload`, `parse_ssi_envelope`) | Đã publish depth/MI không bắt buộc `last` — verify schema giờ mở cửa |
+| Merge | Giữ prev khi field `None` | OK |
+| FE | Cột + render | Fake depth **tắt** mặc định; chỉ `?fake_depth=1` ngoài phiên giao dịch |
 | Log | Worker LIVE-* | Cần dump **redacted** sample (che token) giờ mở cửa |
 
 ---
@@ -48,7 +48,7 @@ flowchart LR
 2. **Channel-aware (tuỳ chọn):** nhánh nhẹ theo `channel` (`X-QUOTE` / `X-TRADE` / `MI` / `DATA`) — cùng `build_tick` + merge.  
 3. **Không dual-writer:** chỉ ghi `priceboard:*` — **không** `idx:quote:*`.  
 4. **Secret:** log chỉ keys + số; **không** log auth / raw token.  
-5. **FE:** khi `source=SSI_WS` và đã từng nhận depth thật → **tắt fake** cho symbol đó (hoặc tắt hẳn `enrichDepth` sau P1 Pass).
+5. **FE:** mặc định **không** fake depth; chỉ `?fake_depth=1` khi **ngoài** phiên 9–15 VN (test ops). WS pub dùng `slim_ws_tick()` — hash Redis giữ tick đầy đủ cho snapshot.
 
 ---
 
