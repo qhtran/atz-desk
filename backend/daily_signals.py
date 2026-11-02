@@ -64,12 +64,14 @@ def _filter_registry() -> dict[str, Any]:
     return {k: v for k, v in reg.items() if k in plugin_filters}
 
 
-@lru_cache(maxsize=1)
-def _advisor_engine():
-    _ensure_legacy_path()
-    from engine.advisor_score import compute_advisor_score, load_advisor_config
+def _advisor_scoring_bundle(username: str | None = None):
+    """Native vectorized advisor + risk profile (Phase 3A)."""
+    from backend.core.trading_config import risk_meta_for_user, scoring_config_for_user
+    from backend.engine.advisor_score import hits_from_panels, score_frame_from_panels
 
-    return compute_advisor_score, load_advisor_config
+    scoring = scoring_config_for_user(username)
+    meta = risk_meta_for_user(username)
+    return scoring, meta, hits_from_panels, score_frame_from_panels
 
 
 def _normalize_filter_names(filter_name: str, filters: list[str] | None) -> list[str]:
@@ -130,30 +132,33 @@ def _batch_signal_for_filter(
     return out
 
 
-def _advisor_hit(bars: pd.DataFrame, buy_min_total: float | None) -> tuple[bool, dict[str, Any] | None]:
-    compute, load_cfg = _advisor_engine()
-    cfg = load_cfg()
-    th = cfg["thresholds"]
-    floor = float(buy_min_total if buy_min_total is not None else th["buy_min_total"])
-    params = {
-        "thresholds": {
-            "buy_min_total": floor,
-            "sell_max_total": float(th["sell_max_total"]),
-        },
-    }
+def _advisor_hit(
+    bars: pd.DataFrame,
+    buy_min_total: float | None,
+    *,
+    username: str | None = None,
+) -> tuple[bool, dict[str, Any] | None]:
+    scoring, meta, _, score_frame = _advisor_scoring_bundle(username)
+    floor = float(buy_min_total if buy_min_total is not None else scoring.get("buy_min_total", 65))
     try:
-        score = compute(bars, params)
+        frame = score_frame({"TMP": bars}, scoring)
     except Exception:
         return False, None
-    if score.total is None or float(score.total) < floor:
+    if frame.empty or pd.isna(frame.iloc[0]["score"]):
+        return False, None
+    row = frame.iloc[0]
+    total = float(row["score"])
+    if total < floor:
         return False, None
     return True, {
-        "signal_type": score.recommendation,
-        "reason": score.reason,
-        "total": score.total,
-        "trend": score.pillars["trend"]["points"],
-        "flow": score.pillars["flow"]["points"],
-        "short_term": score.pillars["short_term"]["points"],
+        "signal_type": str(row["recommendation"]),
+        "reason": str(row["reason"]),
+        "total": total,
+        "score": total,
+        "trend": float(row["trend"]),
+        "flow": float(row["flow"]),
+        "short_term": float(row["short_term"]),
+        "risk_meta": meta,
     }
 
 
@@ -193,7 +198,18 @@ def _combine_panel_hits(
     combine_or: bool,
     per_filter: dict[str, dict[str, BatchSignal]],
     buy_min_total: float | None,
+    *,
+    username: str | None = None,
 ) -> list[dict[str, Any]]:
+    advisor_by_sym: dict[str, dict[str, Any]] = {}
+    if "advisor" in names:
+        scoring, meta, hits_from_panels, _ = _advisor_scoring_bundle(username)
+        floor = float(
+            buy_min_total if buy_min_total is not None else scoring.get("buy_min_total", 65)
+        )
+        for row in hits_from_panels(panels, scoring, buy_min_total=floor, risk_meta=meta):
+            advisor_by_sym[str(row["symbol"]).upper()] = row
+
     hits: list[dict[str, Any]] = []
     for sym in sorted(panels.keys()):
         matched_names: list[str] = []
@@ -201,11 +217,11 @@ def _combine_panel_hits(
         advisor_extra: dict[str, Any] | None = None
         for name in names:
             if name == "advisor":
-                ok, extra = _advisor_hit(panels[sym], buy_min_total)
-                if ok:
+                extra = advisor_by_sym.get(str(sym).upper())
+                if extra:
                     matched_names.append("advisor")
                     advisor_extra = extra
-                    if extra and extra.get("reason"):
+                    if extra.get("reason"):
                         reasons.append(f"advisor: {extra['reason']}")
                 elif not combine_or:
                     break
@@ -255,41 +271,19 @@ def scan_advisor_scores(
     symbols: list[str] | None = None,
     bars_dir: Path | None = None,
     buy_min_total: float | None = None,
+    username: str | None = None,
 ) -> tuple[list[dict[str, Any]], int, int]:
-    """Quét cố vấn 0–100; hits có total >= ngưỡng, sắp theo điểm giảm dần."""
-    compute, load_cfg = _advisor_engine()
-    cfg = load_cfg()
-    th = cfg["thresholds"]
-    floor = float(buy_min_total if buy_min_total is not None else th["buy_min_total"])
-    params = {
-        "thresholds": {
-            "buy_min_total": floor,
-            "sell_max_total": float(th["sell_max_total"]),
-        },
-    }
+    """Quét cố vấn 0–100 (vectorized); hits có score >= ngưỡng."""
+    scoring, meta, hits_from_panels, _ = _advisor_scoring_bundle(username)
+    floor = float(buy_min_total if buy_min_total is not None else scoring.get("buy_min_total", 65))
     universe = symbols or symbols_for_market_tab(market)
     panels, scanned = load_universe_panels(universe, bars_dir)
-    hits: list[dict[str, Any]] = []
-    for sym, bars in panels.items():
-        try:
-            score = compute(bars, params)
-        except Exception:
-            continue
-        if score.total is None or float(score.total) < floor:
-            continue
-        hits.append(
-            {
-                "symbol": sym.upper(),
-                "filter": "advisor",
-                "signal_type": score.recommendation,
-                "reason": score.reason,
-                "total": score.total,
-                "trend": score.pillars["trend"]["points"],
-                "flow": score.pillars["flow"]["points"],
-                "short_term": score.pillars["short_term"]["points"],
-            }
-        )
-    hits.sort(key=lambda row: float(row["total"]), reverse=True)
+    hits = hits_from_panels(
+        panels,
+        scoring,
+        buy_min_total=floor,
+        risk_meta=meta,
+    )
     return hits, scanned, len(hits)
 
 
@@ -303,6 +297,7 @@ def scan_daily_signals(
     bars_dir: Path | None = None,
     buy_min_total: float | None = None,
     use_cache: bool = True,
+    username: str | None = None,
 ) -> tuple[list[dict[str, Any]], int, int]:
     """Quét mã; trả (hits, scanned, matched_count). Hỗ trợ nhiều filter (AND/OR)."""
     names = _normalize_filter_names(filter_name, filters)
@@ -314,7 +309,7 @@ def scan_daily_signals(
     if symbols is not None:
         sym_key = tuple(sorted(str(s).upper() for s in symbols))
     names_key = tuple(names)
-    cache_key = (market.upper(), names_key, combine_or, buy_min_total, sym_key)
+    cache_key = (market.upper(), names_key, combine_or, buy_min_total, sym_key, username or "")
     if use_cache:
         cached = _scan_cache.get(cache_key)
         if cached and cached[0] == day:
@@ -327,6 +322,7 @@ def scan_daily_signals(
             symbols=symbols,
             bars_dir=bars_dir,
             buy_min_total=buy_min_total,
+            username=username,
         )
         if use_cache:
             _scan_cache[cache_key] = (day, hits, scanned, matched)
@@ -347,7 +343,14 @@ def scan_daily_signals(
             continue
         per_filter[name] = _batch_signal_for_filter(name, panels, index_bars)
 
-    hits = _combine_panel_hits(panels, names, combine_or, per_filter, buy_min_total)
+    hits = _combine_panel_hits(
+        panels,
+        names,
+        combine_or,
+        per_filter,
+        buy_min_total,
+        username=username,
+    )
     matched = len(hits)
     if use_cache:
         _scan_cache[cache_key] = (day, hits, scanned, matched)

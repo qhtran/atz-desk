@@ -35,7 +35,7 @@ Pull. Đọc docs/agents/NOW.md. Nếu Doing là việc của mình, mở đúng
 
 | ID | Việc | Ghi chú |
 |----|------|---------|
-| — | — | trống — PR #13 merged + deploy VPS main xong; chờ Phase tiếp |
+| — | — | Human: điền YAML + commit/push (gồm nginx 2C) + deploy-dev → rồi wake Option B |
 
 ## Master commands
 
@@ -55,11 +55,11 @@ chuỗi 3 trục xong trên branch cursor/daily-signals-vector-baf6:
 ## Last executor
 
 ```text
-task: T-step5-fe-api-ws-sync
-result: Pass — PR #13 merged + deploy-dev main; healthz OK
+task: T-phase3a-risk-advisor
+result: Pass — scaffold Done; IDLE chờ Hiến/bạn điền YAML + deploy
 status: idle
-pytest: Pass (11)
-master_ack: yes (milestone done; idle chờ Phase tiếp)
+pytest: Pass (14)
+master_ack: yes (4c — wake sau khi deploy để làm Option B)
 ```
 
 Khi ack: Doing về trống; chuyển packet sang `docs/agents/archive/tasks/`. Không chép brief vào file này.

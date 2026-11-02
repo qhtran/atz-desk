@@ -178,10 +178,12 @@ def _require_authentik_user(request: Request) -> str:
 
 @app.get("/api/account/me")
 async def account_me(request: Request) -> dict:
-    """Identity từ header ForwardAuth (dev/prod nginx)."""
+    """Identity từ header ForwardAuth (dev/prod nginx) + risk profile scaffolding."""
+    from backend.core.trading_config import risk_meta_for_user
+
     me = me_from_headers(request.headers)
     if not me:
-        return {"ok": True, "authenticated": False, "user": None}
+        return {"ok": True, "authenticated": False, "user": None, "risk_meta": risk_meta_for_user(None)}
     return {
         "ok": True,
         "authenticated": True,
@@ -190,6 +192,7 @@ async def account_me(request: Request) -> dict:
             "name": me.get("name") or "",
             "email": me.get("email") or "",
         },
+        "risk_meta": risk_meta_for_user(me["username"]),
     }
 
 
@@ -259,8 +262,12 @@ async def iboard_daily_signal_filters() -> dict:
 
 
 @app.post("/api/iboard/daily-signals")
-async def iboard_daily_signals(body: DailySignalsRequest) -> dict:
+async def iboard_daily_signals(request: Request, body: DailySignalsRequest) -> dict:
     """Quét OHLCV — subset mã match filter (iBoard chế độ Tín hiệu ngày)."""
+    from backend.core.trading_config import risk_meta_for_user
+
+    me = me_from_headers(request.headers)
+    username = me["username"] if me else None
     active = body.filters if body.filters else [body.filter]
     hits, scanned, matched = await asyncio.to_thread(
         scan_daily_signals,
@@ -269,7 +276,9 @@ async def iboard_daily_signals(body: DailySignalsRequest) -> dict:
         filters=body.filters,
         combine=body.combine,
         buy_min_total=body.buy_min_total,
+        username=username,
     )
+    risk_meta = risk_meta_for_user(username)
     return {
         "ok": True,
         "symbols": [h["symbol"] for h in hits],
@@ -280,6 +289,7 @@ async def iboard_daily_signals(body: DailySignalsRequest) -> dict:
         "filters": active,
         "combine": body.combine,
         "market": body.market.upper(),
+        "risk_meta": risk_meta,
     }
 
 

@@ -134,28 +134,37 @@ def test_scan_daily_signals_cache_same_day(monkeypatch):
 
 
 def test_scan_advisor_monkeypatch(monkeypatch):
-    class _Score:
-        total = 72.0
-        recommendation = "mua"
-        reason = "test advisor"
-        pillars = {
-            "trend": {"points": 30.0},
-            "flow": {"points": 22.0},
-            "short_term": {"points": 20.0},
-        }
-
-    def fake_compute(_bars, _params):
-        return _Score()
-
-    def fake_cfg():
-        return {"thresholds": {"buy_min_total": 65, "sell_max_total": 35}}
-
-    monkeypatch.setattr(
-        "backend.daily_signals._advisor_engine",
-        lambda: (fake_compute, fake_cfg),
-    )
     import pandas as pd
 
+    def fake_hits(panels, scoring_cfg, *, buy_min_total=None, risk_meta=None):
+        rows = []
+        for sym in panels:
+            rows.append(
+                {
+                    "symbol": str(sym).upper(),
+                    "filter": "advisor",
+                    "filters": ["advisor"],
+                    "signal_type": "mua",
+                    "reason": "test advisor",
+                    "total": 72.0,
+                    "score": 72.0,
+                    "trend": 30.0,
+                    "flow": 22.0,
+                    "short_term": 20.0,
+                    "risk_meta": dict(risk_meta or {}),
+                }
+            )
+        return rows
+
+    monkeypatch.setattr(
+        "backend.daily_signals._advisor_scoring_bundle",
+        lambda username=None: (
+            {"buy_min_total": 65, "sell_max_total": 35, "weights": {}},
+            {"profile": "default"},
+            fake_hits,
+            None,
+        ),
+    )
     monkeypatch.setattr(
         "backend.daily_signals.load_symbol_bars",
         lambda sym, bars_dir=None: pd.DataFrame({"close": [1.0] * 80, "volume": [1.0] * 80}),
@@ -165,7 +174,9 @@ def test_scan_advisor_monkeypatch(monkeypatch):
     assert scanned >= 1
     assert matched == len(hits)
     assert hits[0]["total"] == 72.0
+    assert hits[0]["score"] == 72.0
     assert hits[0]["filter"] == "advisor"
+    assert "risk_meta" in hits[0]
 
 
 def test_native_bollinger_matches_legacy():
