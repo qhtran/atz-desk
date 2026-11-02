@@ -35,7 +35,7 @@ Pull. Đọc docs/agents/NOW.md. Nếu Doing là việc của mình, mở đúng
 
 | ID | Việc | Ghi chú |
 |----|------|---------|
-| — | — | trống — chờ human: mở PR / merge `main` / deploy VPS |
+| — | — | trống — PR #13 merged + deploy VPS main xong; chờ Phase tiếp |
 
 ## Master commands
 
@@ -56,10 +56,10 @@ chuỗi 3 trục xong trên branch cursor/daily-signals-vector-baf6:
 
 ```text
 task: T-step5-fe-api-ws-sync
-result: Pass — Bước 5+6 commit/push; milestone 3 trục done
+result: Pass — PR #13 merged + deploy-dev main; healthz OK
 status: idle
 pytest: Pass (11)
-master_ack: yes (chuỗi vector+edge idle — chờ PR/merge/deploy)
+master_ack: yes (milestone done; idle chờ Phase tiếp)
 ```
 
 Khi ack: Doing về trống; chuyển packet sang `docs/agents/archive/tasks/`. Không chép brief vào file này.
