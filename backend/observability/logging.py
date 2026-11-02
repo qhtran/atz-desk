@@ -24,6 +24,8 @@ COMPONENT_LOGGERS: dict[str, str] = {
     "api": "atz.priceboard.api",
     "redis": "atz.priceboard.redis_listener",
     "ws": "atz.priceboard.ws",
+    "ws_alerts": "atz.priceboard.ws_alerts",
+    "stream": "atz.priceboard.stream",
     "worker": "atz.priceboard.ssi_worker",
     "ssi_live": "atz.priceboard.ssi_live",
     "ssi_rest": "atz.priceboard.ssi_rest",

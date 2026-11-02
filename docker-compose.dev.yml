@@ -74,6 +74,7 @@ services:
       # - ./frontend:/app/frontend
       - ./config/debug_overlay.yaml:/app/config/debug_overlay.yaml:ro
       - ./config/trading_station.yaml:/app/config/trading_station.yaml:ro
+      - ./config/stream_alerts.yaml:/app/config/stream_alerts.yaml:ro
       - ./config/f3_alerts.yaml:/app/config/f3_alerts.yaml:ro
       - ./data/ohlcv:/app/data/ohlcv:ro
       - ./data:/app/data

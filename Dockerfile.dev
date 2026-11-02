@@ -29,6 +29,7 @@ COPY config/sector_themes_f3.yaml /app/config/sector_themes_f3.yaml
 COPY config/f3_alerts.yaml /app/config/f3_alerts.yaml
 COPY config/advisor_score.yaml /app/config/advisor_score.yaml
 COPY config/trading_station.yaml /app/config/trading_station.yaml
+COPY config/stream_alerts.yaml /app/config/stream_alerts.yaml
 COPY src/atz/analysis/f3_alerts.py src/atz/analysis/candles.py src/atz/analysis/technical.py src/atz/analysis/__init__.py /app/atz_pkg/analysis/
 COPY src/atz/config.py /app/atz_pkg/config.py
 COPY src/atz/storage/__init__.py src/atz/storage/paths.py /app/atz_pkg/storage/

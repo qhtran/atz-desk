@@ -3681,6 +3681,37 @@
       elClock.textContent = new Date().toLocaleTimeString("vi-VN", { hour12: false });
     }, 1000);
 
+    function connectStreamAlerts() {
+      const proto = location.protocol === "https:" ? "wss:" : "ws:";
+      const url = `${proto}//${location.host}/ws/stream/alerts`;
+      let alertsWs;
+      let retry = 2000;
+      function open() {
+        try { alertsWs = new WebSocket(url); } catch (_) { return; }
+        alertsWs.onopen = () => { retry = 2000; };
+        alertsWs.onmessage = (ev) => {
+          try {
+            const msg = JSON.parse(ev.data);
+            if (msg && msg.type === "alert") {
+              console.info("[stream-alert]", msg.symbol, msg.indicator, msg.score, msg.message);
+              const el = document.getElementById("scr-status");
+              if (el) {
+                el.textContent = `Alert RT · ${msg.symbol} ${msg.indicator} · ${msg.score}`;
+              }
+            }
+          } catch (_) {}
+        };
+        alertsWs.onclose = () => {
+          setTimeout(open, retry);
+          retry = Math.min(retry * 1.5, 20000);
+        };
+      }
+      open();
+      setInterval(() => {
+        if (alertsWs && alertsWs.readyState === WebSocket.OPEN) alertsWs.send("ping");
+      }, 25000);
+    }
+
     (async () => {
       await initPortfolioAuthSync();
       await fetchIndexSpark();
@@ -3689,6 +3720,7 @@
       setAppTab(appTab);
       loadPortfolioF3Themes();
       connect();
+      connectStreamAlerts();
     })();
   </script>
   <script>

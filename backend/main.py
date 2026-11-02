@@ -32,9 +32,11 @@ from backend.symbol_analysis import chart_limit_from_query, load_bars_for_chart,
 from backend.portfolio_store import list_positions, migrate_if_empty, replace_positions
 from backend.observability import ERR_PB_REDIS, ERR_PB_SCREENER, ERR_PB_WS, log, setup
 from backend.modules.trading.router import router as trading_router
+from backend.engine.stream_listener import QuantStreamListener
 from backend.redis_listener import HASH_KEY, REDIS_URL, RedisTickListener, load_snapshot
 from backend.screener import PRESETS, FilterEngine, build_compose_rules, find_invalid_raw_rules
 from backend.websocket_manager import ConnectionManager
+from backend.ws_alerts import register_alerts_ws
 
 setup("api")
 COMPONENT = "api"
@@ -43,6 +45,8 @@ FRONTEND_DIR = Path(os.getenv("FRONTEND_DIR", Path(__file__).resolve().parent.pa
 
 manager = ConnectionManager()
 listener = RedisTickListener(manager)
+alert_manager = ConnectionManager()
+stream_listener = QuantStreamListener(alert_manager)
 
 
 @asynccontextmanager
@@ -50,8 +54,10 @@ async def lifespan(_app: FastAPI):
     init_db()
     init_market_db()
     listener.start()
+    stream_listener.start()
     log(COMPONENT, "API-START", "priceboard api started", frontend=str(FRONTEND_DIR), redis_url=REDIS_URL)
     yield
+    await stream_listener.stop()
     await listener.stop()
     log(COMPONENT, "API-STOP", "priceboard api stopped")
 
@@ -60,6 +66,7 @@ app = FastAPI(title="atz priceboard", version="0.1.0-dev", lifespan=lifespan)
 app.add_middleware(TraceMiddleware)
 app.add_exception_handler(AppError, app_error_handler)
 app.include_router(trading_router)
+register_alerts_ws(app, alert_manager)
 
 
 @app.get("/api/debug-ui/config")
@@ -87,6 +94,7 @@ async def healthz() -> dict:
     return {
         "ok": ok,
         "clients": manager.client_count,
+        "alert_clients": alert_manager.client_count,
         "hash": HASH_KEY,
     }
 
