@@ -1,11 +1,24 @@
-# ATZ Desk — dev stack FastAPI + Redis (dev.atz.vn / localhost)
+# ATZ Desk — dev stack FastAPI + Redis + Nginx edge (dev.atz.vn / localhost)
 # Usage:
 #   docker compose -f docker-compose.dev.yml up --build
-# API: http://127.0.0.1:8000  |  WS: ws://127.0.0.1:8000/ws/priceboard
+#   docker compose -f docker-compose.dev.yml --profile edge up --build   # + nginx :8080
+#   Hot-reload: bỏ comment khối volumes backend/frontend + build.target dev (xem service api)
+#
+# API trực tiếp: http://127.0.0.1:8000  |  Qua nginx (profile edge): http://127.0.0.1:8080
+# Authentik: ngoài stack (/opt/authentik). VPS sync deploy/nginx_dev.conf → nginx-reverse-proxy.
 #
 # Does NOT replace production docker-compose.yml / atz-redis.
-# Project name isolates dev Desk from prod compose (/opt/vnstocks legacy).
 name: atz_desk
+
+x-api-build: &api_build
+  context: .
+  dockerfile: Dockerfile.dev
+  target: runtime
+
+x-api-dev-build: &api_dev_build
+  context: .
+  dockerfile: Dockerfile.dev
+  target: dev
 
 services:
   redis:
@@ -38,6 +51,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.dev
+      # target: dev  # + bind-mount backend/frontend bên dưới để hot-reload
+      target: runtime
     container_name: atz-desk-api-dev
     restart: unless-stopped
     depends_on:
@@ -57,7 +72,45 @@ services:
       F3_ALERTS_CONFIG: /app/config/f3_alerts.yaml
       LOG_LEVEL: INFO
     ports:
-      # localhost tunnel + nginx (via Docker DNS on vnstocks_default)
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - ./config/debug_overlay.yaml:/app/config/debug_overlay.yaml:ro
+      - ./config/trading_station.yaml:/app/config/trading_station.yaml:ro
+      - ./config/f3_alerts.yaml:/app/config/f3_alerts.yaml:ro
+      - ./data/ohlcv:/app/data/ohlcv:ro
+      - ./data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/healthz"]
+      interval: 15s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+    networks:
+      - priceboard_dev
+      - vnstocks_default
+
+  api-dev-bind:
+    profiles: ["dev-bind"]
+    build: *api_dev_build
+    container_name: atz-desk-api-dev-bind
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      PRICEBOARD_CHANNEL: priceboard_ticks
+      PRICEBOARD_HASH: priceboard:quotes
+      FRONTEND_DIR: /app/frontend
+      DEBUG_OVERLAY_CONFIG: /app/config/debug_overlay.yaml
+      OHLCV_BARS_DIR: /app/data/ohlcv
+      PORTFOLIO_DB_PATH: /app/data/portfolio.db
+      TRADING_DB_PATH: /app/data/dev_trading.db
+      MARKET_DB_PATH: /app/data/market.db
+      TRADING_CONFIG: /app/config/trading_station.yaml
+      F3_ALERTS_CONFIG: /app/config/f3_alerts.yaml
+      LOG_LEVEL: INFO
+    ports:
       - "127.0.0.1:8000:8000"
     volumes:
       - ./backend:/app/backend
@@ -75,25 +128,20 @@ services:
       retries: 3
     networks:
       - priceboard_dev
-      # nginx-reverse-proxy resolves atz-desk-api-dev for dev.atz.vn
       - vnstocks_default
 
   ssi-worker:
-    build:
-      context: .
-      dockerfile: Dockerfile.dev
+    build: *api_build
     container_name: atz-ssi-worker-dev
     restart: unless-stopped
     depends_on:
       redis:
         condition: service_healthy
-    # Host `.env` (cùng thư mục) được Compose dùng cho ${SSI_*} — không commit secret.
     environment:
       REDIS_URL: redis://redis:6379/0
       PRICEBOARD_CHANNEL: priceboard_ticks
       PRICEBOARD_HASH: priceboard:quotes
       PRICEBOARD_CONFIG: /app/config/priceboard.yaml
-      # ssi (default) | mock — mock chỉ khi test UI; ssi cần SSI_CONSUMER_* trong .env
       PRICEBOARD_SOURCE: ${PRICEBOARD_SOURCE:-ssi}
       PRICEBOARD_REST_BOOTSTRAP: ${PRICEBOARD_REST_BOOTSTRAP:-1}
       SSI_CONSUMER_ID: ${SSI_CONSUMER_ID:-}
@@ -106,9 +154,28 @@ services:
       LOG_LEVEL: INFO
     command: ["python", "-m", "backend.ssi_worker"]
     volumes:
-      - ./backend:/app/backend
       - ./config/priceboard.yaml:/app/config/priceboard.yaml:ro
       - ./data:/app/data
+    networks:
+      - priceboard_dev
+
+  nginx:
+    profiles: ["edge"]
+    image: nginx:1.27-alpine
+    container_name: atz-desk-nginx-dev
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - ./deploy/nginx_compose.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./frontend:/usr/share/atz/frontend:ro
+      - ./deploy/nginx_forward_auth.inc:/etc/nginx/snippets/atz_forward_auth.inc:ro
+    environment:
+      # Set ENABLE_FORWARD_AUTH=1 + join authentik network khi cần test ForwardAuth trên compose
+      ENABLE_FORWARD_AUTH: ${ENABLE_FORWARD_AUTH:-0}
     networks:
       - priceboard_dev
 
