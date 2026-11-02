@@ -29,18 +29,18 @@ Pull. Đọc docs/agents/NOW.md. Nếu Doing là việc của mình, mở đúng
 
 | ID | Owner | Packet | Việc |
 |----|-------|--------|------|
-| — | — | — | trống |
+| T-option-b-rt-quant | ag2 | docs/agents/tasks/T-option-b-rt-quant.md | Option B: RT quant stream → /ws/stream/alerts |
 
 ## Todo
 
 | ID | Việc | Ghi chú |
 |----|------|---------|
-| — | — | Verify login atz.vn + bật SSI `--profile live` nếu cần; P4 tắt Streamlit sau ổn định |
+| — | — | Smoke desk-dev/prod; P4 Streamlit sau ổn định |
 
 ## Master commands
 
 ```text
-idle
+doing T-option-b-rt-quant
 ```
 
 ## Milestone (done)
@@ -55,11 +55,11 @@ chuỗi 3 trục xong trên branch cursor/daily-signals-vector-baf6:
 ## Last executor
 
 ```text
-task: T-desk-prod-cutover-activate
-result: Pass — VPS deploy :8001 + nginx atz.vn applied; 302 Authentik OK
-status: idle
-pytest: —
-master_ack: pending (verify browser login + SSI live)
+task: T-option-b-rt-quant
+result: Pass — stream listener + /ws/stream/alerts + pytest 3
+status: doing
+pytest: Pass (3)
+master_ack: pending (commit/deploy smoke)
 ```
 
 Khi ack: Doing về trống; chuyển packet sang `docs/agents/archive/tasks/`. Không chép brief vào file này.

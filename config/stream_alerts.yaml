@@ -1,0 +1,25 @@
+# Real-time Quant Streaming (Option B) — desk / prod-desk
+enabled: true
+channel: priceboard_ticks          # Redis pub/sub (cùng PRICEBOARD_CHANNEL)
+evaluate_interval_ms: 2000         # gom tick rồi đánh giá batch
+cooldown_sec: 120                  # không spam cùng symbol+indicator
+ring_size: 80                      # số tick close giữ / mã (RSI/MA)
+max_alerts_per_tick: 20
+
+rsi:
+  length: 14
+  oversold: 30
+  overbought: 70
+
+ma:
+  fast: 10
+  slow: 20
+
+volume_spike:
+  lookback: 20
+  mult: 2.0
+
+# Gắn risk_level thô theo score (0–100); profile YAML chi tiết vẫn ở trading_station
+risk_levels:
+  high_below: 40
+  low_above: 70
