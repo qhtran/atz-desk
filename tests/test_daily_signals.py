@@ -32,6 +32,13 @@ def test_scan_daily_signals_monkeypatch(monkeypatch):
     assert scanned >= 1
     assert matched == len(hits)
     assert hits[0]["symbol"] in symbols_for_market_tab("VN30")
+    # FE contract (Bước 5): SPA đọc symbol/filters/filter/signal_type/reason
+    row = hits[0]
+    assert isinstance(row["symbol"], str) and row["symbol"]
+    assert isinstance(row.get("filters"), list) and "rsi" in row["filters"]
+    assert "rsi" in str(row.get("filter") or "")
+    assert row.get("signal_type")
+    assert "reason" in row
 
 
 def test_allowed_filters_includes_advisor():

@@ -2298,6 +2298,31 @@
       };
     }
 
+    /** Same-origin relative REST path (nginx edge `/api/` → api:8000). */
+    function apiUrl(path) {
+      const p = String(path || "");
+      return p.startsWith("/") ? p : "/" + p;
+    }
+
+    function normalizeDailyHit(raw) {
+      if (!raw || typeof raw !== "object") return null;
+      const sym = String(raw.symbol || "").toUpperCase();
+      if (!sym) return null;
+      const filtersArr = Array.isArray(raw.filters)
+        ? raw.filters.map((x) => String(x)).filter(Boolean)
+        : String(raw.filter || "")
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean);
+      return Object.assign({}, raw, {
+        symbol: sym,
+        filters: filtersArr,
+        filter: filtersArr.length ? filtersArr.join(",") : String(raw.filter || ""),
+        signal_type: raw.signal_type != null ? String(raw.signal_type) : "",
+        reason: raw.reason != null ? String(raw.reason) : "",
+      });
+    }
+
     async function runDailySignalScan() {
       const filters = isForeignMarketTab() ? ["foreign"] : getSelectedDailyFilters();
       const combine = document.getElementById("scr-mode")?.value === "or" ? "or" : "and";
@@ -2312,26 +2337,32 @@
         if (filters.includes("advisor")) {
           payload.buy_min_total = Number(document.getElementById("scr-advisor-min").value) || 65;
         }
-        const res = await fetch("/api/iboard/daily-signals", {
+        const res = await fetch(apiUrl("/api/iboard/daily-signals"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
         const data = await res.json();
-        if (!data.ok || !Array.isArray(data.symbols)) {
+        if (!data || data.ok !== true || !Array.isArray(data.symbols)) {
           dailySignalSet = new Set();
           dailyHitBySymbol = new Map();
           dailyScanMeta = { filters, combine, matched: 0, scanned: 0 };
           applyBoardFilter();
           return;
         }
-        dailySignalSet = new Set(data.symbols.map((s) => String(s).toUpperCase()));
+        dailySignalSet = new Set(
+          data.symbols.map((s) => String(s).toUpperCase()).filter(Boolean)
+        );
         dailyHitBySymbol = new Map();
         if (Array.isArray(data.hits)) {
           data.hits.forEach((h) => {
-            const sym = String(h.symbol || "").toUpperCase();
-            if (sym) dailyHitBySymbol.set(sym, h);
+            const hit = normalizeDailyHit(h);
+            if (hit) dailyHitBySymbol.set(hit.symbol, hit);
           });
+        }
+        // Vectorized backend may omit symbols[] duplicates; prefer hits when present.
+        if (dailyHitBySymbol.size && dailySignalSet.size !== dailyHitBySymbol.size) {
+          dailySignalSet = new Set(dailyHitBySymbol.keys());
         }
         dailyScanMeta = {
           filters: Array.isArray(data.filters) ? data.filters : filters,
@@ -3618,6 +3649,7 @@
     }
 
     function wsUrl() {
+      // Same-origin relative WS (nginx edge `/ws/` → api); proto theo trang (ws/wss).
       const proto = location.protocol === "https:" ? "wss:" : "ws:";
       return `${proto}//${location.host}/ws/priceboard`;
     }
