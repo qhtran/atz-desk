@@ -1,7 +1,7 @@
 # Task T-desk-prod-cutover-activate — Kích hoạt atz.vn Desk (ngoài giờ GD)
 
 **Owner:** human (VPS) + ag2 (repo/script)  
-**Status:** Doing — chờ chạy tay trên VPS  
+**Status:** Done (VPS 2026-11-03) — desk `:8001` + nginx `atz.vn.conf` applied; backup `deploy/.nginx-backup/atz.vn.conf.20261103-012208.bak`  
 **Phụ thuộc:** `T-desk-prod-cutover-p0` prep đã trên `main`
 
 ## Mục tiêu

@@ -29,18 +29,18 @@ Pull. Đọc docs/agents/NOW.md. Nếu Doing là việc của mình, mở đúng
 
 | ID | Owner | Packet | Việc |
 |----|-------|--------|------|
-| T-desk-prod-cutover-activate | human/ag2 | docs/agents/tasks/T-desk-prod-cutover-activate.md | Cutover atz.vn: deploy-prod-desk + apply nginx (ngoài giờ GD) |
+| — | — | — | trống |
 
 ## Todo
 
 | ID | Việc | Ghi chú |
 |----|------|---------|
-| — | — | Sau cutover ổn: P4 tắt Streamlit; Option B |
+| — | — | Verify login atz.vn + bật SSI `--profile live` nếu cần; P4 tắt Streamlit sau ổn định |
 
 ## Master commands
 
 ```text
-doing T-desk-prod-cutover-activate — human chạy 2 lệnh VPS ngoài giờ GD
+idle
 ```
 
 ## Milestone (done)
@@ -56,10 +56,10 @@ chuỗi 3 trục xong trên branch cursor/daily-signals-vector-baf6:
 
 ```text
 task: T-desk-prod-cutover-activate
-result: Pass — apply-prod-atz-nginx.sh + backup/rollback; runbook 2 lệnh
-status: doing
+result: Pass — VPS deploy :8001 + nginx atz.vn applied; 302 Authentik OK
+status: idle
 pytest: —
-master_ack: pending (chờ human VPS ngoài giờ GD)
+master_ack: pending (verify browser login + SSI live)
 ```
 
 Khi ack: Doing về trống; chuyển packet sang `docs/agents/archive/tasks/`. Không chép brief vào file này.
