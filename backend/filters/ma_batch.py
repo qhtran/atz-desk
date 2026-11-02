@@ -57,14 +57,14 @@ def evaluate_ma_batch(
     if fast >= slow:
         msg = "MA nhanh phải nhỏ hơn MA chậm"
         for code in close.columns:
-            out[code] = BatchSignal(False, "giu", msg, None)
+            out[code] = BatchSignal(False, "cho", msg, None)
         return out
 
     fast_ma = _ma_line(close, fast, kind)
     slow_ma = _ma_line(close, slow, kind)
     if len(close) < slow + 1:
         for code in close.columns:
-            out[code] = BatchSignal(False, "giu", "không đủ dữ liệu", None)
+            out[code] = BatchSignal(False, "cho", "không đủ dữ liệu", None)
         return out
 
     f_prev, f_last = fast_ma.iloc[-2], fast_ma.iloc[-1]
@@ -75,7 +75,11 @@ def evaluate_ma_batch(
 
     for code in close.columns:
         if not bool(valid.get(code, False)):
-            out[code] = BatchSignal(False, "giu", "không đủ dữ liệu", None)
+            out[code] = BatchSignal(False, "cho", "không đủ dữ liệu", None)
+            continue
+        bar_len = close[code].notna().sum()
+        if bar_len < slow + 1:
+            out[code] = BatchSignal(False, "cho", "không đủ dữ liệu", None)
             continue
         details = {
             "fast": float(f_last[code]),

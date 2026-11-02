@@ -65,7 +65,7 @@ def evaluate_volume_batch(
 
     for code in symbols:
         if not bool(valid.get(code, False)):
-            out[code] = BatchSignal(False, "giu", "không đủ dữ liệu", None)
+            out[code] = BatchSignal(False, "cho", "không đủ dữ liệu", None)
             continue
         r = round(float(ratio[code]), 2)
         details = {"ratio": r, "spike": spike}
