@@ -1,0 +1,125 @@
+# ATZ Desk — production-desk stack (atz.vn cutover prep, ADR 0009)
+# Usage (VPS /opt/atz-desk — DO NOT point atz.vn nginx until gate Pass):
+#   cp .env.prod-desk.example .env.prod-desk   # rồi điền secret nếu cần
+#   ./scripts/deploy-prod-desk.sh
+#   # SSI live (một writer — tắt/mock trên dev giờ vàng):
+#   docker compose -f docker-compose.prod-desk.yml --profile live up -d ssi-worker
+#
+# Host healthz: http://127.0.0.1:8001/healthz  (không đụng :8000 của desk-dev)
+# Nginx draft: deploy/nginx_prod_atz.conf — chưa apply (xem apply-prod-atz-nginx.sh)
+
+name: atz_desk_prod
+
+x-api-build: &api_build
+  context: .
+  dockerfile: Dockerfile.dev
+  target: runtime
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: atz-redis-desk-prod
+    restart: unless-stopped
+    command:
+      [
+        "redis-server",
+        "--appendonly",
+        "yes",
+        "--maxmemory",
+        "128mb",
+        "--maxmemory-policy",
+        "volatile-lru",
+      ]
+    volumes:
+      - redis_prod_desk_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - atz_prod_net
+
+  api:
+    build: *api_build
+    image: atz_desk_prod-api:latest
+    container_name: atz-desk-api
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+    env_file:
+      - .env.prod-desk
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      PRICEBOARD_CHANNEL: priceboard_ticks
+      PRICEBOARD_HASH: priceboard:quotes
+      FRONTEND_DIR: /app/frontend
+      DEBUG_OVERLAY_CONFIG: /app/config/debug_overlay.yaml
+      OHLCV_BARS_DIR: /app/data/ohlcv
+      PORTFOLIO_DB_PATH: /app/data/portfolio.db
+      TRADING_DB_PATH: /app/data/prod_trading.db
+      MARKET_DB_PATH: /app/data/market.db
+      TRADING_CONFIG: /app/config/trading_station.yaml
+      F3_ALERTS_CONFIG: /app/config/f3_alerts.yaml
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    ports:
+      - "127.0.0.1:8001:8000"
+    volumes:
+      - ./config/debug_overlay.yaml:/app/config/debug_overlay.yaml:ro
+      - ./config/trading_station.yaml:/app/config/trading_station.yaml:ro
+      - ./config/f3_alerts.yaml:/app/config/f3_alerts.yaml:ro
+      - ./data/ohlcv:/app/data/ohlcv:ro
+      - atz_prod_data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/healthz"]
+      interval: 15s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+    networks:
+      - atz_prod_net
+      - vnstocks_default
+
+  ssi-worker:
+    profiles: ["live"]
+    build: *api_build
+    image: atz_desk_prod-ssi-worker:latest
+    container_name: atz-ssi-worker
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+    env_file:
+      - .env.prod-desk
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      PRICEBOARD_CHANNEL: priceboard_ticks
+      PRICEBOARD_HASH: priceboard:quotes
+      PRICEBOARD_CONFIG: /app/config/priceboard.yaml
+      PRICEBOARD_SOURCE: ${PRICEBOARD_SOURCE:-ssi}
+      PRICEBOARD_REST_BOOTSTRAP: ${PRICEBOARD_REST_BOOTSTRAP:-1}
+      SSI_CONSUMER_ID: ${SSI_CONSUMER_ID:-}
+      SSI_CONSUMER_SECRET: ${SSI_CONSUMER_SECRET:-}
+      SSI_WS_URL: ${SSI_WS_URL:-wss://stream.ssi.com.vn/ws/v3}
+      SSI_AUTH_URL: ${SSI_AUTH_URL:-https://api.ssi.com.vn/api/v3/auth/token}
+      PRICEBOARD_SSI_CHANNELS: ${PRICEBOARD_SSI_CHANNELS:-DATA,X-Quote,X-Trade,MI}
+      MARKET_DB_PATH: /app/data/market.db
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    command: ["python", "-m", "backend.ssi_worker"]
+    volumes:
+      - ./config/priceboard.yaml:/app/config/priceboard.yaml:ro
+      - atz_prod_data:/app/data
+    networks:
+      - atz_prod_net
+
+networks:
+  atz_prod_net:
+    name: atz_desk_prod_net
+    driver: bridge
+  vnstocks_default:
+    external: true
+
+volumes:
+  redis_prod_desk_data:
+  atz_prod_data:

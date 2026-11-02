@@ -35,7 +35,7 @@ Pull. Đọc docs/agents/NOW.md. Nếu Doing là việc của mình, mở đúng
 
 | ID | Việc | Ghi chú |
 |----|------|---------|
-| — | — | Human: điền YAML + commit/push (gồm nginx 2C) + deploy-dev → rồi wake Option B |
+| — | — | Chờ Hiến/bạn: YAML risk + parity + user_confirmed_infra → cutover; hoặc Option B |
 
 ## Master commands
 
@@ -55,11 +55,11 @@ chuỗi 3 trục xong trên branch cursor/daily-signals-vector-baf6:
 ## Last executor
 
 ```text
-task: T-phase3a-risk-advisor
-result: Pass — scaffold Done; IDLE chờ Hiến/bạn điền YAML + deploy
+task: T-desk-prod-cutover-p0
+result: Pass — prep pushed main; IDLE chờ YAML/parity/cutover gate
 status: idle
-pytest: Pass (14)
-master_ack: yes (4c — wake sau khi deploy để làm Option B)
+pytest: —
+master_ack: yes (8a push prep; no VPS nginx apply)
 ```
 
 Khi ack: Doing về trống; chuyển packet sang `docs/agents/archive/tasks/`. Không chép brief vào file này.

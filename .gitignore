@@ -28,3 +28,6 @@ logs/
 # Scratch copy giữa Cursor / PyCharm / Bot VPS
 agent-reply.md
 scripts/deploy-vps.env
+
+# prod-desk secrets
+.env.prod-desk
