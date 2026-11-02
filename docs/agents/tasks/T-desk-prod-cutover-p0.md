@@ -1,7 +1,7 @@
 # Task T-desk-prod-cutover-p0 — Gate Dual Stack atz.vn (ADR 0009)
 
 **Owner:** ag2 / human  
-**Status:** Doing (repo prep) — **chưa** apply nginx / chưa cutover live  
+**Status:** Done (repo prep trên main) — activate xem `T-desk-prod-cutover-activate.md`  
 **Phạm vi:** `docker-compose.prod-desk.yml`, `.env.prod-desk.example`, `deploy/nginx_prod_atz.conf`, `scripts/deploy-prod-desk.sh`, `scripts/apply-prod-atz-nginx.sh`
 
 ## Mục tiêu

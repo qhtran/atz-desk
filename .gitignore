@@ -31,3 +31,6 @@ scripts/deploy-vps.env
 
 # prod-desk secrets
 .env.prod-desk
+
+# local nginx apply backups
+deploy/.nginx-backup/
