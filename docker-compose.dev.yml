@@ -49,6 +49,9 @@ services:
       # target: dev  # + bind-mount backend/frontend bên dưới để hot-reload
       target: runtime
     container_name: atz-desk-api-dev
+    env_file:
+      - path: .env.desk-session
+        required: false
     restart: unless-stopped
     depends_on:
       redis:
@@ -66,15 +69,6 @@ services:
       TRADING_CONFIG: /app/config/trading_station.yaml
       F3_ALERTS_CONFIG: /app/config/f3_alerts.yaml
       LOG_LEVEL: INFO
-      # DEV Desk Session + Authentik ROPC (secrets từ env host / .env — không commit)
-      DESK_SESSION_AUTH: ${DESK_SESSION_AUTH:-0}
-      DESK_SESSION_SECRET: ${DESK_SESSION_SECRET:-}
-      DESK_SESSION_SECURE: ${DESK_SESSION_SECURE:-1}
-      AUTHENTIK_TOKEN_URL: ${AUTHENTIK_TOKEN_URL:-}
-      AUTHENTIK_USERINFO_URL: ${AUTHENTIK_USERINFO_URL:-}
-      AUTHENTIK_CLIENT_ID: ${AUTHENTIK_CLIENT_ID:-}
-      AUTHENTIK_CLIENT_SECRET: ${AUTHENTIK_CLIENT_SECRET:-}
-      AUTHENTIK_SCOPE: ${AUTHENTIK_SCOPE:-openid profile email}
     ports:
       - "127.0.0.1:8000:8000"
     volumes:

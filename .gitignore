@@ -1,5 +1,6 @@
 # secrets
 .env
+.env.desk-session
 .pip_index
 *.key
 # vnstock device registration
