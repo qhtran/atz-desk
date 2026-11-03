@@ -1,7 +1,7 @@
 # Task T-p3-p4-cutover-close — P3 Risk parity verify + P4 tắt Streamlit UI
 
 **Owner:** ag2  
-**Status:** Done (2026-11-03)  
+**Status:** ARCHIVED / DONE — master_ack 2026-11-03  
 **Phụ thuộc:** `T-desk-prod-cutover-activate` (atz.vn → Desk SPA)
 
 ## Mục tiêu
