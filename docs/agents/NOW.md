@@ -36,7 +36,7 @@ Pull. Đọc docs/agents/NOW.md. Nếu Doing là việc của mình, mở đúng
 | ID | Việc | Ghi chú |
 |----|------|---------|
 | — | Risk YAML số thật | Hiến điền `trading_station.yaml` null (SL/TP/equity) — không block UI cutover |
-| — | Archive packets | `T-option-b-rt-quant`, `T-p3-p4-cutover-close` sau master_ack |
+| — | Archive packet | `T-p3-p4-cutover-close` sau master_ack |
 
 ## Master commands
 
@@ -51,17 +51,17 @@ idle
 P0/activate — prod-desk :8001 + nginx atz.vn → atz-desk-api
 P3 — verify Risk YAML scaffold + atz_prod_data portfolio parity (null risk chờ Hiến)
 P4 — tắt UI Streamlit vnstocks :8501 (script decommission; bots giữ nguyên)
-Option B — /ws/stream/alerts + mock_tick_generator smoke Pass
+Option B — /ws/stream/alerts + mock_tick_generator smoke Pass · master_ack · archived
 ```
 
 ## Last executor
 
 ```text
-task: T-option-b-rt-quant (verify sau pull main)
-result: Pass — dev-local deploy + force-recreate api; smoke WS RSI_OVERSOLD
+task: T-option-b-rt-quant
+result: Pass — master_ack; packet → docs/agents/archive/tasks/
 status: idle
-pytest: Pass (3) trong CI/dev; host VPS thiếu numpy
-master_ack: pending (archive packet)
+pytest: Pass (3) stream_alerts (smoke RSI_OVERSOLD)
+master_ack: done 2026-11-03
 ```
 
 Khi ack: Doing về trống; chuyển packet sang `docs/agents/archive/tasks/`. Không chép brief vào file này.
