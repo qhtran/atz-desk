@@ -23,7 +23,8 @@ from backend.core.errors import AppError, app_error_handler
 from backend.core.logging_middleware import TraceMiddleware
 from backend.debug_ui import public_debug_ui_config
 from backend.portfolio_alerts import position_alert
-from backend.identity import me_from_headers
+from backend.account_config import load_account_config
+from backend.identity import is_admin_user, me_from_headers, roles_for_user
 from backend.portfolio_f3 import batch_f3_alerts, load_f3_sector_themes
 from backend.portfolio_quotes import normalize_symbols, resolve_portfolio_quotes
 from backend.daily_signals import ALLOWED_FILTERS, scan_daily_signals
@@ -186,12 +187,31 @@ def _require_authentik_user(request: Request) -> str:
 
 @app.get("/api/account/me")
 async def account_me(request: Request) -> dict:
-    """Identity từ header ForwardAuth (dev/prod nginx) + risk profile scaffolding."""
+    """Identity từ header ForwardAuth (dev/prod nginx) + risk + RBAC SPA."""
     from backend.core.trading_config import risk_meta_for_user
 
+    cfg = load_account_config()
+    auth_urls = {
+        "login_url": cfg.get("login_url") or "",
+        "logout_url": cfg.get("logout_url") or "",
+        "password_flow_url": cfg.get("password_flow_url") or "",
+        "mfa_flow_url": cfg.get("mfa_flow_url") or "",
+    }
     me = me_from_headers(request.headers)
     if not me:
-        return {"ok": True, "authenticated": False, "user": None, "risk_meta": risk_meta_for_user(None)}
+        return {
+            "ok": True,
+            "authenticated": False,
+            "user": None,
+            "groups": [],
+            "roles": [],
+            "is_admin": False,
+            "risk_meta": risk_meta_for_user(None),
+            **auth_urls,
+        }
+    groups = list(me.get("groups") or [])
+    admin = is_admin_user(groups, cfg.get("admin_groups"))
+    roles = roles_for_user(groups, is_admin=admin)
     return {
         "ok": True,
         "authenticated": True,
@@ -199,8 +219,15 @@ async def account_me(request: Request) -> dict:
             "username": me["username"],
             "name": me.get("name") or "",
             "email": me.get("email") or "",
+            "groups": groups,
+            "roles": roles,
+            "is_admin": admin,
         },
+        "groups": groups,
+        "roles": roles,
+        "is_admin": admin,
         "risk_meta": risk_meta_for_user(me["username"]),
+        **auth_urls,
     }
 
 

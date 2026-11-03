@@ -1,4 +1,4 @@
-from backend.identity import me_from_headers, username_from_headers
+from backend.identity import is_admin_user, me_from_headers, roles_for_user, username_from_headers
 
 
 def test_username_from_headers():
@@ -16,3 +16,5 @@ def test_me_from_headers_groups():
     assert me is not None
     assert me["username"] == "u"
     assert me["groups"] == ["admin", "members"]
+    assert is_admin_user(me["groups"], ["admin"]) is True
+    assert "admin" in roles_for_user(me["groups"], is_admin=True)

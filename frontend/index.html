@@ -667,9 +667,138 @@
       color: #737373;
       font-size: 12px;
     }
+    .auth-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      max-width: 160px;
+      height: 28px;
+      padding: 0 8px;
+      border: 1px solid #2a2a2a;
+      border-radius: 3px;
+      background: #111;
+      color: #e5e5e5;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .auth-chip button {
+      border: 0;
+      background: transparent;
+      color: #a3a3a3;
+      font-size: 10px;
+      cursor: pointer;
+      padding: 0;
+      text-decoration: underline;
+    }
+    .auth-chip button:hover { color: #ffd900; }
+    .auth-login-btn {
+      height: 28px;
+      padding: 0 10px;
+      border: 1px solid #3a3a3a;
+      border-radius: 3px;
+      background: #161616;
+      color: #ffd900;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .auth-login-btn:hover { border-color: #ffd900; }
+    .welcome-gate {
+      position: fixed;
+      inset: 0;
+      z-index: 80;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background:
+        radial-gradient(ellipse at 20% 0%, rgba(255, 217, 0, 0.08), transparent 45%),
+        linear-gradient(160deg, #0a0a0a 0%, #121212 55%, #0a0a0a 100%);
+    }
+    .welcome-gate[hidden] { display: none !important; }
+    .welcome-card {
+      width: min(420px, 92vw);
+      padding: 28px 24px;
+      border: 1px solid #2a2a2a;
+      background: rgba(10, 10, 10, 0.92);
+      text-align: center;
+    }
+    .welcome-card h1 {
+      margin: 0 0 8px;
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      color: #fff;
+    }
+    .welcome-card .brand {
+      color: #ffd900;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+    .welcome-card p {
+      margin: 0 0 18px;
+      color: #a3a3a3;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+    .welcome-card .cta {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 160px;
+      height: 36px;
+      padding: 0 16px;
+      border: 1px solid #ffd900;
+      background: #ffd900;
+      color: #0a0a0a;
+      font-size: 13px;
+      font-weight: 700;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    .welcome-card .cta:hover { filter: brightness(1.05); }
+    .welcome-card .ghost {
+      display: block;
+      margin-top: 12px;
+      border: 0;
+      background: transparent;
+      color: #737373;
+      font-size: 11px;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+    .alerts-feed {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      max-height: calc(100vh - 140px);
+      overflow: auto;
+    }
+    .alerts-feed li {
+      display: grid;
+      grid-template-columns: 72px 1fr auto;
+      gap: 8px;
+      padding: 10px 12px;
+      border-bottom: 1px solid #1f1f1f;
+      font-size: 12px;
+    }
+    .alerts-feed .sym { color: #ffd900; font-weight: 700; }
+    .alerts-feed .meta { color: #a3a3a3; }
+    .alerts-feed .score { color: #e5e5e5; font-variant-numeric: tabular-nums; }
   </style>
 </head>
 <body class="bg-[#0a0a0a] font-sans text-[13px] antialiased tracking-tight leading-tight">
+  <div id="welcome-gate" class="welcome-gate" hidden data-atd-id="pb-ui:auth.welcome">
+    <div class="welcome-card">
+      <div class="brand">ATZ Desk</div>
+      <h1>Realtime trading desk</h1>
+      <p>Đăng nhập qua Authentik để mở iBoard, danh mục cá nhân và cảnh báo realtime. Không lưu token trên trình duyệt.</p>
+      <a id="welcome-login" class="cta" href="/" data-atd-id="pb-ui:auth.login">Đăng nhập</a>
+      <button type="button" class="ghost" id="welcome-continue" data-atd-id="pb-ui:auth.continue">Tiếp tục xem bảng (guest)</button>
+    </div>
+  </div>
   <header class="border-b border-[#2a2a2a] bg-[#0a0a0a]">
     <div class="flex items-center justify-between gap-3 px-3 py-2">
       <div class="flex items-center gap-1 min-w-0 flex-wrap">
@@ -677,7 +806,9 @@
         <nav class="flex items-center gap-0" role="tablist" aria-label="Chức năng">
           <button type="button" class="app-tab is-active" data-app="iboard" data-atd-id="pb-ui:app.tab.iboard" role="tab" aria-selected="true">Giao dịch iBoard</button>
           <button type="button" class="app-tab" data-app="portfolio" data-atd-id="pb-ui:app.tab.portfolio" role="tab" aria-selected="false">Danh mục</button>
+          <button type="button" class="app-tab" data-app="alerts" data-atd-id="pb-ui:app.tab.alerts" role="tab" aria-selected="false">Alerts</button>
           <button type="button" class="app-tab" data-app="news" data-atd-id="pb-ui:app.tab.news" role="tab" aria-selected="false">Tin tức / Nghiên cứu</button>
+          <button type="button" class="app-tab" data-app="admin" id="tab-admin" hidden data-atd-id="pb-ui:app.tab.admin" role="tab" aria-selected="false">Admin</button>
         </nav>
       </div>
       <div class="flex items-center gap-2 shrink-0">
@@ -698,6 +829,13 @@
           <div class="settings-menu" id="settings-menu" role="menu">
             <button type="button" id="btn-clear-pins" role="menuitem">Xóa tất cả ghim</button>
             <button type="button" id="btn-focus-search" role="menuitem">Focus ô tìm kiếm</button>
+          </div>
+        </div>
+        <div id="auth-slot" data-atd-id="pb-ui:auth.slot" class="inline-flex items-center">
+          <button type="button" class="auth-login-btn" id="btn-header-login" hidden>Đăng nhập</button>
+          <div class="auth-chip" id="auth-chip" hidden>
+            <span id="auth-chip-name" class="truncate"></span>
+            <button type="button" id="btn-logout" data-atd-id="pb-ui:auth.logout">Đăng xuất</button>
           </div>
         </div>
         <span id="conn-wrap" data-atd-id="pb-ui:app.conn" class="inline-flex items-center gap-1">
@@ -880,6 +1018,36 @@
     </div>
   </section>
 
+  <!-- ===== Panel: Alerts (Option B WS) ===== -->
+  <section id="panel-alerts" class="panel" data-panel="alerts" data-atd-id="pb-ui:alerts.panel" role="tabpanel" hidden>
+    <div class="panel-toolbar">
+      <span class="text-[12px] text-gray-400">Realtime quant alerts · <code class="text-gray-300">/ws/stream/alerts</code></span>
+      <span id="alerts-ws-status" class="text-[11px] text-gray-500 ml-2">connecting…</span>
+      <button type="button" id="btn-alerts-clear" class="icon-btn ml-auto" title="Xóa danh sách" style="width:auto;padding:0 8px;font-size:11px">Xóa</button>
+    </div>
+    <ul id="alerts-feed" class="alerts-feed" data-atd-id="pb-ui:alerts.feed"></ul>
+    <div id="alerts-empty" class="empty-hint">Chưa có alert — chờ tick RSI/MA/volume hoặc chạy mock_tick_generator.</div>
+  </section>
+
+  <!-- ===== Panel: Admin (RBAC — chỉ hiện khi is_admin) ===== -->
+  <section id="panel-admin" class="panel" data-panel="admin" data-atd-id="pb-ui:admin.panel" role="tabpanel" hidden>
+    <div class="panel-toolbar">
+      <span class="text-[12px] text-gray-400">Admin Control Panel — placeholder B1/B2 (form cấu hình Risk/YAML ở B3)</span>
+    </div>
+    <div class="news-grid" style="padding:12px">
+      <article class="news-card">
+        <h3>Quyền admin</h3>
+        <p>Tab này chỉ hiện khi <code class="text-gray-300">/api/account/me</code> trả <code class="text-gray-300">is_admin: true</code> (group Authentik trong <code class="text-gray-300">config/account.yaml</code> → <code class="text-gray-300">admin_groups</code>).</p>
+        <span class="tag">RBAC</span>
+      </article>
+      <article class="news-card">
+        <h3>Sắp tới (B3)</h3>
+        <p>Chỉnh RSI / volume spike / cooldown stream alerts và risk placeholders qua FastAPI.</p>
+        <span class="tag">Control plane</span>
+      </article>
+    </div>
+  </section>
+
   <!-- ===== Panel: News ===== -->
   <section id="panel-news" class="panel" data-panel="news" data-atd-id="pb-ui:news.panel" role="tabpanel" hidden>
     <div class="panel-toolbar">
@@ -952,7 +1120,9 @@
     const APP_TAB_KEY = "atz.app.tab";
     const PORTFOLIO_KEY = "atz.app.portfolio";
     const VALID_MARKETS = new Set(["HOSE", "VN30", "VN30F1M", "VN30F2M", "HNX", "UPCOM", "FOREIGN"]);
-    const VALID_APP_TABS = new Set(["iboard", "portfolio", "news"]);
+    const VALID_APP_TABS = new Set(["iboard", "portfolio", "alerts", "news", "admin"]);
+    const GUEST_SKIP_KEY = "atz.auth.guest_skip";
+    const ALERTS_MAX = 80;
     const TRADING_SESSIONS = [["09:00", "11:30"], ["13:00", "15:00"]];
     function vnNowParts() {
       const s = new Date().toLocaleString("en-GB", { timeZone: "Asia/Ho_Chi_Minh", hour12: false });
@@ -994,6 +1164,14 @@
     let storedAppTab = localStorage.getItem(APP_TAB_KEY);
     if (storedAppTab === "signals") storedAppTab = "iboard";
     let appTab = VALID_APP_TABS.has(storedAppTab) ? storedAppTab : "iboard";
+    let accountState = {
+      authenticated: false,
+      isAdmin: false,
+      loginUrl: "/",
+      logoutUrl: "",
+      user: null,
+    };
+    const streamAlerts = [];
     let indexStatsTimer = null;
     /** Composite screener (mirrors backend.screener.FilterEngine) */
     let screenerSpec = {
@@ -1058,6 +1236,7 @@
     /* ===== App tabs (SPA) ===== */
     function setAppTab(tab) {
       if (!VALID_APP_TABS.has(tab)) tab = "iboard";
+      if (tab === "admin" && !accountState.isAdmin) tab = "iboard";
       appTab = tab;
       localStorage.setItem(APP_TAB_KEY, tab);
       document.querySelectorAll(".app-tab").forEach((btn) => {
@@ -1077,10 +1256,111 @@
         loadPortfolioF3Themes();
         renderPortfolioTable();
       }
+      if (tab === "alerts") renderAlertsFeed();
     }
 
     document.querySelectorAll(".app-tab").forEach((btn) => {
       btn.addEventListener("click", () => setAppTab(btn.dataset.app));
+    });
+
+    function applyRbacTabs() {
+      const tabAdmin = document.getElementById("tab-admin");
+      if (!tabAdmin) return;
+      if (accountState.isAdmin) {
+        tabAdmin.removeAttribute("hidden");
+      } else {
+        tabAdmin.setAttribute("hidden", "");
+        if (appTab === "admin") setAppTab("iboard");
+      }
+    }
+
+    function renderAuthChrome() {
+      const gate = document.getElementById("welcome-gate");
+      const chip = document.getElementById("auth-chip");
+      const chipName = document.getElementById("auth-chip-name");
+      const btnLogin = document.getElementById("btn-header-login");
+      const welcomeLogin = document.getElementById("welcome-login");
+      const loginHref = accountState.loginUrl || "/";
+      if (welcomeLogin) welcomeLogin.setAttribute("href", loginHref);
+      if (btnLogin) {
+        btnLogin.onclick = () => { window.location.href = loginHref; };
+      }
+      if (accountState.authenticated) {
+        if (gate) gate.setAttribute("hidden", "");
+        if (btnLogin) btnLogin.setAttribute("hidden", "");
+        if (chip) chip.removeAttribute("hidden");
+        if (chipName) {
+          const u = accountState.user || {};
+          chipName.textContent = u.name || u.username || "user";
+          chipName.title = u.email || u.username || "";
+        }
+      } else {
+        if (chip) chip.setAttribute("hidden", "");
+        if (btnLogin) btnLogin.removeAttribute("hidden");
+        const guestSkip = localStorage.getItem(GUEST_SKIP_KEY) === "1";
+        if (gate) {
+          if (guestSkip) gate.setAttribute("hidden", "");
+          else gate.removeAttribute("hidden");
+        }
+      }
+      applyRbacTabs();
+    }
+
+    async function initAuthShell() {
+      try {
+        const meRes = await fetch("/api/account/me");
+        const meData = await meRes.json();
+        accountState.authenticated = meData.authenticated === true;
+        accountState.isAdmin = meData.is_admin === true;
+        accountState.loginUrl = meData.login_url || "/";
+        accountState.logoutUrl = meData.logout_url || "";
+        accountState.user = meData.user || null;
+        if (accountState.authenticated) {
+          localStorage.removeItem(GUEST_SKIP_KEY);
+        }
+      } catch {
+        accountState.authenticated = false;
+        accountState.isAdmin = false;
+      }
+      renderAuthChrome();
+    }
+
+    document.getElementById("welcome-continue")?.addEventListener("click", () => {
+      localStorage.setItem(GUEST_SKIP_KEY, "1");
+      document.getElementById("welcome-gate")?.setAttribute("hidden", "");
+    });
+    document.getElementById("btn-logout")?.addEventListener("click", () => {
+      const url = accountState.logoutUrl;
+      if (url) window.location.href = url;
+      else window.location.reload();
+    });
+
+    function renderAlertsFeed() {
+      const feed = document.getElementById("alerts-feed");
+      const empty = document.getElementById("alerts-empty");
+      if (!feed || !empty) return;
+      feed.innerHTML = "";
+      if (!streamAlerts.length) {
+        empty.style.display = "";
+        return;
+      }
+      empty.style.display = "none";
+      for (const msg of streamAlerts) {
+        const li = document.createElement("li");
+        const ts = msg.timestamp
+          ? new Date(Number(msg.timestamp) * (String(msg.timestamp).length > 12 ? 1 : 1000)).toLocaleTimeString("vi-VN", { hour12: false })
+          : "—";
+        li.innerHTML =
+          `<span class="sym">${String(msg.symbol || "").toUpperCase()}</span>` +
+          `<span class="meta">${String(msg.indicator || "")} · ${String(msg.message || "")} · ${ts}</span>` +
+          `<span class="score">${msg.score != null ? msg.score : ""}</span>`;
+        feed.appendChild(li);
+      }
+    }
+
+    document.getElementById("btn-alerts-clear")?.addEventListener("click", () => {
+      streamAlerts.length = 0;
+      renderAlertsFeed();
     });
 
     /* ===== Connection ===== */
@@ -3684,24 +3964,39 @@
     function connectStreamAlerts() {
       const proto = location.protocol === "https:" ? "wss:" : "ws:";
       const url = `${proto}//${location.host}/ws/stream/alerts`;
+      const statusEl = document.getElementById("alerts-ws-status");
       let alertsWs;
       let retry = 2000;
+      function setStatus(text) {
+        if (statusEl) statusEl.textContent = text;
+      }
       function open() {
-        try { alertsWs = new WebSocket(url); } catch (_) { return; }
-        alertsWs.onopen = () => { retry = 2000; };
+        try { alertsWs = new WebSocket(url); } catch (_) { setStatus("error"); return; }
+        alertsWs.onopen = () => {
+          retry = 2000;
+          setStatus("connected");
+        };
         alertsWs.onmessage = (ev) => {
           try {
             const msg = JSON.parse(ev.data);
+            if (msg && msg.type === "hello") {
+              setStatus("connected");
+              return;
+            }
             if (msg && msg.type === "alert") {
               console.info("[stream-alert]", msg.symbol, msg.indicator, msg.score, msg.message);
+              streamAlerts.unshift(msg);
+              if (streamAlerts.length > ALERTS_MAX) streamAlerts.length = ALERTS_MAX;
               const el = document.getElementById("scr-status");
               if (el) {
                 el.textContent = `Alert RT · ${msg.symbol} ${msg.indicator} · ${msg.score}`;
               }
+              if (appTab === "alerts") renderAlertsFeed();
             }
           } catch (_) {}
         };
         alertsWs.onclose = () => {
+          setStatus("reconnecting…");
           setTimeout(open, retry);
           retry = Math.min(retry * 1.5, 20000);
         };
@@ -3713,6 +4008,7 @@
     }
 
     (async () => {
+      await initAuthShell();
       await initPortfolioAuthSync();
       await fetchIndexSpark();
       renderIndexBar();
