@@ -200,12 +200,15 @@ def _require_authentik_user(request: Request) -> str:
 
 
 def _require_admin(request: Request) -> str:
-    """401 nếu chưa login; 403 nếu không thuộc admin_groups."""
+    """401 nếu chưa login; 403 nếu không thuộc admin_groups / superuser."""
     me = _resolve_request_me(request)
     if not me or not me.get("username"):
         raise HTTPException(status_code=401, detail="Authentik login required")
     cfg = load_account_config()
-    if not is_admin_user(list(me.get("groups") or []), cfg.get("admin_groups")):
+    admin = is_admin_user(list(me.get("groups") or []), cfg.get("admin_groups")) or bool(
+        me.get("is_superuser")
+    )
+    if not admin:
         raise HTTPException(status_code=403, detail="Admin role required")
     return str(me["username"])
 
@@ -233,7 +236,7 @@ def _account_payload(me: dict[str, Any] | None, cfg: dict[str, Any]) -> dict[str
             **auth_urls,
         }
     groups = list(me.get("groups") or [])
-    admin = is_admin_user(groups, cfg.get("admin_groups"))
+    admin = is_admin_user(groups, cfg.get("admin_groups")) or bool(me.get("is_superuser"))
     roles = roles_for_user(groups, is_admin=admin)
     return {
         "ok": True,
@@ -276,6 +279,7 @@ def _issue_desk_cookie(response: Response, profile: dict[str, Any]) -> dict[str,
         name=profile.get("name") or "",
         uid=profile.get("uid") or "",
         groups=list(profile.get("groups") or []),
+        is_superuser=bool(profile.get("is_superuser")),
     )
     secure = (os.getenv("DESK_SESSION_SECURE") or "1").strip() not in ("0", "false", "no")
     response.set_cookie(

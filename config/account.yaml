@@ -12,9 +12,12 @@ account:
   password_flow_url: "https://auth.atz.vn/if/flow/default-password-change/"
   mfa_flow_url: "https://auth.atz.vn/if/flow/default-authenticator-totp-setup/"
   # Group Authentik → quyền Admin Control Panel (client + API guard).
+  # Tên group trên auth.atz.vn hiện tại: Administrator / authentik Admins.
   admin_groups:
     - admin
     - atz-admins
+    - Administrator
+    - authentik Admins
   # DEV headless form (ROPC) — bật khi compose set DESK_SESSION_AUTH=1 + AUTHENTIK_* env.
   # Secrets chỉ trong env: AUTHENTIK_CLIENT_ID/SECRET, AUTHENTIK_TOKEN_URL, DESK_SESSION_SECRET.
   desk_session:

@@ -671,7 +671,7 @@
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      max-width: 160px;
+      max-width: 240px;
       height: 28px;
       padding: 0 8px;
       border: 1px solid #2a2a2a;
@@ -680,6 +680,21 @@
       color: #e5e5e5;
       font-size: 11px;
       font-weight: 600;
+    }
+    .auth-chip-role {
+      flex-shrink: 0;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: #a3a3a3;
+      border: 1px solid #2a2a2a;
+      padding: 1px 5px;
+      border-radius: 2px;
+    }
+    .auth-chip-role.is-admin {
+      color: #ffd900;
+      border-color: #5a4a00;
     }
     .auth-chip button {
       border: 0;
@@ -691,6 +706,62 @@
       text-decoration: underline;
     }
     .auth-chip button:hover { color: #ffd900; }
+    .account-dash {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 12px;
+      padding: 12px;
+      max-width: 960px;
+    }
+    .account-card {
+      border: 1px solid #2a2a2a;
+      background: #111;
+      padding: 14px;
+    }
+    .account-card h3 {
+      margin: 0 0 8px;
+      font-size: 12px;
+      font-weight: 700;
+      color: #ffd900;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .account-card p, .account-card li {
+      margin: 0 0 6px;
+      font-size: 12px;
+      color: #a3a3a3;
+      line-height: 1.45;
+    }
+    .account-card .val { color: #e5e5e5; font-weight: 600; }
+    .account-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .account-actions button,
+    .account-actions a.btn-link {
+      height: 28px;
+      padding: 0 10px;
+      border: 1px solid #3a3a3a;
+      border-radius: 3px;
+      background: #161616;
+      color: #e5e5e5;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+    }
+    .account-actions button.primary,
+    .account-actions a.btn-link.primary {
+      color: #0a0a0a;
+      background: #ffd900;
+      border-color: #ffd900;
+    }
+    .account-actions button:hover,
+    .account-actions a.btn-link:hover { border-color: #ffd900; }
     .auth-login-btn {
       height: 28px;
       padding: 0 10px;
@@ -980,6 +1051,7 @@
           <button type="button" class="app-tab" data-app="portfolio" data-atd-id="pb-ui:app.tab.portfolio" role="tab" aria-selected="false">Danh mục</button>
           <button type="button" class="app-tab" data-app="alerts" data-atd-id="pb-ui:app.tab.alerts" role="tab" aria-selected="false">Alerts</button>
           <button type="button" class="app-tab" data-app="news" data-atd-id="pb-ui:app.tab.news" role="tab" aria-selected="false">Tin tức / Nghiên cứu</button>
+          <button type="button" class="app-tab" data-app="account" id="tab-account" hidden data-atd-id="pb-ui:app.tab.account" role="tab" aria-selected="false">Tài khoản</button>
           <button type="button" class="app-tab" data-app="admin" id="tab-admin" hidden data-atd-id="pb-ui:app.tab.admin" role="tab" aria-selected="false">Admin</button>
         </nav>
       </div>
@@ -1007,6 +1079,7 @@
           <button type="button" class="auth-login-btn" id="btn-header-login" hidden>Đăng nhập</button>
           <div class="auth-chip" id="auth-chip" hidden>
             <span id="auth-chip-name" class="truncate"></span>
+            <span id="auth-chip-role" class="auth-chip-role" hidden></span>
             <button type="button" id="btn-logout" data-atd-id="pb-ui:auth.logout">Đăng xuất</button>
           </div>
         </div>
@@ -1201,10 +1274,46 @@
     <div id="alerts-empty" class="empty-hint">Chưa có alert — chờ tick RSI/MA/volume hoặc chạy mock_tick_generator.</div>
   </section>
 
+  <!-- ===== Panel: Tài khoản (User Dashboard — khi authenticated) ===== -->
+  <section id="panel-account" class="panel" data-panel="account" data-atd-id="pb-ui:account.panel" role="tabpanel" hidden>
+    <div class="panel-toolbar">
+      <span class="text-[12px] text-gray-400">User Dashboard · hồ sơ Desk Session · liên kết Authentik</span>
+    </div>
+    <div class="account-dash" data-atd-id="pb-ui:account.dash">
+      <div class="account-card">
+        <h3>Hồ sơ</h3>
+        <p>Tài khoản: <span class="val" id="acc-username">—</span></p>
+        <p>Tên: <span class="val" id="acc-name">—</span></p>
+        <p>Email: <span class="val" id="acc-email">—</span></p>
+        <p>Vai trò: <span class="val" id="acc-roles">—</span></p>
+        <p>Groups: <span class="val" id="acc-groups">—</span></p>
+        <p>Nguồn auth: <span class="val" id="acc-source">—</span></p>
+      </div>
+      <div class="account-card">
+        <h3>Không gian cá nhân</h3>
+        <p>Mở nhanh các tab đã gắn với tài khoản đăng nhập.</p>
+        <div class="account-actions">
+          <button type="button" class="primary" id="acc-goto-portfolio" data-atd-id="pb-ui:account.goto.portfolio">Danh mục</button>
+          <button type="button" id="acc-goto-alerts" data-atd-id="pb-ui:account.goto.alerts">Alerts</button>
+          <button type="button" id="acc-goto-admin" hidden data-atd-id="pb-ui:account.goto.admin">Admin Control Panel</button>
+        </div>
+      </div>
+      <div class="account-card">
+        <h3>Bảo mật Authentik</h3>
+        <p>Đổi mật khẩu / đăng ký TOTP trên auth.atz.vn (flow riêng, không lưu token trên SPA).</p>
+        <div class="account-actions">
+          <a class="btn-link" id="acc-password-link" href="#" target="_blank" rel="noopener" hidden data-atd-id="pb-ui:account.password">Đổi mật khẩu</a>
+          <a class="btn-link" id="acc-mfa-link" href="#" target="_blank" rel="noopener" hidden data-atd-id="pb-ui:account.mfa">Cài đặt MFA</a>
+          <button type="button" id="acc-logout" data-atd-id="pb-ui:account.logout">Đăng xuất</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- ===== Panel: Admin (RBAC — chỉ hiện khi is_admin) ===== -->
   <section id="panel-admin" class="panel" data-panel="admin" data-atd-id="pb-ui:admin.panel" role="tabpanel" hidden>
     <div class="panel-toolbar">
-      <span class="text-[12px] text-gray-400">Admin Control Panel · <code class="text-gray-300">/api/admin/control-plane</code> · overlay JSON (không sửa YAML trong image)</span>
+      <span class="text-[12px] text-gray-400">Parameter Control Panel · quant stream alerts + risk · hot-reload Redis · <code class="text-gray-300">/api/admin/control-plane</code></span>
     </div>
     <form id="admin-control-form" data-atd-id="pb-ui:admin.form" onsubmit="return false;">
       <div class="admin-form">
@@ -1312,7 +1421,7 @@
     const APP_TAB_KEY = "atz.app.tab";
     const PORTFOLIO_KEY = "atz.app.portfolio";
     const VALID_MARKETS = new Set(["HOSE", "VN30", "VN30F1M", "VN30F2M", "HNX", "UPCOM", "FOREIGN"]);
-    const VALID_APP_TABS = new Set(["iboard", "portfolio", "alerts", "news", "admin"]);
+    const VALID_APP_TABS = new Set(["iboard", "portfolio", "alerts", "news", "account", "admin"]);
     const GUEST_SKIP_KEY = "atz.auth.guest_skip";
     const ALERTS_MAX = 80;
 
@@ -1392,6 +1501,11 @@
       isAdmin: false,
       loginUrl: "/",
       logoutUrl: "",
+      passwordFlowUrl: "",
+      mfaFlowUrl: "",
+      authSource: null,
+      roles: [],
+      groups: [],
       user: null,
       deskSessionForm: false,
     };
@@ -1460,6 +1574,7 @@
     /* ===== App tabs (SPA) ===== */
     function setAppTab(tab) {
       if (!VALID_APP_TABS.has(tab)) tab = "iboard";
+      if (tab === "account" && !accountState.authenticated) tab = "iboard";
       if (tab === "admin" && !accountState.isAdmin) tab = "iboard";
       appTab = tab;
       localStorage.setItem(APP_TAB_KEY, tab);
@@ -1481,6 +1596,7 @@
         renderPortfolioTable();
       }
       if (tab === "alerts") renderAlertsFeed();
+      if (tab === "account" && accountState.authenticated) renderAccountDashboard();
       if (tab === "admin" && accountState.isAdmin) void loadAdminControlPlane();
     }
 
@@ -1489,13 +1605,21 @@
     });
 
     function applyRbacTabs() {
+      const tabAccount = document.getElementById("tab-account");
       const tabAdmin = document.getElementById("tab-admin");
-      if (!tabAdmin) return;
-      if (accountState.isAdmin) {
-        tabAdmin.removeAttribute("hidden");
-      } else {
-        tabAdmin.setAttribute("hidden", "");
-        if (appTab === "admin") setAppTab("iboard");
+      if (tabAccount) {
+        if (accountState.authenticated) tabAccount.removeAttribute("hidden");
+        else {
+          tabAccount.setAttribute("hidden", "");
+          if (appTab === "account") setAppTab("iboard");
+        }
+      }
+      if (tabAdmin) {
+        if (accountState.isAdmin) tabAdmin.removeAttribute("hidden");
+        else {
+          tabAdmin.setAttribute("hidden", "");
+          if (appTab === "admin") setAppTab("iboard");
+        }
       }
     }
 
@@ -1503,6 +1627,7 @@
       const gate = document.getElementById("welcome-gate");
       const chip = document.getElementById("auth-chip");
       const chipName = document.getElementById("auth-chip-name");
+      const chipRole = document.getElementById("auth-chip-role");
       const btnLogin = document.getElementById("btn-header-login");
       if (btnLogin) btnLogin.onclick = () => triggerSystemLogin();
       if (accountState.authenticated) {
@@ -1515,8 +1640,19 @@
           chipName.textContent = u.name || u.username || "user";
           chipName.title = u.email || u.username || "";
         }
+        if (chipRole) {
+          chipRole.hidden = false;
+          chipRole.textContent = accountState.isAdmin ? "admin" : "user";
+          chipRole.classList.toggle("is-admin", accountState.isAdmin);
+          chipRole.title = (accountState.roles || []).join(", ") || "";
+        }
       } else {
         if (chip) chip.setAttribute("hidden", "");
+        if (chipRole) {
+          chipRole.hidden = true;
+          chipRole.textContent = "";
+          chipRole.classList.remove("is-admin");
+        }
         if (btnLogin) btnLogin.removeAttribute("hidden");
         if (gate) {
           if (isGuestMode()) gate.setAttribute("hidden", "");
@@ -1532,6 +1668,7 @@
         }
       }
       applyRbacTabs();
+      if (accountState.authenticated) renderAccountDashboard();
     }
 
     function applyMePayload(meData) {
@@ -1539,12 +1676,67 @@
       accountState.isAdmin = meData.is_admin === true;
       accountState.loginUrl = meData.login_url || defaultOutpostLoginUrl();
       accountState.logoutUrl = meData.logout_url || "";
+      accountState.passwordFlowUrl = meData.password_flow_url || "";
+      accountState.mfaFlowUrl = meData.mfa_flow_url || "";
+      accountState.authSource = meData.auth_source || null;
+      accountState.roles = Array.isArray(meData.roles) ? meData.roles : [];
+      accountState.groups = Array.isArray(meData.groups) ? meData.groups : [];
       accountState.user = meData.user || null;
       accountState.deskSessionForm = meData.desk_session_form === true;
       if (accountState.authenticated) {
         setGuestMode(false);
         try { localStorage.removeItem(GUEST_SKIP_KEY); } catch (_) {}
       }
+    }
+
+    function renderAccountDashboard() {
+      const u = accountState.user || {};
+      const setText = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = val || "—";
+      };
+      setText("acc-username", u.username || "");
+      setText("acc-name", u.name || "");
+      setText("acc-email", u.email || "");
+      setText("acc-roles", (accountState.roles || []).join(", "));
+      setText("acc-groups", (accountState.groups || []).join(", "));
+      setText("acc-source", accountState.authSource || "");
+
+      const btnAdmin = document.getElementById("acc-goto-admin");
+      if (btnAdmin) {
+        if (accountState.isAdmin) btnAdmin.removeAttribute("hidden");
+        else btnAdmin.setAttribute("hidden", "");
+      }
+
+      const passLink = document.getElementById("acc-password-link");
+      if (passLink) {
+        const url = (accountState.passwordFlowUrl || "").trim();
+        if (url.startsWith("https://")) {
+          passLink.href = url;
+          passLink.removeAttribute("hidden");
+        } else {
+          passLink.setAttribute("hidden", "");
+        }
+      }
+      const mfaLink = document.getElementById("acc-mfa-link");
+      if (mfaLink) {
+        const url = (accountState.mfaFlowUrl || "").trim();
+        if (url.startsWith("https://")) {
+          mfaLink.href = url;
+          mfaLink.removeAttribute("hidden");
+        } else {
+          mfaLink.setAttribute("hidden", "");
+        }
+      }
+    }
+
+    async function deskLogout() {
+      try {
+        await fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" });
+      } catch (_) {}
+      const url = accountState.logoutUrl;
+      if (url) window.location.href = url;
+      else window.location.reload();
     }
 
     async function initAuthShell() {
@@ -1556,6 +1748,12 @@
         accountState.authenticated = false;
         accountState.isAdmin = false;
         accountState.loginUrl = defaultOutpostLoginUrl();
+        accountState.passwordFlowUrl = "";
+        accountState.mfaFlowUrl = "";
+        accountState.authSource = null;
+        accountState.roles = [];
+        accountState.groups = [];
+        accountState.user = null;
         accountState.deskSessionForm = false;
       }
       renderAuthChrome();
@@ -1593,6 +1791,8 @@
       deskMfaToken = "";
       showWelcomeMfaStep(false);
       renderAuthChrome();
+      if (accountState.isAdmin && appTab === "admin") void loadAdminControlPlane();
+      else if (appTab === "account") renderAccountDashboard();
       try { await initPortfolioAuthSync(); } catch (_) {}
     }
 
@@ -1672,14 +1872,11 @@
       setGuestMode(true);
       document.getElementById("welcome-gate")?.setAttribute("hidden", "");
     });
-    document.getElementById("btn-logout")?.addEventListener("click", async () => {
-      try {
-        await fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" });
-      } catch (_) {}
-      const url = accountState.logoutUrl;
-      if (url) window.location.href = url;
-      else window.location.reload();
-    });
+    document.getElementById("btn-logout")?.addEventListener("click", () => { void deskLogout(); });
+    document.getElementById("acc-logout")?.addEventListener("click", () => { void deskLogout(); });
+    document.getElementById("acc-goto-portfolio")?.addEventListener("click", () => setAppTab("portfolio"));
+    document.getElementById("acc-goto-alerts")?.addEventListener("click", () => setAppTab("alerts"));
+    document.getElementById("acc-goto-admin")?.addEventListener("click", () => setAppTab("admin"));
 
     function renderAlertsFeed() {
       const feed = document.getElementById("alerts-feed");
@@ -1734,7 +1931,7 @@
       if (!accountState.isAdmin) return;
       admSetStatus("Đang tải…");
       try {
-        const res = await fetch("/api/admin/control-plane");
+        const res = await fetch("/api/admin/control-plane", { credentials: "same-origin" });
         if (res.status === 401 || res.status === 403) {
           admSetStatus("Không đủ quyền admin", "err");
           return;
@@ -1797,6 +1994,7 @@
       try {
         const res = await fetch("/api/admin/control-plane", {
           method: "PUT",
+          credentials: "same-origin",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
         });

@@ -38,7 +38,10 @@ def test_load_repo_account_config():
     assert cfg["enabled"] is True
     assert cfg["login_url"].startswith("https://")
     assert cfg["logout_url"].startswith("https://")
-    assert "admin" in [g.lower() for g in cfg["admin_groups"]]
+    lowered = [g.lower() for g in cfg["admin_groups"]]
+    assert "admin" in lowered
+    assert "administrator" in lowered
+    assert "authentik admins" in lowered
 
 
 def test_load_account_config_tmp(tmp_path: Path):
@@ -102,6 +105,30 @@ def test_account_me_admin_group():
     assert data["is_admin"] is True
     assert "admin" in data["roles"]
     assert data["user"]["is_admin"] is True
+
+
+def test_account_me_authentik_administrator_group():
+    """Group tên Authentik ``Administrator`` map → is_admin qua account.yaml."""
+    assert is_admin_user(["Administrator"], ["admin", "Administrator", "authentik Admins"]) is True
+    client = TestClient(app)
+    res = client.get(
+        "/api/account/me",
+        headers={
+            "X-Authentik-Username": "atz-admin",
+            "X-Authentik-Groups": "authentik Admins|Administrator",
+        },
+    )
+    data = res.json()
+    assert data["authenticated"] is True
+    assert data["is_admin"] is True
+    assert "admin" in data["roles"]
+
+
+def test_is_admin_user_authentik_admin_aliases():
+    cfg_groups = ["admin", "atz-admins", "Administrator", "authentik Admins"]
+    assert is_admin_user(["Administrator"], cfg_groups) is True
+    assert is_admin_user(["authentik Admins"], cfg_groups) is True
+    assert is_admin_user(["members"], cfg_groups) is False
 
 
 def test_healthz_smoke():
