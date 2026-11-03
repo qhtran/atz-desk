@@ -1,9 +1,15 @@
-"""Authentik OIDC Resource Owner Password Credentials (ROPC) — DEV only."""
+"""Authentik headless login for Desk Session — DEV only.
+
+Authentik 2026+ maps OAuth ``grant_type=password`` to **App Password tokens**,
+not the user's account password. Desk Welcome Gate therefore authenticates via
+the Flow Executor API (identification + password stage, no MFA flow).
+"""
 
 from __future__ import annotations
 
 import os
 from typing import Any
+from urllib.parse import urljoin, urlsplit, urlunsplit
 
 import requests
 
@@ -13,108 +19,239 @@ class RopcConfigError(RuntimeError):
 
 
 class RopcAuthError(RuntimeError):
-    """Sai credentials hoặc Authentik từ chối grant."""
+    """Sai credentials hoặc Authentik từ chối đăng nhập."""
 
 
-def ropc_configured() -> bool:
-    return bool(
-        (os.getenv("AUTHENTIK_TOKEN_URL") or "").strip()
-        and (os.getenv("AUTHENTIK_CLIENT_ID") or "").strip()
-        and (os.getenv("AUTHENTIK_CLIENT_SECRET") or "").strip()
-    )
+_DEFAULT_FLOW_SLUG = "desk-ropc-authentication"
+_MAX_FLOW_STEPS = 8
 
 
-def _token_url() -> str:
-    url = (os.getenv("AUTHENTIK_TOKEN_URL") or "").strip()
+def _require_https(raw: str, *, name: str) -> str:
+    url = (raw or "").strip()
     if not url.startswith("https://"):
-        raise RopcConfigError("AUTHENTIK_TOKEN_URL must be https://…")
+        raise RopcConfigError(f"{name} must be https://…")
     return url
 
 
-def _userinfo_url() -> str:
-    url = (os.getenv("AUTHENTIK_USERINFO_URL") or "").strip()
-    if url:
-        if not url.startswith("https://"):
-            raise RopcConfigError("AUTHENTIK_USERINFO_URL must be https://…")
-        return url
-    # mặc định: cùng issuer path /application/o/userinfo/
-    token = _token_url()
-    if token.endswith("/token/"):
-        return token[: -len("/token/")] + "/userinfo/"
-    if token.endswith("/token"):
-        return token[: -len("/token")] + "/userinfo"
-    raise RopcConfigError("Set AUTHENTIK_USERINFO_URL explicitly")
+def _flow_executor_url() -> str:
+    explicit = (os.getenv("AUTHENTIK_FLOW_URL") or "").strip()
+    if explicit:
+        url = _require_https(explicit, name="AUTHENTIK_FLOW_URL")
+        return url if url.endswith("/") else url + "/"
+
+    base = (os.getenv("AUTHENTIK_BASE_URL") or "").strip().rstrip("/")
+    if not base:
+        # Derive host from legacy TOKEN_URL if present
+        token = (os.getenv("AUTHENTIK_TOKEN_URL") or "").strip()
+        if token.startswith("https://"):
+            parts = urlsplit(token)
+            base = urlunsplit((parts.scheme, parts.netloc, "", "", ""))
+    if not base.startswith("https://"):
+        raise RopcConfigError(
+            "Set AUTHENTIK_FLOW_URL (preferred) or AUTHENTIK_BASE_URL / AUTHENTIK_TOKEN_URL"
+        )
+    slug = (os.getenv("AUTHENTIK_AUTH_FLOW_SLUG") or _DEFAULT_FLOW_SLUG).strip().strip("/")
+    return f"{base}/api/v3/flows/executor/{slug}/"
+
+
+def _users_me_url(flow_url: str) -> str:
+    explicit = (os.getenv("AUTHENTIK_USERS_ME_URL") or "").strip()
+    if explicit:
+        return _require_https(explicit, name="AUTHENTIK_USERS_ME_URL").rstrip("/")
+    parts = urlsplit(flow_url)
+    return urlunsplit((parts.scheme, parts.netloc, "/api/v3/core/users/me/", "", ""))
+
+
+def ropc_configured() -> bool:
+    """True khi có đủ thông tin để gọi Flow Executor (không cần client secret)."""
+    if (os.getenv("AUTHENTIK_FLOW_URL") or "").strip().startswith("https://"):
+        return True
+    if (os.getenv("AUTHENTIK_BASE_URL") or "").strip().startswith("https://"):
+        return True
+    token = (os.getenv("AUTHENTIK_TOKEN_URL") or "").strip()
+    return token.startswith("https://")
+
+
+def _json_or_empty(resp: requests.Response) -> dict[str, Any]:
+    try:
+        data = resp.json()
+    except ValueError:
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _stage_errors(payload: dict[str, Any]) -> str:
+    errs = payload.get("response_errors")
+    if not isinstance(errs, dict) or not errs:
+        return ""
+    parts: list[str] = []
+    for key, items in errs.items():
+        if not isinstance(items, list):
+            continue
+        for item in items:
+            if isinstance(item, dict) and item.get("string"):
+                parts.append(f"{key}: {item.get('string')}")
+            else:
+                parts.append(f"{key}: {item}")
+    return "; ".join(parts)
+
+
+def _normalize_groups(raw: Any) -> list[str]:
+    if isinstance(raw, str):
+        return [g.strip() for g in raw.replace("|", ",").split(",") if g.strip()]
+    if not isinstance(raw, list):
+        return []
+    out: list[str] = []
+    for item in raw:
+        if isinstance(item, str) and item.strip():
+            out.append(item.strip())
+        elif isinstance(item, dict):
+            name = item.get("name") or item.get("group") or item.get("pk")
+            if name is not None and str(name).strip():
+                out.append(str(name).strip())
+    return out
+
+
+def _post_flow(
+    session: requests.Session,
+    flow_url: str,
+    body: dict[str, Any],
+    *,
+    timeout: float,
+) -> dict[str, Any]:
+    try:
+        resp = session.post(
+            flow_url,
+            json=body,
+            headers={"Accept": "application/json"},
+            timeout=timeout,
+            allow_redirects=False,
+        )
+    except requests.RequestException as exc:
+        raise RopcAuthError(f"flow endpoint unreachable: {exc}") from exc
+
+    # Authentik advances stages with 302 → same executor URL
+    redirects = 0
+    while resp.status_code in (301, 302, 303, 307, 308) and redirects < 5:
+        loc = resp.headers.get("Location") or flow_url
+        next_url = urljoin(flow_url, loc)
+        try:
+            resp = session.get(
+                next_url,
+                headers={"Accept": "application/json"},
+                timeout=timeout,
+                allow_redirects=False,
+            )
+        except requests.RequestException as exc:
+            raise RopcAuthError(f"flow redirect unreachable: {exc}") from exc
+        redirects += 1
+
+    if resp.status_code >= 400:
+        raise RopcAuthError(f"flow HTTP {resp.status_code}")
+    return _json_or_empty(resp)
 
 
 def password_grant(username: str, password: str, *, timeout: float = 12.0) -> dict[str, Any]:
-    """Đổi username/password → profile (username, email, name, uid, groups)."""
+    """Đổi username/password → profile qua Authentik Flow Executor."""
     if not ropc_configured():
-        raise RopcConfigError("Authentik ROPC env not configured")
+        raise RopcConfigError("Authentik flow env not configured")
     user = str(username or "").strip()
     if not user or not password:
         raise RopcAuthError("username/password required")
 
-    data = {
-        "grant_type": "password",
-        "username": user,
-        "password": password,
-        "client_id": os.environ["AUTHENTIK_CLIENT_ID"].strip(),
-        "client_secret": os.environ["AUTHENTIK_CLIENT_SECRET"].strip(),
-        "scope": (os.getenv("AUTHENTIK_SCOPE") or "openid profile email").strip(),
-    }
+    flow_url = _flow_executor_url()
+    me_url = _users_me_url(flow_url)
+    session = requests.Session()
+
     try:
-        resp = requests.post(
-            _token_url(),
-            data=data,
+        boot = session.get(
+            flow_url,
             headers={"Accept": "application/json"},
             timeout=timeout,
         )
     except requests.RequestException as exc:
-        raise RopcAuthError(f"token endpoint unreachable: {exc}") from exc
+        raise RopcAuthError(f"flow endpoint unreachable: {exc}") from exc
+    if boot.status_code >= 400:
+        raise RopcAuthError(f"flow HTTP {boot.status_code}")
 
-    if resp.status_code in (400, 401):
-        raise RopcAuthError("invalid credentials")
-    if resp.status_code >= 400:
-        raise RopcAuthError(f"token endpoint HTTP {resp.status_code}")
+    payload = _json_or_empty(boot)
+    submitted_password = False
+
+    for _ in range(_MAX_FLOW_STEPS):
+        component = str(payload.get("component") or "")
+        err = _stage_errors(payload)
+        if err and component in {
+            "ak-stage-identification",
+            "ak-stage-password",
+            "ak-stage-authenticator-validate",
+        }:
+            raise RopcAuthError("invalid credentials", err)
+
+        if component in {"xak-flow-redirect", "ak-stage-redirect"}:
+            break
+
+        if component == "ak-stage-identification":
+            if submitted_password:
+                raise RopcAuthError("invalid credentials", err or "identification rejected")
+            payload = _post_flow(
+                session,
+                flow_url,
+                {
+                    "component": "ak-stage-identification",
+                    "uid_field": user,
+                    "password": password,
+                },
+                timeout=timeout,
+            )
+            submitted_password = True
+            continue
+
+        if component == "ak-stage-password":
+            payload = _post_flow(
+                session,
+                flow_url,
+                {"component": "ak-stage-password", "password": password},
+                timeout=timeout,
+            )
+            submitted_password = True
+            continue
+
+        if component == "ak-stage-user-login":
+            body: dict[str, Any] = {"component": "ak-stage-user-login", "remember_me": False}
+            payload = _post_flow(session, flow_url, body, timeout=timeout)
+            continue
+
+        if component == "ak-stage-authenticator-validate":
+            raise RopcAuthError(
+                "invalid credentials",
+                "MFA required — Desk flow must skip authenticator validation",
+            )
+
+        if not component:
+            break
+        raise RopcAuthError(f"unexpected flow stage: {component}")
 
     try:
-        token_payload = resp.json()
-    except ValueError as exc:
-        raise RopcAuthError("token endpoint returned non-JSON") from exc
-
-    access = token_payload.get("access_token")
-    if not access:
-        raise RopcAuthError("no access_token in response")
-
-    try:
-        ui = requests.get(
-            _userinfo_url(),
-            headers={"Authorization": f"Bearer {access}", "Accept": "application/json"},
+        me_resp = session.get(
+            me_url,
+            headers={"Accept": "application/json"},
             timeout=timeout,
         )
     except requests.RequestException as exc:
-        raise RopcAuthError(f"userinfo unreachable: {exc}") from exc
+        raise RopcAuthError(f"users/me unreachable: {exc}") from exc
+    if me_resp.status_code >= 400:
+        raise RopcAuthError("invalid credentials", f"users/me HTTP {me_resp.status_code}")
 
-    if ui.status_code >= 400:
-        raise RopcAuthError(f"userinfo HTTP {ui.status_code}")
-    try:
-        info = ui.json()
-    except ValueError as exc:
-        raise RopcAuthError("userinfo returned non-JSON") from exc
+    me_body = _json_or_empty(me_resp)
+    info = me_body.get("user") if isinstance(me_body.get("user"), dict) else me_body
+    if not isinstance(info, dict) or not info.get("username"):
+        raise RopcAuthError("invalid credentials", "no authenticated user")
 
-    preferred = str(info.get("preferred_username") or info.get("nickname") or user).strip()
-    groups_raw = info.get("groups") or info.get("ak_groups") or []
-    if isinstance(groups_raw, str):
-        groups = [g.strip() for g in groups_raw.replace("|", ",").split(",") if g.strip()]
-    elif isinstance(groups_raw, list):
-        groups = [str(g).strip() for g in groups_raw if str(g).strip()]
-    else:
-        groups = []
-
+    preferred = str(info.get("username") or user).strip()
     return {
         "username": preferred or user,
         "email": str(info.get("email") or ""),
-        "name": str(info.get("name") or info.get("given_name") or preferred or user),
-        "uid": str(info.get("sub") or ""),
-        "groups": groups,
+        "name": str(info.get("name") or preferred or user),
+        "uid": str(info.get("uid") or info.get("pk") or ""),
+        "groups": _normalize_groups(info.get("groups")),
     }
