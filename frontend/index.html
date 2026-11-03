@@ -710,64 +710,99 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      background:
-        radial-gradient(ellipse at 20% 0%, rgba(255, 217, 0, 0.08), transparent 45%),
-        linear-gradient(160deg, #0a0a0a 0%, #121212 55%, #0a0a0a 100%);
+      background: rgba(10, 10, 10, 0.88);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
     }
     .welcome-gate[hidden] { display: none !important; }
     .welcome-card {
-      width: min(420px, 92vw);
-      padding: 28px 24px;
-      border: 1px solid #2a2a2a;
-      background: rgba(10, 10, 10, 0.92);
+      width: min(440px, 92vw);
+      padding: 32px 28px 24px;
+      border: 1px solid rgba(255, 217, 0, 0.22);
+      border-radius: 16px;
+      background: rgba(17, 17, 17, 0.82);
+      box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55);
       text-align: center;
     }
-    .welcome-card h1 {
-      margin: 0 0 8px;
+    .welcome-card .brand-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+    .welcome-card .brand-mark {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 217, 0, 0.35);
+      background: rgba(255, 217, 0, 0.08);
+      color: #ffd900;
+      font-size: 18px;
+      font-weight: 800;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .welcome-card .brand-name {
       font-size: 22px;
-      font-weight: 700;
+      font-weight: 800;
       letter-spacing: -0.03em;
       color: #fff;
     }
-    .welcome-card .brand {
-      color: #ffd900;
-      font-size: 12px;
-      font-weight: 700;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      margin-bottom: 12px;
+    .welcome-card .brand-name span { color: #ffd900; }
+    .welcome-card h1 {
+      margin: 0 0 8px;
+      font-size: 18px;
+      font-weight: 650;
+      letter-spacing: -0.02em;
+      color: #fff;
     }
     .welcome-card p {
-      margin: 0 0 18px;
+      margin: 0 0 22px;
       color: #a3a3a3;
       font-size: 13px;
-      line-height: 1.45;
+      line-height: 1.5;
     }
     .welcome-card .cta {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      min-width: 160px;
-      height: 36px;
+      gap: 8px;
+      width: 100%;
+      height: 42px;
       padding: 0 16px;
       border: 1px solid #ffd900;
+      border-radius: 12px;
       background: #ffd900;
       color: #0a0a0a;
       font-size: 13px;
       font-weight: 700;
       text-decoration: none;
       cursor: pointer;
+      box-shadow: 0 10px 28px rgba(255, 217, 0, 0.18);
     }
     .welcome-card .cta:hover { filter: brightness(1.05); }
     .welcome-card .ghost {
-      display: block;
-      margin-top: 12px;
-      border: 0;
-      background: transparent;
-      color: #737373;
-      font-size: 11px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 38px;
+      margin-top: 10px;
+      border: 1px solid #2a2a2a;
+      border-radius: 12px;
+      background: #161616;
+      color: #c4c4c4;
+      font-size: 12px;
+      font-weight: 600;
       cursor: pointer;
-      text-decoration: underline;
+    }
+    .welcome-card .ghost:hover { border-color: #3a3a3a; color: #fff; }
+    .welcome-card .footnote {
+      margin: 18px 0 0;
+      color: #525252;
+      font-size: 11px;
     }
     .alerts-feed {
       list-style: none;
@@ -856,13 +891,17 @@
   </style>
 </head>
 <body class="bg-[#0a0a0a] font-sans text-[13px] antialiased tracking-tight leading-tight">
-  <div id="welcome-gate" class="welcome-gate" hidden data-atd-id="pb-ui:auth.welcome">
+  <div id="welcome-gate" class="welcome-gate" hidden data-atd-id="pb-ui:auth.welcome" role="dialog" aria-modal="true" aria-labelledby="welcome-title">
     <div class="welcome-card">
-      <div class="brand">ATZ Desk</div>
-      <h1>Realtime trading desk</h1>
-      <p>Đăng nhập qua Authentik để mở iBoard, danh mục cá nhân và cảnh báo realtime. Không lưu token trên trình duyệt.</p>
-      <a id="welcome-login" class="cta" href="/" data-atd-id="pb-ui:auth.login">Đăng nhập</a>
-      <button type="button" class="ghost" id="welcome-continue" data-atd-id="pb-ui:auth.continue">Tiếp tục xem bảng (guest)</button>
+      <div class="brand-row">
+        <div class="brand-mark" aria-hidden="true">A</div>
+        <div class="brand-name">atz<span>.vn</span></div>
+      </div>
+      <h1 id="welcome-title">Nền tảng Giao dịch &amp; Định lượng</h1>
+      <p>Truy cập iBoard realtime, danh mục và alerts. Đăng nhập qua Authentik (OIDC Outpost) — SPA không lưu token trên trình duyệt.</p>
+      <button type="button" id="welcome-login" class="cta" data-atd-id="pb-ui:auth.login">Đăng nhập qua Hệ thống</button>
+      <button type="button" class="ghost" id="welcome-continue" data-atd-id="pb-ui:auth.continue">Chế độ Khách / Trải nghiệm nhanh</button>
+      <p class="footnote">Protected by Authentik · dev.atz.vn only</p>
     </div>
   </div>
   <header class="border-b border-[#2a2a2a] bg-[#0a0a0a]">
@@ -1209,6 +1248,37 @@
     const VALID_APP_TABS = new Set(["iboard", "portfolio", "alerts", "news", "admin"]);
     const GUEST_SKIP_KEY = "atz.auth.guest_skip";
     const ALERTS_MAX = 80;
+
+    function defaultOutpostLoginUrl() {
+      return "/outpost.goauthentik.io/start?rd=" + encodeURIComponent(location.origin + "/");
+    }
+
+    function resolveLoginUrl() {
+      const u = (accountState.loginUrl || "").trim();
+      if (u.startsWith("https://") || u.startsWith("/")) return u;
+      return defaultOutpostLoginUrl();
+    }
+
+    function triggerSystemLogin() {
+      window.location.href = resolveLoginUrl();
+    }
+
+    function isGuestMode() {
+      try {
+        return sessionStorage.getItem(GUEST_SKIP_KEY) === "1";
+      } catch {
+        return false;
+      }
+    }
+
+    function setGuestMode(on) {
+      try {
+        if (on) sessionStorage.setItem(GUEST_SKIP_KEY, "1");
+        else sessionStorage.removeItem(GUEST_SKIP_KEY);
+      } catch {
+        /* private mode */
+      }
+    }
     const TRADING_SESSIONS = [["09:00", "11:30"], ["13:00", "15:00"]];
     function vnNowParts() {
       const s = new Date().toLocaleString("en-GB", { timeZone: "Asia/Ho_Chi_Minh", hour12: false });
@@ -1366,13 +1436,9 @@
       const chip = document.getElementById("auth-chip");
       const chipName = document.getElementById("auth-chip-name");
       const btnLogin = document.getElementById("btn-header-login");
-      const welcomeLogin = document.getElementById("welcome-login");
-      const loginHref = accountState.loginUrl || "/";
-      if (welcomeLogin) welcomeLogin.setAttribute("href", loginHref);
-      if (btnLogin) {
-        btnLogin.onclick = () => { window.location.href = loginHref; };
-      }
+      if (btnLogin) btnLogin.onclick = () => triggerSystemLogin();
       if (accountState.authenticated) {
+        setGuestMode(false);
         if (gate) gate.setAttribute("hidden", "");
         if (btnLogin) btnLogin.setAttribute("hidden", "");
         if (chip) chip.removeAttribute("hidden");
@@ -1384,9 +1450,8 @@
       } else {
         if (chip) chip.setAttribute("hidden", "");
         if (btnLogin) btnLogin.removeAttribute("hidden");
-        const guestSkip = localStorage.getItem(GUEST_SKIP_KEY) === "1";
         if (gate) {
-          if (guestSkip) gate.setAttribute("hidden", "");
+          if (isGuestMode()) gate.setAttribute("hidden", "");
           else gate.removeAttribute("hidden");
         }
       }
@@ -1399,21 +1464,21 @@
         const meData = await meRes.json();
         accountState.authenticated = meData.authenticated === true;
         accountState.isAdmin = meData.is_admin === true;
-        accountState.loginUrl = meData.login_url || "/";
+        accountState.loginUrl = meData.login_url || defaultOutpostLoginUrl();
         accountState.logoutUrl = meData.logout_url || "";
         accountState.user = meData.user || null;
-        if (accountState.authenticated) {
-          localStorage.removeItem(GUEST_SKIP_KEY);
-        }
+        if (accountState.authenticated) setGuestMode(false);
       } catch {
         accountState.authenticated = false;
         accountState.isAdmin = false;
+        accountState.loginUrl = defaultOutpostLoginUrl();
       }
       renderAuthChrome();
     }
 
+    document.getElementById("welcome-login")?.addEventListener("click", () => triggerSystemLogin());
     document.getElementById("welcome-continue")?.addEventListener("click", () => {
-      localStorage.setItem(GUEST_SKIP_KEY, "1");
+      setGuestMode(true);
       document.getElementById("welcome-gate")?.setAttribute("hidden", "");
     });
     document.getElementById("btn-logout")?.addEventListener("click", () => {
