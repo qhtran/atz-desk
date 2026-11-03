@@ -1468,6 +1468,7 @@
         accountState.logoutUrl = meData.logout_url || "";
         accountState.user = meData.user || null;
         if (accountState.authenticated) setGuestMode(false);
+        try { localStorage.removeItem(GUEST_SKIP_KEY); } catch (_) {}
       } catch {
         accountState.authenticated = false;
         accountState.isAdmin = false;
