@@ -57,11 +57,11 @@ Option B — /ws/stream/alerts + mock_tick_generator smoke Pass
 ## Last executor
 
 ```text
-task: T-p3-p4-cutover-close
-result: Pass — P3 verify-only; P4 script+profile+stop UI vnstocks; NOW milestone
+task: T-option-b-rt-quant (verify sau pull main)
+result: Pass — dev-local deploy + force-recreate api; smoke WS RSI_OVERSOLD
 status: idle
-pytest: n/a (docs/ops)
-master_ack: pending
+pytest: Pass (3) trong CI/dev; host VPS thiếu numpy
+master_ack: pending (archive packet)
 ```
 
 Khi ack: Doing về trống; chuyển packet sang `docs/agents/archive/tasks/`. Không chép brief vào file này.
