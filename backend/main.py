@@ -24,6 +24,7 @@ from backend.core.logging_middleware import TraceMiddleware
 from backend.debug_ui import public_debug_ui_config
 from backend.portfolio_alerts import position_alert
 from backend.account_config import load_account_config
+from backend.admin_config_store import get_control_plane, put_control_plane
 from backend.identity import is_admin_user, me_from_headers, roles_for_user
 from backend.portfolio_f3 import batch_f3_alerts, load_f3_sector_themes
 from backend.portfolio_quotes import normalize_symbols, resolve_portfolio_quotes
@@ -183,6 +184,41 @@ def _require_authentik_user(request: Request) -> str:
     if not me or not me.get("username"):
         raise HTTPException(status_code=401, detail="Authentik login required")
     return str(me["username"])
+
+
+def _require_admin(request: Request) -> str:
+    """401 nếu chưa login; 403 nếu không thuộc admin_groups."""
+    me = me_from_headers(request.headers)
+    if not me or not me.get("username"):
+        raise HTTPException(status_code=401, detail="Authentik login required")
+    cfg = load_account_config()
+    if not is_admin_user(list(me.get("groups") or []), cfg.get("admin_groups")):
+        raise HTTPException(status_code=403, detail="Admin role required")
+    return str(me["username"])
+
+
+class AdminControlPlaneBody(BaseModel):
+    stream_alerts: dict[str, Any] | None = None
+    risk: dict[str, Any] | None = None
+
+
+@app.get("/api/admin/control-plane")
+async def admin_get_control_plane(request: Request) -> dict:
+    """Xem cấu hình stream alerts + risk placeholders (admin only)."""
+    _require_admin(request)
+    return get_control_plane()
+
+
+@app.put("/api/admin/control-plane")
+async def admin_put_control_plane(request: Request, body: AdminControlPlaneBody) -> dict:
+    """Cập nhật overlay JSON + hot-reload QuantStreamListener (admin only)."""
+    _require_admin(request)
+    try:
+        result = put_control_plane(body.model_dump(exclude_none=False))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    stream_listener.apply_config(result.get("stream_alerts") or {})
+    return result
 
 
 @app.get("/api/account/me")

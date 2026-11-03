@@ -47,12 +47,22 @@ def load_stream_alerts_config(path: Path | None = None) -> dict[str, Any]:
     return raw if isinstance(raw, dict) else {}
 
 
+def load_effective_stream_alerts_config() -> dict[str, Any]:
+    """YAML base + admin JSON overlay (nếu có)."""
+    try:
+        from backend.admin_config_store import effective_stream_config
+
+        return effective_stream_config()
+    except Exception:
+        return load_stream_alerts_config()
+
+
 class QuantStreamListener:
     """Subscribe ticks (SSI live or mock); evaluate in thread pool; broadcast alerts."""
 
     def __init__(self, alert_manager: ConnectionManager, cfg: dict[str, Any] | None = None) -> None:
         self._alerts = alert_manager
-        self._cfg = cfg or load_stream_alerts_config()
+        self._cfg = cfg or load_effective_stream_alerts_config()
         self._store = TickRingStore(int(self._cfg.get("ring_size", 80)))
         self._task: asyncio.Task | None = None
         self._eval_task: asyncio.Task | None = None
@@ -60,6 +70,19 @@ class QuantStreamListener:
         self._dirty: set[str] = set()
         self._lock = asyncio.Lock()
         self._cooldown: dict[tuple[str, str], float] = {}
+
+    def apply_config(self, cfg: dict[str, Any]) -> None:
+        """Hot-reload thresholds từ Admin Control Panel (không restart process)."""
+        if not isinstance(cfg, dict) or not cfg:
+            return
+        self._cfg = cfg
+        log(
+            COMPONENT,
+            "STREAM-CFG",
+            "stream alerts config applied",
+            cooldown_sec=cfg.get("cooldown_sec"),
+            rsi=cfg.get("rsi"),
+        )
 
     def start(self) -> None:
         if not bool(self._cfg.get("enabled", True)):

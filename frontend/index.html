@@ -787,6 +787,72 @@
     .alerts-feed .sym { color: #ffd900; font-weight: 700; }
     .alerts-feed .meta { color: #a3a3a3; }
     .alerts-feed .score { color: #e5e5e5; font-variant-numeric: tabular-nums; }
+    .admin-form {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 12px;
+      padding: 12px;
+      max-width: 1100px;
+    }
+    .admin-card {
+      border: 1px solid #2a2a2a;
+      background: #111;
+      padding: 12px;
+    }
+    .admin-card h3 {
+      margin: 0 0 10px;
+      font-size: 12px;
+      font-weight: 700;
+      color: #ffd900;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .admin-field {
+      display: grid;
+      grid-template-columns: 1fr 96px;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+      font-size: 11px;
+      color: #a3a3a3;
+    }
+    .admin-field input[type="number"],
+    .admin-field input[type="text"] {
+      height: 28px;
+      width: 100%;
+      border: 1px solid #2a2a2a;
+      border-radius: 3px;
+      background: #0a0a0a;
+      color: #e5e5e5;
+      padding: 0 8px;
+      font-size: 12px;
+    }
+    .admin-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+      padding: 0 12px 12px;
+    }
+    .admin-actions button {
+      height: 30px;
+      padding: 0 12px;
+      border: 1px solid #3a3a3a;
+      border-radius: 3px;
+      background: #161616;
+      color: #e5e5e5;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .admin-actions button.primary {
+      border-color: #ffd900;
+      background: #ffd900;
+      color: #0a0a0a;
+    }
+    .admin-status { font-size: 11px; color: #737373; }
+    .admin-status.is-ok { color: #4ade80; }
+    .admin-status.is-err { color: #f87171; }
   </style>
 </head>
 <body class="bg-[#0a0a0a] font-sans text-[13px] antialiased tracking-tight leading-tight">
@@ -1032,20 +1098,40 @@
   <!-- ===== Panel: Admin (RBAC — chỉ hiện khi is_admin) ===== -->
   <section id="panel-admin" class="panel" data-panel="admin" data-atd-id="pb-ui:admin.panel" role="tabpanel" hidden>
     <div class="panel-toolbar">
-      <span class="text-[12px] text-gray-400">Admin Control Panel — placeholder B1/B2 (form cấu hình Risk/YAML ở B3)</span>
+      <span class="text-[12px] text-gray-400">Admin Control Panel · <code class="text-gray-300">/api/admin/control-plane</code> · overlay JSON (không sửa YAML trong image)</span>
     </div>
-    <div class="news-grid" style="padding:12px">
-      <article class="news-card">
-        <h3>Quyền admin</h3>
-        <p>Tab này chỉ hiện khi <code class="text-gray-300">/api/account/me</code> trả <code class="text-gray-300">is_admin: true</code> (group Authentik trong <code class="text-gray-300">config/account.yaml</code> → <code class="text-gray-300">admin_groups</code>).</p>
-        <span class="tag">RBAC</span>
-      </article>
-      <article class="news-card">
-        <h3>Sắp tới (B3)</h3>
-        <p>Chỉnh RSI / volume spike / cooldown stream alerts và risk placeholders qua FastAPI.</p>
-        <span class="tag">Control plane</span>
-      </article>
-    </div>
+    <form id="admin-control-form" data-atd-id="pb-ui:admin.form" onsubmit="return false;">
+      <div class="admin-form">
+        <div class="admin-card">
+          <h3>Stream alerts · RSI</h3>
+          <label class="admin-field">Length <input id="adm-rsi-length" type="number" min="2" max="100" step="1" /></label>
+          <label class="admin-field">Oversold <input id="adm-rsi-oversold" type="number" min="0" max="100" step="0.1" /></label>
+          <label class="admin-field">Overbought <input id="adm-rsi-overbought" type="number" min="0" max="100" step="0.1" /></label>
+        </div>
+        <div class="admin-card">
+          <h3>MA / Volume / Cooldown</h3>
+          <label class="admin-field">MA fast <input id="adm-ma-fast" type="number" min="1" max="200" step="1" /></label>
+          <label class="admin-field">MA slow <input id="adm-ma-slow" type="number" min="2" max="400" step="1" /></label>
+          <label class="admin-field">Vol lookback <input id="adm-vol-lookback" type="number" min="2" max="200" step="1" /></label>
+          <label class="admin-field">Vol mult <input id="adm-vol-mult" type="number" min="0.5" max="20" step="0.1" /></label>
+          <label class="admin-field">Cooldown (s) <input id="adm-cooldown" type="number" min="0" max="86400" step="1" /></label>
+          <label class="admin-field">Eval interval (ms) <input id="adm-eval-ms" type="number" min="500" max="60000" step="100" /></label>
+        </div>
+        <div class="admin-card">
+          <h3>Risk placeholders</h3>
+          <label class="admin-field">Stop loss % <input id="adm-sl" type="number" min="0" max="100" step="0.1" placeholder="null" /></label>
+          <label class="admin-field">Take profit % <input id="adm-tp" type="number" min="0" max="100" step="0.1" placeholder="null" /></label>
+          <label class="admin-field">Max portfolio risk % <input id="adm-mpr" type="number" min="0" max="100" step="0.1" placeholder="null" /></label>
+          <label class="admin-field">Default equity % <input id="adm-eq" type="number" min="0" max="100" step="0.1" placeholder="null" /></label>
+          <label class="admin-field">Max positions <input id="adm-maxpos" type="number" min="1" max="500" step="1" placeholder="null" /></label>
+        </div>
+      </div>
+      <div class="admin-actions">
+        <button type="button" class="primary" id="adm-save" data-atd-id="pb-ui:admin.save">Lưu cấu hình</button>
+        <button type="button" id="adm-reload" data-atd-id="pb-ui:admin.reload">Tải lại</button>
+        <span id="adm-status" class="admin-status" role="status"></span>
+      </div>
+    </form>
   </section>
 
   <!-- ===== Panel: News ===== -->
@@ -1257,6 +1343,7 @@
         renderPortfolioTable();
       }
       if (tab === "alerts") renderAlertsFeed();
+      if (tab === "admin" && accountState.isAdmin) void loadAdminControlPlane();
     }
 
     document.querySelectorAll(".app-tab").forEach((btn) => {
@@ -1362,6 +1449,112 @@
       streamAlerts.length = 0;
       renderAlertsFeed();
     });
+
+    function admSetStatus(text, kind) {
+      const el = document.getElementById("adm-status");
+      if (!el) return;
+      el.textContent = text || "";
+      el.classList.toggle("is-ok", kind === "ok");
+      el.classList.toggle("is-err", kind === "err");
+    }
+
+    function admFill(id, value) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.value = value == null || value === "" ? "" : String(value);
+    }
+
+    function admNum(id) {
+      const el = document.getElementById(id);
+      if (!el || el.value === "") return null;
+      const n = Number(el.value);
+      return Number.isFinite(n) ? n : null;
+    }
+
+    async function loadAdminControlPlane() {
+      if (!accountState.isAdmin) return;
+      admSetStatus("Đang tải…");
+      try {
+        const res = await fetch("/api/admin/control-plane");
+        if (res.status === 401 || res.status === 403) {
+          admSetStatus("Không đủ quyền admin", "err");
+          return;
+        }
+        const data = await res.json();
+        const sa = data.stream_alerts || {};
+        const rsi = sa.rsi || {};
+        const ma = sa.ma || {};
+        const vol = sa.volume_spike || {};
+        const risk = data.risk || {};
+        admFill("adm-rsi-length", rsi.length);
+        admFill("adm-rsi-oversold", rsi.oversold);
+        admFill("adm-rsi-overbought", rsi.overbought);
+        admFill("adm-ma-fast", ma.fast);
+        admFill("adm-ma-slow", ma.slow);
+        admFill("adm-vol-lookback", vol.lookback);
+        admFill("adm-vol-mult", vol.mult);
+        admFill("adm-cooldown", sa.cooldown_sec);
+        admFill("adm-eval-ms", sa.evaluate_interval_ms);
+        admFill("adm-sl", risk.stop_loss_pct);
+        admFill("adm-tp", risk.take_profit_pct);
+        admFill("adm-mpr", risk.max_portfolio_risk_pct);
+        admFill("adm-eq", risk.default_equity_pct);
+        admFill("adm-maxpos", risk.max_positions);
+        admSetStatus(data.has_overlay ? "Đã tải (có overlay)" : "Đã tải (YAML mặc định)", "ok");
+      } catch (err) {
+        admSetStatus("Lỗi tải control-plane", "err");
+      }
+    }
+
+    async function saveAdminControlPlane() {
+      if (!accountState.isAdmin) return;
+      admSetStatus("Đang lưu…");
+      const body = {
+        stream_alerts: {
+          evaluate_interval_ms: admNum("adm-eval-ms"),
+          cooldown_sec: admNum("adm-cooldown"),
+          rsi: {
+            length: admNum("adm-rsi-length"),
+            oversold: admNum("adm-rsi-oversold"),
+            overbought: admNum("adm-rsi-overbought"),
+          },
+          ma: {
+            fast: admNum("adm-ma-fast"),
+            slow: admNum("adm-ma-slow"),
+          },
+          volume_spike: {
+            lookback: admNum("adm-vol-lookback"),
+            mult: admNum("adm-vol-mult"),
+          },
+        },
+        risk: {
+          stop_loss_pct: admNum("adm-sl"),
+          take_profit_pct: admNum("adm-tp"),
+          max_portfolio_risk_pct: admNum("adm-mpr"),
+          default_equity_pct: admNum("adm-eq"),
+          max_positions: admNum("adm-maxpos"),
+        },
+      };
+      try {
+        const res = await fetch("/api/admin/control-plane", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          admSetStatus(err.detail || ("HTTP " + res.status), "err");
+          return;
+        }
+        admSetStatus("Đã lưu + hot-reload stream listener", "ok");
+        await loadAdminControlPlane();
+      } catch {
+        admSetStatus("Lỗi lưu control-plane", "err");
+      }
+    }
+
+    document.getElementById("adm-save")?.addEventListener("click", () => { void saveAdminControlPlane(); });
+    document.getElementById("adm-reload")?.addEventListener("click", () => { void loadAdminControlPlane(); });
 
     /* ===== Connection ===== */
     function setConn(status) {
