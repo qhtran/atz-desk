@@ -1,4 +1,4 @@
-"""DEV Desk Session + ROPC login (mocked Authentik)."""
+"""DEV Desk Session + Authentik Flow login (mocked)."""
 
 from __future__ import annotations
 
@@ -97,6 +97,52 @@ def test_login_ropc_bad_password(desk_env, monkeypatch):
     assert "Sai tài khoản" in res.json()["detail"]
 
 
+def test_login_mfa_challenge_then_otp(desk_env, monkeypatch):
+    from backend.authentik_ropc import MfaRequired
+
+    def need_mfa(username, password, **kwargs):
+        raise MfaRequired("tok-abc")
+
+    def finish_mfa(mfa_token, code, **kwargs):
+        assert mfa_token == "tok-abc"
+        assert code == "123456"
+        return {
+            "username": "hoa",
+            "email": "hoa@example.com",
+            "name": "Hoa",
+            "uid": "u1",
+            "groups": ["members"],
+        }
+
+    monkeypatch.setattr("backend.main.password_grant", need_mfa)
+    monkeypatch.setattr("backend.main.mfa_grant", finish_mfa)
+    client = TestClient(app)
+    res1 = client.post("/api/auth/login", json={"username": "hoa", "password": "secret"})
+    assert res1.status_code == 202
+    body1 = res1.json()
+    assert body1["mfa_required"] is True
+    assert body1["mfa_token"] == "tok-abc"
+    assert COOKIE_NAME not in res1.cookies
+
+    res2 = client.post("/api/auth/login", json={"mfa_token": "tok-abc", "code": "123456"})
+    assert res2.status_code == 200
+    assert res2.json()["success"] is True
+    assert COOKIE_NAME in res2.cookies
+
+
+def test_login_mfa_bad_otp(desk_env, monkeypatch):
+    from backend.authentik_ropc import RopcAuthError
+
+    def boom(*args, **kwargs):
+        raise RopcAuthError("invalid otp", "bad")
+
+    monkeypatch.setattr("backend.main.mfa_grant", boom)
+    client = TestClient(app)
+    res = client.post("/api/auth/login", json={"mfa_token": "tok", "code": "000000"})
+    assert res.status_code == 401
+    assert "OTP" in res.json()["detail"]
+
+
 def test_login_disabled_without_env(monkeypatch):
     monkeypatch.delenv("DESK_SESSION_AUTH", raising=False)
     monkeypatch.delenv("DESK_SESSION_SECRET", raising=False)
@@ -121,6 +167,9 @@ def test_flow_password_grant_success(desk_env, monkeypatch):
             return self._payload
 
     class FakeSession:
+        def __init__(self):
+            self.cookies = []
+
         def get(self, url, **kwargs):
             if "users/me" in url:
                 return FakeResp(
@@ -153,6 +202,48 @@ def test_flow_password_grant_success(desk_env, monkeypatch):
     assert profile["username"] == "hoa"
     assert profile["email"] == "hoa@example.com"
     assert profile["groups"] == ["members"]
+
+
+def test_flow_password_grant_mfa_pause(desk_env, monkeypatch):
+    from backend import authentik_ropc as mod
+
+    class FakeResp:
+        def __init__(self, status_code=200, payload=None, headers=None):
+            self.status_code = status_code
+            self._payload = payload or {}
+            self.headers = headers or {}
+
+        def json(self):
+            return self._payload
+
+    class CookieJar:
+        def __iter__(self):
+            return iter([])
+
+        def set(self, *args, **kwargs):
+            return None
+
+    class FakeSession:
+        def __init__(self):
+            self.cookies = CookieJar()
+
+        def get(self, url, **kwargs):
+            return FakeResp(payload={"component": "ak-stage-identification"})
+
+        def post(self, url, **kwargs):
+            return FakeResp(payload={"component": "ak-stage-authenticator-validate"})
+
+    stored = {}
+
+    def fake_store(session, flow_url):
+        stored["flow"] = flow_url
+        return "mfa-tok-1"
+
+    monkeypatch.setattr(mod.requests, "Session", FakeSession)
+    monkeypatch.setattr(mod, "_store_mfa_pending", fake_store)
+    with pytest.raises(mod.MfaRequired) as ei:
+        mod.password_grant("hoa", "secret")
+    assert ei.value.mfa_token == "mfa-tok-1"
 
 
 def test_flow_password_grant_bad_password(desk_env, monkeypatch):
