@@ -1,7 +1,7 @@
 # NOW — bus lớp 1 (dev.atz.vn)
 
 **Cập nhật:** 2026-11-03  
-**Phạm vi:** `dev.atz.vn` — `backend/`, `frontend/`, `docker-compose.dev.yml`. Prod Streamlit ngoài board.
+**Phạm vi:** `dev.atz.vn` — `backend/`, `frontend/`, `docker-compose.dev.yml`. Prod cutover Desk SPA (ADR 0009) **P3 verify + P4 UI Streamlit Done**.
 
 Đọc file này mỗi turn. Không changelog. Không mở `docs/agents/archive/` trừ khi human nêu đúng T-id. Human đọc `docs/agents/RUNBOOK.md` khi cần nhớ cách điều khiển; agent không đọc file đó mỗi turn.
 
@@ -29,37 +29,39 @@ Pull. Đọc docs/agents/NOW.md. Nếu Doing là việc của mình, mở đúng
 
 | ID | Owner | Packet | Việc |
 |----|-------|--------|------|
-| T-option-b-rt-quant | ag2 | docs/agents/tasks/T-option-b-rt-quant.md | Option B: RT quant stream → /ws/stream/alerts |
+| — | — | — | idle |
 
 ## Todo
 
 | ID | Việc | Ghi chú |
 |----|------|---------|
-| — | — | Smoke alerts bằng `scripts/mock_tick_generator.py`; P4 Streamlit sau ổn định |
+| — | Risk YAML số thật | Hiến điền `trading_station.yaml` null (SL/TP/equity) — không block UI cutover |
+| — | Archive packets | `T-option-b-rt-quant`, `T-p3-p4-cutover-close` sau master_ack |
 
 ## Master commands
 
 ```text
-doing T-option-b-rt-quant
+idle
 ```
 
 ## Milestone (done)
 
 ```text
-chuỗi 3 trục xong trên branch cursor/daily-signals-vector-baf6:
-1) Data Ingestion — slim WS ticks + enrichDepth gate
-2) Quant Engine — daily_signals vectorized RSI/Bollinger/ma/volume
-3) Infra/Docker Edge — nginx :8080 + FE relative /api /ws (T-step5)
+2026-11-03 ADR 0009 cutover Desk SPA:
+P0/activate — prod-desk :8001 + nginx atz.vn → atz-desk-api
+P3 — verify Risk YAML scaffold + atz_prod_data portfolio parity (null risk chờ Hiến)
+P4 — tắt UI Streamlit vnstocks :8501 (script decommission; bots giữ nguyên)
+Option B — /ws/stream/alerts + mock_tick_generator smoke Pass
 ```
 
 ## Last executor
 
 ```text
-task: T-option-b-rt-quant
-result: Pass — + mock_tick_generator.py cho smoke ngoài giờ GD
-status: doing
-pytest: Pass (3)
-master_ack: pending (commit mock script / smoke)
+task: T-p3-p4-cutover-close
+result: Pass — P3 verify-only; P4 script+profile+stop UI vnstocks; NOW milestone
+status: idle
+pytest: n/a (docs/ops)
+master_ack: pending
 ```
 
 Khi ack: Doing về trống; chuyển packet sang `docs/agents/archive/tasks/`. Không chép brief vào file này.
