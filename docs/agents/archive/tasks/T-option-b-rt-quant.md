@@ -1,7 +1,7 @@
 # Task T-option-b-rt-quant — Real-time Quant Streaming
 
 **Owner:** ag2  
-**Status:** Deploy + smoke desk-dev OK (2026-11-03)  
+**Status:** ARCHIVED / DONE — master_ack 2026-11-03  
 **Phạm vi:** `backend/engine/stream_*.py`, `backend/ws_alerts.py`, `backend/main.py`, `config/stream_alerts.yaml`, `tests/test_stream_alerts.py`
 
 ## Mục tiêu
