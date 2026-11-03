@@ -130,7 +130,7 @@ def evaluate_rings(store: TickRingStore, cfg: dict[str, Any]) -> list[StreamAler
     ma_fast_n = int(ma_cfg.get("fast", 10))
     ma_slow_n = int(ma_cfg.get("slow", 20))
     vol_lb = int(vol_cfg.get("lookback", 20))
-    vol_mult = float(vol_cfg.get("mult", 2.0))
+    vol_mult = float(vol_cfg.get("mult", 2.5))
 
     rsi = _rsi(close, rsi_n)
     last_rsi = rsi.iloc[-1]

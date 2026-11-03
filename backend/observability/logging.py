@@ -22,6 +22,7 @@ TZ = ZoneInfo("Asia/Ho_Chi_Minh")
 
 COMPONENT_LOGGERS: dict[str, str] = {
     "api": "atz.priceboard.api",
+    "admin": "atz.priceboard.admin",
     "redis": "atz.priceboard.redis_listener",
     "ws": "atz.priceboard.ws",
     "ws_alerts": "atz.priceboard.ws_alerts",

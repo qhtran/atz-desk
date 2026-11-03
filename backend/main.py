@@ -32,7 +32,6 @@ from backend.core.logging_middleware import TraceMiddleware
 from backend.debug_ui import public_debug_ui_config
 from backend.portfolio_alerts import position_alert
 from backend.account_config import load_account_config
-from backend.admin_config_store import get_control_plane, put_control_plane
 from backend.desk_session import COOKIE_NAME as DESK_COOKIE, desk_session_enabled, issue_session_value
 from backend.identity import is_admin_user, resolve_me, roles_for_user
 from backend.portfolio_f3 import batch_f3_alerts, load_f3_sector_themes
@@ -47,6 +46,7 @@ from backend.engine.stream_listener import QuantStreamListener
 from backend.redis_listener import HASH_KEY, REDIS_URL, RedisTickListener, load_snapshot
 from backend.screener import PRESETS, FilterEngine, build_compose_rules, find_invalid_raw_rules
 from backend.websocket_manager import ConnectionManager
+from backend.routers.admin import register_admin_routes
 from backend.routers.alerts_ws import register_alerts_ws_alias
 from backend.ws_alerts import register_alerts_ws
 
@@ -260,11 +260,6 @@ def _account_payload(me: dict[str, Any] | None, cfg: dict[str, Any]) -> dict[str
     }
 
 
-class AdminControlPlaneBody(BaseModel):
-    stream_alerts: dict[str, Any] | None = None
-    risk: dict[str, Any] | None = None
-
-
 class DeskLoginBody(BaseModel):
     """Pha 1: username+password. Pha 2 MFA: mfa_token+code."""
 
@@ -305,23 +300,11 @@ def _issue_desk_cookie(response: Response, profile: dict[str, Any]) -> dict[str,
     return {"success": True, **_account_payload(me, cfg)}
 
 
-@app.get("/api/admin/control-plane")
-async def admin_get_control_plane(request: Request) -> dict:
-    """Xem cấu hình stream alerts + risk placeholders (admin only)."""
-    _require_admin(request)
-    return get_control_plane()
-
-
-@app.put("/api/admin/control-plane")
-async def admin_put_control_plane(request: Request, body: AdminControlPlaneBody) -> dict:
-    """Cập nhật overlay JSON + hot-reload QuantStreamListener (admin only)."""
-    _require_admin(request)
-    try:
-        result = put_control_plane(body.model_dump(exclude_none=False))
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    stream_listener.apply_config(result.get("stream_alerts") or {})
-    return result
+register_admin_routes(
+    app,
+    require_admin=_require_admin,
+    apply_stream_config=stream_listener.apply_config,
+)
 
 
 @app.post("/api/auth/login", response_model=None)
