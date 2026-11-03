@@ -16,7 +16,14 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from backend.authentik_ropc import RopcAuthError, RopcConfigError, password_grant, ropc_configured
+from backend.authentik_ropc import (
+    MfaRequired,
+    RopcAuthError,
+    RopcConfigError,
+    mfa_grant,
+    password_grant,
+    ropc_configured,
+)
 from backend.core.database import init_db
 from backend.index_spark import load_index_spark
 from backend.market_db import init_market_db
@@ -254,8 +261,42 @@ class AdminControlPlaneBody(BaseModel):
 
 
 class DeskLoginBody(BaseModel):
-    username: str = Field(min_length=1, max_length=128)
-    password: str = Field(min_length=1, max_length=256)
+    """Pha 1: username+password. Pha 2 MFA: mfa_token+code."""
+
+    username: str | None = Field(default=None, max_length=128)
+    password: str | None = Field(default=None, max_length=256)
+    mfa_token: str | None = Field(default=None, max_length=128)
+    code: str | None = Field(default=None, max_length=16)
+
+
+def _issue_desk_cookie(response: Response, profile: dict[str, Any]) -> dict[str, Any]:
+    token = issue_session_value(
+        username=profile["username"],
+        email=profile.get("email") or "",
+        name=profile.get("name") or "",
+        uid=profile.get("uid") or "",
+        groups=list(profile.get("groups") or []),
+    )
+    secure = (os.getenv("DESK_SESSION_SECURE") or "1").strip() not in ("0", "false", "no")
+    response.set_cookie(
+        key=DESK_COOKIE,
+        value=token,
+        httponly=True,
+        secure=secure,
+        samesite="lax",
+        path="/",
+        max_age=int(os.getenv("DESK_SESSION_TTL_SEC") or 12 * 3600),
+    )
+    cfg = load_account_config()
+    me = {
+        "username": profile["username"],
+        "email": profile.get("email") or "",
+        "name": profile.get("name") or "",
+        "uid": profile.get("uid") or "",
+        "groups": list(profile.get("groups") or []),
+        "source": "desk_session",
+    }
+    return {"success": True, **_account_payload(me, cfg)}
 
 
 @app.get("/api/admin/control-plane")
@@ -277,49 +318,51 @@ async def admin_put_control_plane(request: Request, body: AdminControlPlaneBody)
     return result
 
 
-@app.post("/api/auth/login")
-async def desk_auth_login(body: DeskLoginBody, response: Response) -> dict:
-    """DEV headless login: Authentik ROPC → signed HttpOnly ``atz_desk_session``."""
+@app.post("/api/auth/login", response_model=None)
+async def desk_auth_login(body: DeskLoginBody, response: Response):
+    """DEV headless login: Authentik Flow (+ optional TOTP) → ``atz_desk_session``."""
     if not desk_session_enabled() or not ropc_configured():
         raise HTTPException(status_code=503, detail="Desk session login disabled on this host")
+
+    mfa_token = (body.mfa_token or "").strip()
+    code = (body.code or "").strip()
+    username = (body.username or "").strip()
+    password = body.password or ""
+
     try:
-        profile = await asyncio.to_thread(password_grant, body.username, body.password)
-        token = issue_session_value(
-            username=profile["username"],
-            email=profile.get("email") or "",
-            name=profile.get("name") or "",
-            uid=profile.get("uid") or "",
-            groups=list(profile.get("groups") or []),
+        if mfa_token or code:
+            if not mfa_token or not code:
+                raise HTTPException(status_code=400, detail="Thiếu mfa_token hoặc mã OTP")
+            profile = await asyncio.to_thread(mfa_grant, mfa_token, code)
+            return _issue_desk_cookie(response, profile)
+
+        if not username or not password:
+            raise HTTPException(status_code=400, detail="Nhập tài khoản và mật khẩu")
+        profile = await asyncio.to_thread(password_grant, username, password)
+        return _issue_desk_cookie(response, profile)
+    except MfaRequired as exc:
+        return JSONResponse(
+            status_code=202,
+            content={
+                "success": False,
+                "mfa_required": True,
+                "mfa_token": exc.mfa_token,
+                "detail": "Nhập mã xác thực (TOTP)",
+            },
         )
+    except HTTPException:
+        raise
     except RopcConfigError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
-    except RopcAuthError:
+    except RopcAuthError as exc:
+        msg = str(exc.args[0] if exc.args else "")
+        if msg in {"invalid otp", "mfa expired"}:
+            detail = "Sai hoặc hết hạn mã OTP" if msg == "invalid otp" else "Phiên MFA hết hạn — đăng nhập lại"
+            raise HTTPException(status_code=401, detail=detail) from None
         raise HTTPException(status_code=401, detail="Sai tài khoản hoặc mật khẩu") from None
     except Exception as exc:
         log(COMPONENT, "AUTH-LOGIN", "desk login failed", logging.WARNING, exc=exc)
         raise HTTPException(status_code=502, detail="Authentik login failed") from exc
-
-    secure = (os.getenv("DESK_SESSION_SECURE") or "1").strip() not in ("0", "false", "no")
-    response.set_cookie(
-        key=DESK_COOKIE,
-        value=token,
-        httponly=True,
-        secure=secure,
-        samesite="lax",
-        path="/",
-        max_age=int(os.getenv("DESK_SESSION_TTL_SEC") or 12 * 3600),
-    )
-    cfg = load_account_config()
-    me = {
-        "username": profile["username"],
-        "email": profile.get("email") or "",
-        "name": profile.get("name") or "",
-        "uid": profile.get("uid") or "",
-        "groups": list(profile.get("groups") or []),
-        "source": "desk_session",
-    }
-    payload = _account_payload(me, cfg)
-    return {"success": True, **payload}
 
 
 @app.post("/api/auth/logout")

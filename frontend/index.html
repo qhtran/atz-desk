@@ -946,16 +946,25 @@
         <div class="brand-name">atz<span>.vn</span></div>
       </div>
       <h1 id="welcome-title">Nền tảng Giao dịch &amp; Định lượng</h1>
-      <p>Đăng nhập trong modal (DEV Desk Session). Password chỉ gửi tới FastAPI → Authentik ROPC; SPA không lưu token.</p>
+      <p>Đăng nhập trong modal (DEV Desk Session). Mật khẩu / OTP chỉ gửi FastAPI → Authentik; SPA không lưu token.</p>
       <form id="welcome-login-form" class="welcome-form" data-atd-id="pb-ui:auth.form" autocomplete="on">
-        <label>Tài khoản
-          <input id="welcome-username" name="username" type="text" autocomplete="username" required maxlength="128" />
-        </label>
-        <label>Mật khẩu
-          <input id="welcome-password" name="password" type="password" autocomplete="current-password" required maxlength="256" />
-        </label>
+        <div id="welcome-step-pass">
+          <label>Tài khoản
+            <input id="welcome-username" name="username" type="text" autocomplete="username" required maxlength="128" />
+          </label>
+          <label>Mật khẩu
+            <input id="welcome-password" name="password" type="password" autocomplete="current-password" required maxlength="256" />
+          </label>
+          <button type="submit" id="welcome-login" class="cta" data-atd-id="pb-ui:auth.login">Đăng nhập</button>
+        </div>
+        <div id="welcome-step-mfa" hidden>
+          <label>Mã xác thực (TOTP)
+            <input id="welcome-otp" name="otp" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code" maxlength="8" placeholder="6 chữ số" />
+          </label>
+          <button type="submit" id="welcome-mfa-submit" class="cta" data-atd-id="pb-ui:auth.mfa">Xác nhận OTP</button>
+          <button type="button" class="ghost" id="welcome-mfa-back" data-atd-id="pb-ui:auth.mfa-back">Quay lại</button>
+        </div>
         <p id="welcome-error" class="welcome-error" role="alert"></p>
-        <button type="submit" id="welcome-login" class="cta" data-atd-id="pb-ui:auth.login">Đăng nhập</button>
       </form>
       <button type="button" class="ghost" id="welcome-continue" data-atd-id="pb-ui:auth.continue">Chế độ Khách / Trải nghiệm nhanh</button>
       <button type="button" class="welcome-outpost-link" id="welcome-outpost" data-atd-id="pb-ui:auth.outpost">Hoặc đăng nhập qua Authentik Outpost</button>
@@ -1554,44 +1563,110 @@
       if (form) form.style.display = accountState.deskSessionForm || !accountState.authenticated ? "" : "";
     }
 
+    let deskMfaToken = "";
+
+    function showWelcomeMfaStep(on) {
+      const passStep = document.getElementById("welcome-step-pass");
+      const mfaStep = document.getElementById("welcome-step-mfa");
+      const userEl = document.getElementById("welcome-username");
+      const passEl = document.getElementById("welcome-password");
+      const otpEl = document.getElementById("welcome-otp");
+      if (passStep) passStep.hidden = !!on;
+      if (mfaStep) mfaStep.hidden = !on;
+      if (userEl) userEl.required = !on;
+      if (passEl) passEl.required = !on;
+      if (otpEl) {
+        otpEl.required = !!on;
+        if (on) {
+          otpEl.value = "";
+          try { otpEl.focus(); } catch (_) {}
+        }
+      }
+      if (!on) deskMfaToken = "";
+    }
+
+    async function finishDeskLoginOk(data, passEl) {
+      applyMePayload(data);
+      if (passEl) passEl.value = "";
+      const otpEl = document.getElementById("welcome-otp");
+      if (otpEl) otpEl.value = "";
+      deskMfaToken = "";
+      showWelcomeMfaStep(false);
+      renderAuthChrome();
+      try { await initPortfolioAuthSync(); } catch (_) {}
+    }
+
     async function submitDeskLogin(ev) {
       if (ev) ev.preventDefault();
       const errEl = document.getElementById("welcome-error");
       const btn = document.getElementById("welcome-login");
+      const mfaBtn = document.getElementById("welcome-mfa-submit");
       const userEl = document.getElementById("welcome-username");
       const passEl = document.getElementById("welcome-password");
+      const otpEl = document.getElementById("welcome-otp");
+      const mfaStep = document.getElementById("welcome-step-mfa");
+      const onMfa = mfaStep && !mfaStep.hidden;
       if (errEl) errEl.textContent = "";
-      const username = (userEl && userEl.value || "").trim();
-      const password = (passEl && passEl.value) || "";
-      if (!username || !password) {
-        if (errEl) errEl.textContent = "Nhập tài khoản và mật khẩu";
-        return;
+
+      let body;
+      if (onMfa) {
+        const code = (otpEl && otpEl.value || "").trim().replace(/\s+/g, "");
+        if (!deskMfaToken || !code) {
+          if (errEl) errEl.textContent = "Nhập mã OTP";
+          return;
+        }
+        body = { mfa_token: deskMfaToken, code };
+      } else {
+        const username = (userEl && userEl.value || "").trim();
+        const password = (passEl && passEl.value) || "";
+        if (!username || !password) {
+          if (errEl) errEl.textContent = "Nhập tài khoản và mật khẩu";
+          return;
+        }
+        body = { username, password };
       }
+
       if (btn) btn.disabled = true;
+      if (mfaBtn) mfaBtn.disabled = true;
       try {
         const res = await fetch("/api/auth/login", {
           method: "POST",
           credentials: "same-origin",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username, password }),
+          body: JSON.stringify(body),
         });
         const data = await res.json().catch(() => ({}));
-        if (!res.ok || data.success !== true) {
-          if (errEl) errEl.textContent = data.detail || "Sai tài khoản hoặc mật khẩu";
+        if (res.status === 202 && data.mfa_required && data.mfa_token) {
+          deskMfaToken = String(data.mfa_token);
+          showWelcomeMfaStep(true);
+          if (errEl) errEl.textContent = data.detail || "Nhập mã xác thực (TOTP)";
           return;
         }
-        applyMePayload(data);
-        if (passEl) passEl.value = "";
-        renderAuthChrome();
-        try { await initPortfolioAuthSync(); } catch (_) {}
+        if (!res.ok || data.success !== true) {
+          if (errEl) {
+            errEl.textContent = data.detail
+              || (onMfa ? "Sai hoặc hết hạn mã OTP" : "Sai tài khoản hoặc mật khẩu");
+          }
+          if (onMfa && res.status === 401 && String(data.detail || "").includes("hết hạn")) {
+            showWelcomeMfaStep(false);
+          }
+          return;
+        }
+        await finishDeskLoginOk(data, passEl);
       } catch {
         if (errEl) errEl.textContent = "Không kết nối được máy chủ đăng nhập";
       } finally {
         if (btn) btn.disabled = false;
+        if (mfaBtn) mfaBtn.disabled = false;
       }
     }
 
     document.getElementById("welcome-login-form")?.addEventListener("submit", (ev) => { void submitDeskLogin(ev); });
+    document.getElementById("welcome-mfa-back")?.addEventListener("click", () => {
+      const errEl = document.getElementById("welcome-error");
+      showWelcomeMfaStep(false);
+      if (errEl) errEl.textContent = "";
+    });
     document.getElementById("welcome-outpost")?.addEventListener("click", () => triggerSystemLogin());
     document.getElementById("welcome-continue")?.addEventListener("click", () => {
       setGuestMode(true);
