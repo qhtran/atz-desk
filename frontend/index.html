@@ -804,6 +804,54 @@
       color: #525252;
       font-size: 11px;
     }
+    .welcome-form {
+      display: grid;
+      gap: 10px;
+      text-align: left;
+      margin-bottom: 10px;
+    }
+    .welcome-form label {
+      display: grid;
+      gap: 4px;
+      font-size: 11px;
+      color: #a3a3a3;
+      font-weight: 600;
+    }
+    .welcome-form input {
+      height: 38px;
+      width: 100%;
+      border: 1px solid #2a2a2a;
+      border-radius: 10px;
+      background: #0a0a0a;
+      color: #e5e5e5;
+      padding: 0 12px;
+      font-size: 13px;
+      outline: none;
+    }
+    .welcome-form input:focus { border-color: #ffd900; }
+    .welcome-error {
+      min-height: 16px;
+      margin: 0 0 4px;
+      color: #f87171;
+      font-size: 12px;
+      text-align: center;
+    }
+    .welcome-card .cta:disabled {
+      opacity: 0.65;
+      cursor: wait;
+    }
+    .welcome-outpost-link {
+      display: inline-block;
+      margin-top: 10px;
+      color: #737373;
+      font-size: 11px;
+      text-decoration: underline;
+      cursor: pointer;
+      background: none;
+      border: 0;
+      padding: 0;
+    }
+    .welcome-outpost-link:hover { color: #ffd900; }
     .alerts-feed {
       list-style: none;
       margin: 0;
@@ -898,10 +946,20 @@
         <div class="brand-name">atz<span>.vn</span></div>
       </div>
       <h1 id="welcome-title">Nền tảng Giao dịch &amp; Định lượng</h1>
-      <p>Truy cập iBoard realtime, danh mục và alerts. Đăng nhập qua Authentik (OIDC Outpost) — SPA không lưu token trên trình duyệt.</p>
-      <button type="button" id="welcome-login" class="cta" data-atd-id="pb-ui:auth.login">Đăng nhập qua Hệ thống</button>
+      <p>Đăng nhập trong modal (DEV Desk Session). Password chỉ gửi tới FastAPI → Authentik ROPC; SPA không lưu token.</p>
+      <form id="welcome-login-form" class="welcome-form" data-atd-id="pb-ui:auth.form" autocomplete="on">
+        <label>Tài khoản
+          <input id="welcome-username" name="username" type="text" autocomplete="username" required maxlength="128" />
+        </label>
+        <label>Mật khẩu
+          <input id="welcome-password" name="password" type="password" autocomplete="current-password" required maxlength="256" />
+        </label>
+        <p id="welcome-error" class="welcome-error" role="alert"></p>
+        <button type="submit" id="welcome-login" class="cta" data-atd-id="pb-ui:auth.login">Đăng nhập</button>
+      </form>
       <button type="button" class="ghost" id="welcome-continue" data-atd-id="pb-ui:auth.continue">Chế độ Khách / Trải nghiệm nhanh</button>
-      <p class="footnote">Protected by Authentik · dev.atz.vn only</p>
+      <button type="button" class="welcome-outpost-link" id="welcome-outpost" data-atd-id="pb-ui:auth.outpost">Hoặc đăng nhập qua Authentik Outpost</button>
+      <p class="footnote">Protected by Authentik · Desk Session DEV only</p>
     </div>
   </div>
   <header class="border-b border-[#2a2a2a] bg-[#0a0a0a]">
@@ -1326,6 +1384,7 @@
       loginUrl: "/",
       logoutUrl: "",
       user: null,
+      deskSessionForm: false,
     };
     const streamAlerts = [];
     let indexStatsTimer = null;
@@ -1454,35 +1513,94 @@
           if (isGuestMode()) gate.setAttribute("hidden", "");
           else gate.removeAttribute("hidden");
         }
+        const form = document.getElementById("welcome-login-form");
+        const outpostBtn = document.getElementById("welcome-outpost");
+        if (form) form.style.display = accountState.deskSessionForm ? "" : "none";
+        if (outpostBtn) {
+          outpostBtn.textContent = accountState.deskSessionForm
+            ? "Hoặc đăng nhập qua Authentik Outpost"
+            : "Đăng nhập qua Hệ thống (Authentik Outpost)";
+        }
       }
       applyRbacTabs();
     }
 
+    function applyMePayload(meData) {
+      accountState.authenticated = meData.authenticated === true;
+      accountState.isAdmin = meData.is_admin === true;
+      accountState.loginUrl = meData.login_url || defaultOutpostLoginUrl();
+      accountState.logoutUrl = meData.logout_url || "";
+      accountState.user = meData.user || null;
+      accountState.deskSessionForm = meData.desk_session_form === true;
+      if (accountState.authenticated) {
+        setGuestMode(false);
+        try { localStorage.removeItem(GUEST_SKIP_KEY); } catch (_) {}
+      }
+    }
+
     async function initAuthShell() {
       try {
-        const meRes = await fetch("/api/account/me");
+        const meRes = await fetch("/api/account/me", { credentials: "same-origin" });
         const meData = await meRes.json();
-        accountState.authenticated = meData.authenticated === true;
-        accountState.isAdmin = meData.is_admin === true;
-        accountState.loginUrl = meData.login_url || defaultOutpostLoginUrl();
-        accountState.logoutUrl = meData.logout_url || "";
-        accountState.user = meData.user || null;
-        if (accountState.authenticated) setGuestMode(false);
-        try { localStorage.removeItem(GUEST_SKIP_KEY); } catch (_) {}
+        applyMePayload(meData);
       } catch {
         accountState.authenticated = false;
         accountState.isAdmin = false;
         accountState.loginUrl = defaultOutpostLoginUrl();
+        accountState.deskSessionForm = false;
       }
       renderAuthChrome();
+      const form = document.getElementById("welcome-login-form");
+      if (form) form.style.display = accountState.deskSessionForm || !accountState.authenticated ? "" : "";
     }
 
-    document.getElementById("welcome-login")?.addEventListener("click", () => triggerSystemLogin());
+    async function submitDeskLogin(ev) {
+      if (ev) ev.preventDefault();
+      const errEl = document.getElementById("welcome-error");
+      const btn = document.getElementById("welcome-login");
+      const userEl = document.getElementById("welcome-username");
+      const passEl = document.getElementById("welcome-password");
+      if (errEl) errEl.textContent = "";
+      const username = (userEl && userEl.value || "").trim();
+      const password = (passEl && passEl.value) || "";
+      if (!username || !password) {
+        if (errEl) errEl.textContent = "Nhập tài khoản và mật khẩu";
+        return;
+      }
+      if (btn) btn.disabled = true;
+      try {
+        const res = await fetch("/api/auth/login", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username, password }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || data.success !== true) {
+          if (errEl) errEl.textContent = data.detail || "Sai tài khoản hoặc mật khẩu";
+          return;
+        }
+        applyMePayload(data);
+        if (passEl) passEl.value = "";
+        renderAuthChrome();
+        try { await initPortfolioAuthSync(); } catch (_) {}
+      } catch {
+        if (errEl) errEl.textContent = "Không kết nối được máy chủ đăng nhập";
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    }
+
+    document.getElementById("welcome-login-form")?.addEventListener("submit", (ev) => { void submitDeskLogin(ev); });
+    document.getElementById("welcome-outpost")?.addEventListener("click", () => triggerSystemLogin());
     document.getElementById("welcome-continue")?.addEventListener("click", () => {
       setGuestMode(true);
       document.getElementById("welcome-gate")?.setAttribute("hidden", "");
     });
-    document.getElementById("btn-logout")?.addEventListener("click", () => {
+    document.getElementById("btn-logout")?.addEventListener("click", async () => {
+      try {
+        await fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" });
+      } catch (_) {}
       const url = accountState.logoutUrl;
       if (url) window.location.href = url;
       else window.location.reload();

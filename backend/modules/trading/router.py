@@ -7,7 +7,8 @@ from sqlalchemy.orm import Session
 
 from backend.core.database import get_db
 from backend.core.trading_config import load_trading_config
-from backend.identity import username_from_headers
+from backend.desk_session import COOKIE_NAME as DESK_COOKIE
+from backend.identity import resolve_me
 from backend.modules.trading.schemas import BuyRequest, LevelsPatch, SellRequest
 from backend.modules.trading import service
 
@@ -15,10 +16,10 @@ router = APIRouter(prefix="/api/trading", tags=["trading"])
 
 
 def _trading_user(request: Request) -> str:
-    name = username_from_headers(request.headers)
-    if name == "local":
-        return str(load_trading_config().get("default_user", "default_user"))
-    return name
+    me = resolve_me(request.headers, desk_cookie=request.cookies.get(DESK_COOKIE))
+    if me and me.get("username"):
+        return str(me["username"])
+    return str(load_trading_config().get("default_user", "default_user"))
 
 
 @router.get("/positions")

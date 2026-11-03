@@ -131,6 +131,9 @@ if [[ "${ATZ_COMPOSE_FILE}" == "docker-compose.dev.yml" ]]; then
     if [[ -f deploy/nginx_forward_auth.inc ]]; then
       docker cp deploy/nginx_forward_auth.inc nginx-reverse-proxy:/etc/nginx/snippets/atz_forward_auth.inc
     fi
+    if [[ -f deploy/nginx_forward_auth_optional.inc ]]; then
+      docker cp deploy/nginx_forward_auth_optional.inc nginx-reverse-proxy:/etc/nginx/snippets/atz_forward_auth_optional.inc
+    fi
     docker cp deploy/nginx_dev.conf nginx-reverse-proxy:/etc/nginx/conf.d/dev.atz.vn.conf
     docker exec nginx-reverse-proxy nginx -t
     docker exec nginx-reverse-proxy nginx -s reload
@@ -208,6 +211,9 @@ if [[ "${ATZ_COMPOSE_FILE}" == "docker-compose.dev.yml" ]]; then
     echo "==> sync nginx ForwardAuth + dev.atz.vn"
     if [[ -f deploy/nginx_forward_auth.inc ]]; then
       docker cp deploy/nginx_forward_auth.inc nginx-reverse-proxy:/etc/nginx/snippets/atz_forward_auth.inc
+    fi
+    if [[ -f deploy/nginx_forward_auth_optional.inc ]]; then
+      docker cp deploy/nginx_forward_auth_optional.inc nginx-reverse-proxy:/etc/nginx/snippets/atz_forward_auth_optional.inc
     fi
     docker cp deploy/nginx_dev.conf nginx-reverse-proxy:/etc/nginx/conf.d/dev.atz.vn.conf
     docker exec nginx-reverse-proxy nginx -t

@@ -15,5 +15,9 @@ account:
   admin_groups:
     - admin
     - atz-admins
+  # DEV headless form (ROPC) — bật khi compose set DESK_SESSION_AUTH=1 + AUTHENTIK_* env.
+  # Secrets chỉ trong env: AUTHENTIK_CLIENT_ID/SECRET, AUTHENTIK_TOKEN_URL, DESK_SESSION_SECRET.
+  desk_session:
+    form_login: true
   # Phase 2 only:
   # authentik_api_url: ""  # prefer https://auth.atz.vn, không nối network internal
