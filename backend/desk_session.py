@@ -46,6 +46,7 @@ def issue_session_value(
     uid: str = "",
     groups: list[str] | None = None,
     ttl_sec: int | None = None,
+    is_superuser: bool = False,
 ) -> str:
     secret = session_secret()
     if not secret:
@@ -58,6 +59,7 @@ def issue_session_value(
         "n": str(name or "").strip(),
         "id": str(uid or "").strip(),
         "g": [str(g).strip() for g in (groups or []) if str(g).strip()],
+        "su": bool(is_superuser),
         "iat": now,
         "exp": now + max(300, ttl),
     }
@@ -99,6 +101,7 @@ def verify_session_value(token: str | None) -> dict[str, Any] | None:
         "name": str(payload.get("n") or ""),
         "uid": str(payload.get("id") or ""),
         "groups": [str(g).strip() for g in groups if str(g).strip()],
+        "is_superuser": bool(payload.get("su")),
         "source": "desk_session",
     }
 

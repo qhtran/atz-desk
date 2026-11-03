@@ -61,6 +61,31 @@ def test_account_me_with_desk_cookie(desk_env):
     assert data["auth_source"] == "desk_session"
 
 
+def test_account_me_superuser_cookie_is_admin(desk_env):
+    """Authentik is_superuser → cookie su → is_admin dù không thuộc admin_groups."""
+    token = issue_session_value(username="su", groups=["members"], is_superuser=True)
+    me = verify_session_value(token)
+    assert me is not None
+    assert me["is_superuser"] is True
+    client = TestClient(app)
+    client.cookies.set(COOKIE_NAME, token)
+    res = client.get("/api/account/me")
+    assert res.status_code == 200
+    data = res.json()
+    assert data["authenticated"] is True
+    assert data["is_admin"] is True
+    assert "admin" in data["roles"]
+
+
+def test_admin_control_plane_allows_superuser(desk_env):
+    token = issue_session_value(username="su", groups=[], is_superuser=True)
+    client = TestClient(app)
+    client.cookies.set(COOKIE_NAME, token)
+    res = client.get("/api/admin/control-plane")
+    assert res.status_code == 200
+    assert "stream_alerts" in res.json()
+
+
 def test_login_ropc_success(desk_env, monkeypatch):
     def fake_grant(username, password, **kwargs):
         assert username == "hoa"
@@ -202,6 +227,58 @@ def test_flow_password_grant_success(desk_env, monkeypatch):
     assert profile["username"] == "hoa"
     assert profile["email"] == "hoa@example.com"
     assert profile["groups"] == ["members"]
+    assert profile["is_superuser"] is False
+
+
+def test_flow_password_grant_superuser_injects_admin(desk_env, monkeypatch):
+    from backend import authentik_ropc as mod
+
+    class FakeResp:
+        def __init__(self, status_code=200, payload=None, headers=None):
+            self.status_code = status_code
+            self._payload = payload or {}
+            self.headers = headers or {}
+
+        def json(self):
+            return self._payload
+
+    class FakeSession:
+        def __init__(self):
+            self.cookies = []
+
+        def get(self, url, **kwargs):
+            if "users/me" in url:
+                return FakeResp(
+                    payload={
+                        "user": {
+                            "username": "root",
+                            "email": "root@example.com",
+                            "name": "Root",
+                            "uid": "u0",
+                            "is_superuser": True,
+                            "groups": [{"name": "authentik Admins"}],
+                        }
+                    }
+                )
+            return FakeResp(payload={"component": "ak-stage-identification"})
+
+        def post(self, url, **kwargs):
+            body = kwargs.get("json") or {}
+            if body.get("component") == "ak-stage-identification":
+                return FakeResp(
+                    payload={"component": "ak-stage-user-login", "pending_user": "root"}
+                )
+            if body.get("component") == "ak-stage-user-login":
+                return FakeResp(
+                    payload={"component": "xak-flow-redirect", "to": "/", "final_redirect": True}
+                )
+            return FakeResp(payload={"component": "ak-stage-identification"})
+
+    monkeypatch.setattr(mod.requests, "Session", FakeSession)
+    profile = mod.password_grant("root", "secret")
+    assert profile["is_superuser"] is True
+    assert "admin" in profile["groups"]
+    assert "authentik Admins" in profile["groups"]
 
 
 def test_flow_password_grant_mfa_pause(desk_env, monkeypatch):

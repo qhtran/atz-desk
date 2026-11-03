@@ -256,12 +256,18 @@ def _profile_from_session(
         raise RopcAuthError("invalid credentials", "no authenticated user")
 
     preferred = str(info.get("username") or fallback_username).strip()
+    groups = _normalize_groups(info.get("groups"))
+    # Superuser Authentik → đủ quyền Admin Control Panel trên Desk
+    if info.get("is_superuser") is True:
+        if not any(g.lower() == "admin" for g in groups):
+            groups = [*groups, "admin"]
     return {
         "username": preferred or fallback_username,
         "email": str(info.get("email") or ""),
         "name": str(info.get("name") or preferred or fallback_username),
         "uid": str(info.get("uid") or info.get("pk") or ""),
-        "groups": _normalize_groups(info.get("groups")),
+        "groups": groups,
+        "is_superuser": bool(info.get("is_superuser")),
     }
 
 
