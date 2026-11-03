@@ -31,4 +31,4 @@ docker compose -f docker-compose.prod-desk.yml --profile live up -d ssi-worker
 ## Ngoài phạm vi
 
 - Agent không SSH apply giúp trừ khi human yêu cầu rõ sau gate
-- Tắt Streamlit (P4) — sau verify ổn định
+- Tắt Streamlit (P4) — **Done 2026-11-03** → xem `T-p3-p4-cutover-close.md`

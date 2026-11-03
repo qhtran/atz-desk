@@ -1,5 +1,7 @@
 services:
   vnstocks:
+    # P4 (2026-11-03): UI Streamlit tắt mặc định — atz.vn → Desk SPA. Bật lại: --profile legacy-ui
+    profiles: ["legacy-ui"]
     build:
       context: .
       secrets:
