@@ -47,6 +47,7 @@ from backend.engine.stream_listener import QuantStreamListener
 from backend.redis_listener import HASH_KEY, REDIS_URL, RedisTickListener, load_snapshot
 from backend.screener import PRESETS, FilterEngine, build_compose_rules, find_invalid_raw_rules
 from backend.websocket_manager import ConnectionManager
+from backend.routers.alerts_ws import register_alerts_ws_alias
 from backend.ws_alerts import register_alerts_ws
 
 setup("api")
@@ -78,6 +79,7 @@ app.add_middleware(TraceMiddleware)
 app.add_exception_handler(AppError, app_error_handler)
 app.include_router(trading_router)
 register_alerts_ws(app, alert_manager)
+register_alerts_ws_alias(app, alert_manager)
 
 
 @app.get("/api/debug-ui/config")
