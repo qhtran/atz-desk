@@ -1,9 +1,10 @@
-"""Authentik identity from ForwardAuth headers (ADR 0003/0006)."""
+"""Authentik identity from ForwardAuth headers (ADR 0003/0006) + desk session cookie (DEV)."""
 
 from __future__ import annotations
 
 import re
 from collections.abc import Iterable, Mapping, Sequence
+from typing import Any
 
 _ME_HEADERS = {
     "username": "x-authentik-username",
@@ -65,3 +66,24 @@ def roles_for_user(groups: Sequence[str] | None, *, is_admin: bool) -> list[str]
             roles.append(name)
             seen.add(name.lower())
     return roles
+
+
+def resolve_me(
+    headers: Mapping[str, str] | None,
+    *,
+    desk_cookie: str | None = None,
+) -> dict[str, Any] | None:
+    """Ưu tiên ForwardAuth headers; fallback cookie ``atz_desk_session`` (DEV)."""
+    me = me_from_headers(headers)
+    if me:
+        me = dict(me)
+        me["source"] = "forward_auth"
+        return me
+    try:
+        from backend.desk_session import desk_session_enabled, me_from_cookie
+
+        if desk_session_enabled():
+            return me_from_cookie(desk_cookie)
+    except Exception:
+        return None
+    return None

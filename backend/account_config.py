@@ -40,6 +40,13 @@ def load_account_config(path: Path | str | None = None) -> dict[str, Any]:
     else:
         admin_groups = ["admin"]
 
+    desk_block = block.get("desk_session") if isinstance(block.get("desk_session"), dict) else {}
+    # Public flag cho SPA — secret vẫn chỉ lấy từ env.
+    from backend.authentik_ropc import ropc_configured
+    from backend.desk_session import desk_session_enabled
+
+    desk_form = bool(desk_block.get("form_login", True)) and desk_session_enabled() and ropc_configured()
+
     return {
         "enabled": bool(block.get("enabled", True)),
         "login_url": safe_https_url(block.get("login_url")),
@@ -47,4 +54,5 @@ def load_account_config(path: Path | str | None = None) -> dict[str, Any]:
         "password_flow_url": safe_https_url(block.get("password_flow_url")),
         "mfa_flow_url": safe_https_url(block.get("mfa_flow_url")),
         "admin_groups": admin_groups,
+        "desk_session_form": desk_form,
     }

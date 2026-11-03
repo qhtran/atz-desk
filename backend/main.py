@@ -11,11 +11,12 @@ from pathlib import Path
 from typing import Any
 
 import redis.asyncio as aioredis
-from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Request, Response, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from backend.authentik_ropc import RopcAuthError, RopcConfigError, password_grant, ropc_configured
 from backend.core.database import init_db
 from backend.index_spark import load_index_spark
 from backend.market_db import init_market_db
@@ -25,7 +26,8 @@ from backend.debug_ui import public_debug_ui_config
 from backend.portfolio_alerts import position_alert
 from backend.account_config import load_account_config
 from backend.admin_config_store import get_control_plane, put_control_plane
-from backend.identity import is_admin_user, me_from_headers, roles_for_user
+from backend.desk_session import COOKIE_NAME as DESK_COOKIE, desk_session_enabled, issue_session_value
+from backend.identity import is_admin_user, resolve_me, roles_for_user
 from backend.portfolio_f3 import batch_f3_alerts, load_f3_sector_themes
 from backend.portfolio_quotes import normalize_symbols, resolve_portfolio_quotes
 from backend.daily_signals import ALLOWED_FILTERS, scan_daily_signals
@@ -179,8 +181,12 @@ class PortfolioPositionsBody(BaseModel):
     items: list[PortfolioPositionItem] = Field(default_factory=list)
 
 
+def _resolve_request_me(request: Request) -> dict[str, Any] | None:
+    return resolve_me(request.headers, desk_cookie=request.cookies.get(DESK_COOKIE))
+
+
 def _require_authentik_user(request: Request) -> str:
-    me = me_from_headers(request.headers)
+    me = _resolve_request_me(request)
     if not me or not me.get("username"):
         raise HTTPException(status_code=401, detail="Authentik login required")
     return str(me["username"])
@@ -188,7 +194,7 @@ def _require_authentik_user(request: Request) -> str:
 
 def _require_admin(request: Request) -> str:
     """401 nếu chưa login; 403 nếu không thuộc admin_groups."""
-    me = me_from_headers(request.headers)
+    me = _resolve_request_me(request)
     if not me or not me.get("username"):
         raise HTTPException(status_code=401, detail="Authentik login required")
     cfg = load_account_config()
@@ -197,9 +203,59 @@ def _require_admin(request: Request) -> str:
     return str(me["username"])
 
 
+def _account_payload(me: dict[str, Any] | None, cfg: dict[str, Any]) -> dict[str, Any]:
+    from backend.core.trading_config import risk_meta_for_user
+
+    auth_urls = {
+        "login_url": cfg.get("login_url") or "",
+        "logout_url": cfg.get("logout_url") or "",
+        "password_flow_url": cfg.get("password_flow_url") or "",
+        "mfa_flow_url": cfg.get("mfa_flow_url") or "",
+        "desk_session_form": bool(cfg.get("desk_session_form")),
+    }
+    if not me:
+        return {
+            "ok": True,
+            "authenticated": False,
+            "user": None,
+            "groups": [],
+            "roles": [],
+            "is_admin": False,
+            "auth_source": None,
+            "risk_meta": risk_meta_for_user(None),
+            **auth_urls,
+        }
+    groups = list(me.get("groups") or [])
+    admin = is_admin_user(groups, cfg.get("admin_groups"))
+    roles = roles_for_user(groups, is_admin=admin)
+    return {
+        "ok": True,
+        "authenticated": True,
+        "user": {
+            "username": me["username"],
+            "name": me.get("name") or "",
+            "email": me.get("email") or "",
+            "groups": groups,
+            "roles": roles,
+            "is_admin": admin,
+        },
+        "groups": groups,
+        "roles": roles,
+        "is_admin": admin,
+        "auth_source": me.get("source") or "forward_auth",
+        "risk_meta": risk_meta_for_user(me["username"]),
+        **auth_urls,
+    }
+
+
 class AdminControlPlaneBody(BaseModel):
     stream_alerts: dict[str, Any] | None = None
     risk: dict[str, Any] | None = None
+
+
+class DeskLoginBody(BaseModel):
+    username: str = Field(min_length=1, max_length=128)
+    password: str = Field(min_length=1, max_length=256)
 
 
 @app.get("/api/admin/control-plane")
@@ -221,50 +277,64 @@ async def admin_put_control_plane(request: Request, body: AdminControlPlaneBody)
     return result
 
 
+@app.post("/api/auth/login")
+async def desk_auth_login(body: DeskLoginBody, response: Response) -> dict:
+    """DEV headless login: Authentik ROPC → signed HttpOnly ``atz_desk_session``."""
+    if not desk_session_enabled() or not ropc_configured():
+        raise HTTPException(status_code=503, detail="Desk session login disabled on this host")
+    try:
+        profile = await asyncio.to_thread(password_grant, body.username, body.password)
+        token = issue_session_value(
+            username=profile["username"],
+            email=profile.get("email") or "",
+            name=profile.get("name") or "",
+            uid=profile.get("uid") or "",
+            groups=list(profile.get("groups") or []),
+        )
+    except RopcConfigError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except RopcAuthError:
+        raise HTTPException(status_code=401, detail="Sai tài khoản hoặc mật khẩu") from None
+    except Exception as exc:
+        log(COMPONENT, "AUTH-LOGIN", "desk login failed", logging.WARNING, exc=exc)
+        raise HTTPException(status_code=502, detail="Authentik login failed") from exc
+
+    secure = (os.getenv("DESK_SESSION_SECURE") or "1").strip() not in ("0", "false", "no")
+    response.set_cookie(
+        key=DESK_COOKIE,
+        value=token,
+        httponly=True,
+        secure=secure,
+        samesite="lax",
+        path="/",
+        max_age=int(os.getenv("DESK_SESSION_TTL_SEC") or 12 * 3600),
+    )
+    cfg = load_account_config()
+    me = {
+        "username": profile["username"],
+        "email": profile.get("email") or "",
+        "name": profile.get("name") or "",
+        "uid": profile.get("uid") or "",
+        "groups": list(profile.get("groups") or []),
+        "source": "desk_session",
+    }
+    payload = _account_payload(me, cfg)
+    return {"success": True, **payload}
+
+
+@app.post("/api/auth/logout")
+async def desk_auth_logout(response: Response) -> dict:
+    """Xóa cookie desk session (DEV). Outpost logout vẫn dùng logout_url nếu cần."""
+    response.delete_cookie(DESK_COOKIE, path="/")
+    return {"ok": True, "success": True}
+
+
 @app.get("/api/account/me")
 async def account_me(request: Request) -> dict:
-    """Identity từ header ForwardAuth (dev/prod nginx) + risk + RBAC SPA."""
-    from backend.core.trading_config import risk_meta_for_user
-
+    """Identity: ForwardAuth headers hoặc desk session cookie + risk + RBAC SPA."""
     cfg = load_account_config()
-    auth_urls = {
-        "login_url": cfg.get("login_url") or "",
-        "logout_url": cfg.get("logout_url") or "",
-        "password_flow_url": cfg.get("password_flow_url") or "",
-        "mfa_flow_url": cfg.get("mfa_flow_url") or "",
-    }
-    me = me_from_headers(request.headers)
-    if not me:
-        return {
-            "ok": True,
-            "authenticated": False,
-            "user": None,
-            "groups": [],
-            "roles": [],
-            "is_admin": False,
-            "risk_meta": risk_meta_for_user(None),
-            **auth_urls,
-        }
-    groups = list(me.get("groups") or [])
-    admin = is_admin_user(groups, cfg.get("admin_groups"))
-    roles = roles_for_user(groups, is_admin=admin)
-    return {
-        "ok": True,
-        "authenticated": True,
-        "user": {
-            "username": me["username"],
-            "name": me.get("name") or "",
-            "email": me.get("email") or "",
-            "groups": groups,
-            "roles": roles,
-            "is_admin": admin,
-        },
-        "groups": groups,
-        "roles": roles,
-        "is_admin": admin,
-        "risk_meta": risk_meta_for_user(me["username"]),
-        **auth_urls,
-    }
+    me = _resolve_request_me(request)
+    return _account_payload(me, cfg)
 
 
 @app.get("/api/portfolio/positions")
@@ -337,7 +407,7 @@ async def iboard_daily_signals(request: Request, body: DailySignalsRequest) -> d
     """Quét OHLCV — subset mã match filter (iBoard chế độ Tín hiệu ngày)."""
     from backend.core.trading_config import risk_meta_for_user
 
-    me = me_from_headers(request.headers)
+    me = _resolve_request_me(request)
     username = me["username"] if me else None
     active = body.filters if body.filters else [body.filter]
     hits, scanned, matched = await asyncio.to_thread(
