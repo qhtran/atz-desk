@@ -478,11 +478,104 @@
     @media (max-width: 720px) {
       .symbol-detail-body { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
     }
-    .symbol-detail-filters {
+    .symbol-detail-aside {
       border-right: 1px solid #2a2a2a;
+      display: flex;
+      flex-direction: column;
+      max-height: calc(100vh - 120px);
+      min-height: 0;
+      overflow: hidden;
+    }
+    .symbol-detail-filters {
+      border-right: 0;
       overflow: auto;
       padding: 8px;
-      max-height: calc(100vh - 120px);
+      flex: 1 1 auto;
+      min-height: 0;
+      max-height: none;
+    }
+    .symbol-detail-scoring {
+      border-top: 1px solid #2a2a2a;
+      padding: 8px;
+      flex: 0 1 auto;
+      max-height: 48%;
+      overflow: auto;
+      font-size: 11px;
+      color: #a3a3a3;
+    }
+    .symbol-detail-scoring-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      margin-bottom: 6px;
+    }
+    .symbol-detail-scoring-head strong {
+      color: #e5e5e5;
+      font-size: 12px;
+    }
+    .symbol-detail-score-kpi {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 8px;
+      margin: 6px 0;
+      font-variant-numeric: tabular-nums;
+    }
+    .symbol-detail-score-kpi .score-pct {
+      font-size: 18px;
+      font-weight: 600;
+      color: #ffd900;
+    }
+    .symbol-detail-score-badge {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      padding: 2px 6px;
+      border-radius: 3px;
+      border: 1px solid #2a2a2a;
+      background: #141414;
+    }
+    .symbol-detail-score-badge.dec-strong_buy,
+    .symbol-detail-score-badge.dec-accumulate { color: #00c853; border-color: rgba(0,200,83,0.45); }
+    .symbol-detail-score-badge.dec-hold { color: #f59e0b; border-color: rgba(245,158,11,0.45); }
+    .symbol-detail-score-badge.dec-trim,
+    .symbol-detail-score-badge.dec-sell { color: #ff1744; border-color: rgba(255,23,68,0.45); }
+    .symbol-detail-score-table-wrap {
+      overflow: auto;
+      max-height: 160px;
+      border: 1px solid #2a2a2a;
+      margin-top: 6px;
+    }
+    .symbol-detail-score-table-wrap table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 0;
+      font-size: 10px;
+    }
+    .symbol-detail-score-table-wrap th,
+    .symbol-detail-score-table-wrap td {
+      padding: 3px 5px;
+      border-bottom: 1px solid #1f1f1f;
+      text-align: left;
+    }
+    .symbol-detail-score-table-wrap th {
+      color: #737373;
+      font-weight: 500;
+      position: sticky;
+      top: 0;
+      background: #0f0f0f;
+    }
+    .symbol-detail-score-table-wrap .hit-yes { color: #00c853; }
+    .symbol-detail-score-table-wrap .hit-no { color: #737373; }
+    .symbol-detail-score-disclaimer {
+      margin: 8px 0 0;
+      padding: 6px 7px;
+      border: 1px solid rgba(255,217,0,0.25);
+      background: rgba(255,217,0,0.06);
+      color: #d4d4d4;
+      font-size: 10px;
+      line-height: 1.35;
     }
     .symbol-detail-filters button {
       display: block;
@@ -1442,7 +1535,28 @@
           <button type="button" class="btn-quiet" id="symbol-detail-close" aria-label="Đóng">✕</button>
         </div>
         <div class="symbol-detail-body">
-          <div id="symbol-detail-filters" class="symbol-detail-filters" aria-label="Bộ lọc phân tích"></div>
+          <div class="symbol-detail-aside">
+            <div id="symbol-detail-filters" class="symbol-detail-filters" aria-label="Bộ lọc phân tích"></div>
+            <div id="symbol-detail-scoring" class="symbol-detail-scoring" data-atd-id="pb-ui:iboard.symbol-detail.scoring" aria-label="Scoring Matrix">
+              <div class="symbol-detail-scoring-head">
+                <strong>Scoring Matrix</strong>
+                <button type="button" class="btn-quiet" id="symbol-detail-score-btn" title="Chấm điểm định lượng">Chấm điểm</button>
+              </div>
+              <div id="symbol-detail-score-status">Chọn mã rồi nhấn Chấm điểm.</div>
+              <div id="symbol-detail-score-kpi" class="symbol-detail-score-kpi" hidden></div>
+              <div class="symbol-detail-score-table-wrap" id="symbol-detail-score-table-wrap" hidden>
+                <table>
+                  <thead>
+                    <tr><th>Rule</th><th>Hit</th><th>Điểm</th></tr>
+                  </thead>
+                  <tbody id="symbol-detail-score-tbody"></tbody>
+                </table>
+              </div>
+              <p class="symbol-detail-score-disclaimer" data-atd-id="pb-ui:iboard.symbol-detail.scoring.disclaimer">
+                Tham khảo định lượng thuần túy — không phải khuyến nghị đầu tư hay lệnh mua/bán tự động.
+              </p>
+            </div>
+          </div>
           <div class="symbol-detail-chart-wrap" data-atd-id="pb-ui:iboard.symbol-detail.chart">
             <div id="symbol-detail-range-bar" class="symbol-detail-range-bar" aria-label="Khung thời gian"></div>
             <div id="symbol-detail-ohlc-legend" class="symbol-detail-ohlc-legend"></div>
@@ -4466,6 +4580,7 @@
       SymbolDetailChart.dispose();
       symbolDetailSymbol = null;
       symbolDetailActiveFilter = "";
+      resetSymbolDetailScoringUi();
     }
 
     async function loadSymbolDetailFilterCatalog() {
@@ -4547,6 +4662,192 @@
       }
     }
 
+    function resetSymbolDetailScoringUi(msg) {
+      const status = document.getElementById("symbol-detail-score-status");
+      const kpi = document.getElementById("symbol-detail-score-kpi");
+      const wrap = document.getElementById("symbol-detail-score-table-wrap");
+      const tbody = document.getElementById("symbol-detail-score-tbody");
+      if (status) status.textContent = msg || "Chọn mã rồi nhấn Chấm điểm.";
+      if (kpi) {
+        kpi.hidden = true;
+        kpi.innerHTML = "";
+      }
+      if (wrap) wrap.hidden = true;
+      if (tbody) tbody.innerHTML = "";
+    }
+
+    function emaSeries(values, period) {
+      const n = Number(period) || 0;
+      const out = new Array(values.length).fill(null);
+      if (!Array.isArray(values) || n < 1 || values.length < n) return out;
+      const k = 2 / (n + 1);
+      let sum = 0;
+      for (let i = 0; i < n; i++) sum += values[i];
+      let prev = sum / n;
+      out[n - 1] = prev;
+      for (let i = n; i < values.length; i++) {
+        prev = values[i] * k + prev * (1 - k);
+        out[i] = prev;
+      }
+      return out;
+    }
+
+    function lastMacdHist(closes) {
+      if (!Array.isArray(closes) || closes.length < 35) return null;
+      const ema12 = emaSeries(closes, 12);
+      const ema26 = emaSeries(closes, 26);
+      const macdLine = closes.map((_, i) =>
+        ema12[i] != null && ema26[i] != null ? ema12[i] - ema26[i] : null,
+      );
+      const macdVals = [];
+      const macdIdx = [];
+      macdLine.forEach((v, i) => {
+        if (v != null) {
+          macdVals.push(v);
+          macdIdx.push(i);
+        }
+      });
+      if (macdVals.length < 9) return null;
+      const signal = emaSeries(macdVals, 9);
+      const lastSig = signal[signal.length - 1];
+      const lastMacd = macdVals[macdVals.length - 1];
+      if (lastSig == null || lastMacd == null) return null;
+      return lastMacd - lastSig;
+    }
+
+    function buildDeskScoringIndicators(bars, quoteRow) {
+      const rows = (bars || [])
+        .map((b) => {
+          const close = Number(b.close);
+          if (!Number.isFinite(close)) return null;
+          return {
+            time: b.time,
+            close,
+            volume: Number(b.volume) || 0,
+          };
+        })
+        .filter(Boolean);
+      const indicators = {};
+      const quotePct = quoteRow?.change_pct;
+      if (Number.isFinite(Number(quotePct))) indicators.change_pct = Number(quotePct);
+
+      if (rows.length >= 15) {
+        const rsiArr = SymbolDetailChart.calculateRSI(rows, 14);
+        const lastRsi = rsiArr.length ? rsiArr[rsiArr.length - 1].value : null;
+        if (Number.isFinite(lastRsi)) indicators.rsi = Number(lastRsi);
+      }
+      if (rows.length >= 20) {
+        const ma20 = SymbolDetailChart.calculateSMA(rows, 20);
+        const lastMa = ma20.length ? ma20[ma20.length - 1].value : null;
+        const lastClose = rows[rows.length - 1].close;
+        if (Number.isFinite(lastMa) && Number.isFinite(lastClose)) {
+          indicators.price_vs_ma20 = lastClose - lastMa;
+        }
+        const volWindow = rows.slice(-20);
+        const avgVol = volWindow.reduce((s, r) => s + r.volume, 0) / volWindow.length;
+        const lastVol = rows[rows.length - 1].volume;
+        if (avgVol > 0 && Number.isFinite(lastVol)) indicators.vol_ratio = lastVol / avgVol;
+      }
+      const macdHist = lastMacdHist(rows.map((r) => r.close));
+      if (Number.isFinite(macdHist)) indicators.macd_hist = macdHist;
+      return { indicators, barCount: rows.length };
+    }
+
+    async function fetchBarsForScoring(symbol) {
+      if (Array.isArray(symbolDetailBars) && symbolDetailBars.length >= 30 && symbolDetailRange !== "1d") {
+        return symbolDetailBars;
+      }
+      const q = new URLSearchParams({ symbol, range: "1y" });
+      const res = await fetch("/api/iboard/symbol-bars?" + q.toString());
+      const data = await res.json();
+      if (data.ok && Array.isArray(data.bars)) return data.bars;
+      return [];
+    }
+
+    function renderSymbolDetailScoringResult(body) {
+      const status = document.getElementById("symbol-detail-score-status");
+      const kpi = document.getElementById("symbol-detail-score-kpi");
+      const wrap = document.getElementById("symbol-detail-score-table-wrap");
+      const tbody = document.getElementById("symbol-detail-score-tbody");
+      if (!body || !body.ok) {
+        if (status) status.textContent = (body && body.detail) || "Không chấm được điểm.";
+        return;
+      }
+      const pct = Number(body.score_pct);
+      const decision = String(body.decision || "—");
+      const decClass = "dec-" + decision.toLowerCase();
+      if (status) {
+        status.textContent = `${body.symbol}: ${Number(body.total_score).toFixed(1)} / ${Number(body.max_score).toFixed(1)}`;
+      }
+      if (kpi) {
+        kpi.hidden = false;
+        kpi.innerHTML =
+          `<span class="score-pct">${Number.isFinite(pct) ? pct.toFixed(1) : "—"}%</span>` +
+          `<span class="symbol-detail-score-badge ${decClass}">${decision}</span>`;
+      }
+      const rows = Array.isArray(body.breakdown) ? body.breakdown : [];
+      if (tbody) {
+        tbody.innerHTML = rows
+          .map((r) => {
+            const hit = Boolean(r.hit);
+            const name = String(r.name || r.rule_code || "—");
+            const earned = Number(r.earned);
+            const weight = Number(r.weight);
+            const pts = `${Number.isFinite(earned) ? earned.toFixed(0) : "—"}/${Number.isFinite(weight) ? weight.toFixed(0) : "—"}`;
+            return `<tr title="${String(r.detail || "").replace(/"/g, "&quot;")}">` +
+              `<td>${name}</td>` +
+              `<td class="${hit ? "hit-yes" : "hit-no"}">${hit ? "✓" : "·"}</td>` +
+              `<td class="tabular-nums">${pts}</td></tr>`;
+          })
+          .join("");
+      }
+      if (wrap) wrap.hidden = !rows.length;
+      if (body.disclaimer && status) {
+        /* API disclaimer stays in fixed UI box; status keeps score summary only */
+      }
+    }
+
+    async function runSymbolDetailScoring() {
+      const sym = symbolDetailSymbol;
+      const status = document.getElementById("symbol-detail-score-status");
+      const btn = document.getElementById("symbol-detail-score-btn");
+      if (!sym) {
+        resetSymbolDetailScoringUi("Chưa có mã.");
+        return;
+      }
+      if (btn) btn.disabled = true;
+      if (status) status.textContent = "Đang lấy OHLCV + chấm điểm…";
+      try {
+        const bars = await fetchBarsForScoring(sym);
+        const quoteRow = state.get(sym);
+        const built = buildDeskScoringIndicators(bars, quoteRow);
+        if (built.barCount < 30) {
+          resetSymbolDetailScoringUi(`Thiếu OHLCV daily (${built.barCount} nến) — cần ≥30 để chấm.`);
+          return;
+        }
+        const res = await fetch(apiUrl("/api/scoring/evaluate"), {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            symbol: sym,
+            indicators: built.indicators,
+            persist: true,
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          resetSymbolDetailScoringUi(data.detail || `Lỗi HTTP ${res.status}`);
+          return;
+        }
+        renderSymbolDetailScoringResult(data);
+      } catch (err) {
+        resetSymbolDetailScoringUi(err?.message || "Lỗi chấm điểm Scoring Matrix.");
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    }
+
     async function openSymbolDetail(symbol) {
       const sym = String(symbol || "").toUpperCase();
       if (!sym) return;
@@ -4564,18 +4865,23 @@
         quote.textContent = `${fmtPrice(row.last, row.kind)} · ${fmtPct(row.change_pct != null ? row.change_pct : 0)}`;
       } else if (quote) quote.textContent = "";
       if (meta) meta.textContent = "Đang tải biểu đồ…";
+      resetSymbolDetailScoringUi("Đang chuẩn bị Scoring Matrix…");
       if (backdrop) backdrop.hidden = false;
       SymbolDetailChart.dispose();
       renderSymbolDetailRangeBar();
       await loadSymbolDetailFilterCatalog();
       renderSymbolDetailFilterButtons();
       await loadSymbolDetailChartData();
+      runSymbolDetailScoring();
     }
 
     function wireSymbolDetailPanel() {
       document.getElementById("symbol-detail-close")?.addEventListener("click", closeSymbolDetail);
       document.getElementById("symbol-detail-backdrop")?.addEventListener("click", (ev) => {
         if (ev.target.id === "symbol-detail-backdrop") closeSymbolDetail();
+      });
+      document.getElementById("symbol-detail-score-btn")?.addEventListener("click", () => {
+        runSymbolDetailScoring();
       });
       document.addEventListener("keydown", (ev) => {
         if (ev.key === "Escape") closeSymbolDetail();

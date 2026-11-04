@@ -121,6 +121,17 @@
       "err_codes": []
     },
     {
+      "match": "pb-ui:iboard.symbol-detail.scoring",
+      "matchType": "exact",
+      "breadcrumb": ["ATZ Desk", "iBoard", "Phân tích mã", "Scoring Matrix"],
+      "hints": {
+        "fe": "frontend/index.html — #symbol-detail-scoring, runSymbolDetailScoring()",
+        "be": "POST /api/scoring/evaluate ← backend/routers/scoring.py, desk_scoring_engine.py",
+        "spec": "decision-support only — disclaimer trong panel"
+      },
+      "err_codes": []
+    },
+    {
       "match": "pb-ui:iboard.equity.row.",
       "matchType": "prefix",
       "breadcrumb": ["ATZ Desk", "iBoard", "Dòng CP", "XHT spark"],
