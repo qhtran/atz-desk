@@ -534,6 +534,32 @@
     tr.equity-row.is-detail-open td:first-child {
       box-shadow: inset 3px 0 0 #ffd900;
     }
+    .symbol-detail-recent {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      max-width: min(420px, 100%);
+      min-height: 0;
+    }
+    .symbol-detail-recent[hidden] { display: none !important; }
+    .symbol-detail-recent-chip {
+      appearance: none;
+      border: 1px solid #2a2a2a;
+      background: #141414;
+      color: #a3a3a3;
+      font-size: 10px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      letter-spacing: 0.03em;
+      padding: 2px 7px;
+      border-radius: 999px;
+      cursor: pointer;
+      line-height: 1.4;
+    }
+    .symbol-detail-recent-chip:hover,
+    .symbol-detail-recent-chip.is-current {
+      border-color: #ffd900;
+      color: #ffd900;
+    }
     .symbol-detail-body {
       display: grid;
       grid-template-columns: 220px 1fr;
@@ -1617,15 +1643,23 @@
               <input
                 id="symbol-detail-switch"
                 type="search"
-                placeholder="Đổi mã… Enter"
+                placeholder="Đổi mã… / hoặc ⌘K"
                 autocomplete="off"
                 spellcheck="false"
                 aria-label="Chuyển mã nhanh"
                 aria-autocomplete="list"
                 aria-controls="symbol-detail-switch-suggest"
+                title="Phím tắt: / hoặc Ctrl/Cmd+K"
               />
               <ul id="symbol-detail-switch-suggest" class="symbol-detail-switch-suggest" role="listbox" hidden></ul>
             </div>
+            <div
+              id="symbol-detail-recent"
+              class="symbol-detail-recent"
+              data-atd-id="pb-ui:iboard.symbol-detail.recent"
+              aria-label="Mã gần đây"
+              hidden
+            ></div>
             <div>
               <div id="symbol-detail-title" class="text-lg font-semibold text-[#ffd900]">—</div>
               <div id="symbol-detail-quote" class="text-[12px] text-gray-400 tabular-nums"></div>
@@ -4778,6 +4812,103 @@
       });
     }
 
+    const SYMBOL_RECENT_KEY = "atz.symbol.recent";
+    const SYMBOL_RECENT_MAX = 7;
+
+    function loadRecentSymbols() {
+      try {
+        const raw = JSON.parse(localStorage.getItem(SYMBOL_RECENT_KEY) || "[]");
+        if (!Array.isArray(raw)) return [];
+        return raw
+          .map((s) => String(s || "").trim().toUpperCase())
+          .filter((s) => s && !(INDEX_SYMBOLS.has(s) && !FUTURES_BOARD_SYMBOLS.has(s)));
+      } catch (_) {
+        return [];
+      }
+    }
+
+    function pushRecentSymbol(symbol) {
+      const sym = String(symbol || "").trim().toUpperCase();
+      if (!sym) return;
+      if (INDEX_SYMBOLS.has(sym) && !FUTURES_BOARD_SYMBOLS.has(sym)) return;
+      const next = [sym, ...loadRecentSymbols().filter((s) => s !== sym)].slice(0, SYMBOL_RECENT_MAX);
+      try {
+        localStorage.setItem(SYMBOL_RECENT_KEY, JSON.stringify(next));
+      } catch (_) {}
+      renderSymbolDetailRecent(next);
+    }
+
+    function renderSymbolDetailRecent(list) {
+      const box = document.getElementById("symbol-detail-recent");
+      if (!box) return;
+      const items = Array.isArray(list) ? list : loadRecentSymbols();
+      if (!items.length) {
+        box.hidden = true;
+        box.innerHTML = "";
+        return;
+      }
+      const cur = String(symbolDetailSymbol || "").toUpperCase();
+      box.innerHTML = items
+        .map((sym) => {
+          const on = sym === cur ? " is-current" : "";
+          return `<button type="button" class="symbol-detail-recent-chip${on}" data-symbol="${sym}" title="Mở ${sym}">${sym}</button>`;
+        })
+        .join("");
+      box.hidden = false;
+      box.querySelectorAll("button[data-symbol]").forEach((btn) => {
+        btn.addEventListener("click", (ev) => {
+          ev.preventDefault();
+          switchSymbolDetailTo(btn.dataset.symbol);
+        });
+      });
+    }
+
+    function pickSymbolForDetailShortcut() {
+      if (symbolDetailSymbol) return String(symbolDetailSymbol).toUpperCase();
+      const highlighted = elBody?.querySelector("tr.equity-row.is-detail-open[data-symbol]");
+      if (highlighted?.dataset?.symbol) return String(highlighted.dataset.symbol).toUpperCase();
+      const recent = loadRecentSymbols();
+      if (recent[0] && state.has(recent[0])) return recent[0];
+      const visible = elBody?.querySelector("tr.equity-row[data-symbol]");
+      if (visible?.dataset?.symbol && visible.style.display !== "none") {
+        return String(visible.dataset.symbol).toUpperCase();
+      }
+      for (const sym of state.keys()) {
+        if (INDEX_SYMBOLS.has(sym) && !FUTURES_BOARD_SYMBOLS.has(sym)) continue;
+        return String(sym).toUpperCase();
+      }
+      return recent[0] || "";
+    }
+
+    function isTypingInEditable(el) {
+      if (!el || el === document.body) return false;
+      const tag = String(el.tagName || "").toUpperCase();
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return true;
+      if (el.isContentEditable) return true;
+      return false;
+    }
+
+    async function focusSymbolDetailSwitcher() {
+      const backdrop = document.getElementById("symbol-detail-backdrop");
+      const open = Boolean(backdrop && !backdrop.hidden);
+      if (!open) {
+        const sym = pickSymbolForDetailShortcut();
+        if (!sym) return false;
+        await openSymbolDetail(sym, { focusSwitch: true });
+        return true;
+      }
+      const sw = document.getElementById("symbol-detail-switch");
+      if (!sw) return false;
+      requestAnimationFrame(() => {
+        sw.focus();
+        try {
+          sw.select();
+        } catch (_) {}
+        if (!sw.value) renderSymbolDetailSwitcherSuggest("");
+      });
+      return true;
+    }
+
     async function switchSymbolDetailTo(symbol) {
       const sym = String(symbol || "").trim().toUpperCase();
       closeSymbolDetailSuggest();
@@ -5161,6 +5292,15 @@
         const sw = document.getElementById("symbol-detail-switch");
         if (sw) sw.value = sym;
         syncSymbolDetailBoardHighlight(sym);
+        pushRecentSymbol(sym);
+        if (opts.focusSwitch) {
+          requestAnimationFrame(() => {
+            sw?.focus();
+            try {
+              sw?.select();
+            } catch (_) {}
+          });
+        }
         return;
       }
 
@@ -5207,7 +5347,17 @@
         await selectSymbolDetailFilter(keepFilter);
         if (gen !== symbolDetailLoadGen) return;
       }
+      pushRecentSymbol(sym);
       runSymbolDetailScoring();
+      if (opts.focusSwitch) {
+        const swFocus = document.getElementById("symbol-detail-switch");
+        requestAnimationFrame(() => {
+          swFocus?.focus();
+          try {
+            swFocus?.select();
+          } catch (_) {}
+        });
+      }
     }
 
     function wireSymbolDetailSwitcher() {
@@ -5292,6 +5442,20 @@
         });
       }
       document.addEventListener("keydown", (ev) => {
+        const metaK = (ev.metaKey || ev.ctrlKey) && String(ev.key || "").toLowerCase() === "k";
+        const slash = ev.key === "/" && !ev.metaKey && !ev.ctrlKey && !ev.altKey;
+        if (metaK) {
+          ev.preventDefault();
+          focusSymbolDetailSwitcher();
+          return;
+        }
+        if (slash) {
+          // Không cướp `/` khi đang gõ trong ô khác (search board, login, …)
+          if (isTypingInEditable(ev.target) && ev.target?.id !== "symbol-detail-switch") return;
+          ev.preventDefault();
+          focusSymbolDetailSwitcher();
+          return;
+        }
         if (ev.key !== "Escape") return;
         const suggest = document.getElementById("symbol-detail-switch-suggest");
         if (suggest && !suggest.hidden) {
@@ -5303,6 +5467,7 @@
         closeSymbolDetail();
       });
       wireSymbolDetailSwitcher();
+      renderSymbolDetailRecent();
       loadScoringPresetsCatalog();
     }
     wireSymbolDetailPanel();
