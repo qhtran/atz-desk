@@ -40,7 +40,7 @@ def load_stream_alerts_config(path: Path | None = None) -> dict[str, Any]:
             "max_alerts_per_tick": 20,
             "rsi": {"length": 14, "oversold": 30, "overbought": 70},
             "ma": {"fast": 10, "slow": 20},
-            "volume_spike": {"lookback": 20, "mult": 2.0},
+            "volume_spike": {"lookback": 20, "mult": 2.5},
             "risk_levels": {"high_below": 40, "low_above": 70},
         }
     raw = yaml.safe_load(target.read_text(encoding="utf-8")) or {}
@@ -66,6 +66,7 @@ class QuantStreamListener:
         self._store = TickRingStore(int(self._cfg.get("ring_size", 80)))
         self._task: asyncio.Task | None = None
         self._eval_task: asyncio.Task | None = None
+        self._cfg_task: asyncio.Task | None = None
         self._stop = asyncio.Event()
         self._dirty: set[str] = set()
         self._lock = asyncio.Lock()
@@ -82,7 +83,12 @@ class QuantStreamListener:
             "stream alerts config applied",
             cooldown_sec=cfg.get("cooldown_sec"),
             rsi=cfg.get("rsi"),
+            volume_spike=cfg.get("volume_spike"),
         )
+
+    def reload_from_control_plane(self) -> None:
+        """Re-read YAML+overlay and apply (used by Redis config-reload bus)."""
+        self.apply_config(load_effective_stream_alerts_config())
 
     def start(self) -> None:
         if not bool(self._cfg.get("enabled", True)):
@@ -93,6 +99,7 @@ class QuantStreamListener:
         self._stop.clear()
         self._task = asyncio.create_task(self._run_pubsub(), name="quant-stream-pubsub")
         self._eval_task = asyncio.create_task(self._run_evaluator(), name="quant-stream-eval")
+        self._cfg_task = asyncio.create_task(self._run_config_reload(), name="quant-config-reload")
         log(
             COMPONENT,
             "STREAM-START",
@@ -103,7 +110,7 @@ class QuantStreamListener:
 
     async def stop(self) -> None:
         self._stop.set()
-        for task in (self._task, self._eval_task):
+        for task in (self._task, self._eval_task, self._cfg_task):
             if task:
                 task.cancel()
                 try:
@@ -112,6 +119,7 @@ class QuantStreamListener:
                     pass
         self._task = None
         self._eval_task = None
+        self._cfg_task = None
 
     async def _run_pubsub(self) -> None:
         channel = str(self._cfg.get("channel") or os.getenv("PRICEBOARD_CHANNEL", "priceboard_ticks"))
@@ -137,6 +145,74 @@ class QuantStreamListener:
                     return
                 except asyncio.TimeoutError:
                     delay = min(delay * 2, 30.0)
+
+    async def _run_config_reload(self) -> None:
+        """Subscribe ``admin:config-reload`` → apply screening thresholds live."""
+        from backend.admin_config_bus import config_reload_channel
+
+        channel = config_reload_channel()
+        delay = 1.0
+        while not self._stop.is_set():
+            try:
+                await self._config_reload_loop(channel)
+                delay = 1.0
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                log(
+                    COMPONENT,
+                    "STREAM-CFG-SUB",
+                    "config reload pub/sub error",
+                    logging.ERROR,
+                    error_code=ERR_PB_REDIS,
+                    exc=exc,
+                    retry_in_s=delay,
+                )
+                try:
+                    await asyncio.wait_for(self._stop.wait(), timeout=delay)
+                    return
+                except asyncio.TimeoutError:
+                    delay = min(delay * 2, 30.0)
+
+    async def _config_reload_loop(self, channel: str) -> None:
+        redis = aioredis.from_url(REDIS_URL, decode_responses=True)
+        pubsub = redis.pubsub()
+        try:
+            await pubsub.subscribe(channel)
+            log(COMPONENT, "STREAM-CFG-SUB", "subscribed config reload", channel=channel)
+            while not self._stop.is_set():
+                message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=1.0)
+                if message is None:
+                    await asyncio.sleep(0.05)
+                    continue
+                data = message.get("data")
+                if not data:
+                    continue
+                if isinstance(data, bytes):
+                    data = data.decode("utf-8")
+                self._handle_config_reload_message(data)
+        finally:
+            try:
+                await pubsub.unsubscribe(channel)
+                await pubsub.aclose()
+            except Exception:
+                pass
+            await redis.aclose()
+
+    def _handle_config_reload_message(self, data: str) -> None:
+        try:
+            payload = json.loads(data)
+        except (TypeError, json.JSONDecodeError):
+            return
+        if not isinstance(payload, dict):
+            return
+        if str(payload.get("type") or "") != "config_reload":
+            return
+        stream = payload.get("stream_alerts")
+        if isinstance(stream, dict) and stream:
+            self.apply_config(stream)
+        else:
+            self.reload_from_control_plane()
 
     async def _listen_loop(self, channel: str) -> None:
         redis = aioredis.from_url(REDIS_URL, decode_responses=True)
@@ -190,9 +266,9 @@ class QuantStreamListener:
             self._dirty.add(sym)
 
     async def _run_evaluator(self) -> None:
-        interval = max(0.5, float(self._cfg.get("evaluate_interval_ms", 2000)) / 1000.0)
         while not self._stop.is_set():
             try:
+                interval = max(0.5, float(self._cfg.get("evaluate_interval_ms", 2000)) / 1000.0)
                 await asyncio.sleep(interval)
                 async with self._lock:
                     dirty = set(self._dirty)

@@ -17,7 +17,7 @@ ma:
 
 volume_spike:
   lookback: 20
-  mult: 2.0
+  mult: 2.5
 
 # Gắn risk_level thô theo score (0–100); profile YAML chi tiết vẫn ở trading_station
 risk_levels:

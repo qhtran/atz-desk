@@ -9,6 +9,7 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
+from backend.admin_config_bus import config_reload_channel
 from backend.core.trading_config import load_trading_config
 from backend.engine.stream_listener import load_stream_alerts_config
 
@@ -105,11 +106,80 @@ def _int(value: Any, *, lo: int | None = None, hi: int | None = None) -> int | N
     return int(n)
 
 
+# Flat CDP aliases → nested stream_alerts paths.
+_FLAT_SCREENING_KEYS: dict[str, tuple[str, str]] = {
+    "rsi_length": ("rsi", "length"),
+    "rsi_oversold": ("rsi", "oversold"),
+    "rsi_overbought": ("rsi", "overbought"),
+    "ma_fast_period": ("ma", "fast"),
+    "ma_slow_period": ("ma", "slow"),
+    "volume_spike_mult": ("volume_spike", "mult"),
+    "volume_spike_lookback": ("volume_spike", "lookback"),
+}
+
+
+def flatten_screening_filters(stream: dict[str, Any] | None) -> dict[str, Any]:
+    """Expose nested stream_alerts as flat screening filter keys for Admin/API."""
+    sa = stream if isinstance(stream, dict) else {}
+    rsi = sa.get("rsi") if isinstance(sa.get("rsi"), dict) else {}
+    ma = sa.get("ma") if isinstance(sa.get("ma"), dict) else {}
+    vol = sa.get("volume_spike") if isinstance(sa.get("volume_spike"), dict) else {}
+    return {
+        "rsi_length": rsi.get("length"),
+        "rsi_oversold": rsi.get("oversold"),
+        "rsi_overbought": rsi.get("overbought"),
+        "ma_fast_period": ma.get("fast"),
+        "ma_slow_period": ma.get("slow"),
+        "volume_spike_mult": vol.get("mult"),
+        "volume_spike_lookback": vol.get("lookback"),
+    }
+
+
+def inflate_flat_screening_filters(body: dict[str, Any] | None) -> dict[str, Any]:
+    """Map flat CDP keys on the request body into nested ``stream_alerts`` patch."""
+    if not isinstance(body, dict) or not body:
+        return {}
+    nested: dict[str, Any] = {}
+    for flat, (group, field) in _FLAT_SCREENING_KEYS.items():
+        if flat not in body or body[flat] is None or body[flat] == "":
+            continue
+        bucket = nested.setdefault(group, {})
+        bucket[field] = body[flat]
+    return nested
+
+
+def normalize_control_plane_body(body: dict[str, Any] | None) -> dict[str, Any]:
+    """Merge nested ``stream_alerts`` / ``risk`` with flat screening aliases."""
+    raw = body if isinstance(body, dict) else {}
+    stream = raw.get("stream_alerts") if isinstance(raw.get("stream_alerts"), dict) else {}
+    stream = dict(stream)
+    flat_nested = inflate_flat_screening_filters(raw)
+    if flat_nested:
+        stream = _deep_merge(stream, flat_nested)
+    # Also accept flat keys nested under screening_filters
+    sf = raw.get("screening_filters") if isinstance(raw.get("screening_filters"), dict) else {}
+    if sf:
+        stream = _deep_merge(stream, inflate_flat_screening_filters(sf))
+    out: dict[str, Any] = {}
+    if stream:
+        out["stream_alerts"] = stream
+    if isinstance(raw.get("risk"), dict):
+        out["risk"] = raw["risk"]
+    return out
+
+
 def sanitize_stream_patch(patch: dict[str, Any] | None) -> dict[str, Any]:
     if not patch:
         return {}
+    # Allow flat keys inside stream_alerts blob too.
+    merged = dict(patch)
+    flat_inside = inflate_flat_screening_filters(merged)
+    if flat_inside:
+        merged = _deep_merge(merged, flat_inside)
+        for flat in _FLAT_SCREENING_KEYS:
+            merged.pop(flat, None)
     out: dict[str, Any] = {}
-    for key, value in patch.items():
+    for key, value in merged.items():
         if key not in _STREAM_KEYS:
             continue
         if key == "enabled":
@@ -234,12 +304,15 @@ def effective_risk_config(overlay_path: Path | None = None) -> dict[str, Any]:
 
 def get_control_plane(overlay_path: Path | None = None) -> dict[str, Any]:
     overlay = _read_overlay(overlay_path)
+    stream = effective_stream_config(overlay_path)
     return {
         "ok": True,
-        "stream_alerts": effective_stream_config(overlay_path),
+        "stream_alerts": stream,
+        "screening_filters": flatten_screening_filters(stream),
         "risk": effective_risk_config(overlay_path),
         "overlay_path": str(overlay_path or DEFAULT_OVERLAY),
         "has_overlay": bool(overlay),
+        "config_reload_channel": config_reload_channel(),
     }
 
 
@@ -249,9 +322,14 @@ def put_control_plane(
     overlay_path: Path | None = None,
 ) -> dict[str, Any]:
     """Merge whitelist patch vào overlay JSON; trả control plane hiệu lực."""
+    normalized = normalize_control_plane_body(body)
     current = _read_overlay(overlay_path)
-    stream_patch = sanitize_stream_patch(body.get("stream_alerts") if isinstance(body.get("stream_alerts"), dict) else {})
-    risk_patch = sanitize_risk_patch(body.get("risk") if isinstance(body.get("risk"), dict) else {})
+    stream_patch = sanitize_stream_patch(
+        normalized.get("stream_alerts") if isinstance(normalized.get("stream_alerts"), dict) else {}
+    )
+    risk_patch = sanitize_risk_patch(
+        normalized.get("risk") if isinstance(normalized.get("risk"), dict) else {}
+    )
 
     if stream_patch:
         prev = current.get("stream_alerts") if isinstance(current.get("stream_alerts"), dict) else {}
