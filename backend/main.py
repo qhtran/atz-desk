@@ -664,5 +664,44 @@ async def trading_page() -> FileResponse:
     return FileResponse(FRONTEND_DIR / "trading.html")
 
 
+@app.get("/manifest.json")
+async def pwa_manifest() -> FileResponse:
+    """Web app manifest for PWA install (dev.atz.vn)."""
+    return FileResponse(
+        FRONTEND_DIR / "manifest.json",
+        media_type="application/manifest+json",
+        headers={"Cache-Control": "public, max-age=300"},
+    )
+
+
+@app.get("/sw.js")
+async def pwa_service_worker() -> FileResponse:
+    """Service worker at origin root so scope covers ``/``."""
+    return FileResponse(
+        FRONTEND_DIR / "sw.js",
+        media_type="application/javascript; charset=utf-8",
+        headers={
+            "Cache-Control": "no-cache",
+            "Service-Worker-Allowed": "/",
+        },
+    )
+
+
+@app.get("/icons/{icon_name}")
+async def pwa_icon(icon_name: str) -> FileResponse:
+    """PWA / apple-touch icons under ``frontend/icons/``."""
+    safe = Path(icon_name).name
+    if safe != icon_name or ".." in icon_name or not safe.endswith(".png"):
+        raise HTTPException(status_code=404, detail="icon not found")
+    path = FRONTEND_DIR / "icons" / safe
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="icon not found")
+    return FileResponse(
+        path,
+        media_type="image/png",
+        headers={"Cache-Control": "public, max-age=86400"},
+    )
+
+
 if FRONTEND_DIR.is_dir():
     app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="static")
