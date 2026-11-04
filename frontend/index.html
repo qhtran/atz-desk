@@ -370,8 +370,8 @@
     #symbol-detail-rsi-lwc {
       width: 100%;
       min-width: 480px;
-      height: 120px;
-      flex: 0 0 120px;
+      height: 140px;
+      flex: 0 0 140px;
       margin-top: 6px;
       background: #0a0a0a;
       border: 1px solid #2a2a2a;
@@ -3467,12 +3467,12 @@
             timeScale: { borderColor: "#2a2a2a", timeVisible: true, secondsVisible: false },
             crosshair: { mode: LC.CrosshairMode?.Normal ?? 0 },
             width: rsiEl.clientWidth || undefined,
-            height: rsiEl.clientHeight || 120,
+            height: rsiEl.clientHeight || 140,
           });
           if (!rsiResizeObs && typeof ResizeObserver !== "undefined") {
             rsiResizeObs = new ResizeObserver(() => {
               if (!rsiChart || !rsiEl.clientWidth) return;
-              rsiChart.applyOptions({ width: rsiEl.clientWidth, height: rsiEl.clientHeight || 120 });
+              rsiChart.applyOptions({ width: rsiEl.clientWidth, height: rsiEl.clientHeight || 140 });
             });
             rsiResizeObs.observe(rsiEl);
           }
@@ -3518,14 +3518,14 @@
           return;
         }
         ma20Series = chart.addLineSeries({
-          color: "#ffd900",
+          color: "#f59e0b",
           lineWidth: 1,
           title: "MA20",
           lastValueVisible: false,
           priceLineVisible: false,
         });
         ma50Series = chart.addLineSeries({
-          color: "#b388ff",
+          color: "#a855f7",
           lineWidth: 1,
           title: "MA50",
           lastValueVisible: false,
@@ -3537,7 +3537,7 @@
         clearRsiSeries();
         if (!rsiChart) return;
         rsiSeries = rsiChart.addLineSeries({
-          color: "#26c6da",
+          color: "#06b6d4",
           lineWidth: 1,
           title: "RSI14",
           lastValueVisible: true,
@@ -3584,16 +3584,25 @@
           return;
         }
         const fmt = (v) => (Number.isFinite(Number(v)) ? Number(v).toLocaleString("en-US", { maximumFractionDigits: 2 }) : "—");
-        let extra = "";
+        const parts = [
+          `O ${fmt(bar.open)}`,
+          `H ${fmt(bar.high)}`,
+          `L ${fmt(bar.low)}`,
+          `C ${fmt(bar.close)}`,
+        ];
         if (ma20Series && s?.get(ma20Series)) {
           const v = s.get(ma20Series)?.value;
-          if (Number.isFinite(v)) extra += `  MA20 ${fmt(v)}`;
+          if (Number.isFinite(v)) {
+            parts.push(`<span style="color:#f59e0b">MA20 ${fmt(v)}</span>`);
+          }
         }
         if (ma50Series && s?.get(ma50Series)) {
           const v = s.get(ma50Series)?.value;
-          if (Number.isFinite(v)) extra += `  MA50 ${fmt(v)}`;
+          if (Number.isFinite(v)) {
+            parts.push(`<span style="color:#a855f7">MA50 ${fmt(v)}</span>`);
+          }
         }
-        leg.textContent = `O ${fmt(bar.open)}  H ${fmt(bar.high)}  L ${fmt(bar.low)}  C ${fmt(bar.close)}${extra}`;
+        leg.innerHTML = parts.join("  ");
       }
 
       function setDaily(bars, markers) {
