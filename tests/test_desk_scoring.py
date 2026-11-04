@@ -119,12 +119,17 @@ def test_presets_catalog_and_profile_evaluate(monkeypatch, tmp_path: Path):
     catalog = list_presets()
     assert catalog["default_profile"] == "default"
     ids = {i["id"] for i in catalog["items"]}
-    assert {"default", "momentum", "mean_reversion"} <= ids
+    assert {"default", "momentum", "mean_reversion", "trend_following"} <= ids
 
     pid, rules = get_preset_rules("momentum")
     assert pid == "momentum"
     assert sum(r["weight"] for r in rules) == pytest.approx(100)
     assert all(r["condition_json"]["field"] != "rsi" for r in rules)
+
+    tf_id, tf_rules = get_preset_rules("trend_following")
+    assert tf_id == "trend_following"
+    assert sum(r["weight"] for r in tf_rules) == pytest.approx(100)
+    assert len(tf_rules) == 4
 
     path = tmp_path / "api_scoring.db"
     import backend.desk_scoring_store as store
@@ -135,7 +140,8 @@ def test_presets_catalog_and_profile_evaluate(monkeypatch, tmp_path: Path):
 
     presets = client.get("/api/scoring/presets").json()
     assert presets["ok"] is True
-    assert len(presets["items"]) >= 3
+    assert len(presets["items"]) >= 4
+    assert any(i["id"] == "trend_following" for i in presets["items"])
 
     # default profile: indicators tuned so all 5 rules hit (price_vs_ma20 = ratio)
     res = client.post(
@@ -180,6 +186,26 @@ def test_presets_catalog_and_profile_evaluate(monkeypatch, tmp_path: Path):
     assert mr.status_code == 200
     assert mr.json()["profile"] == "mean_reversion"
     assert mr.json()["score_pct"] == pytest.approx(100)
+
+    tf = client.post(
+        "/api/scoring/evaluate",
+        json={
+            "symbol": "VCB",
+            "profile": "trend_following",
+            "indicators": {
+                "rsi": 55,
+                "price_vs_ma20": 1.04,
+                "macd_hist": 0.15,
+                "vol_ratio": 1.3,
+                "change_pct": 0.5,
+            },
+            "persist": False,
+        },
+    )
+    assert tf.status_code == 200
+    assert tf.json()["profile"] == "trend_following"
+    assert tf.json()["score_pct"] == pytest.approx(100)
+    assert len(tf.json()["breakdown"]) == 4
 
     bad = client.post(
         "/api/scoring/evaluate",

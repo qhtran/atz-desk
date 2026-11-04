@@ -136,9 +136,9 @@
       "matchType": "exact",
       "breadcrumb": ["ATZ Desk", "iBoard", "Phân tích mã", "Scoring Matrix", "Preset"],
       "hints": {
-        "fe": "frontend/index.html — #symbol-detail-score-preset",
+        "fe": "frontend/index.html — loadScoringPresetsCatalog() → #symbol-detail-score-preset",
         "be": "GET /api/scoring/presets; evaluate body.profile",
-        "spec": "default | momentum | mean_reversion"
+        "spec": "catalog YAML-driven (default|momentum|mean_reversion|trend_following)"
       },
       "err_codes": []
     },

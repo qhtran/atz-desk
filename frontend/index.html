@@ -1561,10 +1561,8 @@
               </div>
               <label class="symbol-detail-score-preset-wrap" for="symbol-detail-score-preset">
                 <span>Chiến lược</span>
-                <select id="symbol-detail-score-preset" data-atd-id="pb-ui:iboard.symbol-detail.scoring.preset" title="Preset định lượng (local)">
+                <select id="symbol-detail-score-preset" data-atd-id="pb-ui:iboard.symbol-detail.scoring.preset" title="Preset định lượng (từ /api/scoring/presets)">
                   <option value="default">Mặc định</option>
-                  <option value="momentum">Bứt phá (Momentum)</option>
-                  <option value="mean_reversion">Bắt đáy (Reversion)</option>
                 </select>
               </label>
               <div id="symbol-detail-score-status">Chọn mã rồi nhấn Chấm điểm.</div>
@@ -4688,24 +4686,39 @@
     }
 
     const SCORING_PROFILE_KEY = "atz.scoring.profile";
-    const SCORING_PROFILE_IDS = ["default", "momentum", "mean_reversion"];
+    /** Filled by GET /api/scoring/presets — fallback until catalog loads. */
+    let scoringPresetState = {
+      default_profile: "default",
+      ids: ["default", "momentum", "mean_reversion", "trend_following"],
+      loaded: false,
+    };
+
+    function scoringProfileIds() {
+      return Array.isArray(scoringPresetState.ids) && scoringPresetState.ids.length
+        ? scoringPresetState.ids
+        : ["default"];
+    }
 
     function getScoringProfile() {
+      const ids = scoringProfileIds();
+      const fallback = scoringPresetState.default_profile || "default";
       const sel = document.getElementById("symbol-detail-score-preset");
       let v = sel && sel.value ? String(sel.value) : "";
-      if (!SCORING_PROFILE_IDS.includes(v)) {
+      if (!ids.includes(v)) {
         try {
-          v = localStorage.getItem(SCORING_PROFILE_KEY) || "default";
+          v = localStorage.getItem(SCORING_PROFILE_KEY) || fallback;
         } catch (_) {
-          v = "default";
+          v = fallback;
         }
       }
-      if (!SCORING_PROFILE_IDS.includes(v)) v = "default";
+      if (!ids.includes(v)) v = ids.includes(fallback) ? fallback : ids[0];
       return v;
     }
 
     function setScoringProfile(profile, persist) {
-      const v = SCORING_PROFILE_IDS.includes(profile) ? profile : "default";
+      const ids = scoringProfileIds();
+      const fallback = scoringPresetState.default_profile || "default";
+      const v = ids.includes(profile) ? profile : (ids.includes(fallback) ? fallback : ids[0]);
       const sel = document.getElementById("symbol-detail-score-preset");
       if (sel) sel.value = v;
       if (persist !== false) {
@@ -4714,6 +4727,57 @@
         } catch (_) {}
       }
       return v;
+    }
+
+    function renderScoringPresetSelect(items, preferredId) {
+      const sel = document.getElementById("symbol-detail-score-preset");
+      if (!sel || !Array.isArray(items) || !items.length) return;
+      const ids = items.map((i) => String(i.id));
+      scoringPresetState.ids = ids;
+      const want = ids.includes(preferredId) ? preferredId : (scoringPresetState.default_profile || ids[0]);
+      sel.innerHTML = items
+        .map((i) => {
+          const id = String(i.id).replace(/"/g, "");
+          const label = String(i.label || i.id)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/"/g, "&quot;");
+          return `<option value="${id}">${label}</option>`;
+        })
+        .join("");
+      sel.value = want;
+    }
+
+    async function loadScoringPresetsCatalog() {
+      const sel = document.getElementById("symbol-detail-score-preset");
+      let saved = null;
+      try {
+        saved = localStorage.getItem(SCORING_PROFILE_KEY);
+      } catch (_) {}
+      try {
+        const res = await fetch(apiUrl("/api/scoring/presets"), { credentials: "same-origin" });
+        const data = await res.json();
+        if (res.ok && data.ok && Array.isArray(data.items) && data.items.length) {
+          scoringPresetState.default_profile = String(data.default_profile || "default");
+          scoringPresetState.loaded = true;
+          renderScoringPresetSelect(data.items, saved || scoringPresetState.default_profile);
+          setScoringProfile(sel?.value || scoringPresetState.default_profile, false);
+          return scoringPresetState;
+        }
+      } catch (_) {}
+      // Fallback static catalog (offline / API error)
+      if (sel && !scoringPresetState.loaded) {
+        renderScoringPresetSelect(
+          [
+            { id: "default", label: "Mặc định" },
+            { id: "momentum", label: "Bứt phá (Momentum)" },
+            { id: "mean_reversion", label: "Bắt đáy (Reversion)" },
+            { id: "trend_following", label: "Theo xu hướng (Trend)" },
+          ],
+          saved || "default",
+        );
+      }
+      return scoringPresetState;
     }
 
     function resetSymbolDetailScoringUi(msg) {
@@ -4927,6 +4991,7 @@
       if (backdrop) backdrop.hidden = false;
       SymbolDetailChart.dispose();
       renderSymbolDetailRangeBar();
+      await loadScoringPresetsCatalog();
       await loadSymbolDetailFilterCatalog();
       renderSymbolDetailFilterButtons();
       await loadSymbolDetailChartData();
@@ -4943,10 +5008,6 @@
       });
       const presetSel = document.getElementById("symbol-detail-score-preset");
       if (presetSel) {
-        try {
-          const saved = localStorage.getItem(SCORING_PROFILE_KEY);
-          if (saved && SCORING_PROFILE_IDS.includes(saved)) presetSel.value = saved;
-        } catch (_) {}
         presetSel.addEventListener("change", () => {
           setScoringProfile(presetSel.value, true);
           if (symbolDetailSymbol) runSymbolDetailScoring();
@@ -4955,6 +5016,7 @@
       document.addEventListener("keydown", (ev) => {
         if (ev.key === "Escape") closeSymbolDetail();
       });
+      loadScoringPresetsCatalog();
     }
     wireSymbolDetailPanel();
 

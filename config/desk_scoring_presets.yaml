@@ -123,3 +123,40 @@ profiles:
           field: vol_ratio
           op: gt
           value: 1.0
+
+  trend_following:
+    label: "Theo xu hướng (Trend)"
+    description: "Trung/dài hạn — giá trên MA20 + MACD dương + RSI bền"
+    rules:
+      - rule_code: TF_TREND_MA
+        category: trend
+        name: "Giá / MA20 > 1"
+        weight: 35
+        condition_json:
+          field: price_vs_ma20
+          op: gt
+          value: 1.0
+      - rule_code: TF_MACD
+        category: momentum
+        name: "MACD hist > 0"
+        weight: 30
+        condition_json:
+          field: macd_hist
+          op: gt
+          value: 0
+      - rule_code: TF_RSI_BAND
+        category: momentum
+        name: "RSI trong vùng bền (40–70)"
+        weight: 20
+        condition_json:
+          field: rsi
+          op: between
+          value: [40, 70]
+      - rule_code: TF_VOL
+        category: volume
+        name: "Vol ratio > 1"
+        weight: 15
+        condition_json:
+          field: vol_ratio
+          op: gt
+          value: 1.0
