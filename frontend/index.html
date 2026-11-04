@@ -895,6 +895,91 @@
     }
     #portfolio-table td.pf-pl-up { color: #00c853; font-weight: 700; }
     #portfolio-table td.pf-pl-down { color: #ff3d00; font-weight: 700; }
+    #portfolio-table th.pf-score-col,
+    #portfolio-table td.pf-score-cell {
+      min-width: 52px;
+      white-space: nowrap;
+    }
+    #portfolio-table td.pf-score-compact {
+      min-width: 120px;
+      white-space: normal;
+    }
+    .pf-score-badges {
+      display: inline-flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      align-items: center;
+    }
+    button.pf-score-badge {
+      appearance: none;
+      border: 1px solid #404040;
+      background: #171717;
+      color: #e5e5e5;
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-size: 10px;
+      line-height: 1.4;
+      cursor: pointer;
+      font-variant-numeric: tabular-nums;
+    }
+    button.pf-score-badge:hover {
+      border-color: #ffd900;
+      color: #ffd900;
+    }
+    button.pf-score-badge.is-empty { color: #737373; }
+    button.pf-score-badge.dec-buy { border-color: #166534; color: #4ade80; }
+    button.pf-score-badge.dec-hold { border-color: #854d0e; color: #facc15; }
+    button.pf-score-badge.dec-trim,
+    button.pf-score-badge.dec-sell { border-color: #7f1d1d; color: #f87171; }
+    .pf-score-view-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      margin: 0 12px 8px;
+      font-size: 11px;
+      color: #a3a3a3;
+    }
+    .pf-score-view-bar .pf-mode-toggle {
+      display: inline-flex;
+      border: 1px solid #333;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .pf-score-view-bar .pf-mode-toggle button {
+      appearance: none;
+      border: 0;
+      background: #141414;
+      color: #a3a3a3;
+      padding: 4px 10px;
+      font-size: 11px;
+      cursor: pointer;
+    }
+    .pf-score-view-bar .pf-mode-toggle button.is-active {
+      background: #292524;
+      color: #ffd900;
+    }
+    .pf-score-chips {
+      display: inline-flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+    .pf-score-chips button {
+      appearance: none;
+      border: 1px solid #333;
+      background: #141414;
+      color: #a3a3a3;
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: 10px;
+      cursor: pointer;
+    }
+    .pf-score-chips button.is-on {
+      border-color: #ffd900;
+      color: #ffd900;
+      background: #1c180c;
+    }
+    .pf-score-view-hint { color: #737373; font-size: 10px; }
 
     .pf-f3-sector-panel {
       margin: 0 12px 10px;
@@ -1727,6 +1812,17 @@
       <button type="button" class="btn-quiet" id="pf-clear-all" title="Xóa toàn bộ mã trong danh mục">Xóa tất cả</button>
       <span class="text-[11px] text-gray-500 ml-auto" id="pf-summary">NAV —</span>
     </div>
+    <div class="pf-score-view-bar" data-atd-id="pb-ui:portfolio.score-view" id="pf-score-view-bar">
+      <span>Score view</span>
+      <div class="pf-mode-toggle" role="group" aria-label="Chế độ xem điểm">
+        <button type="button" id="pf-score-mode-compact" data-mode="compact" class="is-active" title="Badge gọn — click badge mở panel + preset">Compact</button>
+        <button type="button" id="pf-score-mode-compare" data-mode="compare" title="Cột song song theo preset đang bật">Compare</button>
+      </div>
+      <span>Presets</span>
+      <div class="pf-score-chips" id="pf-score-preset-chips" data-atd-id="pb-ui:portfolio.score-view.chips"></div>
+      <button type="button" class="btn-quiet" id="pf-score-refresh" title="Làm mới điểm (OHLCV + evaluate, không theo tick WS)">↻ Điểm</button>
+      <span class="pf-score-view-hint" id="pf-score-view-status">Tham khảo định lượng — không phải lệnh mua/bán.</span>
+    </div>
     <div class="panel-toolbar pf-desk-kpis" data-atd-id="pb-ui:portfolio.desk.kpis" id="pf-desk-kpis" hidden>
       <span>Cash <strong id="pf-kpi-cash">—</strong></span>
       <span>CK <strong id="pf-kpi-stock">—</strong></span>
@@ -1747,7 +1843,7 @@
     <div class="atz-table-wrap panel-tall">
       <table class="atz-table" id="portfolio-table">
         <thead>
-          <tr>
+          <tr id="portfolio-thead-row">
             <th class="th-sym">Mã</th>
             <th class="num">SL</th>
             <th class="num pf-col-avg">Giá TB</th>
@@ -1758,8 +1854,9 @@
             <th class="num" title="Tỷ trọng / tổng tài sản">TW%</th>
             <th class="num">KL ngày</th>
             <th class="num">KL TB 10</th>
-            <th>Cảnh báo</th>
-            <th></th>
+            <!-- score cols injected by syncPortfolioScoreHeaders() -->
+            <th data-pf-tail="alert">Cảnh báo</th>
+            <th data-pf-tail="actions"></th>
           </tr>
         </thead>
         <tbody id="portfolio-body"></tbody>
@@ -1931,6 +2028,7 @@
     const WATCHLIST_KEY = "atz.iboard.watchlist_id";
     const APP_TAB_KEY = "atz.app.tab";
     const PORTFOLIO_KEY = "atz.app.portfolio";
+    const PF_SCORE_VIEW_KEY = "atz.pf.scoreView";
     const VALID_MARKETS = new Set(["HOSE", "VN30", "VN30F1M", "VN30F2M", "HNX", "UPCOM", "FOREIGN"]);
     /** @type {Array<{id:number,name:string,symbols:string[]}>} */
     let userWatchlists = [];
@@ -2122,6 +2220,7 @@
         loadPortfolioF3Themes();
         void refreshDeskPortfolioUi();
         renderPortfolioTable();
+        void ensurePfScoreViewReady();
       }
       if (tab === "alerts") renderAlertsFeed();
       if (tab === "account" && accountState.authenticated) renderAccountDashboard();
@@ -5033,6 +5132,12 @@
     let scoringPresetState = {
       default_profile: "default",
       ids: ["default", "momentum", "mean_reversion", "trend_following"],
+      items: [
+        { id: "default", label: "Mặc định" },
+        { id: "momentum", label: "Bứt phá (Momentum)" },
+        { id: "mean_reversion", label: "Bắt đáy (Reversion)" },
+        { id: "trend_following", label: "Theo xu hướng (Trend)" },
+      ],
       loaded: false,
     };
 
@@ -5105,20 +5210,22 @@
           scoringPresetState.loaded = true;
           renderScoringPresetSelect(data.items, saved || scoringPresetState.default_profile);
           setScoringProfile(sel?.value || scoringPresetState.default_profile, false);
+          scoringPresetState.items = data.items;
+          renderPfScorePresetChips();
           return scoringPresetState;
         }
       } catch (_) {}
       // Fallback static catalog (offline / API error)
       if (sel && !scoringPresetState.loaded) {
-        renderScoringPresetSelect(
-          [
-            { id: "default", label: "Mặc định" },
-            { id: "momentum", label: "Bứt phá (Momentum)" },
-            { id: "mean_reversion", label: "Bắt đáy (Reversion)" },
-            { id: "trend_following", label: "Theo xu hướng (Trend)" },
-          ],
-          saved || "default",
-        );
+        const fallbackItems = [
+          { id: "default", label: "Mặc định" },
+          { id: "momentum", label: "Bứt phá (Momentum)" },
+          { id: "mean_reversion", label: "Bắt đáy (Reversion)" },
+          { id: "trend_following", label: "Theo xu hướng (Trend)" },
+        ];
+        renderScoringPresetSelect(fallbackItems, saved || "default");
+        scoringPresetState.items = fallbackItems;
+        renderPfScorePresetChips();
       }
       return scoringPresetState;
     }
@@ -5216,10 +5323,17 @@
     }
 
     async function fetchBarsForScoring(symbol) {
-      if (Array.isArray(symbolDetailBars) && symbolDetailBars.length >= 30 && symbolDetailRange !== "1d") {
+      const sym = String(symbol || "").toUpperCase();
+      if (
+        sym &&
+        sym === symbolDetailSymbol &&
+        Array.isArray(symbolDetailBars) &&
+        symbolDetailBars.length >= 30 &&
+        symbolDetailRange !== "1d"
+      ) {
         return symbolDetailBars;
       }
-      const q = new URLSearchParams({ symbol, range: "1y" });
+      const q = new URLSearchParams({ symbol: sym, range: "1y" });
       const res = await fetch("/api/iboard/symbol-bars?" + q.toString());
       const data = await res.json();
       if (data.ok && Array.isArray(data.bars)) return data.bars;
@@ -6226,9 +6340,423 @@
       await ensureDeskPortfolioList();
       await refreshDeskPortfolioSummary();
       renderPortfolioTable();
+      void ensurePfScoreViewReady();
     }
 
+    /* ===== Portfolio Personalized Preset Display (localStorage + score cache) ===== */
+    const PF_SCORE_VIEW_DEFAULT = {
+      v: 1,
+      mode: "compact",
+      presets: ["momentum", "trend_following"],
+    };
+    /** @type {{v:number, mode:string, presets:string[]}} */
+    let pfScoreView = { ...PF_SCORE_VIEW_DEFAULT, presets: [...PF_SCORE_VIEW_DEFAULT.presets] };
+    /** symbol → presetId → { pct, decision, total, max, ts, err? } */
+    const pfScoreCache = new Map();
+    let pfScoreQueue = [];
+    let pfScoreRunning = 0;
+    let pfScoreGen = 0;
+    const PF_SCORE_CONCURRENCY = 2;
+    const PF_SCORE_TTL_MS = 10 * 60 * 1000;
+    const PF_SCORE_SHORT = {
+      default: "Def",
+      momentum: "Mom",
+      mean_reversion: "MR",
+      trend_following: "Trend",
+    };
+
+    function loadPfScoreViewPrefs() {
+      let raw = null;
+      try {
+        raw = localStorage.getItem(PF_SCORE_VIEW_KEY);
+      } catch (_) {}
+      let parsed = null;
+      if (raw) {
+        try {
+          parsed = JSON.parse(raw);
+        } catch (_) {
+          parsed = null;
+        }
+      }
+      const ids = new Set(scoringProfileIds());
+      let mode = parsed && (parsed.mode === "compare" || parsed.mode === "compact") ? parsed.mode : "compact";
+      let presets = Array.isArray(parsed && parsed.presets) ? parsed.presets.map(String) : [];
+      presets = presets.filter((id) => ids.has(id));
+      if (!presets.length) {
+        presets = PF_SCORE_VIEW_DEFAULT.presets.filter((id) => ids.has(id));
+        if (!presets.length) presets = [ids.has("default") ? "default" : [...ids][0]].filter(Boolean);
+      }
+      pfScoreView = { v: 1, mode, presets };
+      return pfScoreView;
+    }
+
+    function savePfScoreViewPrefs() {
+      try {
+        localStorage.setItem(
+          PF_SCORE_VIEW_KEY,
+          JSON.stringify({ v: 1, mode: pfScoreView.mode, presets: pfScoreView.presets }),
+        );
+      } catch (_) {}
+    }
+
+    function pfScoreShortLabel(id) {
+      if (PF_SCORE_SHORT[id]) return PF_SCORE_SHORT[id];
+      const item = (scoringPresetState.items || []).find((x) => x.id === id);
+      if (item && item.label) {
+        const m = String(item.label).match(/\(([^)]+)\)/);
+        if (m) return m[1].slice(0, 6);
+        return String(item.label).slice(0, 6);
+      }
+      return String(id || "?").slice(0, 6);
+    }
+
+    function setPfScoreViewStatus(msg) {
+      const el = document.getElementById("pf-score-view-status");
+      if (el) el.textContent = msg || "Tham khảo định lượng — không phải lệnh mua/bán.";
+    }
+
+    function renderPfScorePresetChips() {
+      const host = document.getElementById("pf-score-preset-chips");
+      if (!host) return;
+      loadPfScoreViewPrefs();
+      const items = Array.isArray(scoringPresetState.items) && scoringPresetState.items.length
+        ? scoringPresetState.items
+        : scoringProfileIds().map((id) => ({ id, label: id }));
+      host.innerHTML = items
+        .map((it) => {
+          const id = String(it.id);
+          const on = pfScoreView.presets.includes(id);
+          const lab = pfScoreShortLabel(id);
+          return `<button type="button" data-preset="${id.replace(/"/g, "")}" class="${on ? "is-on" : ""}" title="${String(it.label || id).replace(/"/g, "&quot;")}">${lab}</button>`;
+        })
+        .join("");
+      const compactBtn = document.getElementById("pf-score-mode-compact");
+      const compareBtn = document.getElementById("pf-score-mode-compare");
+      if (compactBtn) compactBtn.classList.toggle("is-active", pfScoreView.mode === "compact");
+      if (compareBtn) compareBtn.classList.toggle("is-active", pfScoreView.mode === "compare");
+    }
+
+    function syncPortfolioScoreHeaders() {
+      const tr = document.getElementById("portfolio-thead-row");
+      if (!tr) return;
+      tr.querySelectorAll("[data-pf-score-h]").forEach((n) => n.remove());
+      const alertTh = tr.querySelector('[data-pf-tail="alert"]');
+      const presets = pfScoreView.presets || [];
+      const nodes = [];
+      if (pfScoreView.mode === "compare") {
+        presets.forEach((id) => {
+          const th = document.createElement("th");
+          th.className = "num pf-score-col";
+          th.dataset.pfScoreH = id;
+          th.title = id;
+          th.textContent = pfScoreShortLabel(id);
+          nodes.push(th);
+        });
+      } else {
+        const th = document.createElement("th");
+        th.className = "pf-score-col";
+        th.dataset.pfScoreH = "compact";
+        th.textContent = "Score";
+        th.title = "Badge theo preset đang bật — click mở panel chi tiết";
+        nodes.push(th);
+      }
+      nodes.forEach((th) => tr.insertBefore(th, alertTh));
+    }
+
+    function getPfScoreEntry(symbol, presetId) {
+      const bySym = pfScoreCache.get(String(symbol || "").toUpperCase());
+      if (!bySym) return null;
+      return bySym.get(presetId) || null;
+    }
+
+    function setPfScoreEntry(symbol, presetId, entry) {
+      const sym = String(symbol || "").toUpperCase();
+      let bySym = pfScoreCache.get(sym);
+      if (!bySym) {
+        bySym = new Map();
+        pfScoreCache.set(sym, bySym);
+      }
+      bySym.set(presetId, entry);
+    }
+
+    function formatPfScoreBadge(symbol, presetId) {
+      const entry = getPfScoreEntry(symbol, presetId);
+      const short = pfScoreShortLabel(presetId);
+      if (!entry) {
+        return `<button type="button" class="pf-score-badge is-empty" data-pf-score-open="${symbol}" data-preset="${presetId}" title="Chưa có điểm — chờ làm mới">${short} —</button>`;
+      }
+      if (entry.err) {
+        return `<button type="button" class="pf-score-badge is-empty" data-pf-score-open="${symbol}" data-preset="${presetId}" title="${String(entry.err).replace(/"/g, "&quot;")}">${short} —</button>`;
+      }
+      const pct = Number(entry.pct);
+      const decision = String(entry.decision || "—");
+      const decClass = "dec-" + decision.toLowerCase();
+      const label = Number.isFinite(pct) ? pct.toFixed(0) : "—";
+      return `<button type="button" class="pf-score-badge ${decClass}" data-pf-score-open="${symbol}" data-preset="${presetId}" title="${short}: ${Number.isFinite(pct) ? pct.toFixed(1) : "—"}% · ${decision}">${short} ${label}</button>`;
+    }
+
+    function formatPfScoreCompareCell(symbol, presetId) {
+      const entry = getPfScoreEntry(symbol, presetId);
+      if (!entry || entry.err) {
+        return `<button type="button" class="pf-score-badge is-empty" data-pf-score-open="${symbol}" data-preset="${presetId}" title="${entry && entry.err ? String(entry.err).replace(/"/g, "&quot;") : "Chưa có điểm"}">—</button>`;
+      }
+      const pct = Number(entry.pct);
+      const decision = String(entry.decision || "—");
+      const decClass = "dec-" + decision.toLowerCase();
+      const label = Number.isFinite(pct) ? pct.toFixed(0) + "%" : "—";
+      return `<button type="button" class="pf-score-badge ${decClass}" data-pf-score-open="${symbol}" data-preset="${presetId}" title="${decision}">${label}</button>`;
+    }
+
+    function buildPfScoreCellsHtml(symbol) {
+      const sym = String(symbol || "").toUpperCase();
+      const presets = pfScoreView.presets || [];
+      if (pfScoreView.mode === "compare") {
+        return presets
+          .map(
+            (id) =>
+              `<td class="num pf-score-cell" data-f="score-${id}">${formatPfScoreCompareCell(sym, id)}</td>`,
+          )
+          .join("");
+      }
+      const badges = presets.map((id) => formatPfScoreBadge(sym, id)).join("");
+      return `<td class="pf-score-cell pf-score-compact" data-f="score-compact"><div class="pf-score-badges">${badges || "—"}</div></td>`;
+    }
+
+    function paintPfScoreCells(tr, symbol) {
+      if (!tr) return;
+      const sym = String(symbol || "").toUpperCase();
+      const presets = pfScoreView.presets || [];
+      if (pfScoreView.mode === "compare") {
+        presets.forEach((id) => {
+          const td = tr.querySelector(`[data-f="score-${id}"]`);
+          if (td) td.innerHTML = formatPfScoreCompareCell(sym, id);
+        });
+      } else {
+        const td = tr.querySelector('[data-f="score-compact"]');
+        if (td) {
+          const badges = presets.map((id) => formatPfScoreBadge(sym, id)).join("");
+          td.innerHTML = `<div class="pf-score-badges">${badges || "—"}</div>`;
+        }
+      }
+    }
+
+    function pfScoreNeedsRefresh(symbol, presetId, force) {
+      if (force) return true;
+      const entry = getPfScoreEntry(symbol, presetId);
+      if (!entry) return true;
+      if (entry.err === "auth") return false;
+      if (!entry.ts) return true;
+      return Date.now() - entry.ts > PF_SCORE_TTL_MS;
+    }
+
+    function enqueuePfScoreJobs(symbols, { force = false } = {}) {
+      const presets = pfScoreView.presets || [];
+      if (!presets.length) return;
+      const gen = pfScoreGen;
+      const syms = (symbols || []).map((s) => String(s || "").toUpperCase()).filter(Boolean);
+      syms.forEach((sym) => {
+        presets.forEach((presetId) => {
+          if (!pfScoreNeedsRefresh(sym, presetId, force)) return;
+          const key = sym + "::" + presetId;
+          if (pfScoreQueue.some((j) => j.key === key && j.gen === gen)) return;
+          pfScoreQueue.push({ key, symbol: sym, presetId, gen });
+        });
+      });
+      pumpPfScoreQueue();
+    }
+
+    function pumpPfScoreQueue() {
+      while (pfScoreRunning < PF_SCORE_CONCURRENCY && pfScoreQueue.length) {
+        const job = pfScoreQueue.shift();
+        if (!job || job.gen !== pfScoreGen) continue;
+        pfScoreRunning += 1;
+        void runPfScoreJob(job).finally(() => {
+          pfScoreRunning -= 1;
+          pumpPfScoreQueue();
+          updatePfScoreQueueStatus();
+        });
+      }
+      updatePfScoreQueueStatus();
+    }
+
+    function updatePfScoreQueueStatus() {
+      const pending = pfScoreQueue.length + pfScoreRunning;
+      if (pending > 0) {
+        setPfScoreViewStatus(`Đang chấm ${pending}… (không theo tick WS)`);
+      } else {
+        setPfScoreViewStatus("Tham khảo định lượng — không phải lệnh mua/bán.");
+      }
+    }
+
+    async function runPfScoreJob(job) {
+      const { symbol, presetId, gen } = job;
+      try {
+        if (!accountState.authenticated) {
+          setPfScoreEntry(symbol, presetId, {
+            pct: null,
+            decision: "—",
+            err: "auth",
+            ts: Date.now(),
+          });
+          return;
+        }
+        const bars = await fetchBarsForScoring(symbol);
+        if (gen !== pfScoreGen) return;
+        const quoteRow = state.get(symbol);
+        const built = buildDeskScoringIndicators(bars, quoteRow);
+        if (built.barCount < 30) {
+          setPfScoreEntry(symbol, presetId, {
+            pct: null,
+            decision: "—",
+            err: `Thiếu OHLCV (${built.barCount} nến)`,
+            ts: Date.now(),
+          });
+          return;
+        }
+        const res = await fetch(apiUrl("/api/scoring/evaluate"), {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            symbol,
+            indicators: built.indicators,
+            persist: false,
+            profile: presetId,
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (gen !== pfScoreGen) return;
+        if (res.status === 401) {
+          setPfScoreEntry(symbol, presetId, {
+            pct: null,
+            decision: "—",
+            err: "auth",
+            ts: Date.now(),
+          });
+          return;
+        }
+        if (!res.ok || !data.ok) {
+          setPfScoreEntry(symbol, presetId, {
+            pct: null,
+            decision: "—",
+            err: data.detail || `HTTP ${res.status}`,
+            ts: Date.now(),
+          });
+          return;
+        }
+        setPfScoreEntry(symbol, presetId, {
+          pct: Number(data.score_pct),
+          total: Number(data.total_score),
+          max: Number(data.max_score),
+          decision: String(data.decision || "—"),
+          ts: Date.now(),
+        });
+      } catch (err) {
+        if (gen !== pfScoreGen) return;
+        setPfScoreEntry(symbol, presetId, {
+          pct: null,
+          decision: "—",
+          err: err?.message || "Lỗi chấm điểm",
+          ts: Date.now(),
+        });
+      } finally {
+        if (gen === pfScoreGen && appTab === "portfolio") {
+          paintPfScoreCells(document.getElementById("pf-" + symbol), symbol);
+        }
+      }
+    }
+
+    function schedulePfScoreRefresh({ force = false } = {}) {
+      pfScoreGen += 1;
+      pfScoreQueue = [];
+      const gen = pfScoreGen;
+      const syms = portfolio.map((p) => p.symbol);
+      const run = () => {
+        if (gen !== pfScoreGen) return;
+        enqueuePfScoreJobs(syms, { force });
+      };
+      if (typeof requestIdleCallback === "function") {
+        requestIdleCallback(run, { timeout: 1200 });
+      } else {
+        setTimeout(run, 0);
+      }
+    }
+
+    async function ensurePfScoreViewReady() {
+      const before = JSON.stringify(pfScoreView);
+      loadPfScoreViewPrefs();
+      await loadScoringPresetsCatalog();
+      loadPfScoreViewPrefs();
+      renderPfScorePresetChips();
+      const after = JSON.stringify(pfScoreView);
+      if (before !== after || !document.querySelector("#portfolio-thead-row [data-pf-score-h]")) {
+        syncPortfolioScoreHeaders();
+        renderPortfolioTable();
+      } else {
+        syncPortfolioScoreHeaders();
+      }
+      schedulePfScoreRefresh({ force: false });
+    }
+
+    function applyPfScoreViewChange() {
+      savePfScoreViewPrefs();
+      renderPfScorePresetChips();
+      syncPortfolioScoreHeaders();
+      renderPortfolioTable();
+      schedulePfScoreRefresh({ force: false });
+    }
+
+    function wirePfScoreViewBar() {
+      const bar = document.getElementById("pf-score-view-bar");
+      if (!bar || bar.dataset.wired === "1") return;
+      bar.dataset.wired = "1";
+      document.getElementById("pf-score-mode-compact")?.addEventListener("click", () => {
+        if (pfScoreView.mode === "compact") return;
+        pfScoreView.mode = "compact";
+        applyPfScoreViewChange();
+      });
+      document.getElementById("pf-score-mode-compare")?.addEventListener("click", () => {
+        if (pfScoreView.mode === "compare") return;
+        pfScoreView.mode = "compare";
+        applyPfScoreViewChange();
+      });
+      document.getElementById("pf-score-preset-chips")?.addEventListener("click", (ev) => {
+        const btn = ev.target.closest("button[data-preset]");
+        if (!btn) return;
+        const id = btn.getAttribute("data-preset");
+        if (!id) return;
+        const set = new Set(pfScoreView.presets);
+        if (set.has(id)) {
+          if (set.size <= 1) return;
+          set.delete(id);
+        } else {
+          set.add(id);
+        }
+        const order = scoringProfileIds();
+        pfScoreView.presets = order.filter((x) => set.has(x));
+        applyPfScoreViewChange();
+      });
+      document.getElementById("pf-score-refresh")?.addEventListener("click", () => {
+        schedulePfScoreRefresh({ force: true });
+      });
+      elPortfolioBody?.addEventListener("click", (ev) => {
+        const btn = ev.target.closest("[data-pf-score-open]");
+        if (!btn) return;
+        const sym = btn.getAttribute("data-pf-score-open");
+        const preset = btn.getAttribute("data-preset");
+        if (!sym) return;
+        if (preset) setScoringProfile(preset, true);
+        void openSymbolDetail(sym, { force: true });
+      });
+    }
+
+    wirePfScoreViewBar();
+    loadPfScoreViewPrefs();
+    renderPfScorePresetChips();
+
     function renderPortfolioTable() {
+      loadPfScoreViewPrefs();
+      syncPortfolioScoreHeaders();
       elPortfolioBody.innerHTML = "";
       elPortfolioEmpty.hidden = portfolio.length > 0;
       let nav = 0;
@@ -6259,6 +6787,7 @@
           item.weight_pct != null && Number.isFinite(Number(item.weight_pct))
             ? Number(item.weight_pct).toFixed(1) + "%"
             : "—";
+        const scoreCells = buildPfScoreCellsHtml(item.symbol);
         const tr = document.createElement("tr");
         tr.id = "pf-" + item.symbol;
         tr.dataset.symbol = item.symbol;
@@ -6268,13 +6797,14 @@
           <td class="num tabular-nums pf-col-avg" data-f="avg">${fmtPrice(avg)}</td>
           <td class="num tabular-nums ${lastVsAvg}" data-f="last">${last > 0 ? fmtPrice(last) : "—"}</td>
           <td class="num tabular-nums ${tone}" data-f="change">${row ? fmtChange(row.change) : "—"}</td>
-          <td class="num tabular-nums ${tone}" data-f="pct">${row ? fmtPct(row.change_pct) : "—"}</td>
+          <td class="num tabular-nums ${tone}" data-f="pct">${row ? fmtPct(saneChangePct(row)) : "—"}</td>
           <td class="num tabular-nums ${plCls}" data-f="pl">${Math.round(pl).toLocaleString("en-US")}</td>
           <td class="num tabular-nums" data-f="tw">${tw}</td>
           <td class="num tabular-nums" data-f="vol">${row ? fmtVol(row.volume) : "—"}</td>
           <td class="num tabular-nums" data-f="avgvol10">${
             cached && cached.avg_volume_10 > 0 ? fmtVol(cached.avg_volume_10) : "—"
           }</td>
+          ${scoreCells}
           <td class="pf-alert" data-f="alert">—</td>
           <td>${
             deskPortfolioId != null
@@ -6329,7 +6859,7 @@
       chg.textContent = row ? fmtChange(row.change) : "—";
       chg.className = "num tabular-nums " + tone;
       const pct = tr.querySelector('[data-f="pct"]');
-      pct.textContent = row ? fmtPct(row.change_pct) : "—";
+      pct.textContent = row ? fmtPct(saneChangePct(row)) : "—";
       pct.className = "num tabular-nums " + tone;
       const plEl = tr.querySelector('[data-f="pl"]');
       plEl.textContent = Math.round(pl).toLocaleString("en-US");
