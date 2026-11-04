@@ -49,6 +49,7 @@ from backend.websocket_manager import ConnectionManager
 from backend.routers.admin import register_admin_routes
 from backend.routers.alerts_ws import register_alerts_ws_alias
 from backend.desk_alerts_store import init_desk_alerts_store
+from backend.desk_alerts_worker import DeskAlertsWorker
 from backend.routers.desk_alerts import router as desk_alerts_router
 from backend.routers.watchlist import router as watchlist_router
 from backend.watchlist_store import init_watchlist_store
@@ -63,6 +64,7 @@ manager = ConnectionManager()
 listener = RedisTickListener(manager)
 alert_manager = ConnectionManager()
 stream_listener = QuantStreamListener(alert_manager)
+desk_alerts_worker = DeskAlertsWorker()
 
 
 @asynccontextmanager
@@ -73,8 +75,10 @@ async def lifespan(_app: FastAPI):
     init_desk_alerts_store()
     listener.start()
     stream_listener.start()
+    desk_alerts_worker.start()
     log(COMPONENT, "API-START", "priceboard api started", frontend=str(FRONTEND_DIR), redis_url=REDIS_URL)
     yield
+    await desk_alerts_worker.stop()
     await stream_listener.stop()
     await listener.stop()
     log(COMPONENT, "API-STOP", "priceboard api stopped")
