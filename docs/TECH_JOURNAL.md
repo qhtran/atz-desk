@@ -47,6 +47,7 @@ Không thay ADR; không dump changelog dài. Mỗi mục: ngày · phạm vi · 
 - API: `POST /api/priceboard/watch` · `GET /api/priceboard/ondemand`.
 - Watchlist create/update → `touch_ondemand_symbols`.
 - FE Switcher/hydrate → POST watch (kể cả khi đã có snapshot).
+- `ssi_live`: static subscribe = **`load_core_symbol_set()`** (Top 240 YAML), không còn chỉ `default_watchlist()` ~80.
 - `ssi_live`: poll 5s, SUBSCRIBE mã mới / UNSUBSCRIBE hết hạn; reconnect hydrate ondemand vào topic set.
 
 **File neo**

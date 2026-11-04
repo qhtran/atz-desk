@@ -37,6 +37,7 @@ from backend.board_universe import (
     default_watchlist,
     exchange_for_symbol,
 )
+from backend.market_catalog import load_core_symbol_set
 from backend.futures_contracts import invert_contract_map, load_futures_contract_map
 from backend.tick_contract import (
     build_tick,
@@ -67,8 +68,19 @@ VOLUME_FILTER = load_volume_filter_settings()
 DEFAULT_WS = "wss://stream.ssi.com.vn/ws/v3"
 DEFAULT_AUTH = "https://api.ssi.com.vn/api/v3/auth/token"
 
-# Watchlist đa sàn khi config.symbols / ENV rỗng (VN30 + HOSE thêm + mẫu HNX/UPCOM)
-DEFAULT_SYMBOLS = default_watchlist()
+def _default_core_symbols() -> list[str]:
+    """Prefer Top-N core YAML; fallback board_universe.default_watchlist()."""
+    try:
+        core = sorted(load_core_symbol_set())
+        if core:
+            return core
+    except Exception:
+        pass
+    return list(default_watchlist())
+
+
+# Core stream when config.symbols / ENV rỗng
+DEFAULT_SYMBOLS = _default_core_symbols()
 
 INDEX_SEED = [
     ("VNINDEX", 1285.4),
@@ -171,7 +183,7 @@ class RealSsiWorker:
             for s in (os.getenv("PRICEBOARD_SYMBOLS") or "").split(",")
             if s.strip()
         ]
-        self.symbols = env_syms or cfg_syms or list(DEFAULT_SYMBOLS)
+        self.symbols = env_syms or cfg_syms or _default_core_symbols()
         self.reconnect_initial = float(
             os.getenv("SSI_RECONNECT_INITIAL") or ssi.get("reconnect_initial_seconds") or 2
         )
