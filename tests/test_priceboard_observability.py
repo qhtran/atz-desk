@@ -40,9 +40,12 @@ def _parse_lines(caplog):
 
 
 def test_registry_covers_all_codes():
-    assert len(REGISTRY) == 9
+    assert len(REGISTRY) == 10
     assert ERR_PB_REDIS in REGISTRY
     assert ERR_PB_SCREENER in REGISTRY
+    from backend.observability import ERR_PB_ALERT_TG
+
+    assert ERR_PB_ALERT_TG in REGISTRY
 
 
 def test_log_error_includes_origin(caplog):

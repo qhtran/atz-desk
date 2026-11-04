@@ -268,3 +268,74 @@ def latest_history_for_config(
         "triggered_at": str(row["triggered_at"]),
         "last_price": float(row["last_price"]),
     }
+
+
+def list_active_alerts_for_symbol(
+    symbol: str,
+    *,
+    db_path: Path | None = None,
+) -> list[dict[str, Any]]:
+    sym = normalize_symbol(symbol)
+    if not sym:
+        return []
+    with connect(db_path) as conn:
+        rows = conn.execute(
+            """
+            SELECT id, user_id, symbol, condition, target_value, is_active, created_at
+            FROM user_alert_configs
+            WHERE symbol = ? AND is_active = 1
+            ORDER BY id
+            """,
+            (sym,),
+        ).fetchall()
+    return [_row_config(r) for r in rows]
+
+
+def _parse_iso_ts(raw: str | None) -> datetime | None:
+    text = str(raw or "").strip()
+    if not text:
+        return None
+    try:
+        if text.endswith("Z"):
+            text = text[:-1] + "+00:00"
+        return datetime.fromisoformat(text)
+    except ValueError:
+        return None
+
+
+def seconds_since_last_trigger(
+    alert_config_id: int,
+    *,
+    now: datetime | None = None,
+    db_path: Path | None = None,
+) -> float | None:
+    """None nếu chưa từng fire; ngược lại số giây kể từ ``triggered_at`` mới nhất."""
+    hist = latest_history_for_config(alert_config_id, db_path=db_path)
+    if not hist:
+        return None
+    ts = _parse_iso_ts(str(hist.get("triggered_at") or ""))
+    if ts is None:
+        return None
+    if ts.tzinfo is None:
+        ts = ts.replace(tzinfo=timezone.utc)
+    current = now or datetime.now(timezone.utc)
+    if current.tzinfo is None:
+        current = current.replace(tzinfo=timezone.utc)
+    return max(0.0, (current - ts.astimezone(timezone.utc)).total_seconds())
+
+
+def is_in_cooldown(
+    alert_config_id: int,
+    cooldown_sec: float,
+    *,
+    now: datetime | None = None,
+    db_path: Path | None = None,
+) -> bool:
+    """True nếu còn trong cửa sổ cooldown sau lần fire gần nhất."""
+    window = max(0.0, float(cooldown_sec))
+    if window <= 0:
+        return False
+    elapsed = seconds_since_last_trigger(alert_config_id, now=now, db_path=db_path)
+    if elapsed is None:
+        return False
+    return elapsed < window

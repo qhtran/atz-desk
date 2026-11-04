@@ -13,6 +13,7 @@ ERR_PB_PARSE = "ERR-PB-006"
 ERR_PB_WS = "ERR-PB-007"
 ERR_PB_SCREENER = "ERR-PB-008"
 ERR_PB_SSI_FALLBACK = "ERR-PB-009"
+ERR_PB_ALERT_TG = "ERR-PB-010"
 
 
 @dataclass(frozen=True, slots=True)
@@ -31,4 +32,5 @@ REGISTRY: dict[str, ErrorCode] = {
     ERR_PB_WS: ErrorCode(ERR_PB_WS, "WebSocket client stale or handler error"),
     ERR_PB_SCREENER: ErrorCode(ERR_PB_SCREENER, "Screener request or rule invalid"),
     ERR_PB_SSI_FALLBACK: ErrorCode(ERR_PB_SSI_FALLBACK, "SSI requested but credentials missing — mock fallback"),
+    ERR_PB_ALERT_TG: ErrorCode(ERR_PB_ALERT_TG, "Desk Telegram price-alert send / worker failure"),
 }

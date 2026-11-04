@@ -65,6 +65,9 @@ services:
       OHLCV_BARS_DIR: /app/data/ohlcv
       PORTFOLIO_DB_PATH: /app/data/portfolio.db
       DESK_ALERTS_DB_PATH: /app/data/desk_alerts.db
+      DESK_ALERTS_WORKER: ${DESK_ALERTS_WORKER:-1}
+      DESK_ALERTS_COOLDOWN_SEC: ${DESK_ALERTS_COOLDOWN_SEC:-900}
+      # Secrets: TELEGRAM_BOT_TOKEN / DESK_ALERTS_TELEGRAM_CHAT_ID via env_file (.env.desk-session)
       TRADING_DB_PATH: /app/data/dev_trading.db
       MARKET_DB_PATH: /app/data/market.db
       TRADING_CONFIG: /app/config/trading_station.yaml
