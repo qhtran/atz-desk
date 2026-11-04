@@ -15,6 +15,7 @@ from backend.desk_portfolio_store import (
     list_positions,
     list_transactions,
 )
+from backend.desk_portfolio_valuation import portfolio_summary
 from backend.desk_session import COOKIE_NAME as DESK_COOKIE
 from backend.identity import resolve_me
 
@@ -118,6 +119,16 @@ def api_delete_portfolio(portfolio_id: int, request: Request) -> dict:
     if not ok:
         raise HTTPException(status_code=404, detail="Portfolio not found")
     return {"ok": True, "deleted": portfolio_id}
+
+
+@router.get("/{portfolio_id}/summary")
+def api_portfolio_summary(portfolio_id: int, request: Request) -> dict:
+    """Cash + stock MV, unrealized/realized PnL, per-symbol weights (live Redis last)."""
+    user = _require_user(request)
+    summary = portfolio_summary(user, portfolio_id)
+    if summary is None:
+        raise HTTPException(status_code=404, detail="Portfolio not found")
+    return {"ok": True, **summary}
 
 
 @router.get("/{portfolio_id}/transactions")
