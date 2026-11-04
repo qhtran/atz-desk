@@ -3178,6 +3178,35 @@
       const n = Number(v) || 0;
       return (n > 0 ? "+" : "") + n.toFixed(2) + "%";
     }
+    /**
+     * SSI equity đôi khi gửi change_pct khổng lồ (map nhầm field).
+     * Mirror backend/tick_contract.build_tick — ưu tiên % từ last/ref khi đầu vào vô lý.
+     */
+    function saneChangePct(row) {
+      if (!row || typeof row !== "object") return 0;
+      const kind = row.kind === "index" ? "index" : "equity";
+      const limit = kind === "index" ? 50 : 30;
+      const last = Number(row.last);
+      const ref = Number(row.ref);
+      let derived = null;
+      if (Number.isFinite(last) && Number.isFinite(ref) && ref !== 0) {
+        derived = ((last - ref) / ref) * 100;
+      }
+      let pctIn = null;
+      if (row.change_pct != null && row.change_pct !== "") {
+        const n = Number(row.change_pct);
+        if (Number.isFinite(n)) pctIn = n;
+      }
+      let out;
+      if (pctIn == null) {
+        out = derived != null ? derived : 0;
+      } else if (Math.abs(pctIn) > limit && derived != null && Math.abs(derived) <= limit) {
+        out = derived;
+      } else {
+        out = pctIn;
+      }
+      return Math.round(out * 100) / 100;
+    }
     function flashCell(el, change) {
       if (!el) return;
       el.classList.remove("flash-up", "flash-down");
@@ -3693,6 +3722,7 @@
 
     function applyIndex(row, { flash = false } = {}) {
       const prev = state.get(row.symbol);
+      row = { ...row, change_pct: saneChangePct(row) };
       if (inTradingSession()) pushSpark(row.symbol, row.last);
       state.set(row.symbol, row);
       let card = elIndexBar.querySelector(`[data-idx="${row.symbol}"]`);
@@ -3732,6 +3762,7 @@
       const prev = state.get(row.symbol);
       row = enrichDepth({ ...row });
       row.exchange = resolveExchange(row);
+      row.change_pct = saneChangePct(row);
       state.set(row.symbol, row);
 
       const tr = ensureEquityRow(row.symbol);
@@ -5327,7 +5358,7 @@
       if (sw) sw.value = sym;
       const row = state.get(sym);
       if (quote && row) {
-        quote.textContent = `${fmtPrice(row.last, row.kind)} · ${fmtPct(row.change_pct != null ? row.change_pct : 0)}`;
+        quote.textContent = `${fmtPrice(row.last, row.kind)} · ${fmtPct(saneChangePct(row))}`;
       } else if (quote) quote.textContent = "";
       if (meta) meta.textContent = "Đang tải biểu đồ…";
       resetSymbolDetailScoringUi("Đang chuẩn bị Scoring Matrix…");
