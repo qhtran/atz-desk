@@ -52,8 +52,10 @@ from backend.routers.admin import register_admin_routes
 from backend.routers.alerts_ws import register_alerts_ws_alias
 from backend.routers.watchlist import router as watchlist_router
 from backend.routers.portfolios import router as portfolios_router
+from backend.routers.scoring import router as scoring_router
 from backend.watchlist_store import init_watchlist_store
 from backend.desk_portfolio_store import init_desk_portfolio_store
+from backend.desk_scoring_store import init_desk_scoring_store
 from backend.ws_alerts import register_alerts_ws
 
 setup("api")
@@ -74,6 +76,7 @@ async def lifespan(_app: FastAPI):
     init_eod_store()
     init_watchlist_store()
     init_desk_portfolio_store()
+    init_desk_scoring_store()
     listener.start()
     stream_listener.start()
     log(COMPONENT, "API-START", "priceboard api started", frontend=str(FRONTEND_DIR), redis_url=REDIS_URL)
@@ -89,6 +92,7 @@ app.add_exception_handler(AppError, app_error_handler)
 app.include_router(trading_router)
 app.include_router(watchlist_router)
 app.include_router(portfolios_router)
+app.include_router(scoring_router)
 app.include_router(eod_screener_router)
 register_alerts_ws(app, alert_manager)
 register_alerts_ws_alias(app, alert_manager)
