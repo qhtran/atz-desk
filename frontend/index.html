@@ -514,6 +514,23 @@
       color: #e5e5e5;
       font-size: 12px;
     }
+    .symbol-detail-score-preset-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      margin-bottom: 6px;
+      font-size: 10px;
+      color: #737373;
+    }
+    .symbol-detail-score-preset-wrap select {
+      width: 100%;
+      font-size: 11px;
+      padding: 4px 6px;
+      border-radius: 4px;
+      border: 1px solid #2a2a2a;
+      background: #141414;
+      color: #e5e5e5;
+    }
     .symbol-detail-score-kpi {
       display: flex;
       flex-wrap: wrap;
@@ -1542,6 +1559,14 @@
                 <strong>Scoring Matrix</strong>
                 <button type="button" class="btn-quiet" id="symbol-detail-score-btn" title="Chấm điểm định lượng">Chấm điểm</button>
               </div>
+              <label class="symbol-detail-score-preset-wrap" for="symbol-detail-score-preset">
+                <span>Chiến lược</span>
+                <select id="symbol-detail-score-preset" data-atd-id="pb-ui:iboard.symbol-detail.scoring.preset" title="Preset định lượng (local)">
+                  <option value="default">Mặc định</option>
+                  <option value="momentum">Bứt phá (Momentum)</option>
+                  <option value="mean_reversion">Bắt đáy (Reversion)</option>
+                </select>
+              </label>
               <div id="symbol-detail-score-status">Chọn mã rồi nhấn Chấm điểm.</div>
               <div id="symbol-detail-score-kpi" class="symbol-detail-score-kpi" hidden></div>
               <div class="symbol-detail-score-table-wrap" id="symbol-detail-score-table-wrap" hidden>
@@ -4662,6 +4687,35 @@
       }
     }
 
+    const SCORING_PROFILE_KEY = "atz.scoring.profile";
+    const SCORING_PROFILE_IDS = ["default", "momentum", "mean_reversion"];
+
+    function getScoringProfile() {
+      const sel = document.getElementById("symbol-detail-score-preset");
+      let v = sel && sel.value ? String(sel.value) : "";
+      if (!SCORING_PROFILE_IDS.includes(v)) {
+        try {
+          v = localStorage.getItem(SCORING_PROFILE_KEY) || "default";
+        } catch (_) {
+          v = "default";
+        }
+      }
+      if (!SCORING_PROFILE_IDS.includes(v)) v = "default";
+      return v;
+    }
+
+    function setScoringProfile(profile, persist) {
+      const v = SCORING_PROFILE_IDS.includes(profile) ? profile : "default";
+      const sel = document.getElementById("symbol-detail-score-preset");
+      if (sel) sel.value = v;
+      if (persist !== false) {
+        try {
+          localStorage.setItem(SCORING_PROFILE_KEY, v);
+        } catch (_) {}
+      }
+      return v;
+    }
+
     function resetSymbolDetailScoringUi(msg) {
       const status = document.getElementById("symbol-detail-score-status");
       const kpi = document.getElementById("symbol-detail-score-kpi");
@@ -4740,8 +4794,9 @@
         const ma20 = SymbolDetailChart.calculateSMA(rows, 20);
         const lastMa = ma20.length ? ma20[ma20.length - 1].value : null;
         const lastClose = rows[rows.length - 1].close;
-        if (Number.isFinite(lastMa) && Number.isFinite(lastClose)) {
-          indicators.price_vs_ma20 = lastClose - lastMa;
+        if (Number.isFinite(lastMa) && lastMa !== 0 && Number.isFinite(lastClose)) {
+          // Ratio close/MA20 — khớp preset YAML (gt 1.0 / 1.02, lt 1.0)
+          indicators.price_vs_ma20 = lastClose / lastMa;
         }
         const volWindow = rows.slice(-20);
         const avgVol = volWindow.reduce((s, r) => s + r.volume, 0) / volWindow.length;
@@ -4777,7 +4832,8 @@
       const decision = String(body.decision || "—");
       const decClass = "dec-" + decision.toLowerCase();
       if (status) {
-        status.textContent = `${body.symbol}: ${Number(body.total_score).toFixed(1)} / ${Number(body.max_score).toFixed(1)}`;
+        const prof = body.profile ? ` · ${body.profile}` : "";
+        status.textContent = `${body.symbol}${prof}: ${Number(body.total_score).toFixed(1)} / ${Number(body.max_score).toFixed(1)}`;
       }
       if (kpi) {
         kpi.hidden = false;
@@ -4825,6 +4881,7 @@
           resetSymbolDetailScoringUi(`Thiếu OHLCV daily (${built.barCount} nến) — cần ≥30 để chấm.`);
           return;
         }
+        const profile = getScoringProfile();
         const res = await fetch(apiUrl("/api/scoring/evaluate"), {
           method: "POST",
           credentials: "same-origin",
@@ -4833,6 +4890,7 @@
             symbol: sym,
             indicators: built.indicators,
             persist: true,
+            profile,
           }),
         });
         const data = await res.json().catch(() => ({}));
@@ -4883,6 +4941,17 @@
       document.getElementById("symbol-detail-score-btn")?.addEventListener("click", () => {
         runSymbolDetailScoring();
       });
+      const presetSel = document.getElementById("symbol-detail-score-preset");
+      if (presetSel) {
+        try {
+          const saved = localStorage.getItem(SCORING_PROFILE_KEY);
+          if (saved && SCORING_PROFILE_IDS.includes(saved)) presetSel.value = saved;
+        } catch (_) {}
+        presetSel.addEventListener("change", () => {
+          setScoringProfile(presetSel.value, true);
+          if (symbolDetailSymbol) runSymbolDetailScoring();
+        });
+      }
       document.addEventListener("keydown", (ev) => {
         if (ev.key === "Escape") closeSymbolDetail();
       });

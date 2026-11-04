@@ -1,0 +1,125 @@
+# Desk Scoring Matrix — quant strategy presets (decision support only).
+# Indicators: rsi, price_vs_ma20 (= close/MA20 ratio), macd_hist, vol_ratio, change_pct.
+# Isolated from SQLite scoring_rules (admin/custom); evaluate uses this catalog.
+version: 1
+default_profile: default
+
+profiles:
+  default:
+    label: "Mặc định"
+    description: "Cân bằng tiêu chuẩn — 5 tiêu chí × 20đ"
+    rules:
+      - rule_code: DEF_RSI_OS
+        category: momentum
+        name: "RSI < 30"
+        weight: 20
+        condition_json:
+          field: rsi
+          op: lt
+          value: 30
+      - rule_code: DEF_TREND_MA
+        category: trend
+        name: "Giá / MA20 > 1"
+        weight: 20
+        condition_json:
+          field: price_vs_ma20
+          op: gt
+          value: 1.0
+      - rule_code: DEF_MACD
+        category: momentum
+        name: "MACD hist > 0"
+        weight: 20
+        condition_json:
+          field: macd_hist
+          op: gt
+          value: 0
+      - rule_code: DEF_VOL
+        category: volume
+        name: "Vol ratio > 2"
+        weight: 20
+        condition_json:
+          field: vol_ratio
+          op: gt
+          value: 2.0
+      - rule_code: DEF_PCT
+        category: price
+        name: "Change % > 0"
+        weight: 20
+        condition_json:
+          field: change_pct
+          op: gt
+          value: 0
+
+  momentum:
+    label: "Bứt phá (Momentum)"
+    description: "Dòng tiền bứt phá — ưu tiên MA/volume/pct"
+    rules:
+      - rule_code: MOM_TREND_MA
+        category: trend
+        name: "Giá / MA20 > 1.02"
+        weight: 30
+        condition_json:
+          field: price_vs_ma20
+          op: gt
+          value: 1.02
+      - rule_code: MOM_VOL
+        category: volume
+        name: "Vol ratio > 2.5"
+        weight: 30
+        condition_json:
+          field: vol_ratio
+          op: gt
+          value: 2.5
+      - rule_code: MOM_MACD
+        category: momentum
+        name: "MACD hist > 0"
+        weight: 20
+        condition_json:
+          field: macd_hist
+          op: gt
+          value: 0
+      - rule_code: MOM_PCT
+        category: price
+        name: "Change % > 1"
+        weight: 20
+        condition_json:
+          field: change_pct
+          op: gt
+          value: 1.0
+
+  mean_reversion:
+    label: "Bắt đáy (Reversion)"
+    description: "Hồi phục ngắn hạn — RSI quá bán + dưới MA20"
+    rules:
+      - rule_code: MR_RSI
+        category: momentum
+        name: "RSI < 35"
+        weight: 40
+        condition_json:
+          field: rsi
+          op: lt
+          value: 35
+      - rule_code: MR_BELOW_MA
+        category: trend
+        name: "Giá / MA20 < 1"
+        weight: 30
+        condition_json:
+          field: price_vs_ma20
+          op: lt
+          value: 1.0
+      - rule_code: MR_MACD
+        category: momentum
+        name: "MACD hist > -0.5"
+        weight: 15
+        condition_json:
+          field: macd_hist
+          op: gt
+          value: -0.5
+      - rule_code: MR_VOL
+        category: volume
+        name: "Vol ratio > 1"
+        weight: 15
+        condition_json:
+          field: vol_ratio
+          op: gt
+          value: 1.0

@@ -11,6 +11,7 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field, field_validator
 
 from backend.desk_scoring_engine import DEFAULT_SEED_RULES, evaluate_rules
+from backend.desk_scoring_presets import get_preset_rules, list_presets
 from backend.desk_scoring_store import (
     init_desk_scoring_store,
     latest_symbol_score,
@@ -45,6 +46,8 @@ class EvaluateBody(BaseModel):
     symbol: str = Field(..., min_length=1, max_length=32)
     indicators: dict[str, Any] = Field(default_factory=dict)
     persist: bool = True
+    # YAML catalog profile — isolated from SQLite scoring_rules
+    profile: str | None = Field(default=None, max_length=64)
 
     @field_validator("symbol")
     @classmethod
@@ -53,6 +56,14 @@ class EvaluateBody(BaseModel):
         if not s:
             raise ValueError("symbol required")
         return s
+
+    @field_validator("profile")
+    @classmethod
+    def _profile_norm(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        s = str(v).strip().lower().replace("-", "_")
+        return s or None
 
 
 def _require_user(request: Request) -> str:
@@ -107,11 +118,19 @@ def _do_upsert_rule(body: RuleUpsertBody) -> dict:
 
 
 def _do_evaluate(body: EvaluateBody) -> dict:
-    _ensure_seed_rules()
-    rules = list_rules(active_only=True)
+    """Evaluate against YAML preset catalog — does not mutate shared scoring_rules."""
+    try:
+        profile_id, rules = get_preset_rules(body.profile)
+    except KeyError as exc:
+        raise HTTPException(status_code=400, detail=f"Unknown scoring profile: {exc}") from exc
+    except (FileNotFoundError, ValueError) as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
     result = evaluate_rules(rules, body.indicators or {})
     saved = None
     if body.persist:
+        # Persist still writes score history; rules DB untouched.
+        init_desk_scoring_store()
         saved = save_symbol_score(
             symbol=body.symbol,
             total_score=result["total_score"],
@@ -119,11 +138,12 @@ def _do_evaluate(body: EvaluateBody) -> dict:
             score_pct=result["score_pct"],
             decision=result["decision"],
             breakdown=result["breakdown"],
-            indicators=body.indicators or {},
+            indicators={**(body.indicators or {}), "_profile": profile_id},
         )
     return {
         "ok": True,
         "symbol": body.symbol,
+        "profile": profile_id,
         "total_score": result["total_score"],
         "max_score": result["max_score"],
         "score_pct": result["score_pct"],
@@ -135,6 +155,15 @@ def _do_evaluate(body: EvaluateBody) -> dict:
 
 
 # ---- /api/scoring/* ----
+@router.get("/api/scoring/presets")
+def api_list_scoring_presets() -> dict:
+    try:
+        catalog = list_presets()
+    except (FileNotFoundError, ValueError) as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    return {"ok": True, **catalog}
+
+
 @router.get("/api/scoring/rules")
 def api_list_scoring_rules(active_only: bool = True) -> dict:
     _ensure_seed_rules()

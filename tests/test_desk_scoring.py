@@ -112,7 +112,20 @@ def test_default_seed_rules_shape():
     assert "RSI_OK" in codes
 
 
-def test_api_evaluate_and_rules(monkeypatch, tmp_path: Path):
+def test_presets_catalog_and_profile_evaluate(monkeypatch, tmp_path: Path):
+    from backend.desk_scoring_presets import clear_presets_cache, get_preset_rules, list_presets
+
+    clear_presets_cache()
+    catalog = list_presets()
+    assert catalog["default_profile"] == "default"
+    ids = {i["id"] for i in catalog["items"]}
+    assert {"default", "momentum", "mean_reversion"} <= ids
+
+    pid, rules = get_preset_rules("momentum")
+    assert pid == "momentum"
+    assert sum(r["weight"] for r in rules) == pytest.approx(100)
+    assert all(r["condition_json"]["field"] != "rsi" for r in rules)
+
     path = tmp_path / "api_scoring.db"
     import backend.desk_scoring_store as store
 
@@ -120,37 +133,69 @@ def test_api_evaluate_and_rules(monkeypatch, tmp_path: Path):
     init_desk_scoring_store(path)
     client = TestClient(app)
 
-    # evaluate seeds rules automatically
+    presets = client.get("/api/scoring/presets").json()
+    assert presets["ok"] is True
+    assert len(presets["items"]) >= 3
+
+    # default profile: indicators tuned so all 5 rules hit (price_vs_ma20 = ratio)
     res = client.post(
         "/api/scoring/evaluate",
         json={
             "symbol": "FPT",
+            "profile": "default",
             "indicators": {
-                "rsi": 52,
-                "price_vs_ma20": 1.0,
+                "rsi": 25,
+                "price_vs_ma20": 1.05,
                 "macd_hist": 0.2,
-                "vol_ratio": 1.5,
+                "vol_ratio": 2.5,
                 "change_pct": 1.2,
             },
+            "persist": False,
         },
     )
     assert res.status_code == 200
     body = res.json()
     assert body["ok"] is True
-    assert body["symbol"] == "FPT"
-    assert body["decision"] in {"STRONG_BUY", "ACCUMULATE", "HOLD", "TRIM", "SELL"}
-    assert isinstance(body["breakdown"], list) and len(body["breakdown"]) >= 3
-    assert body["score_pct"] >= 80  # all seed rules should hit with these indicators
+    assert body["profile"] == "default"
+    assert body["score_pct"] == pytest.approx(100)
+    assert body["decision"] == "STRONG_BUY"
+    assert len(body["breakdown"]) == 5
 
-    # alias path
+    # mean_reversion: oversold + below MA
+    mr = client.post(
+        "/api/scoring/evaluate",
+        json={
+            "symbol": "HPG",
+            "profile": "mean_reversion",
+            "indicators": {
+                "rsi": 28,
+                "price_vs_ma20": 0.97,
+                "macd_hist": -0.2,
+                "vol_ratio": 1.2,
+                "change_pct": -1,
+            },
+            "persist": False,
+        },
+    )
+    assert mr.status_code == 200
+    assert mr.json()["profile"] == "mean_reversion"
+    assert mr.json()["score_pct"] == pytest.approx(100)
+
+    bad = client.post(
+        "/api/scoring/evaluate",
+        json={"symbol": "AAA", "profile": "nope", "indicators": {}, "persist": False},
+    )
+    assert bad.status_code == 400
+
+    # alias path still works (default profile)
     alias = client.post(
         "/api/evaluate",
-        json={"symbol": "HPG", "indicators": {"rsi": 10}, "persist": False},
+        json={"symbol": "SSI", "indicators": {"rsi": 10}, "persist": False},
     )
     assert alias.status_code == 200
-    assert alias.json()["decision"] in {"HOLD", "TRIM", "SELL", "ACCUMULATE", "STRONG_BUY"}
+    assert alias.json()["profile"] == "default"
 
-    # rules write requires auth
+    # rules write requires auth — SQLite path isolated from presets
     assert client.post(
         "/api/scoring/rules",
         json={
@@ -179,3 +224,23 @@ def test_api_evaluate_and_rules(monkeypatch, tmp_path: Path):
     listed = client.get("/api/scoring/rules").json()
     assert listed["ok"] is True
     assert any(i["rule_code"] == "CUSTOM_VOL" for i in listed["items"])
+
+    # evaluate still uses YAML preset, not CUSTOM_VOL from DB
+    again = client.post(
+        "/api/scoring/evaluate",
+        json={
+            "symbol": "FPT",
+            "profile": "momentum",
+            "indicators": {
+                "price_vs_ma20": 1.03,
+                "vol_ratio": 3.0,
+                "macd_hist": 0.1,
+                "change_pct": 1.5,
+            },
+            "persist": False,
+        },
+    )
+    assert again.status_code == 200
+    codes = {b["rule_code"] for b in again.json()["breakdown"]}
+    assert "CUSTOM_VOL" not in codes
+    assert "MOM_VOL" in codes

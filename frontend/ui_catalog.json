@@ -125,9 +125,20 @@
       "matchType": "exact",
       "breadcrumb": ["ATZ Desk", "iBoard", "Phân tích mã", "Scoring Matrix"],
       "hints": {
-        "fe": "frontend/index.html — #symbol-detail-scoring, runSymbolDetailScoring()",
-        "be": "POST /api/scoring/evaluate ← backend/routers/scoring.py, desk_scoring_engine.py",
-        "spec": "decision-support only — disclaimer trong panel"
+        "fe": "frontend/index.html — #symbol-detail-scoring, runSymbolDetailScoring(), preset select + localStorage atz.scoring.profile",
+        "be": "POST /api/scoring/evaluate?profile= ← desk_scoring_presets.yaml + desk_scoring_engine.py (không đụng scoring_rules)",
+        "spec": "decision-support only — disclaimer trong panel; price_vs_ma20 = close/MA20"
+      },
+      "err_codes": []
+    },
+    {
+      "match": "pb-ui:iboard.symbol-detail.scoring.preset",
+      "matchType": "exact",
+      "breadcrumb": ["ATZ Desk", "iBoard", "Phân tích mã", "Scoring Matrix", "Preset"],
+      "hints": {
+        "fe": "frontend/index.html — #symbol-detail-score-preset",
+        "be": "GET /api/scoring/presets; evaluate body.profile",
+        "spec": "default | momentum | mean_reversion"
       },
       "err_codes": []
     },
