@@ -215,3 +215,50 @@ def count_eod_bars(*, symbol: str | None = None, db_path: Path | None = None) ->
         else:
             row = conn.execute("SELECT COUNT(*) AS n FROM eod_prices").fetchone()
     return int(row["n"] if row else 0)
+
+
+def list_eod_symbols(*, db_path: Path | None = None) -> list[str]:
+    with connect(db_path) as conn:
+        rows = conn.execute(
+            "SELECT DISTINCT symbol FROM eod_prices ORDER BY symbol"
+        ).fetchall()
+    return [str(r["symbol"]) for r in rows]
+
+
+def load_eod_universe(
+    *,
+    lookback_calendar_days: int = 400,
+    symbols: list[str] | None = None,
+    db_path: Path | None = None,
+) -> list[dict[str, Any]]:
+    """Bulk load OHLCV gần đây cho toàn thị trường (1 query) — screener EOD."""
+    from datetime import datetime, timedelta
+
+    days = max(30, int(lookback_calendar_days))
+    with connect(db_path) as conn:
+        max_row = conn.execute("SELECT MAX(trade_date) AS d FROM eod_prices").fetchone()
+        max_day = str(max_row["d"] or "") if max_row else ""
+        if not max_day:
+            return []
+        try:
+            cutoff = (
+                datetime.strptime(max_day[:10], "%Y-%m-%d") - timedelta(days=days)
+            ).strftime("%Y-%m-%d")
+        except ValueError:
+            cutoff = "1970-01-01"
+        sql = """
+            SELECT symbol, trade_date, open, high, low, close, volume
+            FROM eod_prices
+            WHERE trade_date >= ?
+        """
+        params: list[Any] = [cutoff]
+        if symbols:
+            wanted = [normalize_symbol(s) for s in symbols if normalize_symbol(s)]
+            if not wanted:
+                return []
+            placeholders = ",".join("?" for _ in wanted)
+            sql += f" AND symbol IN ({placeholders})"
+            params.extend(wanted)
+        sql += " ORDER BY symbol ASC, trade_date ASC"
+        rows = conn.execute(sql, params).fetchall()
+    return [_row_to_dict(r) for r in rows]

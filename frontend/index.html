@@ -1176,12 +1176,21 @@
         <input type="checkbox" id="scr-flag-floor" /> Sàn
       </label>
       <label for="scr-source" class="text-[11px] text-gray-500">Nguồn</label>
-      <select id="scr-source" title="Live = lọc tick WS · Tín hiệu ngày = quét OHLCV · Top 20 = KL phiên">
+      <select id="scr-source" title="Live = tick WS · Tín hiệu ngày = OHLCV filter · EOD = quant screener · Top 20 = KL phiên">
         <option value="live" selected>Live WS</option>
         <option value="daily">Tín hiệu ngày</option>
+        <option value="eod">EOD Quant</option>
         <option value="topvol">Top 20 KL phiên</option>
       </select>
       <div id="scr-daily-filters" class="scr-daily-filters" hidden aria-label="Bộ lọc tín hiệu ngày"></div>
+      <div id="scr-eod-filters" class="scr-daily-filters" hidden aria-label="Bộ lọc EOD quant" data-atd-id="pb-ui:iboard.eod-filters">
+        <label><input type="checkbox" id="eod-rsi-lt" checked /> RSI&lt;30</label>
+        <label><input type="checkbox" id="eod-rsi-gt" /> RSI&gt;70</label>
+        <label><input type="checkbox" id="eod-sma50" /> Close&gt;SMA50</label>
+        <label><input type="checkbox" id="eod-sma200" /> Close&gt;SMA200</label>
+        <label><input type="checkbox" id="eod-vol" checked /> Vol spike 2.5×</label>
+        <label><input type="checkbox" id="eod-breakout" /> Breakout HH20</label>
+      </div>
       <label for="scr-advisor-min" id="scr-advisor-min-wrap" class="text-[11px] text-gray-500" hidden>Điểm ≥</label>
       <input type="number" id="scr-advisor-min" hidden min="0" max="100" step="1" value="65" style="width:52px" title="Điểm tối thiểu (cố vấn)" />
       <button type="button" class="btn-quiet" id="scr-daily-run" hidden>Quét</button>
@@ -2274,7 +2283,7 @@
       if (activeWatchlistSymbols) {
         if (!activeWatchlistSymbols.has(symbol)) return false;
         if (scrSource === "topvol") return topVolSet.has(symbol);
-        if (scrSource === "daily") {
+        if (scrSource === "daily" || scrSource === "eod") {
           if (!dailySignalSet) return true;
           return dailySignalSet.has(symbol);
         }
@@ -2285,7 +2294,7 @@
       if (scrSource === "topvol") {
         return topVolSet.has(symbol);
       }
-      if (scrSource === "daily") {
+      if (scrSource === "daily" || scrSource === "eod") {
         if (!dailySignalSet) return true;
         return dailySignalSet.has(symbol);
       }
@@ -3409,17 +3418,19 @@
         el.textContent = `Top 20 KL phiên · ${marketTab} · ${n} mã`;
         return;
       }
-      if (scrSource === "daily") {
+      if (scrSource === "daily" || scrSource === "eod") {
+        const isEod = scrSource === "eod";
         const fl = isForeignMarketTab()
           ? "Khối ngoại"
-          : formatDailyFiltersLabel(dailyScanMeta.filters);
+          : (isEod ? formatDailyFiltersLabel(dailyScanMeta.filters) : formatDailyFiltersLabel(dailyScanMeta.filters));
         const mode = dailyScanMeta.combine === "or" ? "OR" : "AND";
+        const prefix = isEod ? "EOD Quant" : (isForeignMarketTab() ? "Khối ngoại" : "Tín hiệu ngày");
         if (!dailySignalSet) {
-          const prefix = isForeignMarketTab() ? "Khối ngoại" : "Tín hiệu ngày";
           el.textContent = `${prefix} · full rổ · chọn filter · Quét · ${n} mã`;
           return;
         }
-        el.textContent = `${isForeignMarketTab() ? "Khối ngoại" : "Tín hiệu ngày"} · ${mode} · ${fl} · ${dailyScanMeta.matched}/${dailyScanMeta.scanned} hit · ${n} mã`;
+        const ms = dailyScanMeta.elapsed_ms != null ? ` · ${dailyScanMeta.elapsed_ms}ms` : "";
+        el.textContent = `${prefix} · ${mode} · ${fl} · ${dailyScanMeta.matched}/${dailyScanMeta.scanned} hit${ms} · ${n} mã`;
         return;
       }
       if (isFuturesMarketTab()) {
@@ -3437,22 +3448,25 @@
     function syncScreenerSourceUi() {
       const foreignTab = isForeignMarketTab();
       const daily = scrSource === "daily";
+      const eod = scrSource === "eod";
       const preset = scrSource === "topvol";
       const advisor = daily && !foreignTab && getSelectedDailyFilters().includes("advisor");
       const filterBox = document.getElementById("scr-daily-filters");
+      const eodBox = document.getElementById("scr-eod-filters");
       if (filterBox) filterBox.hidden = !daily || foreignTab;
-      document.getElementById("scr-daily-run").hidden = !daily;
+      if (eodBox) eodBox.hidden = !eod;
+      document.getElementById("scr-daily-run").hidden = !(daily || eod);
       document.getElementById("scr-advisor-min-wrap").hidden = !advisor;
       document.getElementById("scr-advisor-min").hidden = !advisor;
       document.querySelectorAll(".scr-live-only").forEach((el) => {
-        el.hidden = preset;
+        el.hidden = preset || eod;
       });
       [
         "scr-vol-min", "scr-pct-min", "scr-pct-max",
         "scr-flag-up2", "scr-flag-down2", "scr-flag-volhi", "scr-flag-ceil", "scr-flag-floor",
       ].forEach((id) => {
         const node = document.getElementById(id);
-        if (node) node.disabled = daily || preset;
+        if (node) node.disabled = daily || eod || preset;
       });
       if (!daily || !dailySignalSet || !dailyFiltersIncludeAdvisor()) {
         if (!daily || !dailyFiltersIncludeAdvisor()) setAdvisorColumnVisible(false);
@@ -3575,6 +3589,86 @@
       }
     }
 
+    function buildEodScreenerPayload() {
+      const mode = document.getElementById("scr-mode")?.value === "or" ? "or" : "and";
+      const body = { mode, close_gt_sma: [] };
+      const labels = [];
+      if (document.getElementById("eod-rsi-lt")?.checked) {
+        body.rsi_lt = 30;
+        labels.push("rsi_lt");
+      }
+      if (document.getElementById("eod-rsi-gt")?.checked) {
+        body.rsi_gt = 70;
+        labels.push("rsi_gt");
+      }
+      if (document.getElementById("eod-sma50")?.checked) {
+        body.close_gt_sma.push(50);
+        labels.push("sma50");
+      }
+      if (document.getElementById("eod-sma200")?.checked) {
+        body.close_gt_sma.push(200);
+        labels.push("sma200");
+      }
+      if (document.getElementById("eod-vol")?.checked) {
+        body.volume_mult = 2.5;
+        body.volume_sma_period = 20;
+        labels.push("vol_spike");
+      }
+      if (document.getElementById("eod-breakout")?.checked) {
+        body.breakout_high_period = 20;
+        labels.push("breakout_hh20");
+      }
+      return { body, labels };
+    }
+
+    async function runEodScreenerScan() {
+      const el = document.getElementById("scr-status");
+      const { body, labels } = buildEodScreenerPayload();
+      if (!labels.length) {
+        if (el) el.textContent = "EOD Quant · chọn ít nhất 1 filter";
+        return;
+      }
+      if (el) el.textContent = "EOD Quant · đang quét…";
+      try {
+        const res = await fetch(apiUrl("/api/screener/eod"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        const data = await res.json();
+        if (!res.ok || !data || data.ok !== true) {
+          dailySignalSet = new Set();
+          dailyHitBySymbol = new Map();
+          dailyScanMeta = { filters: labels, combine: body.mode, matched: 0, scanned: 0 };
+          applyBoardFilter();
+          if (el) el.textContent = "EOD Quant · lỗi quét / chưa có eod_prices";
+          return;
+        }
+        const rows = Array.isArray(data.rows) ? data.rows : [];
+        dailySignalSet = new Set(rows.map((r) => String(r.symbol || "").toUpperCase()).filter(Boolean));
+        dailyHitBySymbol = new Map();
+        rows.forEach((r) => {
+          const sym = String(r.symbol || "").toUpperCase();
+          if (!sym) return;
+          dailyHitBySymbol.set(sym, {
+            symbol: sym,
+            filters: labels,
+            reason: `EOD RSI=${r.rsi_14 != null ? Number(r.rsi_14).toFixed(1) : "—"}`,
+          });
+        });
+        dailyScanMeta = {
+          filters: labels,
+          combine: data.mode || body.mode,
+          matched: data.matched ?? dailySignalSet.size,
+          scanned: data.scanned ?? 0,
+          elapsed_ms: data.elapsed_ms,
+        };
+        applyBoardFilter();
+      } catch {
+        if (el) el.textContent = "EOD Quant · lỗi quét";
+      }
+    }
+
     function readScreenerToolbar() {
       const flags = [];
       if (document.getElementById("scr-flag-up2").checked) flags.push("up2");
@@ -3589,7 +3683,7 @@
         change_pct_max: safeNum(document.getElementById("scr-pct-max").value),
         flags,
       };
-      if (scrSource === "daily") clearDailyScanResults();
+      if (scrSource === "daily" || scrSource === "eod") clearDailyScanResults();
       applyBoardFilter();
     }
 
@@ -4261,8 +4355,8 @@
       });
       document.getElementById("scr-source").addEventListener("change", () => {
         const v = document.getElementById("scr-source").value;
-        scrSource = v === "daily" || v === "topvol" ? v : "live";
-        if (scrSource !== "daily") {
+        scrSource = (v === "daily" || v === "topvol" || v === "eod") ? v : "live";
+        if (scrSource !== "daily" && scrSource !== "eod") {
           dailySignalSet = null;
           dailyHitBySymbol = new Map();
           dailyScanMeta = { filters: [], combine: "and", matched: 0, scanned: 0 };
@@ -4270,7 +4364,10 @@
         syncScreenerSourceUi();
         applyBoardFilter();
       });
-      document.getElementById("scr-daily-run").addEventListener("click", () => runDailySignalScan());
+      document.getElementById("scr-daily-run").addEventListener("click", () => {
+        if (scrSource === "eod") void runEodScreenerScan();
+        else void runDailySignalScan();
+      });
       const filterBox = document.getElementById("scr-daily-filters");
       if (filterBox) {
         filterBox.addEventListener("change", (ev) => {
@@ -4279,6 +4376,14 @@
             syncScreenerSourceUi();
             applyBoardFilter();
           }
+        });
+      }
+      const eodBox = document.getElementById("scr-eod-filters");
+      if (eodBox) {
+        eodBox.addEventListener("change", () => {
+          clearDailyScanResults();
+          syncScreenerSourceUi();
+          applyBoardFilter();
         });
       }
       void loadDailyFilterOptions();

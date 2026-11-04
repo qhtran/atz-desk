@@ -28,6 +28,7 @@ from backend.core.database import init_db
 from backend.index_spark import load_index_spark
 from backend.eod_store import init_eod_store
 from backend.market_db import init_market_db
+from backend.routers.eod_screener import router as eod_screener_router
 from backend.core.errors import AppError, app_error_handler
 from backend.core.logging_middleware import TraceMiddleware
 from backend.debug_ui import public_debug_ui_config
@@ -84,6 +85,7 @@ app.add_middleware(TraceMiddleware)
 app.add_exception_handler(AppError, app_error_handler)
 app.include_router(trading_router)
 app.include_router(watchlist_router)
+app.include_router(eod_screener_router)
 register_alerts_ws(app, alert_manager)
 register_alerts_ws_alias(app, alert_manager)
 
