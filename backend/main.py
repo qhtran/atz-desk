@@ -48,6 +48,8 @@ from backend.screener import PRESETS, FilterEngine, build_compose_rules, find_in
 from backend.websocket_manager import ConnectionManager
 from backend.routers.admin import register_admin_routes
 from backend.routers.alerts_ws import register_alerts_ws_alias
+from backend.desk_alerts_store import init_desk_alerts_store
+from backend.routers.desk_alerts import router as desk_alerts_router
 from backend.routers.watchlist import router as watchlist_router
 from backend.watchlist_store import init_watchlist_store
 from backend.ws_alerts import register_alerts_ws
@@ -68,6 +70,7 @@ async def lifespan(_app: FastAPI):
     init_db()
     init_market_db()
     init_watchlist_store()
+    init_desk_alerts_store()
     listener.start()
     stream_listener.start()
     log(COMPONENT, "API-START", "priceboard api started", frontend=str(FRONTEND_DIR), redis_url=REDIS_URL)
@@ -82,6 +85,7 @@ app.add_middleware(TraceMiddleware)
 app.add_exception_handler(AppError, app_error_handler)
 app.include_router(trading_router)
 app.include_router(watchlist_router)
+app.include_router(desk_alerts_router)
 register_alerts_ws(app, alert_manager)
 register_alerts_ws_alias(app, alert_manager)
 
