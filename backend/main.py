@@ -53,6 +53,7 @@ from backend.routers.alerts_ws import register_alerts_ws_alias
 from backend.routers.watchlist import router as watchlist_router
 from backend.routers.portfolios import router as portfolios_router
 from backend.routers.scoring import router as scoring_router
+from backend.routers.catalog import router as catalog_router
 from backend.watchlist_store import init_watchlist_store
 from backend.desk_portfolio_store import init_desk_portfolio_store
 from backend.desk_scoring_store import init_desk_scoring_store
@@ -93,6 +94,7 @@ app.include_router(trading_router)
 app.include_router(watchlist_router)
 app.include_router(portfolios_router)
 app.include_router(scoring_router)
+app.include_router(catalog_router)
 app.include_router(eod_screener_router)
 register_alerts_ws(app, alert_manager)
 register_alerts_ws_alias(app, alert_manager)

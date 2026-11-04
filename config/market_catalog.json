@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "notes": "Optional name/exchange overlays + rare symbols not in F3/board_universe. Merged at runtime by backend.market_catalog.",
+  "items": [
+    {"symbol": "DBC", "exchange": "HOSE", "name": "Tập đoàn Dabaco Việt Nam"},
+    {"symbol": "BAF", "exchange": "HOSE", "name": "Nông nghiệp BAF Việt Nam"},
+    {"symbol": "HAG", "exchange": "HOSE", "name": "Hoàng Anh Gia Lai"},
+    {"symbol": "ANV", "exchange": "HOSE", "name": "Nam Việt"},
+    {"symbol": "VHC", "exchange": "HOSE", "name": "Vĩnh Hoàn"},
+    {"symbol": "PAN", "exchange": "HOSE", "name": "PAN Group"},
+    {"symbol": "BSR", "exchange": "UPCOM", "name": "Lọc hóa dầu Bình Sơn"},
+    {"symbol": "OIL", "exchange": "UPCOM", "name": "Petrolimex Oil"},
+    {"symbol": "ACV", "exchange": "UPCOM", "name": "Cảng hàng không Việt Nam"},
+    {"symbol": "HVN", "exchange": "HOSE", "name": "Vietnam Airlines"},
+    {"symbol": "QNS", "exchange": "UPCOM", "name": "Đường Quảng Ngãi"},
+    {"symbol": "FRT", "exchange": "HOSE", "name": "FPT Retail"},
+    {"symbol": "DGW", "exchange": "HOSE", "name": "Thế Giới Số"},
+    {"symbol": "CTR", "exchange": "HOSE", "name": "Viettel Construction"},
+    {"symbol": "PC1", "exchange": "HOSE", "name": "PC1 Group"},
+    {"symbol": "GEG", "exchange": "HOSE", "name": "Điện Gia Lai"},
+    {"symbol": "DPM", "exchange": "HOSE", "name": "Đạm Phú Mỹ"},
+    {"symbol": "DCM", "exchange": "HOSE", "name": "Đạm Cà Mau"},
+    {"symbol": "NT2", "exchange": "HOSE", "name": "Điện lực Dầu khí Nhơn Trạch 2"},
+    {"symbol": "POW", "exchange": "HOSE", "name": "PetroVietnam Power"}
+  ]
+}

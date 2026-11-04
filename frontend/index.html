@@ -4884,6 +4884,8 @@
       resetSymbolDetailScoringUi();
     }
 
+    let symbolDetailSwitchSuggestSeq = 0;
+
     function listSymbolDetailSwitcherCandidates(query) {
       const q = String(query || "").trim().toUpperCase();
       const out = [];
@@ -4904,22 +4906,85 @@
       return out.slice(0, 12);
     }
 
-    function renderSymbolDetailSwitcherSuggest(query) {
+    async function fetchCatalogSymbolItems(query) {
+      const q = String(query || "").trim().toUpperCase();
+      try {
+        const res = await fetch(
+          apiUrl("/api/catalog/symbols?q=" + encodeURIComponent(q) + "&limit=12"),
+          { credentials: "same-origin" },
+        );
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.ok || !Array.isArray(data.items)) return [];
+        return data.items;
+      } catch (_) {
+        return [];
+      }
+    }
+
+    async function hydrateQuoteSnapshots(symbols) {
+      const need = [...new Set((symbols || []).map((s) => String(s || "").toUpperCase()).filter(Boolean))]
+        .filter((sym) => {
+          if (INDEX_SYMBOLS.has(sym) && !FUTURES_BOARD_SYMBOLS.has(sym)) return false;
+          const row = state.get(sym);
+          return !row || !(Number(row.last) > 0);
+        });
+      if (!need.length) return;
+      try {
+        const res = await fetch(
+          apiUrl("/api/quotes/snapshot?symbols=" + encodeURIComponent(need.join(","))),
+          { credentials: "same-origin" },
+        );
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.ok || !data.quotes) return;
+        Object.keys(data.quotes).forEach((sym) => {
+          const tick = data.quotes[sym];
+          if (!tick) return;
+          const last = Number(tick.last);
+          if (tick.priced && Number.isFinite(last) && last > 0) {
+            applyRow(tick, { flash: false });
+            return;
+          }
+          if (!state.get(sym)) {
+            applyRow(
+              {
+                type: "tick",
+                symbol: sym,
+                exchange: tick.exchange || "HOSE",
+                kind: tick.kind || "equity",
+                last: 0,
+                ref: 0,
+                change: 0,
+                change_pct: 0,
+                volume: 0,
+                source: tick.source || "CATALOG",
+              },
+              { flash: false },
+            );
+          }
+        });
+      } catch (_) {
+        /* offline */
+      }
+    }
+
+    function paintSymbolDetailSwitcherSuggest(items) {
       const box = document.getElementById("symbol-detail-switch-suggest");
       if (!box) return [];
-      const items = listSymbolDetailSwitcherCandidates(query);
-      symbolDetailSwitchActiveIdx = items.length ? 0 : -1;
-      if (!items.length) {
+      const list = Array.isArray(items) ? items : [];
+      symbolDetailSwitchActiveIdx = list.length ? 0 : -1;
+      if (!list.length) {
         box.hidden = true;
         box.innerHTML = "";
-        return items;
+        return list;
       }
-      box.innerHTML = items
+      box.innerHTML = list
         .map((sym, idx) => {
           const row = state.get(sym);
-          const pct = row && row.change_pct != null ? fmtPct(row.change_pct) : "";
+          const meta = row && Number(row.last) > 0
+            ? `${fmtPrice(row.last, row.kind)} · ${fmtPct(saneChangePct(row))}`
+            : (row ? "catalog" : "");
           const active = idx === symbolDetailSwitchActiveIdx ? " is-active" : "";
-          return `<li role="option" data-symbol="${sym}" class="${active.trim()}" aria-selected="${idx === 0 ? "true" : "false"}"><span>${sym}</span><span class="sg-meta">${pct}</span></li>`;
+          return `<li role="option" data-symbol="${sym}" class="${active.trim()}" aria-selected="${idx === 0 ? "true" : "false"}"><span>${sym}</span><span class="sg-meta">${meta}</span></li>`;
         })
         .join("");
       box.hidden = false;
@@ -4929,7 +4994,35 @@
           switchSymbolDetailTo(li.dataset.symbol);
         });
       });
-      return items;
+      return list;
+    }
+
+    async function renderSymbolDetailSwitcherSuggest(query) {
+      const box = document.getElementById("symbol-detail-switch-suggest");
+      if (!box) return [];
+      const seq = ++symbolDetailSwitchSuggestSeq;
+      const local = listSymbolDetailSwitcherCandidates(query);
+      paintSymbolDetailSwitcherSuggest(local);
+      const catalogItems = await fetchCatalogSymbolItems(query);
+      if (seq !== symbolDetailSwitchSuggestSeq) return local;
+      const seen = new Set();
+      const merged = [];
+      catalogItems.forEach((it) => {
+        const sym = String(it.symbol || "").toUpperCase();
+        if (!sym || seen.has(sym)) return;
+        if (INDEX_SYMBOLS.has(sym) && !FUTURES_BOARD_SYMBOLS.has(sym)) return;
+        seen.add(sym);
+        merged.push(sym);
+      });
+      local.forEach((sym) => {
+        if (seen.has(sym)) return;
+        seen.add(sym);
+        merged.push(sym);
+      });
+      const items = merged.slice(0, 12);
+      await hydrateQuoteSnapshots(items);
+      if (seq !== symbolDetailSwitchSuggestSeq) return items;
+      return paintSymbolDetailSwitcherSuggest(items);
     }
 
     function highlightSymbolDetailSwitcherSuggest(items) {
@@ -5045,6 +5138,7 @@
       const sw = document.getElementById("symbol-detail-switch");
       if (sw) sw.value = sym;
       if (!sym) return;
+      await hydrateQuoteSnapshots([sym]);
       await openSymbolDetail(sym, { soft: true });
     }
 

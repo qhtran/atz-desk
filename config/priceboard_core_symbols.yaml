@@ -1,0 +1,6 @@
+# Core stream watchlist (P0) — SSI worker static subscribe source of truth (later).
+# P0 catalog marks in_core from this list ∪ board_universe.default_watchlist().
+# Target later: Top 240 by liquidity rank; keep ≤ ~240 for WS budget.
+version: 1
+max_core: 240
+symbols: []  # empty → fallback default_watchlist() in code
