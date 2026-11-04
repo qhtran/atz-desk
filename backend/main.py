@@ -26,6 +26,7 @@ from backend.authentik_ropc import (
 )
 from backend.core.database import init_db
 from backend.index_spark import load_index_spark
+from backend.eod_store import init_eod_store
 from backend.market_db import init_market_db
 from backend.core.errors import AppError, app_error_handler
 from backend.core.logging_middleware import TraceMiddleware
@@ -67,6 +68,7 @@ stream_listener = QuantStreamListener(alert_manager)
 async def lifespan(_app: FastAPI):
     init_db()
     init_market_db()
+    init_eod_store()
     init_watchlist_store()
     listener.start()
     stream_listener.start()
