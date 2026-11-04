@@ -61,3 +61,22 @@ Không thay ADR; không dump changelog dài. Mỗi mục: ngày · phạm vi · 
 - EOD job rank thanh khoản thật (thay curated ladder).
 - Unsubscribe khi user xóa mã khỏi mọi watchlist (hiện chỉ idle TTL).
 - Portfolio Desk add-symbol → watch (có thể reuse cùng API).
+
+---
+
+## 2026-11-04 — PROD release atz.vn (Desk :8001)
+
+**Phạm vi:** Promote P0+P1 catalog/core/ondemand lên **atz.vn** (prod-desk). `user_confirmed_infra: yes`. Không đụng legacy `/opt/vnstocks`.
+
+**Thực thi**
+- Tip: `e742ae3`
+- VPS `/opt/atz-desk`: `./scripts/deploy-prod-desk.sh` + `docker compose -f docker-compose.prod-desk.yml --profile live up -d --build ssi-worker`
+- Containers: `atz-desk-api` :8001 healthy · `atz-ssi-worker` · `atz-redis-desk-prod`
+
+**Verify**
+- Worker: `X-Quote topics: 242` (Top 240 + HĐTL) · DATA topics ~1222
+- API: catalog `DBC` `in_core=true`
+- Browser `https://atz.vn`: Switcher DBC → quote live **15,750 · +3.62%** (`snap_source=priceboard`)
+
+**Ghi chú ops**
+- `deploy-prod-desk.sh` mặc định **không** bật `--profile live`; recreate SSI worker phải gọi riêng với profile `live`.
