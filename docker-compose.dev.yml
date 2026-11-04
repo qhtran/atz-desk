@@ -64,6 +64,7 @@ services:
       DEBUG_OVERLAY_CONFIG: /app/config/debug_overlay.yaml
       OHLCV_BARS_DIR: /app/data/ohlcv
       PORTFOLIO_DB_PATH: /app/data/portfolio.db
+      DESK_ALERTS_DB_PATH: /app/data/desk_alerts.db
       TRADING_DB_PATH: /app/data/dev_trading.db
       MARKET_DB_PATH: /app/data/market.db
       TRADING_CONFIG: /app/config/trading_station.yaml
