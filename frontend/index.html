@@ -467,6 +467,73 @@
       border-bottom: 1px solid #2a2a2a;
       gap: 12px;
     }
+    .symbol-detail-head-main {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-width: 0;
+      flex: 1;
+    }
+    .symbol-detail-switcher {
+      position: relative;
+      max-width: 220px;
+    }
+    .symbol-detail-switcher input {
+      width: 100%;
+      font-size: 12px;
+      padding: 5px 8px;
+      border-radius: 4px;
+      border: 1px solid #2a2a2a;
+      background: #141414;
+      color: #e5e5e5;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .symbol-detail-switcher input:focus {
+      outline: none;
+      border-color: #ffd900;
+    }
+    .symbol-detail-switch-suggest {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: calc(100% + 2px);
+      z-index: 20;
+      margin: 0;
+      padding: 4px 0;
+      list-style: none;
+      max-height: 220px;
+      overflow: auto;
+      background: #121212;
+      border: 1px solid #2a2a2a;
+      border-radius: 4px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+    }
+    .symbol-detail-switch-suggest[hidden] { display: none !important; }
+    .symbol-detail-switch-suggest li {
+      padding: 6px 10px;
+      font-size: 12px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      color: #e5e5e5;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .symbol-detail-switch-suggest li.is-active,
+    .symbol-detail-switch-suggest li:hover {
+      background: #1f1f1f;
+      color: #ffd900;
+    }
+    .symbol-detail-switch-suggest li .sg-meta {
+      color: #737373;
+      font-variant-numeric: tabular-nums;
+      font-size: 11px;
+    }
+    tr.equity-row.is-detail-open td:first-child {
+      box-shadow: inset 3px 0 0 #ffd900;
+    }
     .symbol-detail-body {
       display: grid;
       grid-template-columns: 220px 1fr;
@@ -1545,9 +1612,24 @@
     <div id="symbol-detail-backdrop" class="symbol-detail-backdrop" hidden data-atd-id="pb-ui:iboard.symbol-detail">
       <div class="symbol-detail-panel" role="dialog" aria-labelledby="symbol-detail-title">
         <div class="symbol-detail-head">
-          <div>
-            <div id="symbol-detail-title" class="text-lg font-semibold text-[#ffd900]">—</div>
-            <div id="symbol-detail-quote" class="text-[12px] text-gray-400 tabular-nums"></div>
+          <div class="symbol-detail-head-main">
+            <div class="symbol-detail-switcher" data-atd-id="pb-ui:iboard.symbol-detail.switcher">
+              <input
+                id="symbol-detail-switch"
+                type="search"
+                placeholder="Đổi mã… Enter"
+                autocomplete="off"
+                spellcheck="false"
+                aria-label="Chuyển mã nhanh"
+                aria-autocomplete="list"
+                aria-controls="symbol-detail-switch-suggest"
+              />
+              <ul id="symbol-detail-switch-suggest" class="symbol-detail-switch-suggest" role="listbox" hidden></ul>
+            </div>
+            <div>
+              <div id="symbol-detail-title" class="text-lg font-semibold text-[#ffd900]">—</div>
+              <div id="symbol-detail-quote" class="text-[12px] text-gray-400 tabular-nums"></div>
+            </div>
           </div>
           <button type="button" class="btn-quiet" id="symbol-detail-close" aria-label="Đóng">✕</button>
         </div>
@@ -1958,6 +2040,8 @@
     let symbolDetailBars1m = [];
     let symbolDetailIntradayFrozen = false;
     let symbolDetailIntradayRefreshTimer = null;
+    let symbolDetailLoadGen = 0;
+    let symbolDetailSwitchActiveIdx = -1;
     const SYMBOL_DETAIL_RANGES = ["1d", "1m", "3m", "6m", "1y", "3y", "5y"];
     const SYMBOL_DETAIL_RANGE_LABEL = {
       "1d": "1d", "1m": "1m", "3m": "3m", "6m": "6m", "1y": "1y", "3y": "3y", "5y": "5y",
@@ -4597,13 +4681,110 @@
       }
     }
 
+    function syncSymbolDetailBoardHighlight(symbol) {
+      if (!elBody) return;
+      elBody.querySelectorAll("tr.equity-row.is-detail-open").forEach((tr) => {
+        tr.classList.remove("is-detail-open");
+      });
+      const sym = String(symbol || "").toUpperCase();
+      if (!sym) return;
+      const tr = document.getElementById("row-" + sym);
+      if (tr) {
+        tr.classList.add("is-detail-open");
+        try {
+          tr.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        } catch (_) {}
+      }
+    }
+
+    function closeSymbolDetailSuggest() {
+      const box = document.getElementById("symbol-detail-switch-suggest");
+      if (box) {
+        box.hidden = true;
+        box.innerHTML = "";
+      }
+      symbolDetailSwitchActiveIdx = -1;
+    }
+
     function closeSymbolDetail() {
       const backdrop = document.getElementById("symbol-detail-backdrop");
       if (backdrop) backdrop.hidden = true;
       SymbolDetailChart.dispose();
       symbolDetailSymbol = null;
       symbolDetailActiveFilter = "";
+      symbolDetailLoadGen += 1;
+      closeSymbolDetailSuggest();
+      syncSymbolDetailBoardHighlight(null);
+      const sw = document.getElementById("symbol-detail-switch");
+      if (sw) sw.value = "";
       resetSymbolDetailScoringUi();
+    }
+
+    function listSymbolDetailSwitcherCandidates(query) {
+      const q = String(query || "").trim().toUpperCase();
+      const out = [];
+      state.forEach((row, sym) => {
+        if (!sym) return;
+        if (INDEX_SYMBOLS.has(sym) && !FUTURES_BOARD_SYMBOLS.has(sym)) return;
+        if (q && !String(sym).includes(q)) return;
+        out.push(String(sym));
+      });
+      out.sort((a, b) => {
+        if (q) {
+          const ap = a.startsWith(q) ? 0 : 1;
+          const bp = b.startsWith(q) ? 0 : 1;
+          if (ap !== bp) return ap - bp;
+        }
+        return a.localeCompare(b);
+      });
+      return out.slice(0, 12);
+    }
+
+    function renderSymbolDetailSwitcherSuggest(query) {
+      const box = document.getElementById("symbol-detail-switch-suggest");
+      if (!box) return [];
+      const items = listSymbolDetailSwitcherCandidates(query);
+      symbolDetailSwitchActiveIdx = items.length ? 0 : -1;
+      if (!items.length) {
+        box.hidden = true;
+        box.innerHTML = "";
+        return items;
+      }
+      box.innerHTML = items
+        .map((sym, idx) => {
+          const row = state.get(sym);
+          const pct = row && row.change_pct != null ? fmtPct(row.change_pct) : "";
+          const active = idx === symbolDetailSwitchActiveIdx ? " is-active" : "";
+          return `<li role="option" data-symbol="${sym}" class="${active.trim()}" aria-selected="${idx === 0 ? "true" : "false"}"><span>${sym}</span><span class="sg-meta">${pct}</span></li>`;
+        })
+        .join("");
+      box.hidden = false;
+      box.querySelectorAll("li[data-symbol]").forEach((li) => {
+        li.addEventListener("mousedown", (ev) => {
+          ev.preventDefault();
+          switchSymbolDetailTo(li.dataset.symbol);
+        });
+      });
+      return items;
+    }
+
+    function highlightSymbolDetailSwitcherSuggest(items) {
+      const box = document.getElementById("symbol-detail-switch-suggest");
+      if (!box || box.hidden) return;
+      box.querySelectorAll("li[data-symbol]").forEach((li, idx) => {
+        const on = idx === symbolDetailSwitchActiveIdx;
+        li.classList.toggle("is-active", on);
+        li.setAttribute("aria-selected", on ? "true" : "false");
+      });
+    }
+
+    async function switchSymbolDetailTo(symbol) {
+      const sym = String(symbol || "").trim().toUpperCase();
+      closeSymbolDetailSuggest();
+      const sw = document.getElementById("symbol-detail-switch");
+      if (sw) sw.value = sym;
+      if (!sym) return;
+      await openSymbolDetail(sym, { soft: true });
     }
 
     async function loadSymbolDetailFilterCatalog() {
@@ -4970,32 +5151,129 @@
       }
     }
 
-    async function openSymbolDetail(symbol) {
+    async function openSymbolDetail(symbol, opts = {}) {
       const sym = String(symbol || "").toUpperCase();
       if (!sym) return;
-      symbolDetailSymbol = sym;
-      symbolDetailActiveFilter = "";
-      symbolDetailMarkers = [];
-      symbolDetailRange = "1y";
       const backdrop = document.getElementById("symbol-detail-backdrop");
+      const alreadyOpen = Boolean(backdrop && !backdrop.hidden);
+      const soft = Boolean(opts.soft) || alreadyOpen;
+      if (alreadyOpen && symbolDetailSymbol === sym && !opts.force) {
+        const sw = document.getElementById("symbol-detail-switch");
+        if (sw) sw.value = sym;
+        syncSymbolDetailBoardHighlight(sym);
+        return;
+      }
+
+      const keepFilter = soft ? symbolDetailActiveFilter : "";
+      const keepRange = soft ? symbolDetailRange : "1y";
+      const gen = ++symbolDetailLoadGen;
+      symbolDetailSymbol = sym;
+      symbolDetailMarkers = [];
+      symbolDetailBars = [];
+      symbolDetailBars1m = [];
+      if (!soft) {
+        symbolDetailActiveFilter = "";
+        symbolDetailRange = "1y";
+      } else {
+        symbolDetailRange = keepRange || "1y";
+        symbolDetailActiveFilter = keepFilter || "";
+      }
+
       const title = document.getElementById("symbol-detail-title");
       const quote = document.getElementById("symbol-detail-quote");
       const meta = document.getElementById("symbol-detail-meta");
+      const sw = document.getElementById("symbol-detail-switch");
       if (title) title.textContent = sym;
+      if (sw) sw.value = sym;
       const row = state.get(sym);
       if (quote && row) {
         quote.textContent = `${fmtPrice(row.last, row.kind)} · ${fmtPct(row.change_pct != null ? row.change_pct : 0)}`;
       } else if (quote) quote.textContent = "";
       if (meta) meta.textContent = "Đang tải biểu đồ…";
       resetSymbolDetailScoringUi("Đang chuẩn bị Scoring Matrix…");
+      closeSymbolDetailSuggest();
       if (backdrop) backdrop.hidden = false;
+      syncSymbolDetailBoardHighlight(sym);
       SymbolDetailChart.dispose();
       renderSymbolDetailRangeBar();
       await loadScoringPresetsCatalog();
+      if (gen !== symbolDetailLoadGen) return;
       await loadSymbolDetailFilterCatalog();
+      if (gen !== symbolDetailLoadGen) return;
       renderSymbolDetailFilterButtons();
       await loadSymbolDetailChartData();
+      if (gen !== symbolDetailLoadGen) return;
+      if (soft && keepFilter) {
+        await selectSymbolDetailFilter(keepFilter);
+        if (gen !== symbolDetailLoadGen) return;
+      }
       runSymbolDetailScoring();
+    }
+
+    function wireSymbolDetailSwitcher() {
+      const input = document.getElementById("symbol-detail-switch");
+      if (!input) return;
+      input.addEventListener("input", () => {
+        const raw = input.value || "";
+        renderSymbolDetailSwitcherSuggest(raw);
+      });
+      input.addEventListener("focus", () => {
+        renderSymbolDetailSwitcherSuggest(input.value || "");
+      });
+      input.addEventListener("keydown", (ev) => {
+        const box = document.getElementById("symbol-detail-switch-suggest");
+        const open = box && !box.hidden;
+        const items = open
+          ? Array.from(box.querySelectorAll("li[data-symbol]")).map((li) => li.dataset.symbol)
+          : listSymbolDetailSwitcherCandidates(input.value);
+        if (ev.key === "ArrowDown" && items.length) {
+          ev.preventDefault();
+          if (!open) {
+            renderSymbolDetailSwitcherSuggest(input.value);
+            symbolDetailSwitchActiveIdx = 0;
+          } else {
+            symbolDetailSwitchActiveIdx = Math.min(
+              items.length - 1,
+              (symbolDetailSwitchActiveIdx < 0 ? -1 : symbolDetailSwitchActiveIdx) + 1,
+            );
+          }
+          highlightSymbolDetailSwitcherSuggest(items);
+          return;
+        }
+        if (ev.key === "ArrowUp" && items.length) {
+          ev.preventDefault();
+          if (!open) {
+            renderSymbolDetailSwitcherSuggest(input.value);
+            symbolDetailSwitchActiveIdx = 0;
+          } else {
+            symbolDetailSwitchActiveIdx = Math.max(0, symbolDetailSwitchActiveIdx - 1);
+          }
+          highlightSymbolDetailSwitcherSuggest(items);
+          return;
+        }
+        if (ev.key === "Enter") {
+          ev.preventDefault();
+          ev.stopPropagation();
+          let pick = "";
+          if (open && symbolDetailSwitchActiveIdx >= 0 && items[symbolDetailSwitchActiveIdx]) {
+            pick = items[symbolDetailSwitchActiveIdx];
+          } else {
+            pick = String(input.value || "").trim().toUpperCase();
+          }
+          if (pick) switchSymbolDetailTo(pick);
+          return;
+        }
+        if (ev.key === "Escape") {
+          if (open) {
+            ev.preventDefault();
+            ev.stopPropagation();
+            closeSymbolDetailSuggest();
+          }
+        }
+      });
+      input.addEventListener("blur", () => {
+        setTimeout(() => closeSymbolDetailSuggest(), 120);
+      });
     }
 
     function wireSymbolDetailPanel() {
@@ -5014,8 +5292,17 @@
         });
       }
       document.addEventListener("keydown", (ev) => {
-        if (ev.key === "Escape") closeSymbolDetail();
+        if (ev.key !== "Escape") return;
+        const suggest = document.getElementById("symbol-detail-switch-suggest");
+        if (suggest && !suggest.hidden) {
+          closeSymbolDetailSuggest();
+          return;
+        }
+        const sw = document.getElementById("symbol-detail-switch");
+        if (sw && document.activeElement === sw) return;
+        closeSymbolDetail();
       });
+      wireSymbolDetailSwitcher();
       loadScoringPresetsCatalog();
     }
     wireSymbolDetailPanel();

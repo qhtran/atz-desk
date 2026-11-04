@@ -121,6 +121,17 @@
       "err_codes": []
     },
     {
+      "match": "pb-ui:iboard.symbol-detail.switcher",
+      "matchType": "exact",
+      "breadcrumb": ["ATZ Desk", "iBoard", "Phân tích mã", "Quick Switcher"],
+      "hints": {
+        "fe": "frontend/index.html — #symbol-detail-switch, switchSymbolDetailTo / openSymbolDetail({soft:true})",
+        "be": "reuse symbol-bars + scoring evaluate theo mã mới",
+        "spec": "đổi mã giữ panel mở; Enter / autocomplete từ state board"
+      },
+      "err_codes": []
+    },
+    {
       "match": "pb-ui:iboard.symbol-detail.scoring",
       "matchType": "exact",
       "breadcrumb": ["ATZ Desk", "iBoard", "Phân tích mã", "Scoring Matrix"],
