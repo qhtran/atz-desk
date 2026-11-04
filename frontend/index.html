@@ -221,6 +221,52 @@
       background: #ffd900;
       border-color: #ffd900;
     }
+    .wl-select-wrap {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-left: 8px;
+      padding-left: 8px;
+      border-left: 1px solid #2a2a2a;
+    }
+    .wl-select-wrap label {
+      font-size: 11px;
+      color: #737373;
+      white-space: nowrap;
+    }
+    #user-watchlist-select {
+      height: 26px;
+      min-width: 160px;
+      max-width: 240px;
+      padding: 0 8px;
+      border: 1px solid #2a2a2a;
+      border-radius: 2px;
+      background: #111;
+      color: #e5e5e5;
+      font-size: 12px;
+    }
+    #user-watchlist-select:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+    .wl-select-wrap .wl-btn {
+      height: 26px;
+      padding: 0 8px;
+      border: 1px solid #2a2a2a;
+      border-radius: 2px;
+      background: #141414;
+      color: #a3a3a3;
+      font-size: 11px;
+      cursor: pointer;
+    }
+    .wl-select-wrap .wl-btn:hover:not(:disabled) {
+      color: #ffd900;
+      border-color: #3a3a3a;
+    }
+    .wl-select-wrap .wl-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
 
     .daily-scan-banner {
       padding: 6px 10px;
@@ -330,7 +376,7 @@
       overflow: hidden;
       display: flex;
       flex-direction: column;
-      min-height: 420px;
+      min-height: 560px;
     }
     .symbol-detail-range-bar {
       display: flex;
@@ -362,7 +408,17 @@
     #symbol-detail-lwc {
       width: 100%;
       min-width: 480px;
-      height: 380px;
+      height: 320px;
+      flex: 1 1 auto;
+      background: #0a0a0a;
+      border: 1px solid #2a2a2a;
+    }
+    #symbol-detail-rsi-lwc {
+      width: 100%;
+      min-width: 480px;
+      height: 140px;
+      flex: 0 0 140px;
+      margin-top: 6px;
       background: #0a0a0a;
       border: 1px solid #2a2a2a;
     }
@@ -1148,6 +1204,14 @@
       <button type="button" class="mkt-tab" data-market="HNX" data-atd-id="pb-ui:iboard.market.HNX" role="tab" aria-selected="false">HNX</button>
       <button type="button" class="mkt-tab" data-market="UPCOM" data-atd-id="pb-ui:iboard.market.UPCOM" role="tab" aria-selected="false">UPCOM</button>
       <button type="button" class="mkt-tab" data-market="FOREIGN" data-atd-id="pb-ui:iboard.market.FOREIGN" role="tab" aria-selected="false">Khối ngoại</button>
+      <div class="wl-select-wrap" data-atd-id="pb-ui:iboard.watchlist">
+        <label for="user-watchlist-select">Watchlist</label>
+        <select id="user-watchlist-select" title="Watchlist cá nhân" disabled>
+          <option value="">— Rổ mặc định —</option>
+        </select>
+        <button type="button" class="wl-btn" id="wl-save-pins" title="Lưu các mã đang ghim thành watchlist" disabled>Lưu pin</button>
+        <button type="button" class="wl-btn" id="wl-delete" title="Xóa watchlist đang chọn" disabled>Xóa</button>
+      </div>
     </div>
     <div id="board-wrap" class="atz-table-wrap" data-atd-id="pb-ui:iboard.board-table">
       <table id="board-table" class="atz-table iboard">
@@ -1209,6 +1273,7 @@
             <div id="symbol-detail-range-bar" class="symbol-detail-range-bar" aria-label="Khung thời gian"></div>
             <div id="symbol-detail-ohlc-legend" class="symbol-detail-ohlc-legend"></div>
             <div id="symbol-detail-lwc" aria-label="Biểu đồ giá"></div>
+            <div id="symbol-detail-rsi-lwc" aria-label="RSI 14"></div>
             <div id="symbol-detail-meta" class="symbol-detail-meta"></div>
           </div>
         </div>
@@ -1418,9 +1483,15 @@
     ]);
     const PIN_KEY = "atz.iboard.pinned";
     const MARKET_KEY = "atz.iboard.market";
+    const WATCHLIST_KEY = "atz.iboard.watchlist_id";
     const APP_TAB_KEY = "atz.app.tab";
     const PORTFOLIO_KEY = "atz.app.portfolio";
     const VALID_MARKETS = new Set(["HOSE", "VN30", "VN30F1M", "VN30F2M", "HNX", "UPCOM", "FOREIGN"]);
+    /** @type {Array<{id:number,name:string,symbols:string[]}>} */
+    let userWatchlists = [];
+    /** @type {Set<string>|null} */
+    let activeWatchlistSymbols = null;
+    let activeWatchlistId = null;
     const VALID_APP_TABS = new Set(["iboard", "portfolio", "alerts", "news", "account", "admin"]);
     const GUEST_SKIP_KEY = "atz.auth.guest_skip";
     const ALERTS_MAX = 80;
@@ -1759,6 +1830,7 @@
       renderAuthChrome();
       const form = document.getElementById("welcome-login-form");
       if (form) form.style.display = accountState.deskSessionForm || !accountState.authenticated ? "" : "";
+      try { await loadUserWatchlists(); } catch (_) {}
     }
 
     let deskMfaToken = "";
@@ -1793,6 +1865,7 @@
       renderAuthChrome();
       if (accountState.isAdmin && appTab === "admin") void loadAdminControlPlane();
       else if (appTab === "account") renderAccountDashboard();
+      try { await loadUserWatchlists(); } catch (_) {}
       try { await initPortfolioAuthSync(); } catch (_) {}
     }
 
@@ -2110,7 +2183,11 @@
       const rows = [];
       for (const [sym, row] of state) {
         if (!row || INDEX_SYMBOLS.has(sym)) continue;
-        if (!matchesMarketTab(sym, row)) continue;
+        if (activeWatchlistSymbols) {
+          if (!activeWatchlistSymbols.has(sym)) continue;
+        } else if (!matchesMarketTab(sym, row)) {
+          continue;
+        }
         rows.push({ sym, vol: Number(row.volume) || 0 });
       }
       rows.sort((a, b) => b.vol - a.vol);
@@ -2191,9 +2268,19 @@
       const row = state.get(symbol);
       if (!row) return false;
       if (INDEX_SYMBOLS.has(symbol) && !FUTURES_BOARD_SYMBOLS.has(symbol)) return false;
-      if (FUTURES_BOARD_SYMBOLS.has(symbol) && marketTab !== symbol) return false;
       const q = searchQuery.trim().toUpperCase();
       if (q && !symbol.includes(q)) return false;
+      /* Personal watchlist overrides market-tab universe */
+      if (activeWatchlistSymbols) {
+        if (!activeWatchlistSymbols.has(symbol)) return false;
+        if (scrSource === "topvol") return topVolSet.has(symbol);
+        if (scrSource === "daily") {
+          if (!dailySignalSet) return true;
+          return dailySignalSet.has(symbol);
+        }
+        return matchesScreenerFilters(row);
+      }
+      if (FUTURES_BOARD_SYMBOLS.has(symbol) && marketTab !== symbol) return false;
       if (!matchesMarketTab(symbol, row)) return false;
       if (scrSource === "topvol") {
         return topVolSet.has(symbol);
@@ -2277,6 +2364,7 @@
 
     function setMarketTab(tab) {
       if (!VALID_MARKETS.has(tab)) tab = "HOSE";
+      clearActiveWatchlist(false);
       const prevTab = marketTab;
       applyForeignMarketTabMode(tab, prevTab);
       marketTab = tab;
@@ -2294,6 +2382,187 @@
     document.querySelectorAll(".mkt-tab").forEach((btn) => {
       btn.addEventListener("click", () => setMarketTab(btn.dataset.market));
     });
+
+    /* ===== Personal watchlists (server) ===== */
+    function clearActiveWatchlist(applyFilter) {
+      activeWatchlistId = null;
+      activeWatchlistSymbols = null;
+      try { localStorage.removeItem(WATCHLIST_KEY); } catch (_) {}
+      const sel = document.getElementById("user-watchlist-select");
+      if (sel && sel.value) sel.value = "";
+      document.querySelectorAll(".mkt-tab").forEach((btn) => {
+        const on = btn.dataset.market === marketTab;
+        btn.classList.toggle("is-active", on);
+        btn.setAttribute("aria-selected", on ? "true" : "false");
+      });
+      const delBtn = document.getElementById("wl-delete");
+      if (delBtn) delBtn.disabled = !accountState.authenticated || !sel?.value;
+      if (applyFilter) applyBoardFilter();
+    }
+
+    function setActiveWatchlist(item) {
+      if (!item || !item.id) {
+        clearActiveWatchlist(true);
+        return;
+      }
+      activeWatchlistId = Number(item.id);
+      activeWatchlistSymbols = new Set(
+        (item.symbols || []).map((s) => String(s || "").toUpperCase()).filter(Boolean),
+      );
+      try { localStorage.setItem(WATCHLIST_KEY, String(activeWatchlistId)); } catch (_) {}
+      document.querySelectorAll(".mkt-tab").forEach((btn) => {
+        btn.classList.remove("is-active");
+        btn.setAttribute("aria-selected", "false");
+      });
+      const delBtn = document.getElementById("wl-delete");
+      if (delBtn) delBtn.disabled = false;
+      syncScreenerSourceUi();
+      applyBoardFilter();
+      updateScreenerStatus(countVisibleBoardRows());
+    }
+
+    function populateWatchlistSelect() {
+      const sel = document.getElementById("user-watchlist-select");
+      const saveBtn = document.getElementById("wl-save-pins");
+      const delBtn = document.getElementById("wl-delete");
+      if (!sel) return;
+      const prev = activeWatchlistId != null ? String(activeWatchlistId) : (sel.value || "");
+      sel.innerHTML = '<option value="">— Rổ mặc định —</option>';
+      for (const wl of userWatchlists) {
+        const opt = document.createElement("option");
+        opt.value = String(wl.id);
+        const n = (wl.symbols || []).length;
+        opt.textContent = `⭐ ${wl.name} (${n})`;
+        sel.appendChild(opt);
+      }
+      const authed = !!accountState.authenticated;
+      sel.disabled = !authed;
+      if (saveBtn) saveBtn.disabled = !authed;
+      if (delBtn) delBtn.disabled = !authed || !prev;
+      if (authed && prev && userWatchlists.some((w) => String(w.id) === prev)) {
+        sel.value = prev;
+      } else {
+        sel.value = "";
+      }
+    }
+
+    async function loadUserWatchlists() {
+      const sel = document.getElementById("user-watchlist-select");
+      if (!accountState.authenticated) {
+        userWatchlists = [];
+        clearActiveWatchlist(true);
+        populateWatchlistSelect();
+        return;
+      }
+      try {
+        const res = await fetch("/api/user/watchlists", { credentials: "same-origin" });
+        if (res.status === 401) {
+          userWatchlists = [];
+          clearActiveWatchlist(true);
+          populateWatchlistSelect();
+          return;
+        }
+        const data = await res.json();
+        userWatchlists = Array.isArray(data.items) ? data.items : [];
+      } catch (_) {
+        userWatchlists = [];
+      }
+      populateWatchlistSelect();
+      let wantId = activeWatchlistId;
+      if (wantId == null) {
+        try {
+          const raw = localStorage.getItem(WATCHLIST_KEY);
+          if (raw) wantId = Number(raw);
+        } catch (_) {}
+      }
+      const found = userWatchlists.find((w) => Number(w.id) === Number(wantId));
+      if (found) {
+        const selEl = document.getElementById("user-watchlist-select");
+        if (selEl) selEl.value = String(found.id);
+        setActiveWatchlist(found);
+      } else if (activeWatchlistSymbols) {
+        clearActiveWatchlist(true);
+      }
+      if (sel) sel.disabled = false;
+    }
+
+    async function savePinsAsWatchlist() {
+      if (!accountState.authenticated) return;
+      const pins = loadPins();
+      if (!pins.length) {
+        window.alert("Chưa ghim mã nào trên bảng.");
+        return;
+      }
+      const name = window.prompt("Tên watchlist", "Watchlist của tôi");
+      if (name == null) return;
+      const title = String(name).trim();
+      if (!title) return;
+      try {
+        const res = await fetch("/api/user/watchlists", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: title, symbols: pins }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          window.alert(data.detail || "Không tạo được watchlist");
+          return;
+        }
+        await loadUserWatchlists();
+        if (data.item) {
+          const sel = document.getElementById("user-watchlist-select");
+          if (sel) sel.value = String(data.item.id);
+          setActiveWatchlist(data.item);
+        }
+      } catch (_) {
+        window.alert("Lỗi mạng khi tạo watchlist");
+      }
+    }
+
+    async function deleteSelectedWatchlist() {
+      if (!accountState.authenticated || !activeWatchlistId) return;
+      const cur = userWatchlists.find((w) => Number(w.id) === Number(activeWatchlistId));
+      const label = cur?.name || `#${activeWatchlistId}`;
+      if (!window.confirm(`Xóa watchlist «${label}»?`)) return;
+      try {
+        const res = await fetch(`/api/user/watchlists/${activeWatchlistId}`, {
+          method: "DELETE",
+          credentials: "same-origin",
+        });
+        if (!res.ok && res.status !== 404) {
+          const data = await res.json().catch(() => ({}));
+          window.alert(data.detail || "Không xóa được");
+          return;
+        }
+        clearActiveWatchlist(false);
+        await loadUserWatchlists();
+        applyBoardFilter();
+      } catch (_) {
+        window.alert("Lỗi mạng khi xóa watchlist");
+      }
+    }
+
+    function wireWatchlistControls() {
+      const sel = document.getElementById("user-watchlist-select");
+      sel?.addEventListener("change", () => {
+        const id = sel.value;
+        if (!id) {
+          clearActiveWatchlist(true);
+          return;
+        }
+        const item = userWatchlists.find((w) => String(w.id) === id);
+        if (item) setActiveWatchlist(item);
+        else clearActiveWatchlist(true);
+      });
+      document.getElementById("wl-save-pins")?.addEventListener("click", () => {
+        void savePinsAsWatchlist();
+      });
+      document.getElementById("wl-delete")?.addEventListener("click", () => {
+        void deleteSelectedWatchlist();
+      });
+    }
+    wireWatchlistControls();
 
     elSearch.addEventListener("input", () => {
       searchQuery = elSearch.value || "";
@@ -3326,39 +3595,147 @@
 
     const SymbolDetailChart = (() => {
       let chart = null;
+      let rsiChart = null;
       let candleSeries = null;
       let volumeSeries = null;
       let lineSeries = null;
-      let ma10Series = null;
+      let ma20Series = null;
       let ma50Series = null;
+      let rsiSeries = null;
       let resizeObs = null;
+      let rsiResizeObs = null;
+      let syncingRange = false;
       let mode = "daily";
 
       function lwc() {
         return window.LightweightCharts;
       }
 
-      function ensureChart() {
-        const el = document.getElementById("symbol-detail-lwc");
-        if (!el || !lwc()) return false;
-        if (chart) return true;
-        chart = lwc().createChart(el, {
-          layout: { background: { color: "#0a0a0a" }, textColor: "#a3a3a3" },
-          grid: { vertLines: { color: "#2a2a2a" }, horzLines: { color: "#2a2a2a" } },
-          rightPriceScale: { borderColor: "#2a2a2a" },
-          timeScale: { borderColor: "#2a2a2a", timeVisible: true, secondsVisible: false },
-          crosshair: { mode: lwc().CrosshairMode?.Normal ?? 0 },
-        });
-        chart.timeScale().fitContent();
-        if (!resizeObs && typeof ResizeObserver !== "undefined") {
-          resizeObs = new ResizeObserver(() => {
-            if (!chart || !el.clientWidth) return;
-            chart.applyOptions({ width: el.clientWidth, height: el.clientHeight || 380 });
-            chart.timeScale().fitContent();
-          });
-          resizeObs.observe(el);
+      /** Simple moving average on `{ time, close }` rows. */
+      function calculateSMA(data, period) {
+        const out = [];
+        const n = Number(period) || 0;
+        if (!Array.isArray(data) || n < 1) return out;
+        for (let i = 0; i < data.length; i++) {
+          if (i < n - 1) continue;
+          let sum = 0;
+          let ok = true;
+          for (let j = i - n + 1; j <= i; j++) {
+            const c = Number(data[j].close);
+            if (!Number.isFinite(c)) {
+              ok = false;
+              break;
+            }
+            sum += c;
+          }
+          if (!ok || data[i].time == null) continue;
+          out.push({ time: data[i].time, value: sum / n });
         }
-        chart.subscribeCrosshairMove((param) => updateOhlcLegend(param));
+        return out;
+      }
+
+      /** Wilder RSI on `{ time, close }` rows (default period 14). */
+      function calculateRSI(data, period = 14) {
+        const out = [];
+        const n = Number(period) || 14;
+        if (!Array.isArray(data) || data.length <= n) return out;
+        const closes = data.map((d) => Number(d.close));
+        let gainSum = 0;
+        let lossSum = 0;
+        for (let i = 1; i <= n; i++) {
+          const diff = closes[i] - closes[i - 1];
+          if (diff >= 0) gainSum += diff;
+          else lossSum -= diff;
+        }
+        let avgGain = gainSum / n;
+        let avgLoss = lossSum / n;
+        const pushAt = (idx) => {
+          if (data[idx].time == null) return;
+          let rsi;
+          if (avgLoss === 0) rsi = 100;
+          else if (avgGain === 0) rsi = 0;
+          else {
+            const rs = avgGain / avgLoss;
+            rsi = 100 - 100 / (1 + rs);
+          }
+          out.push({ time: data[idx].time, value: rsi });
+        };
+        pushAt(n);
+        for (let i = n + 1; i < data.length; i++) {
+          const diff = closes[i] - closes[i - 1];
+          const gain = diff > 0 ? diff : 0;
+          const loss = diff < 0 ? -diff : 0;
+          avgGain = (avgGain * (n - 1) + gain) / n;
+          avgLoss = (avgLoss * (n - 1) + loss) / n;
+          pushAt(i);
+        }
+        return out;
+      }
+
+      function wireTimeSync() {
+        if (!chart || !rsiChart) return;
+        const sync = (source, target) => {
+          source.timeScale().subscribeVisibleLogicalRangeChange((range) => {
+            if (!range || syncingRange || !target) return;
+            syncingRange = true;
+            try {
+              target.timeScale().setVisibleLogicalRange(range);
+            } catch (_) {}
+            syncingRange = false;
+          });
+        };
+        sync(chart, rsiChart);
+        sync(rsiChart, chart);
+      }
+
+      function ensureChart() {
+        const LC = lwc();
+        const el = document.getElementById("symbol-detail-lwc");
+        const rsiEl = document.getElementById("symbol-detail-rsi-lwc");
+        if (!el || !rsiEl || !LC) return false;
+
+        if (!chart) {
+          chart = LC.createChart(el, {
+            layout: { background: { color: "#0a0a0a" }, textColor: "#a3a3a3" },
+            grid: { vertLines: { color: "#2a2a2a" }, horzLines: { color: "#2a2a2a" } },
+            rightPriceScale: { borderColor: "#2a2a2a" },
+            timeScale: { borderColor: "#2a2a2a", timeVisible: true, secondsVisible: false },
+            crosshair: { mode: LC.CrosshairMode?.Normal ?? 0 },
+            width: el.clientWidth || undefined,
+            height: el.clientHeight || 320,
+          });
+          chart.subscribeCrosshairMove((param) => updateOhlcLegend(param));
+          if (!resizeObs && typeof ResizeObserver !== "undefined") {
+            resizeObs = new ResizeObserver(() => {
+              if (!chart || !el.clientWidth) return;
+              chart.applyOptions({ width: el.clientWidth, height: el.clientHeight || 320 });
+            });
+            resizeObs.observe(el);
+          }
+        }
+
+        if (!rsiChart) {
+          rsiChart = LC.createChart(rsiEl, {
+            layout: { background: { color: "#0a0a0a" }, textColor: "#a3a3a3" },
+            grid: { vertLines: { color: "#2a2a2a" }, horzLines: { color: "#2a2a2a" } },
+            rightPriceScale: {
+              borderColor: "#2a2a2a",
+              scaleMargins: { top: 0.08, bottom: 0.08 },
+            },
+            timeScale: { borderColor: "#2a2a2a", timeVisible: true, secondsVisible: false },
+            crosshair: { mode: LC.CrosshairMode?.Normal ?? 0 },
+            width: rsiEl.clientWidth || undefined,
+            height: rsiEl.clientHeight || 140,
+          });
+          if (!rsiResizeObs && typeof ResizeObserver !== "undefined") {
+            rsiResizeObs = new ResizeObserver(() => {
+              if (!rsiChart || !rsiEl.clientWidth) return;
+              rsiChart.applyOptions({ width: rsiEl.clientWidth, height: rsiEl.clientHeight || 140 });
+            });
+            rsiResizeObs.observe(rsiEl);
+          }
+          wireTimeSync();
+        }
         return true;
       }
 
@@ -3371,12 +3748,21 @@
         return null;
       }
 
-      function clearAllSeries() {
+      function clearMainSeries() {
         candleSeries = removeSeries(candleSeries);
         volumeSeries = removeSeries(volumeSeries);
         lineSeries = removeSeries(lineSeries);
-        ma10Series = removeSeries(ma10Series);
+        ma20Series = removeSeries(ma20Series);
         ma50Series = removeSeries(ma50Series);
+      }
+
+      function clearRsiSeries() {
+        if (rsiSeries && rsiChart) {
+          try {
+            rsiChart.removeSeries(rsiSeries);
+          } catch (_) {}
+        }
+        rsiSeries = null;
       }
 
       function dailyTime(raw) {
@@ -3384,16 +3770,52 @@
         return s.length === 10 ? s : null;
       }
 
-      function movingAverage(bars, period) {
-        const out = [];
-        for (let i = 0; i < bars.length; i++) {
-          if (i < period - 1) continue;
-          let sum = 0;
-          for (let j = i - period + 1; j <= i; j++) sum += Number(bars[j].close);
-          const t = dailyTime(bars[i].time);
-          if (t) out.push({ time: t, value: sum / period });
+      function bindOverlays(rows) {
+        if (!chart || !rows.length) {
+          clearRsiSeries();
+          return;
         }
-        return out;
+        ma20Series = chart.addLineSeries({
+          color: "#f59e0b",
+          lineWidth: 1,
+          title: "MA20",
+          lastValueVisible: false,
+          priceLineVisible: false,
+        });
+        ma50Series = chart.addLineSeries({
+          color: "#a855f7",
+          lineWidth: 1,
+          title: "MA50",
+          lastValueVisible: false,
+          priceLineVisible: false,
+        });
+        ma20Series.setData(calculateSMA(rows, 20));
+        ma50Series.setData(calculateSMA(rows, 50));
+
+        clearRsiSeries();
+        if (!rsiChart) return;
+        rsiSeries = rsiChart.addLineSeries({
+          color: "#06b6d4",
+          lineWidth: 1,
+          title: "RSI14",
+          lastValueVisible: true,
+          priceLineVisible: false,
+          priceFormat: { type: "custom", minMove: 0.01, formatter: (v) => Number(v).toFixed(1) },
+          autoscaleInfoProvider: () => ({
+            priceRange: { minValue: 0, maxValue: 100 },
+          }),
+        });
+        rsiSeries.setData(calculateRSI(rows, 14));
+        try {
+          rsiSeries.createPriceLine({ price: 70, color: "rgba(255,23,68,0.45)", lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: "70" });
+          rsiSeries.createPriceLine({ price: 30, color: "rgba(0,200,83,0.45)", lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: "30" });
+          rsiSeries.createPriceLine({ price: 50, color: "rgba(163,163,163,0.35)", lineWidth: 1, lineStyle: 2, axisLabelVisible: false });
+        } catch (_) {}
+      }
+
+      function fitBoth() {
+        if (chart) chart.timeScale().fitContent();
+        if (rsiChart) rsiChart.timeScale().fitContent();
       }
 
       function updateOhlcLegend(param) {
@@ -3420,13 +3842,32 @@
           return;
         }
         const fmt = (v) => (Number.isFinite(Number(v)) ? Number(v).toLocaleString("en-US", { maximumFractionDigits: 2 }) : "—");
-        leg.textContent = `O ${fmt(bar.open)}  H ${fmt(bar.high)}  L ${fmt(bar.low)}  C ${fmt(bar.close)}`;
+        const parts = [
+          `O ${fmt(bar.open)}`,
+          `H ${fmt(bar.high)}`,
+          `L ${fmt(bar.low)}`,
+          `C ${fmt(bar.close)}`,
+        ];
+        if (ma20Series && s?.get(ma20Series)) {
+          const v = s.get(ma20Series)?.value;
+          if (Number.isFinite(v)) {
+            parts.push(`<span style="color:#f59e0b">MA20 ${fmt(v)}</span>`);
+          }
+        }
+        if (ma50Series && s?.get(ma50Series)) {
+          const v = s.get(ma50Series)?.value;
+          if (Number.isFinite(v)) {
+            parts.push(`<span style="color:#a855f7">MA50 ${fmt(v)}</span>`);
+          }
+        }
+        leg.innerHTML = parts.join("  ");
       }
 
       function setDaily(bars, markers) {
         if (!ensureChart()) return;
         mode = "daily";
-        clearAllSeries();
+        clearMainSeries();
+        clearRsiSeries();
         const rows = (bars || [])
           .map((b) => {
             const t = dailyTime(b.time);
@@ -3465,19 +3906,17 @@
             color: r.close >= r.open ? "rgba(0,200,83,0.35)" : "rgba(255,23,68,0.35)",
           })),
         );
-        ma10Series = chart.addLineSeries({ color: "#ffd900", lineWidth: 1, title: "MA10" });
-        ma50Series = chart.addLineSeries({ color: "#42a5f5", lineWidth: 1, title: "MA50" });
-        ma10Series.setData(movingAverage(rows, 10));
-        ma50Series.setData(movingAverage(rows, 50));
+        bindOverlays(rows);
         applyMarkers(markers);
-        chart.timeScale().fitContent();
+        fitBoth();
         updateOhlcLegend(null);
       }
 
       function setIntraday(arg) {
         if (!ensureChart()) return;
         mode = "intraday";
-        clearAllSeries();
+        clearMainSeries();
+        clearRsiSeries();
         const opts = arg && typeof arg === "object" && !Array.isArray(arg) ? arg : { points: arg };
         const bars1m = Array.isArray(opts.bars1m) ? opts.bars1m : [];
         const points = opts.points || [];
@@ -3502,8 +3941,10 @@
               wickDownColor: "#ff1744",
             });
             candleSeries.setData(ohlc);
+            bindOverlays(ohlc);
             chart.timeScale().applyOptions({ timeVisible: true, secondsVisible: false });
-            chart.timeScale().fitContent();
+            if (rsiChart) rsiChart.timeScale().applyOptions({ timeVisible: true, secondsVisible: false });
+            fitBoth();
             updateOhlcLegend(null);
             return;
           }
@@ -3513,7 +3954,7 @@
             const ts = Number(Array.isArray(p) ? p[0] : p.time);
             const val = Number(Array.isArray(p) ? p[1] : p.close ?? p.value);
             if (!Number.isFinite(ts) || !Number.isFinite(val)) return null;
-            return { time: ts, value: val };
+            return { time: ts, value: val, close: val };
           })
           .filter(Boolean);
         if (!rows.length) {
@@ -3521,9 +3962,11 @@
           return;
         }
         lineSeries = chart.addLineSeries({ color: "#ffd900", lineWidth: 2 });
-        lineSeries.setData(rows);
+        lineSeries.setData(rows.map(({ time, value }) => ({ time, value })));
+        bindOverlays(rows);
         chart.timeScale().applyOptions({ timeVisible: true, secondsVisible: false });
-        chart.timeScale().fitContent();
+        if (rsiChart) rsiChart.timeScale().applyOptions({ timeVisible: true, secondsVisible: false });
+        fitBoth();
         updateOhlcLegend(null);
       }
 
@@ -3547,21 +3990,31 @@
       }
 
       function dispose() {
-        clearAllSeries();
+        clearMainSeries();
+        clearRsiSeries();
         if (resizeObs) {
           const el = document.getElementById("symbol-detail-lwc");
           if (el) resizeObs.unobserve(el);
           resizeObs = null;
         }
+        if (rsiResizeObs) {
+          const rsiEl = document.getElementById("symbol-detail-rsi-lwc");
+          if (rsiEl) rsiResizeObs.unobserve(rsiEl);
+          rsiResizeObs = null;
+        }
         if (chart) {
           chart.remove();
           chart = null;
+        }
+        if (rsiChart) {
+          rsiChart.remove();
+          rsiChart = null;
         }
         const leg = document.getElementById("symbol-detail-ohlc-legend");
         if (leg) leg.textContent = "";
       }
 
-      return { setDaily, setIntraday, applyMarkers, dispose, isDaily: () => mode === "daily" };
+      return { setDaily, setIntraday, applyMarkers, dispose, isDaily: () => mode === "daily", calculateSMA, calculateRSI };
     })();
 
     function renderSymbolDetailRangeBar() {
