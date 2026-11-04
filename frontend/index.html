@@ -2,8 +2,20 @@
 <html lang="vi" class="h-full">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>ATZ Desk · iBoard</title>
+  <meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)" />
+  <meta name="theme-color" content="#0a0a0a" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <!-- opaque status bar — tránh blend/blur với notch (không dùng black-translucent) -->
+  <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+  <meta name="apple-mobile-web-app-title" content="ATZ Desk" />
+  <meta name="application-name" content="ATZ Desk" />
+  <meta name="description" content="ATZ Desk — bảng giá realtime & danh mục (dev.atz.vn)" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -50,10 +62,82 @@
       100% { background-color: transparent; }
     }
 
+    /* App header: brand+actions row, then scrollable tabs (mobile-safe) */
+    .app-header {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      border-bottom: 1px solid #2a2a2a;
+      /* Nền đặc — không opacity / backdrop-blur (iOS status bar blend) */
+      background: #0a0a0a;
+      background-color: #0a0a0a;
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+      /* Notch / Dynamic Island / home indicator */
+      padding-top: constant(safe-area-inset-top); /* iOS 11.0–11.2 */
+      padding-top: env(safe-area-inset-top, 0px);
+      padding-left: constant(safe-area-inset-left);
+      padding-left: env(safe-area-inset-left, 0px);
+      padding-right: constant(safe-area-inset-right);
+      padding-right: env(safe-area-inset-right, 0px);
+      position: sticky;
+      top: 0;
+      z-index: 60;
+    }
+    .app-header-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 6px 10px;
+      min-width: 0;
+      background: #0a0a0a;
+      background-color: #0a0a0a;
+    }
+    .app-brand {
+      flex-shrink: 0;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      color: #fff;
+      white-space: nowrap;
+      max-width: 42vw;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .app-brand-full { display: inline; }
+    .app-brand-short { display: none; }
+    .app-header-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 6px;
+      min-width: 0;
+      flex: 1 1 auto;
+    }
+    .app-header-tabs {
+      display: flex;
+      flex-wrap: nowrap;
+      align-items: stretch;
+      gap: 0;
+      padding: 0 6px;
+      overflow-x: auto;
+      overflow-y: hidden;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior-x: contain;
+      scrollbar-width: none;
+      white-space: nowrap;
+      border-top: 1px solid #1f1f1f;
+      background: #0a0a0a;
+      background-color: #0a0a0a;
+    }
+    .app-header-tabs::-webkit-scrollbar { display: none; height: 0; }
+
     .app-tab {
       display: inline-flex;
       align-items: center;
-      height: 28px;
+      flex: 0 0 auto;
+      height: 32px;
       padding: 0 12px;
       border: 0;
       border-bottom: 2px solid transparent;
@@ -63,17 +147,23 @@
       font-weight: 600;
       cursor: pointer;
       border-radius: 0;
+      white-space: nowrap;
     }
     .app-tab:hover { color: #fff; }
     .app-tab.is-active {
       color: #ffd900;
       border-bottom-color: #ffd900;
     }
+    .app-tab .tab-label-short { display: none; }
+    .app-tab .tab-label-full { display: inline; }
 
     .search-wrap {
       position: relative;
       display: flex;
       align-items: center;
+      min-width: 0;
+      flex: 1 1 auto;
+      max-width: 220px;
     }
     .search-wrap svg {
       position: absolute;
@@ -84,8 +174,9 @@
       pointer-events: none;
     }
     .search-wrap input {
-      width: 200px;
-      max-width: 36vw;
+      width: 100%;
+      min-width: 0;
+      max-width: 100%;
       height: 28px;
       padding: 0 10px 0 28px;
       border: 1px solid #2a2a2a;
@@ -100,6 +191,50 @@
       background: #141414;
     }
     .search-wrap input::placeholder { color: #525252; }
+
+    @media (max-width: 768px) {
+      .app-header-top { padding: 6px 8px; gap: 6px; }
+      .app-brand-full { display: none; }
+      .app-brand-short { display: inline; }
+      .app-header-actions { gap: 4px; }
+      .app-header-tabs { padding: 0 4px; }
+      .app-tab {
+        height: 34px;
+        padding: 0 10px;
+        font-size: 12px;
+      }
+      .app-tab .tab-label-full { display: none; }
+      .app-tab .tab-label-short { display: inline; }
+      .search-wrap { max-width: min(140px, 38vw); }
+      .search-wrap input { font-size: 11px; padding-right: 6px; }
+      #clock { display: none !important; }
+      #conn-label { display: none !important; }
+      .auth-chip {
+        max-width: min(132px, 34vw);
+        gap: 4px;
+        padding: 0 6px;
+      }
+      .auth-chip-role { display: none !important; }
+      .auth-login-btn { padding: 0 8px; font-size: 11px; }
+      .market-bar {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        white-space: nowrap;
+      }
+      .market-bar::-webkit-scrollbar { display: none; height: 0; }
+      .mkt-tab { flex: 0 0 auto; }
+      .wl-select-wrap { flex: 0 0 auto; margin-left: 4px; }
+      .panel-toolbar {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+      }
+      .panel-toolbar::-webkit-scrollbar { display: none; height: 0; }
+    }
 
     .icon-btn {
       display: inline-flex;
@@ -332,6 +467,99 @@
       border-bottom: 1px solid #2a2a2a;
       gap: 12px;
     }
+    .symbol-detail-head-main {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-width: 0;
+      flex: 1;
+    }
+    .symbol-detail-switcher {
+      position: relative;
+      max-width: 220px;
+    }
+    .symbol-detail-switcher input {
+      width: 100%;
+      font-size: 12px;
+      padding: 5px 8px;
+      border-radius: 4px;
+      border: 1px solid #2a2a2a;
+      background: #141414;
+      color: #e5e5e5;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .symbol-detail-switcher input:focus {
+      outline: none;
+      border-color: #ffd900;
+    }
+    .symbol-detail-switch-suggest {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: calc(100% + 2px);
+      z-index: 20;
+      margin: 0;
+      padding: 4px 0;
+      list-style: none;
+      max-height: 220px;
+      overflow: auto;
+      background: #121212;
+      border: 1px solid #2a2a2a;
+      border-radius: 4px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+    }
+    .symbol-detail-switch-suggest[hidden] { display: none !important; }
+    .symbol-detail-switch-suggest li {
+      padding: 6px 10px;
+      font-size: 12px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      color: #e5e5e5;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .symbol-detail-switch-suggest li.is-active,
+    .symbol-detail-switch-suggest li:hover {
+      background: #1f1f1f;
+      color: #ffd900;
+    }
+    .symbol-detail-switch-suggest li .sg-meta {
+      color: #737373;
+      font-variant-numeric: tabular-nums;
+      font-size: 11px;
+    }
+    tr.equity-row.is-detail-open td:first-child {
+      box-shadow: inset 3px 0 0 #ffd900;
+    }
+    .symbol-detail-recent {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      max-width: min(420px, 100%);
+      min-height: 0;
+    }
+    .symbol-detail-recent[hidden] { display: none !important; }
+    .symbol-detail-recent-chip {
+      appearance: none;
+      border: 1px solid #2a2a2a;
+      background: #141414;
+      color: #a3a3a3;
+      font-size: 10px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      letter-spacing: 0.03em;
+      padding: 2px 7px;
+      border-radius: 999px;
+      cursor: pointer;
+      line-height: 1.4;
+    }
+    .symbol-detail-recent-chip:hover,
+    .symbol-detail-recent-chip.is-current {
+      border-color: #ffd900;
+      color: #ffd900;
+    }
     .symbol-detail-body {
       display: grid;
       grid-template-columns: 220px 1fr;
@@ -343,11 +571,121 @@
     @media (max-width: 720px) {
       .symbol-detail-body { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
     }
-    .symbol-detail-filters {
+    .symbol-detail-aside {
       border-right: 1px solid #2a2a2a;
+      display: flex;
+      flex-direction: column;
+      max-height: calc(100vh - 120px);
+      min-height: 0;
+      overflow: hidden;
+    }
+    .symbol-detail-filters {
+      border-right: 0;
       overflow: auto;
       padding: 8px;
-      max-height: calc(100vh - 120px);
+      flex: 1 1 auto;
+      min-height: 0;
+      max-height: none;
+    }
+    .symbol-detail-scoring {
+      border-top: 1px solid #2a2a2a;
+      padding: 8px;
+      flex: 0 1 auto;
+      max-height: 48%;
+      overflow: auto;
+      font-size: 11px;
+      color: #a3a3a3;
+    }
+    .symbol-detail-scoring-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      margin-bottom: 6px;
+    }
+    .symbol-detail-scoring-head strong {
+      color: #e5e5e5;
+      font-size: 12px;
+    }
+    .symbol-detail-score-preset-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      margin-bottom: 6px;
+      font-size: 10px;
+      color: #737373;
+    }
+    .symbol-detail-score-preset-wrap select {
+      width: 100%;
+      font-size: 11px;
+      padding: 4px 6px;
+      border-radius: 4px;
+      border: 1px solid #2a2a2a;
+      background: #141414;
+      color: #e5e5e5;
+    }
+    .symbol-detail-score-kpi {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 8px;
+      margin: 6px 0;
+      font-variant-numeric: tabular-nums;
+    }
+    .symbol-detail-score-kpi .score-pct {
+      font-size: 18px;
+      font-weight: 600;
+      color: #ffd900;
+    }
+    .symbol-detail-score-badge {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      padding: 2px 6px;
+      border-radius: 3px;
+      border: 1px solid #2a2a2a;
+      background: #141414;
+    }
+    .symbol-detail-score-badge.dec-strong_buy,
+    .symbol-detail-score-badge.dec-accumulate { color: #00c853; border-color: rgba(0,200,83,0.45); }
+    .symbol-detail-score-badge.dec-hold { color: #f59e0b; border-color: rgba(245,158,11,0.45); }
+    .symbol-detail-score-badge.dec-trim,
+    .symbol-detail-score-badge.dec-sell { color: #ff1744; border-color: rgba(255,23,68,0.45); }
+    .symbol-detail-score-table-wrap {
+      overflow: auto;
+      max-height: 160px;
+      border: 1px solid #2a2a2a;
+      margin-top: 6px;
+    }
+    .symbol-detail-score-table-wrap table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 0;
+      font-size: 10px;
+    }
+    .symbol-detail-score-table-wrap th,
+    .symbol-detail-score-table-wrap td {
+      padding: 3px 5px;
+      border-bottom: 1px solid #1f1f1f;
+      text-align: left;
+    }
+    .symbol-detail-score-table-wrap th {
+      color: #737373;
+      font-weight: 500;
+      position: sticky;
+      top: 0;
+      background: #0f0f0f;
+    }
+    .symbol-detail-score-table-wrap .hit-yes { color: #00c853; }
+    .symbol-detail-score-table-wrap .hit-no { color: #737373; }
+    .symbol-detail-score-disclaimer {
+      margin: 8px 0 0;
+      padding: 6px 7px;
+      border: 1px solid rgba(255,217,0,0.25);
+      background: rgba(255,217,0,0.06);
+      color: #d4d4d4;
+      font-size: 10px;
+      line-height: 1.35;
     }
     .symbol-detail-filters button {
       display: block;
@@ -412,6 +750,7 @@
       flex: 1 1 auto;
       background: #0a0a0a;
       border: 1px solid #2a2a2a;
+      position: relative;
     }
     #symbol-detail-rsi-lwc {
       width: 100%;
@@ -421,6 +760,22 @@
       margin-top: 6px;
       background: #0a0a0a;
       border: 1px solid #2a2a2a;
+      position: relative;
+    }
+    /* Ẩn logo/attribution TradingView (Lightweight Charts #tv-attr-logo) */
+    .symbol-detail-chart-wrap a#tv-attr-logo,
+    .symbol-detail-chart-wrap #tv-attr-logo,
+    #symbol-detail-lwc a#tv-attr-logo,
+    #symbol-detail-rsi-lwc a#tv-attr-logo,
+    #symbol-detail-lwc #tv-attr-logo,
+    #symbol-detail-rsi-lwc #tv-attr-logo {
+      display: none !important;
+      visibility: hidden !important;
+      opacity: 0 !important;
+      pointer-events: none !important;
+      width: 0 !important;
+      height: 0 !important;
+      overflow: hidden !important;
     }
     .symbol-detail-meta {
       font-size: 11px;
@@ -1098,28 +1453,21 @@
       <p class="footnote">Protected by Authentik · Desk Session DEV only</p>
     </div>
   </div>
-  <header class="border-b border-[#2a2a2a] bg-[#0a0a0a]">
-    <div class="flex items-center justify-between gap-3 px-3 py-2">
-      <div class="flex items-center gap-1 min-w-0 flex-wrap">
-        <span class="text-[13px] font-semibold tracking-tight text-white shrink-0 pr-3">atz · Realtime</span>
-        <nav class="flex items-center gap-0" role="tablist" aria-label="Chức năng">
-          <button type="button" class="app-tab is-active" data-app="iboard" data-atd-id="pb-ui:app.tab.iboard" role="tab" aria-selected="true">Giao dịch iBoard</button>
-          <button type="button" class="app-tab" data-app="portfolio" data-atd-id="pb-ui:app.tab.portfolio" role="tab" aria-selected="false">Danh mục</button>
-          <button type="button" class="app-tab" data-app="alerts" data-atd-id="pb-ui:app.tab.alerts" role="tab" aria-selected="false">Alerts</button>
-          <button type="button" class="app-tab" data-app="news" data-atd-id="pb-ui:app.tab.news" role="tab" aria-selected="false">Tin tức / Nghiên cứu</button>
-          <button type="button" class="app-tab" data-app="account" id="tab-account" hidden data-atd-id="pb-ui:app.tab.account" role="tab" aria-selected="false">Tài khoản</button>
-          <button type="button" class="app-tab" data-app="admin" id="tab-admin" hidden data-atd-id="pb-ui:app.tab.admin" role="tab" aria-selected="false">Admin</button>
-        </nav>
-      </div>
-      <div class="flex items-center gap-2 shrink-0">
+  <header class="app-header bg-[#0a0a0a] pt-[env(safe-area-inset-top)]" data-atd-id="pb-ui:app.header">
+    <div class="app-header-top bg-[#0a0a0a]">
+      <span class="app-brand" title="atz · Realtime">
+        <span class="app-brand-full">atz · Realtime</span>
+        <span class="app-brand-short">atz</span>
+      </span>
+      <div class="app-header-actions">
         <label class="search-wrap" title="Tìm mã / ngành" id="global-search-wrap" data-atd-id="pb-ui:iboard.search">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <circle cx="11" cy="11" r="7"></circle>
             <path d="M20 20l-3.5-3.5" stroke-linecap="round"></path>
           </svg>
-          <input id="search-input" type="search" placeholder="Tìm mã CK…" autocomplete="off" spellcheck="false" />
+          <input id="search-input" type="search" placeholder="Tìm mã…" autocomplete="off" spellcheck="false" />
         </label>
-        <div class="relative" id="settings-wrap">
+        <div class="relative shrink-0" id="settings-wrap">
           <button type="button" class="icon-btn" id="btn-settings" data-atd-id="pb-ui:app.settings" aria-label="Cài đặt" aria-expanded="false" title="Cài đặt">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
               <circle cx="12" cy="12" r="3"></circle>
@@ -1131,7 +1479,7 @@
             <button type="button" id="btn-focus-search" role="menuitem">Focus ô tìm kiếm</button>
           </div>
         </div>
-        <div id="auth-slot" data-atd-id="pb-ui:auth.slot" class="inline-flex items-center">
+        <div id="auth-slot" data-atd-id="pb-ui:auth.slot" class="inline-flex items-center shrink-0 min-w-0">
           <button type="button" class="auth-login-btn" id="btn-header-login" hidden>Đăng nhập</button>
           <div class="auth-chip" id="auth-chip" hidden>
             <span id="auth-chip-name" class="truncate"></span>
@@ -1139,13 +1487,33 @@
             <button type="button" id="btn-logout" data-atd-id="pb-ui:auth.logout">Đăng xuất</button>
           </div>
         </div>
-        <span id="conn-wrap" data-atd-id="pb-ui:app.conn" class="inline-flex items-center gap-1">
+        <span id="conn-wrap" data-atd-id="pb-ui:app.conn" class="inline-flex items-center gap-1 shrink-0">
           <span id="conn-dot" class="inline-block h-2 w-2 rounded-full bg-[#ff0000]" title="Trạng thái WS"></span>
           <span id="conn-label" class="text-[11px] text-gray-400 hidden sm:inline">connecting…</span>
         </span>
-        <span id="clock" class="tabular-nums text-[11px] text-gray-500"></span>
+        <span id="clock" class="tabular-nums text-[11px] text-gray-500 shrink-0"></span>
       </div>
     </div>
+    <nav class="app-header-tabs" role="tablist" aria-label="Chức năng" data-atd-id="pb-ui:app.tabs">
+      <button type="button" class="app-tab is-active" data-app="iboard" data-atd-id="pb-ui:app.tab.iboard" role="tab" aria-selected="true">
+        <span class="tab-label-full">Giao dịch iBoard</span><span class="tab-label-short">iBoard</span>
+      </button>
+      <button type="button" class="app-tab" data-app="portfolio" data-atd-id="pb-ui:app.tab.portfolio" role="tab" aria-selected="false">
+        <span class="tab-label-full">Danh mục</span><span class="tab-label-short">Danh mục</span>
+      </button>
+      <button type="button" class="app-tab" data-app="alerts" data-atd-id="pb-ui:app.tab.alerts" role="tab" aria-selected="false">
+        <span class="tab-label-full">Alerts</span><span class="tab-label-short">Alerts</span>
+      </button>
+      <button type="button" class="app-tab" data-app="news" data-atd-id="pb-ui:app.tab.news" role="tab" aria-selected="false">
+        <span class="tab-label-full">Tin tức / Nghiên cứu</span><span class="tab-label-short">Tin tức</span>
+      </button>
+      <button type="button" class="app-tab" data-app="account" id="tab-account" hidden data-atd-id="pb-ui:app.tab.account" role="tab" aria-selected="false">
+        <span class="tab-label-full">Tài khoản</span><span class="tab-label-short">Account</span>
+      </button>
+      <button type="button" class="app-tab" data-app="admin" id="tab-admin" hidden data-atd-id="pb-ui:app.tab.admin" role="tab" aria-selected="false">
+        <span class="tab-label-full">Admin</span><span class="tab-label-short">Admin</span>
+      </button>
+    </nav>
   </header>
 
   <!-- ===== Panel: iBoard ===== -->
@@ -1270,14 +1638,64 @@
     <div id="symbol-detail-backdrop" class="symbol-detail-backdrop" hidden data-atd-id="pb-ui:iboard.symbol-detail">
       <div class="symbol-detail-panel" role="dialog" aria-labelledby="symbol-detail-title">
         <div class="symbol-detail-head">
-          <div>
-            <div id="symbol-detail-title" class="text-lg font-semibold text-[#ffd900]">—</div>
-            <div id="symbol-detail-quote" class="text-[12px] text-gray-400 tabular-nums"></div>
+          <div class="symbol-detail-head-main">
+            <div class="symbol-detail-switcher" data-atd-id="pb-ui:iboard.symbol-detail.switcher">
+              <input
+                id="symbol-detail-switch"
+                type="search"
+                placeholder="Đổi mã… / hoặc ⌘K"
+                autocomplete="off"
+                spellcheck="false"
+                aria-label="Chuyển mã nhanh"
+                aria-autocomplete="list"
+                aria-controls="symbol-detail-switch-suggest"
+                title="Phím tắt: / hoặc Ctrl/Cmd+K"
+              />
+              <ul id="symbol-detail-switch-suggest" class="symbol-detail-switch-suggest" role="listbox" hidden></ul>
+            </div>
+            <div
+              id="symbol-detail-recent"
+              class="symbol-detail-recent"
+              data-atd-id="pb-ui:iboard.symbol-detail.recent"
+              aria-label="Mã gần đây"
+              hidden
+            ></div>
+            <div>
+              <div id="symbol-detail-title" class="text-lg font-semibold text-[#ffd900]">—</div>
+              <div id="symbol-detail-quote" class="text-[12px] text-gray-400 tabular-nums"></div>
+            </div>
           </div>
           <button type="button" class="btn-quiet" id="symbol-detail-close" aria-label="Đóng">✕</button>
         </div>
         <div class="symbol-detail-body">
-          <div id="symbol-detail-filters" class="symbol-detail-filters" aria-label="Bộ lọc phân tích"></div>
+          <div class="symbol-detail-aside">
+            <div id="symbol-detail-filters" class="symbol-detail-filters" aria-label="Bộ lọc phân tích"></div>
+            <div id="symbol-detail-scoring" class="symbol-detail-scoring" data-atd-id="pb-ui:iboard.symbol-detail.scoring" aria-label="Scoring Matrix">
+              <div class="symbol-detail-scoring-head">
+                <strong>Scoring Matrix</strong>
+                <button type="button" class="btn-quiet" id="symbol-detail-score-btn" title="Chấm điểm định lượng">Chấm điểm</button>
+              </div>
+              <label class="symbol-detail-score-preset-wrap" for="symbol-detail-score-preset">
+                <span>Chiến lược</span>
+                <select id="symbol-detail-score-preset" data-atd-id="pb-ui:iboard.symbol-detail.scoring.preset" title="Preset định lượng (từ /api/scoring/presets)">
+                  <option value="default">Mặc định</option>
+                </select>
+              </label>
+              <div id="symbol-detail-score-status">Chọn mã rồi nhấn Chấm điểm.</div>
+              <div id="symbol-detail-score-kpi" class="symbol-detail-score-kpi" hidden></div>
+              <div class="symbol-detail-score-table-wrap" id="symbol-detail-score-table-wrap" hidden>
+                <table>
+                  <thead>
+                    <tr><th>Rule</th><th>Hit</th><th>Điểm</th></tr>
+                  </thead>
+                  <tbody id="symbol-detail-score-tbody"></tbody>
+                </table>
+              </div>
+              <p class="symbol-detail-score-disclaimer" data-atd-id="pb-ui:iboard.symbol-detail.scoring.disclaimer">
+                Tham khảo định lượng thuần túy — không phải khuyến nghị đầu tư hay lệnh mua/bán tự động.
+              </p>
+            </div>
+          </div>
           <div class="symbol-detail-chart-wrap" data-atd-id="pb-ui:iboard.symbol-detail.chart">
             <div id="symbol-detail-range-bar" class="symbol-detail-range-bar" aria-label="Khung thời gian"></div>
             <div id="symbol-detail-ohlc-legend" class="symbol-detail-ohlc-legend"></div>
@@ -1294,15 +1712,27 @@
   <section id="panel-portfolio" class="panel" data-panel="portfolio" data-atd-id="pb-ui:portfolio.panel" role="tabpanel" hidden>
     <div class="panel-toolbar" data-atd-id="pb-ui:portfolio.toolbar">
       <a href="/trading" class="btn-quiet primary" style="margin-right:8px">Trạm Trading (beta)</a>
+      <label for="pf-desk-select">Sổ Desk</label>
+      <select id="pf-desk-select" data-atd-id="pb-ui:portfolio.desk.select" style="min-width:120px" title="Danh mục Desk (ledger)">
+        <option value="">— local —</option>
+      </select>
+      <button type="button" class="btn-quiet" id="pf-desk-refresh" title="Tải lại summary PnL">↻</button>
       <label for="pf-symbol">Thêm mã</label>
       <input id="pf-symbol" type="text" placeholder="VD: FPT" maxlength="12" style="width:88px;text-transform:uppercase" />
       <label for="pf-qty">SL</label>
       <input id="pf-qty" type="number" min="0" step="100" value="100" style="width:96px" />
       <label for="pf-avg">Giá TB</label>
       <input id="pf-avg" type="number" min="0" step="100" value="0" style="width:112px" />
-      <button type="button" class="btn-quiet primary" id="pf-add">Thêm</button>
+      <button type="button" class="btn-quiet primary" id="pf-add">Thêm / Mua</button>
       <button type="button" class="btn-quiet" id="pf-clear-all" title="Xóa toàn bộ mã trong danh mục">Xóa tất cả</button>
       <span class="text-[11px] text-gray-500 ml-auto" id="pf-summary">NAV —</span>
+    </div>
+    <div class="panel-toolbar pf-desk-kpis" data-atd-id="pb-ui:portfolio.desk.kpis" id="pf-desk-kpis" hidden>
+      <span>Cash <strong id="pf-kpi-cash">—</strong></span>
+      <span>CK <strong id="pf-kpi-stock">—</strong></span>
+      <span>Tổng <strong id="pf-kpi-total">—</strong></span>
+      <span>Unreal <strong id="pf-kpi-unreal">—</strong></span>
+      <span>Realized <strong id="pf-kpi-real">—</strong></span>
     </div>
     <div class="pf-f3-sector-panel" data-atd-id="pb-ui:portfolio.f3-picker">
       <div class="pf-f3-toolbar">
@@ -1325,6 +1755,7 @@
             <th class="num">+/-</th>
             <th class="num">%</th>
             <th class="num">P/L</th>
+            <th class="num" title="Tỷ trọng / tổng tài sản">TW%</th>
             <th class="num">KL ngày</th>
             <th class="num">KL TB 10</th>
             <th>Cảnh báo</th>
@@ -1643,6 +2074,8 @@
     let symbolDetailBars1m = [];
     let symbolDetailIntradayFrozen = false;
     let symbolDetailIntradayRefreshTimer = null;
+    let symbolDetailLoadGen = 0;
+    let symbolDetailSwitchActiveIdx = -1;
     const SYMBOL_DETAIL_RANGES = ["1d", "1m", "3m", "6m", "1y", "3y", "5y"];
     const SYMBOL_DETAIL_RANGE_LABEL = {
       "1d": "1d", "1m": "1m", "3m": "3m", "6m": "6m", "1y": "1y", "3y": "3y", "5y": "5y",
@@ -1659,6 +2092,11 @@
     const elPortfolioBody = document.getElementById("portfolio-body");
     const elPortfolioEmpty = document.getElementById("portfolio-empty");
     const elPfSummary = document.getElementById("pf-summary");
+    const elPfDeskSelect = document.getElementById("pf-desk-select");
+    const elPfDeskKpis = document.getElementById("pf-desk-kpis");
+    let deskPortfolioId = null;
+    let deskSummary = null;
+    let deskPortfoliosCache = [];
 
     /* ===== App tabs (SPA) ===== */
     function setAppTab(tab) {
@@ -1682,6 +2120,7 @@
       document.getElementById("global-search-wrap").style.display = showSearch ? "" : "none";
       if (tab === "portfolio") {
         loadPortfolioF3Themes();
+        void refreshDeskPortfolioUi();
         renderPortfolioTable();
       }
       if (tab === "alerts") renderAlertsFeed();
@@ -1885,6 +2324,7 @@
       else if (appTab === "account") renderAccountDashboard();
       try { await loadUserWatchlists(); } catch (_) {}
       try { await initPortfolioAuthSync(); } catch (_) {}
+      try { await refreshDeskPortfolioUi(); } catch (_) {}
     }
 
     async function submitDeskLogin(ev) {
@@ -3848,11 +4288,16 @@
 
         if (!chart) {
           chart = LC.createChart(el, {
-            layout: { background: { color: "#0a0a0a" }, textColor: "#a3a3a3" },
+            layout: {
+              background: { color: "#0a0a0a" },
+              textColor: "#a3a3a3",
+              attributionLogo: false,
+            },
             grid: { vertLines: { color: "#2a2a2a" }, horzLines: { color: "#2a2a2a" } },
             rightPriceScale: { borderColor: "#2a2a2a" },
             timeScale: { borderColor: "#2a2a2a", timeVisible: true, secondsVisible: false },
             crosshair: { mode: LC.CrosshairMode?.Normal ?? 0 },
+            watermark: { visible: false },
             width: el.clientWidth || undefined,
             height: el.clientHeight || 320,
           });
@@ -3868,7 +4313,11 @@
 
         if (!rsiChart) {
           rsiChart = LC.createChart(rsiEl, {
-            layout: { background: { color: "#0a0a0a" }, textColor: "#a3a3a3" },
+            layout: {
+              background: { color: "#0a0a0a" },
+              textColor: "#a3a3a3",
+              attributionLogo: false,
+            },
             grid: { vertLines: { color: "#2a2a2a" }, horzLines: { color: "#2a2a2a" } },
             rightPriceScale: {
               borderColor: "#2a2a2a",
@@ -3876,6 +4325,7 @@
             },
             timeScale: { borderColor: "#2a2a2a", timeVisible: true, secondsVisible: false },
             crosshair: { mode: LC.CrosshairMode?.Normal ?? 0 },
+            watermark: { visible: false },
             width: rsiEl.clientWidth || undefined,
             height: rsiEl.clientHeight || 140,
           });
@@ -4265,12 +4715,207 @@
       }
     }
 
+    function syncSymbolDetailBoardHighlight(symbol) {
+      if (!elBody) return;
+      elBody.querySelectorAll("tr.equity-row.is-detail-open").forEach((tr) => {
+        tr.classList.remove("is-detail-open");
+      });
+      const sym = String(symbol || "").toUpperCase();
+      if (!sym) return;
+      const tr = document.getElementById("row-" + sym);
+      if (tr) {
+        tr.classList.add("is-detail-open");
+        try {
+          tr.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        } catch (_) {}
+      }
+    }
+
+    function closeSymbolDetailSuggest() {
+      const box = document.getElementById("symbol-detail-switch-suggest");
+      if (box) {
+        box.hidden = true;
+        box.innerHTML = "";
+      }
+      symbolDetailSwitchActiveIdx = -1;
+    }
+
     function closeSymbolDetail() {
       const backdrop = document.getElementById("symbol-detail-backdrop");
       if (backdrop) backdrop.hidden = true;
       SymbolDetailChart.dispose();
       symbolDetailSymbol = null;
       symbolDetailActiveFilter = "";
+      symbolDetailLoadGen += 1;
+      closeSymbolDetailSuggest();
+      syncSymbolDetailBoardHighlight(null);
+      const sw = document.getElementById("symbol-detail-switch");
+      if (sw) sw.value = "";
+      resetSymbolDetailScoringUi();
+    }
+
+    function listSymbolDetailSwitcherCandidates(query) {
+      const q = String(query || "").trim().toUpperCase();
+      const out = [];
+      state.forEach((row, sym) => {
+        if (!sym) return;
+        if (INDEX_SYMBOLS.has(sym) && !FUTURES_BOARD_SYMBOLS.has(sym)) return;
+        if (q && !String(sym).includes(q)) return;
+        out.push(String(sym));
+      });
+      out.sort((a, b) => {
+        if (q) {
+          const ap = a.startsWith(q) ? 0 : 1;
+          const bp = b.startsWith(q) ? 0 : 1;
+          if (ap !== bp) return ap - bp;
+        }
+        return a.localeCompare(b);
+      });
+      return out.slice(0, 12);
+    }
+
+    function renderSymbolDetailSwitcherSuggest(query) {
+      const box = document.getElementById("symbol-detail-switch-suggest");
+      if (!box) return [];
+      const items = listSymbolDetailSwitcherCandidates(query);
+      symbolDetailSwitchActiveIdx = items.length ? 0 : -1;
+      if (!items.length) {
+        box.hidden = true;
+        box.innerHTML = "";
+        return items;
+      }
+      box.innerHTML = items
+        .map((sym, idx) => {
+          const row = state.get(sym);
+          const pct = row && row.change_pct != null ? fmtPct(row.change_pct) : "";
+          const active = idx === symbolDetailSwitchActiveIdx ? " is-active" : "";
+          return `<li role="option" data-symbol="${sym}" class="${active.trim()}" aria-selected="${idx === 0 ? "true" : "false"}"><span>${sym}</span><span class="sg-meta">${pct}</span></li>`;
+        })
+        .join("");
+      box.hidden = false;
+      box.querySelectorAll("li[data-symbol]").forEach((li) => {
+        li.addEventListener("mousedown", (ev) => {
+          ev.preventDefault();
+          switchSymbolDetailTo(li.dataset.symbol);
+        });
+      });
+      return items;
+    }
+
+    function highlightSymbolDetailSwitcherSuggest(items) {
+      const box = document.getElementById("symbol-detail-switch-suggest");
+      if (!box || box.hidden) return;
+      box.querySelectorAll("li[data-symbol]").forEach((li, idx) => {
+        const on = idx === symbolDetailSwitchActiveIdx;
+        li.classList.toggle("is-active", on);
+        li.setAttribute("aria-selected", on ? "true" : "false");
+      });
+    }
+
+    const SYMBOL_RECENT_KEY = "atz.symbol.recent";
+    const SYMBOL_RECENT_MAX = 7;
+
+    function loadRecentSymbols() {
+      try {
+        const raw = JSON.parse(localStorage.getItem(SYMBOL_RECENT_KEY) || "[]");
+        if (!Array.isArray(raw)) return [];
+        return raw
+          .map((s) => String(s || "").trim().toUpperCase())
+          .filter((s) => s && !(INDEX_SYMBOLS.has(s) && !FUTURES_BOARD_SYMBOLS.has(s)));
+      } catch (_) {
+        return [];
+      }
+    }
+
+    function pushRecentSymbol(symbol) {
+      const sym = String(symbol || "").trim().toUpperCase();
+      if (!sym) return;
+      if (INDEX_SYMBOLS.has(sym) && !FUTURES_BOARD_SYMBOLS.has(sym)) return;
+      const next = [sym, ...loadRecentSymbols().filter((s) => s !== sym)].slice(0, SYMBOL_RECENT_MAX);
+      try {
+        localStorage.setItem(SYMBOL_RECENT_KEY, JSON.stringify(next));
+      } catch (_) {}
+      renderSymbolDetailRecent(next);
+    }
+
+    function renderSymbolDetailRecent(list) {
+      const box = document.getElementById("symbol-detail-recent");
+      if (!box) return;
+      const items = Array.isArray(list) ? list : loadRecentSymbols();
+      if (!items.length) {
+        box.hidden = true;
+        box.innerHTML = "";
+        return;
+      }
+      const cur = String(symbolDetailSymbol || "").toUpperCase();
+      box.innerHTML = items
+        .map((sym) => {
+          const on = sym === cur ? " is-current" : "";
+          return `<button type="button" class="symbol-detail-recent-chip${on}" data-symbol="${sym}" title="Mở ${sym}">${sym}</button>`;
+        })
+        .join("");
+      box.hidden = false;
+      box.querySelectorAll("button[data-symbol]").forEach((btn) => {
+        btn.addEventListener("click", (ev) => {
+          ev.preventDefault();
+          switchSymbolDetailTo(btn.dataset.symbol);
+        });
+      });
+    }
+
+    function pickSymbolForDetailShortcut() {
+      if (symbolDetailSymbol) return String(symbolDetailSymbol).toUpperCase();
+      const highlighted = elBody?.querySelector("tr.equity-row.is-detail-open[data-symbol]");
+      if (highlighted?.dataset?.symbol) return String(highlighted.dataset.symbol).toUpperCase();
+      const recent = loadRecentSymbols();
+      if (recent[0] && state.has(recent[0])) return recent[0];
+      const visible = elBody?.querySelector("tr.equity-row[data-symbol]");
+      if (visible?.dataset?.symbol && visible.style.display !== "none") {
+        return String(visible.dataset.symbol).toUpperCase();
+      }
+      for (const sym of state.keys()) {
+        if (INDEX_SYMBOLS.has(sym) && !FUTURES_BOARD_SYMBOLS.has(sym)) continue;
+        return String(sym).toUpperCase();
+      }
+      return recent[0] || "";
+    }
+
+    function isTypingInEditable(el) {
+      if (!el || el === document.body) return false;
+      const tag = String(el.tagName || "").toUpperCase();
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return true;
+      if (el.isContentEditable) return true;
+      return false;
+    }
+
+    async function focusSymbolDetailSwitcher() {
+      const backdrop = document.getElementById("symbol-detail-backdrop");
+      const open = Boolean(backdrop && !backdrop.hidden);
+      if (!open) {
+        const sym = pickSymbolForDetailShortcut();
+        if (!sym) return false;
+        await openSymbolDetail(sym, { focusSwitch: true });
+        return true;
+      }
+      const sw = document.getElementById("symbol-detail-switch");
+      if (!sw) return false;
+      requestAnimationFrame(() => {
+        sw.focus();
+        try {
+          sw.select();
+        } catch (_) {}
+        if (!sw.value) renderSymbolDetailSwitcherSuggest("");
+      });
+      return true;
+    }
+
+    async function switchSymbolDetailTo(symbol) {
+      const sym = String(symbol || "").trim().toUpperCase();
+      closeSymbolDetailSuggest();
+      const sw = document.getElementById("symbol-detail-switch");
+      if (sw) sw.value = sym;
+      if (!sym) return;
+      await openSymbolDetail(sym, { soft: true });
     }
 
     async function loadSymbolDetailFilterCatalog() {
@@ -4352,29 +4997,433 @@
       }
     }
 
-    async function openSymbolDetail(symbol) {
+    const SCORING_PROFILE_KEY = "atz.scoring.profile";
+    /** Filled by GET /api/scoring/presets — fallback until catalog loads. */
+    let scoringPresetState = {
+      default_profile: "default",
+      ids: ["default", "momentum", "mean_reversion", "trend_following"],
+      loaded: false,
+    };
+
+    function scoringProfileIds() {
+      return Array.isArray(scoringPresetState.ids) && scoringPresetState.ids.length
+        ? scoringPresetState.ids
+        : ["default"];
+    }
+
+    function getScoringProfile() {
+      const ids = scoringProfileIds();
+      const fallback = scoringPresetState.default_profile || "default";
+      const sel = document.getElementById("symbol-detail-score-preset");
+      let v = sel && sel.value ? String(sel.value) : "";
+      if (!ids.includes(v)) {
+        try {
+          v = localStorage.getItem(SCORING_PROFILE_KEY) || fallback;
+        } catch (_) {
+          v = fallback;
+        }
+      }
+      if (!ids.includes(v)) v = ids.includes(fallback) ? fallback : ids[0];
+      return v;
+    }
+
+    function setScoringProfile(profile, persist) {
+      const ids = scoringProfileIds();
+      const fallback = scoringPresetState.default_profile || "default";
+      const v = ids.includes(profile) ? profile : (ids.includes(fallback) ? fallback : ids[0]);
+      const sel = document.getElementById("symbol-detail-score-preset");
+      if (sel) sel.value = v;
+      if (persist !== false) {
+        try {
+          localStorage.setItem(SCORING_PROFILE_KEY, v);
+        } catch (_) {}
+      }
+      return v;
+    }
+
+    function renderScoringPresetSelect(items, preferredId) {
+      const sel = document.getElementById("symbol-detail-score-preset");
+      if (!sel || !Array.isArray(items) || !items.length) return;
+      const ids = items.map((i) => String(i.id));
+      scoringPresetState.ids = ids;
+      const want = ids.includes(preferredId) ? preferredId : (scoringPresetState.default_profile || ids[0]);
+      sel.innerHTML = items
+        .map((i) => {
+          const id = String(i.id).replace(/"/g, "");
+          const label = String(i.label || i.id)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/"/g, "&quot;");
+          return `<option value="${id}">${label}</option>`;
+        })
+        .join("");
+      sel.value = want;
+    }
+
+    async function loadScoringPresetsCatalog() {
+      const sel = document.getElementById("symbol-detail-score-preset");
+      let saved = null;
+      try {
+        saved = localStorage.getItem(SCORING_PROFILE_KEY);
+      } catch (_) {}
+      try {
+        const res = await fetch(apiUrl("/api/scoring/presets"), { credentials: "same-origin" });
+        const data = await res.json();
+        if (res.ok && data.ok && Array.isArray(data.items) && data.items.length) {
+          scoringPresetState.default_profile = String(data.default_profile || "default");
+          scoringPresetState.loaded = true;
+          renderScoringPresetSelect(data.items, saved || scoringPresetState.default_profile);
+          setScoringProfile(sel?.value || scoringPresetState.default_profile, false);
+          return scoringPresetState;
+        }
+      } catch (_) {}
+      // Fallback static catalog (offline / API error)
+      if (sel && !scoringPresetState.loaded) {
+        renderScoringPresetSelect(
+          [
+            { id: "default", label: "Mặc định" },
+            { id: "momentum", label: "Bứt phá (Momentum)" },
+            { id: "mean_reversion", label: "Bắt đáy (Reversion)" },
+            { id: "trend_following", label: "Theo xu hướng (Trend)" },
+          ],
+          saved || "default",
+        );
+      }
+      return scoringPresetState;
+    }
+
+    function resetSymbolDetailScoringUi(msg) {
+      const status = document.getElementById("symbol-detail-score-status");
+      const kpi = document.getElementById("symbol-detail-score-kpi");
+      const wrap = document.getElementById("symbol-detail-score-table-wrap");
+      const tbody = document.getElementById("symbol-detail-score-tbody");
+      if (status) status.textContent = msg || "Chọn mã rồi nhấn Chấm điểm.";
+      if (kpi) {
+        kpi.hidden = true;
+        kpi.innerHTML = "";
+      }
+      if (wrap) wrap.hidden = true;
+      if (tbody) tbody.innerHTML = "";
+    }
+
+    function emaSeries(values, period) {
+      const n = Number(period) || 0;
+      const out = new Array(values.length).fill(null);
+      if (!Array.isArray(values) || n < 1 || values.length < n) return out;
+      const k = 2 / (n + 1);
+      let sum = 0;
+      for (let i = 0; i < n; i++) sum += values[i];
+      let prev = sum / n;
+      out[n - 1] = prev;
+      for (let i = n; i < values.length; i++) {
+        prev = values[i] * k + prev * (1 - k);
+        out[i] = prev;
+      }
+      return out;
+    }
+
+    function lastMacdHist(closes) {
+      if (!Array.isArray(closes) || closes.length < 35) return null;
+      const ema12 = emaSeries(closes, 12);
+      const ema26 = emaSeries(closes, 26);
+      const macdLine = closes.map((_, i) =>
+        ema12[i] != null && ema26[i] != null ? ema12[i] - ema26[i] : null,
+      );
+      const macdVals = [];
+      const macdIdx = [];
+      macdLine.forEach((v, i) => {
+        if (v != null) {
+          macdVals.push(v);
+          macdIdx.push(i);
+        }
+      });
+      if (macdVals.length < 9) return null;
+      const signal = emaSeries(macdVals, 9);
+      const lastSig = signal[signal.length - 1];
+      const lastMacd = macdVals[macdVals.length - 1];
+      if (lastSig == null || lastMacd == null) return null;
+      return lastMacd - lastSig;
+    }
+
+    function buildDeskScoringIndicators(bars, quoteRow) {
+      const rows = (bars || [])
+        .map((b) => {
+          const close = Number(b.close);
+          if (!Number.isFinite(close)) return null;
+          return {
+            time: b.time,
+            close,
+            volume: Number(b.volume) || 0,
+          };
+        })
+        .filter(Boolean);
+      const indicators = {};
+      const quotePct = quoteRow?.change_pct;
+      if (Number.isFinite(Number(quotePct))) indicators.change_pct = Number(quotePct);
+
+      if (rows.length >= 15) {
+        const rsiArr = SymbolDetailChart.calculateRSI(rows, 14);
+        const lastRsi = rsiArr.length ? rsiArr[rsiArr.length - 1].value : null;
+        if (Number.isFinite(lastRsi)) indicators.rsi = Number(lastRsi);
+      }
+      if (rows.length >= 20) {
+        const ma20 = SymbolDetailChart.calculateSMA(rows, 20);
+        const lastMa = ma20.length ? ma20[ma20.length - 1].value : null;
+        const lastClose = rows[rows.length - 1].close;
+        if (Number.isFinite(lastMa) && lastMa !== 0 && Number.isFinite(lastClose)) {
+          // Ratio close/MA20 — khớp preset YAML (gt 1.0 / 1.02, lt 1.0)
+          indicators.price_vs_ma20 = lastClose / lastMa;
+        }
+        const volWindow = rows.slice(-20);
+        const avgVol = volWindow.reduce((s, r) => s + r.volume, 0) / volWindow.length;
+        const lastVol = rows[rows.length - 1].volume;
+        if (avgVol > 0 && Number.isFinite(lastVol)) indicators.vol_ratio = lastVol / avgVol;
+      }
+      const macdHist = lastMacdHist(rows.map((r) => r.close));
+      if (Number.isFinite(macdHist)) indicators.macd_hist = macdHist;
+      return { indicators, barCount: rows.length };
+    }
+
+    async function fetchBarsForScoring(symbol) {
+      if (Array.isArray(symbolDetailBars) && symbolDetailBars.length >= 30 && symbolDetailRange !== "1d") {
+        return symbolDetailBars;
+      }
+      const q = new URLSearchParams({ symbol, range: "1y" });
+      const res = await fetch("/api/iboard/symbol-bars?" + q.toString());
+      const data = await res.json();
+      if (data.ok && Array.isArray(data.bars)) return data.bars;
+      return [];
+    }
+
+    function renderSymbolDetailScoringResult(body) {
+      const status = document.getElementById("symbol-detail-score-status");
+      const kpi = document.getElementById("symbol-detail-score-kpi");
+      const wrap = document.getElementById("symbol-detail-score-table-wrap");
+      const tbody = document.getElementById("symbol-detail-score-tbody");
+      if (!body || !body.ok) {
+        if (status) status.textContent = (body && body.detail) || "Không chấm được điểm.";
+        return;
+      }
+      const pct = Number(body.score_pct);
+      const decision = String(body.decision || "—");
+      const decClass = "dec-" + decision.toLowerCase();
+      if (status) {
+        const prof = body.profile ? ` · ${body.profile}` : "";
+        status.textContent = `${body.symbol}${prof}: ${Number(body.total_score).toFixed(1)} / ${Number(body.max_score).toFixed(1)}`;
+      }
+      if (kpi) {
+        kpi.hidden = false;
+        kpi.innerHTML =
+          `<span class="score-pct">${Number.isFinite(pct) ? pct.toFixed(1) : "—"}%</span>` +
+          `<span class="symbol-detail-score-badge ${decClass}">${decision}</span>`;
+      }
+      const rows = Array.isArray(body.breakdown) ? body.breakdown : [];
+      if (tbody) {
+        tbody.innerHTML = rows
+          .map((r) => {
+            const hit = Boolean(r.hit);
+            const name = String(r.name || r.rule_code || "—");
+            const earned = Number(r.earned);
+            const weight = Number(r.weight);
+            const pts = `${Number.isFinite(earned) ? earned.toFixed(0) : "—"}/${Number.isFinite(weight) ? weight.toFixed(0) : "—"}`;
+            return `<tr title="${String(r.detail || "").replace(/"/g, "&quot;")}">` +
+              `<td>${name}</td>` +
+              `<td class="${hit ? "hit-yes" : "hit-no"}">${hit ? "✓" : "·"}</td>` +
+              `<td class="tabular-nums">${pts}</td></tr>`;
+          })
+          .join("");
+      }
+      if (wrap) wrap.hidden = !rows.length;
+      if (body.disclaimer && status) {
+        /* API disclaimer stays in fixed UI box; status keeps score summary only */
+      }
+    }
+
+    async function runSymbolDetailScoring() {
+      const sym = symbolDetailSymbol;
+      const status = document.getElementById("symbol-detail-score-status");
+      const btn = document.getElementById("symbol-detail-score-btn");
+      if (!sym) {
+        resetSymbolDetailScoringUi("Chưa có mã.");
+        return;
+      }
+      if (btn) btn.disabled = true;
+      if (status) status.textContent = "Đang lấy OHLCV + chấm điểm…";
+      try {
+        const bars = await fetchBarsForScoring(sym);
+        const quoteRow = state.get(sym);
+        const built = buildDeskScoringIndicators(bars, quoteRow);
+        if (built.barCount < 30) {
+          resetSymbolDetailScoringUi(`Thiếu OHLCV daily (${built.barCount} nến) — cần ≥30 để chấm.`);
+          return;
+        }
+        const profile = getScoringProfile();
+        const res = await fetch(apiUrl("/api/scoring/evaluate"), {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            symbol: sym,
+            indicators: built.indicators,
+            persist: true,
+            profile,
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          resetSymbolDetailScoringUi(data.detail || `Lỗi HTTP ${res.status}`);
+          return;
+        }
+        renderSymbolDetailScoringResult(data);
+      } catch (err) {
+        resetSymbolDetailScoringUi(err?.message || "Lỗi chấm điểm Scoring Matrix.");
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    }
+
+    async function openSymbolDetail(symbol, opts = {}) {
       const sym = String(symbol || "").toUpperCase();
       if (!sym) return;
-      symbolDetailSymbol = sym;
-      symbolDetailActiveFilter = "";
-      symbolDetailMarkers = [];
-      symbolDetailRange = "1y";
       const backdrop = document.getElementById("symbol-detail-backdrop");
+      const alreadyOpen = Boolean(backdrop && !backdrop.hidden);
+      const soft = Boolean(opts.soft) || alreadyOpen;
+      if (alreadyOpen && symbolDetailSymbol === sym && !opts.force) {
+        const sw = document.getElementById("symbol-detail-switch");
+        if (sw) sw.value = sym;
+        syncSymbolDetailBoardHighlight(sym);
+        pushRecentSymbol(sym);
+        if (opts.focusSwitch) {
+          requestAnimationFrame(() => {
+            sw?.focus();
+            try {
+              sw?.select();
+            } catch (_) {}
+          });
+        }
+        return;
+      }
+
+      const keepFilter = soft ? symbolDetailActiveFilter : "";
+      const keepRange = soft ? symbolDetailRange : "1y";
+      const gen = ++symbolDetailLoadGen;
+      symbolDetailSymbol = sym;
+      symbolDetailMarkers = [];
+      symbolDetailBars = [];
+      symbolDetailBars1m = [];
+      if (!soft) {
+        symbolDetailActiveFilter = "";
+        symbolDetailRange = "1y";
+      } else {
+        symbolDetailRange = keepRange || "1y";
+        symbolDetailActiveFilter = keepFilter || "";
+      }
+
       const title = document.getElementById("symbol-detail-title");
       const quote = document.getElementById("symbol-detail-quote");
       const meta = document.getElementById("symbol-detail-meta");
+      const sw = document.getElementById("symbol-detail-switch");
       if (title) title.textContent = sym;
+      if (sw) sw.value = sym;
       const row = state.get(sym);
       if (quote && row) {
         quote.textContent = `${fmtPrice(row.last, row.kind)} · ${fmtPct(row.change_pct != null ? row.change_pct : 0)}`;
       } else if (quote) quote.textContent = "";
       if (meta) meta.textContent = "Đang tải biểu đồ…";
+      resetSymbolDetailScoringUi("Đang chuẩn bị Scoring Matrix…");
+      closeSymbolDetailSuggest();
       if (backdrop) backdrop.hidden = false;
+      syncSymbolDetailBoardHighlight(sym);
       SymbolDetailChart.dispose();
       renderSymbolDetailRangeBar();
+      await loadScoringPresetsCatalog();
+      if (gen !== symbolDetailLoadGen) return;
       await loadSymbolDetailFilterCatalog();
+      if (gen !== symbolDetailLoadGen) return;
       renderSymbolDetailFilterButtons();
       await loadSymbolDetailChartData();
+      if (gen !== symbolDetailLoadGen) return;
+      if (soft && keepFilter) {
+        await selectSymbolDetailFilter(keepFilter);
+        if (gen !== symbolDetailLoadGen) return;
+      }
+      pushRecentSymbol(sym);
+      runSymbolDetailScoring();
+      if (opts.focusSwitch) {
+        const swFocus = document.getElementById("symbol-detail-switch");
+        requestAnimationFrame(() => {
+          swFocus?.focus();
+          try {
+            swFocus?.select();
+          } catch (_) {}
+        });
+      }
+    }
+
+    function wireSymbolDetailSwitcher() {
+      const input = document.getElementById("symbol-detail-switch");
+      if (!input) return;
+      input.addEventListener("input", () => {
+        const raw = input.value || "";
+        renderSymbolDetailSwitcherSuggest(raw);
+      });
+      input.addEventListener("focus", () => {
+        renderSymbolDetailSwitcherSuggest(input.value || "");
+      });
+      input.addEventListener("keydown", (ev) => {
+        const box = document.getElementById("symbol-detail-switch-suggest");
+        const open = box && !box.hidden;
+        const items = open
+          ? Array.from(box.querySelectorAll("li[data-symbol]")).map((li) => li.dataset.symbol)
+          : listSymbolDetailSwitcherCandidates(input.value);
+        if (ev.key === "ArrowDown" && items.length) {
+          ev.preventDefault();
+          if (!open) {
+            renderSymbolDetailSwitcherSuggest(input.value);
+            symbolDetailSwitchActiveIdx = 0;
+          } else {
+            symbolDetailSwitchActiveIdx = Math.min(
+              items.length - 1,
+              (symbolDetailSwitchActiveIdx < 0 ? -1 : symbolDetailSwitchActiveIdx) + 1,
+            );
+          }
+          highlightSymbolDetailSwitcherSuggest(items);
+          return;
+        }
+        if (ev.key === "ArrowUp" && items.length) {
+          ev.preventDefault();
+          if (!open) {
+            renderSymbolDetailSwitcherSuggest(input.value);
+            symbolDetailSwitchActiveIdx = 0;
+          } else {
+            symbolDetailSwitchActiveIdx = Math.max(0, symbolDetailSwitchActiveIdx - 1);
+          }
+          highlightSymbolDetailSwitcherSuggest(items);
+          return;
+        }
+        if (ev.key === "Enter") {
+          ev.preventDefault();
+          ev.stopPropagation();
+          let pick = "";
+          if (open && symbolDetailSwitchActiveIdx >= 0 && items[symbolDetailSwitchActiveIdx]) {
+            pick = items[symbolDetailSwitchActiveIdx];
+          } else {
+            pick = String(input.value || "").trim().toUpperCase();
+          }
+          if (pick) switchSymbolDetailTo(pick);
+          return;
+        }
+        if (ev.key === "Escape") {
+          if (open) {
+            ev.preventDefault();
+            ev.stopPropagation();
+            closeSymbolDetailSuggest();
+          }
+        }
+      });
+      input.addEventListener("blur", () => {
+        setTimeout(() => closeSymbolDetailSuggest(), 120);
+      });
     }
 
     function wireSymbolDetailPanel() {
@@ -4382,9 +5431,44 @@
       document.getElementById("symbol-detail-backdrop")?.addEventListener("click", (ev) => {
         if (ev.target.id === "symbol-detail-backdrop") closeSymbolDetail();
       });
-      document.addEventListener("keydown", (ev) => {
-        if (ev.key === "Escape") closeSymbolDetail();
+      document.getElementById("symbol-detail-score-btn")?.addEventListener("click", () => {
+        runSymbolDetailScoring();
       });
+      const presetSel = document.getElementById("symbol-detail-score-preset");
+      if (presetSel) {
+        presetSel.addEventListener("change", () => {
+          setScoringProfile(presetSel.value, true);
+          if (symbolDetailSymbol) runSymbolDetailScoring();
+        });
+      }
+      document.addEventListener("keydown", (ev) => {
+        const metaK = (ev.metaKey || ev.ctrlKey) && String(ev.key || "").toLowerCase() === "k";
+        const slash = ev.key === "/" && !ev.metaKey && !ev.ctrlKey && !ev.altKey;
+        if (metaK) {
+          ev.preventDefault();
+          focusSymbolDetailSwitcher();
+          return;
+        }
+        if (slash) {
+          // Không cướp `/` khi đang gõ trong ô khác (search board, login, …)
+          if (isTypingInEditable(ev.target) && ev.target?.id !== "symbol-detail-switch") return;
+          ev.preventDefault();
+          focusSymbolDetailSwitcher();
+          return;
+        }
+        if (ev.key !== "Escape") return;
+        const suggest = document.getElementById("symbol-detail-switch-suggest");
+        if (suggest && !suggest.hidden) {
+          closeSymbolDetailSuggest();
+          return;
+        }
+        const sw = document.getElementById("symbol-detail-switch");
+        if (sw && document.activeElement === sw) return;
+        closeSymbolDetail();
+      });
+      wireSymbolDetailSwitcher();
+      renderSymbolDetailRecent();
+      loadScoringPresetsCatalog();
     }
     wireSymbolDetailPanel();
 
@@ -5004,6 +6088,115 @@
       }
     }
 
+    function fmtVndCompact(n) {
+      if (n == null || !Number.isFinite(Number(n))) return "—";
+      return Math.round(Number(n)).toLocaleString("en-US");
+    }
+
+    function paintDeskKpis(summary) {
+      if (!elPfDeskKpis) return;
+      if (!summary) {
+        elPfDeskKpis.hidden = true;
+        return;
+      }
+      elPfDeskKpis.hidden = false;
+      const set = (id, val, tone) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.textContent = fmtVndCompact(val);
+        el.className = tone || "";
+      };
+      set("pf-kpi-cash", summary.cash_balance);
+      set("pf-kpi-stock", summary.stock_market_value);
+      set("pf-kpi-total", summary.total_value);
+      const u = Number(summary.unrealized_pnl) || 0;
+      set("pf-kpi-unreal", u, u > 0 ? "pf-pl-up" : u < 0 ? "pf-pl-down" : "");
+      const r = Number(summary.realized_pnl) || 0;
+      set("pf-kpi-real", r, r > 0 ? "pf-pl-up" : r < 0 ? "pf-pl-down" : "");
+    }
+
+    function applyDeskSummaryToLocalPortfolio(summary) {
+      deskSummary = summary;
+      if (!summary || !Array.isArray(summary.holdings)) {
+        paintDeskKpis(null);
+        return;
+      }
+      portfolio = summary.holdings.map((h) => ({
+        symbol: String(h.symbol || "").toUpperCase(),
+        qty: Number(h.qty) || 0,
+        avg: Number(h.avg_cost != null ? h.avg_cost : h.avg) || 0,
+        weight_pct: h.weight_pct,
+        realized_pnl: h.realized_pnl,
+      }));
+      paintDeskKpis(summary);
+    }
+
+    async function ensureDeskPortfolioList() {
+      if (!pfAuthenticated || !elPfDeskSelect) return [];
+      try {
+        const res = await fetch("/api/portfolios");
+        if (!res.ok) return [];
+        const data = await res.json();
+        deskPortfoliosCache = Array.isArray(data.items) ? data.items : [];
+        if (!deskPortfoliosCache.length) {
+          const created = await fetch("/api/portfolios", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              name: "Mặc định",
+              cash_balance: 10_000_000_000,
+              is_default: true,
+            }),
+          });
+          if (created.ok) {
+            const body = await created.json();
+            if (body.item) deskPortfoliosCache = [body.item];
+          }
+        }
+        const prev = deskPortfolioId;
+        elPfDeskSelect.innerHTML = "";
+        deskPortfoliosCache.forEach((p) => {
+          const opt = document.createElement("option");
+          opt.value = String(p.id);
+          opt.textContent = p.is_default ? `${p.name} ★` : p.name;
+          elPfDeskSelect.appendChild(opt);
+        });
+        const pick =
+          deskPortfoliosCache.find((p) => p.id === prev) ||
+          deskPortfoliosCache.find((p) => p.is_default) ||
+          deskPortfoliosCache[0];
+        deskPortfolioId = pick ? pick.id : null;
+        if (deskPortfolioId != null) elPfDeskSelect.value = String(deskPortfolioId);
+        return deskPortfoliosCache;
+      } catch {
+        return [];
+      }
+    }
+
+    async function refreshDeskPortfolioSummary() {
+      if (!pfAuthenticated || deskPortfolioId == null) {
+        deskSummary = null;
+        paintDeskKpis(null);
+        return null;
+      }
+      try {
+        const res = await fetch(`/api/portfolios/${deskPortfolioId}/summary`);
+        if (!res.ok) return null;
+        const data = await res.json();
+        if (!data.ok) return null;
+        applyDeskSummaryToLocalPortfolio(data);
+        return data;
+      } catch {
+        return null;
+      }
+    }
+
+    async function refreshDeskPortfolioUi() {
+      await ensureDeskPortfolioList();
+      await refreshDeskPortfolioSummary();
+      renderPortfolioTable();
+    }
+
     function renderPortfolioTable() {
       elPortfolioBody.innerHTML = "";
       elPortfolioEmpty.hidden = portfolio.length > 0;
@@ -5031,6 +6224,10 @@
               : "pf-last-below"
             : "";
         const plCls = pl > 0 ? "pf-pl-up" : pl < 0 ? "pf-pl-down" : "";
+        const tw =
+          item.weight_pct != null && Number.isFinite(Number(item.weight_pct))
+            ? Number(item.weight_pct).toFixed(1) + "%"
+            : "—";
         const tr = document.createElement("tr");
         tr.id = "pf-" + item.symbol;
         tr.dataset.symbol = item.symbol;
@@ -5038,22 +6235,32 @@
           <td class="sym">${item.symbol}</td>
           <td class="num tabular-nums" data-f="qty">${qty.toLocaleString("en-US")}</td>
           <td class="num tabular-nums pf-col-avg" data-f="avg">${fmtPrice(avg)}</td>
-          <td class="num tabular-nums ${lastVsAvg}" data-f="last">${row ? fmtPrice(last) : "—"}</td>
+          <td class="num tabular-nums ${lastVsAvg}" data-f="last">${last > 0 ? fmtPrice(last) : "—"}</td>
           <td class="num tabular-nums ${tone}" data-f="change">${row ? fmtChange(row.change) : "—"}</td>
           <td class="num tabular-nums ${tone}" data-f="pct">${row ? fmtPct(row.change_pct) : "—"}</td>
           <td class="num tabular-nums ${plCls}" data-f="pl">${Math.round(pl).toLocaleString("en-US")}</td>
+          <td class="num tabular-nums" data-f="tw">${tw}</td>
           <td class="num tabular-nums" data-f="vol">${row ? fmtVol(row.volume) : "—"}</td>
           <td class="num tabular-nums" data-f="avgvol10">${
             cached && cached.avg_volume_10 > 0 ? fmtVol(cached.avg_volume_10) : "—"
           }</td>
           <td class="pf-alert" data-f="alert">—</td>
-          <td><button type="button" class="btn-quiet" data-rm="${item.symbol}">Xóa</button></td>`;
+          <td>${
+            deskPortfolioId != null
+              ? ""
+              : `<button type="button" class="btn-quiet" data-rm="${item.symbol}">Xóa</button>`
+          }</td>`;
         elPortfolioBody.appendChild(tr);
       });
-      const plAll = nav - cost;
-      elPfSummary.textContent = portfolio.length
-        ? `NAV ${Math.round(nav).toLocaleString("en-US")} · P/L ${Math.round(plAll).toLocaleString("en-US")}`
-        : "NAV —";
+      if (deskSummary) {
+        const u = Number(deskSummary.unrealized_pnl) || 0;
+        elPfSummary.textContent = `Tổng ${fmtVndCompact(deskSummary.total_value)} · Unreal ${fmtVndCompact(u)} · Real ${fmtVndCompact(deskSummary.realized_pnl)}`;
+      } else {
+        const plAll = nav - cost;
+        elPfSummary.textContent = portfolio.length
+          ? `NAV ${Math.round(nav).toLocaleString("en-US")} · P/L ${Math.round(plAll).toLocaleString("en-US")}`
+          : "NAV —";
+      }
       elPortfolioBody.querySelectorAll("[data-rm]").forEach((btn) => {
         btn.addEventListener("click", () => {
           portfolio = portfolio.filter((p) => p.symbol !== btn.dataset.rm);
@@ -5099,7 +6306,7 @@
       tr.querySelector('[data-f="vol"]').textContent = row ? fmtVol(row.volume) : "—";
       if (flash && row && prev !== fmtPrice(last)) flashCell(lastEl, row.change || 1);
       schedulePortfolioSideEffects();
-      // refresh NAV strip
+      // refresh NAV strip (live tick overrides last; Desk KPIs keep server realized)
       let nav = 0, cost = 0;
       portfolio.forEach((it) => {
         const r = state.get(it.symbol);
@@ -5107,7 +6314,21 @@
         nav += l * (Number(it.qty) || 0);
         cost += (Number(it.avg) || 0) * (Number(it.qty) || 0);
       });
-      elPfSummary.textContent = `NAV ${Math.round(nav).toLocaleString("en-US")} · P/L ${Math.round(nav - cost).toLocaleString("en-US")}`;
+      const liveUnreal = nav - cost;
+      if (deskSummary) {
+        elPfSummary.textContent = `Tổng ~${fmtVndCompact(Number(deskSummary.cash_balance || 0) + nav)} · Unreal ${fmtVndCompact(liveUnreal)} · Real ${fmtVndCompact(deskSummary.realized_pnl)}`;
+        const uEl = document.getElementById("pf-kpi-unreal");
+        const sEl = document.getElementById("pf-kpi-stock");
+        const tEl = document.getElementById("pf-kpi-total");
+        if (sEl) sEl.textContent = fmtVndCompact(nav);
+        if (uEl) {
+          uEl.textContent = fmtVndCompact(liveUnreal);
+          uEl.className = liveUnreal > 0 ? "pf-pl-up" : liveUnreal < 0 ? "pf-pl-down" : "";
+        }
+        if (tEl) tEl.textContent = fmtVndCompact(Number(deskSummary.cash_balance || 0) + nav);
+      } else {
+        elPfSummary.textContent = `NAV ${Math.round(nav).toLocaleString("en-US")} · P/L ${Math.round(liveUnreal).toLocaleString("en-US")}`;
+      }
     }
 
     document.getElementById("pf-f3-themes")?.addEventListener("click", onF3BoardClick);
@@ -5115,6 +6336,10 @@
     document.getElementById("pf-f3-collapse-all")?.addEventListener("click", () => setAllF3Sectors(false));
 
     document.getElementById("pf-clear-all")?.addEventListener("click", () => {
+      if (deskPortfolioId != null) {
+        window.alert("Sổ Desk: xóa nắm giữ bằng lệnh SELL (Phase sau). Dùng local để xóa nhanh.");
+        return;
+      }
       if (!portfolio.length) return;
       if (!window.confirm("Xóa toàn bộ mã trong danh mục?")) return;
       portfolio = [];
@@ -5122,11 +6347,59 @@
       renderPortfolioTable();
     });
 
+    elPfDeskSelect?.addEventListener("change", () => {
+      const v = elPfDeskSelect.value;
+      deskPortfolioId = v ? Number(v) : null;
+      void (async () => {
+        if (deskPortfolioId != null) await refreshDeskPortfolioSummary();
+        else {
+          deskSummary = null;
+          paintDeskKpis(null);
+          await initPortfolioAuthSync();
+        }
+        renderPortfolioTable();
+      })();
+    });
+
+    document.getElementById("pf-desk-refresh")?.addEventListener("click", () => {
+      void refreshDeskPortfolioUi();
+    });
+
     document.getElementById("pf-add").addEventListener("click", () => {
       const symbol = String(document.getElementById("pf-symbol").value || "").trim().toUpperCase();
       const qty = Number(document.getElementById("pf-qty").value) || 0;
       const avg = Number(document.getElementById("pf-avg").value) || 0;
       if (!symbol || qty <= 0) return;
+      if (deskPortfolioId != null && pfAuthenticated) {
+        const row = state.get(symbol);
+        const px = avg > 0 ? avg : row ? Number(row.last) || 0 : 0;
+        if (px <= 0) {
+          window.alert("Cần Giá TB > 0 (hoặc mã đã có giá TT trên board) để ghi BUY Desk.");
+          return;
+        }
+        void (async () => {
+          const res = await fetch(`/api/portfolios/${deskPortfolioId}/transactions`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              symbol,
+              side: "BUY",
+              quantity: qty,
+              price: px,
+              fee: 0,
+            }),
+          });
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            window.alert(err.detail || "Không ghi được giao dịch Desk");
+            return;
+          }
+          document.getElementById("pf-symbol").value = "";
+          await refreshDeskPortfolioSummary();
+          renderPortfolioTable();
+        })();
+        return;
+      }
       const existing = portfolio.find((p) => p.symbol === symbol);
       if (existing) {
         existing.qty = qty;
@@ -5313,6 +6586,14 @@
           document.body.appendChild(s);
         })
         .catch(function () {});
+    })();
+  </script>
+  <script>
+    (function () {
+      if (!("serviceWorker" in navigator)) return;
+      window.addEventListener("load", function () {
+        navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(function () {});
+      });
     })();
   </script>
 </body>

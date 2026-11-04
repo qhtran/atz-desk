@@ -121,6 +121,50 @@
       "err_codes": []
     },
     {
+      "match": "pb-ui:iboard.symbol-detail.switcher",
+      "matchType": "exact",
+      "breadcrumb": ["ATZ Desk", "iBoard", "Phân tích mã", "Quick Switcher"],
+      "hints": {
+        "fe": "frontend/index.html — #symbol-detail-switch, focusSymbolDetailSwitcher (/|⌘K), switchSymbolDetailTo soft",
+        "be": "reuse symbol-bars + scoring evaluate theo mã mới",
+        "spec": "đổi mã giữ panel mở; shortcut toàn cục; Enter / autocomplete"
+      },
+      "err_codes": []
+    },
+    {
+      "match": "pb-ui:iboard.symbol-detail.recent",
+      "matchType": "exact",
+      "breadcrumb": ["ATZ Desk", "iBoard", "Phân tích mã", "Recent symbols"],
+      "hints": {
+        "fe": "frontend/index.html — #symbol-detail-recent, localStorage atz.symbol.recent (max 7)",
+        "be": "n/a",
+        "spec": "chip click → soft switch + đẩy lên đầu recent"
+      },
+      "err_codes": []
+    },
+    {
+      "match": "pb-ui:iboard.symbol-detail.scoring",
+      "matchType": "exact",
+      "breadcrumb": ["ATZ Desk", "iBoard", "Phân tích mã", "Scoring Matrix"],
+      "hints": {
+        "fe": "frontend/index.html — #symbol-detail-scoring, runSymbolDetailScoring(), preset select + localStorage atz.scoring.profile",
+        "be": "POST /api/scoring/evaluate?profile= ← desk_scoring_presets.yaml + desk_scoring_engine.py (không đụng scoring_rules)",
+        "spec": "decision-support only — disclaimer trong panel; price_vs_ma20 = close/MA20"
+      },
+      "err_codes": []
+    },
+    {
+      "match": "pb-ui:iboard.symbol-detail.scoring.preset",
+      "matchType": "exact",
+      "breadcrumb": ["ATZ Desk", "iBoard", "Phân tích mã", "Scoring Matrix", "Preset"],
+      "hints": {
+        "fe": "frontend/index.html — loadScoringPresetsCatalog() → #symbol-detail-score-preset",
+        "be": "GET /api/scoring/presets; evaluate body.profile",
+        "spec": "catalog YAML-driven (default|momentum|mean_reversion|trend_following)"
+      },
+      "err_codes": []
+    },
+    {
       "match": "pb-ui:iboard.equity.row.",
       "matchType": "prefix",
       "breadcrumb": ["ATZ Desk", "iBoard", "Dòng CP", "XHT spark"],

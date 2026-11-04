@@ -51,7 +51,11 @@ from backend.websocket_manager import ConnectionManager
 from backend.routers.admin import register_admin_routes
 from backend.routers.alerts_ws import register_alerts_ws_alias
 from backend.routers.watchlist import router as watchlist_router
+from backend.routers.portfolios import router as portfolios_router
+from backend.routers.scoring import router as scoring_router
 from backend.watchlist_store import init_watchlist_store
+from backend.desk_portfolio_store import init_desk_portfolio_store
+from backend.desk_scoring_store import init_desk_scoring_store
 from backend.ws_alerts import register_alerts_ws
 
 setup("api")
@@ -71,6 +75,8 @@ async def lifespan(_app: FastAPI):
     init_market_db()
     init_eod_store()
     init_watchlist_store()
+    init_desk_portfolio_store()
+    init_desk_scoring_store()
     listener.start()
     stream_listener.start()
     log(COMPONENT, "API-START", "priceboard api started", frontend=str(FRONTEND_DIR), redis_url=REDIS_URL)
@@ -85,6 +91,8 @@ app.add_middleware(TraceMiddleware)
 app.add_exception_handler(AppError, app_error_handler)
 app.include_router(trading_router)
 app.include_router(watchlist_router)
+app.include_router(portfolios_router)
+app.include_router(scoring_router)
 app.include_router(eod_screener_router)
 register_alerts_ws(app, alert_manager)
 register_alerts_ws_alias(app, alert_manager)
@@ -658,6 +666,45 @@ async def index() -> FileResponse:
 @app.get("/trading")
 async def trading_page() -> FileResponse:
     return FileResponse(FRONTEND_DIR / "trading.html")
+
+
+@app.get("/manifest.json")
+async def pwa_manifest() -> FileResponse:
+    """Web app manifest for PWA install (dev.atz.vn)."""
+    return FileResponse(
+        FRONTEND_DIR / "manifest.json",
+        media_type="application/manifest+json",
+        headers={"Cache-Control": "public, max-age=300"},
+    )
+
+
+@app.get("/sw.js")
+async def pwa_service_worker() -> FileResponse:
+    """Service worker at origin root so scope covers ``/``."""
+    return FileResponse(
+        FRONTEND_DIR / "sw.js",
+        media_type="application/javascript; charset=utf-8",
+        headers={
+            "Cache-Control": "no-cache",
+            "Service-Worker-Allowed": "/",
+        },
+    )
+
+
+@app.get("/icons/{icon_name}")
+async def pwa_icon(icon_name: str) -> FileResponse:
+    """PWA / apple-touch icons under ``frontend/icons/``."""
+    safe = Path(icon_name).name
+    if safe != icon_name or ".." in icon_name or not safe.endswith(".png"):
+        raise HTTPException(status_code=404, detail="icon not found")
+    path = FRONTEND_DIR / "icons" / safe
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="icon not found")
+    return FileResponse(
+        path,
+        media_type="image/png",
+        headers={"Cache-Control": "public, max-age=86400"},
+    )
 
 
 if FRONTEND_DIR.is_dir():
