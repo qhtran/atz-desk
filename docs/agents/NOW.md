@@ -1,9 +1,11 @@
 # NOW — bus lớp 1 (dev.atz.vn)
 
-**Cập nhật:** 2026-11-03  
+**Cập nhật:** 2026-11-05  
 **Phạm vi:** `dev.atz.vn` — `backend/`, `frontend/`, `docker-compose.dev.yml`.  
 **Cutover ADR 0009:** **đóng sổ**.  
 **SPA shell:** B1+B2 auth/RBAC/Alerts + **B3 Admin Control Panel** (runtime overlay + hot-reload) — **Done**.
+
+**PROD Desk (atz.vn :8001):** live — tip code `e742ae3` · journal `2d51f2b` · SSI Top 240 + on-demand · packet `T-prod-desk-live-handoff-20261105` · **Doing idle** (không mở task code trừ khi human giao).
 
 Đọc file này mỗi turn. Không changelog. Không mở `docs/agents/archive/` trừ khi human nêu đúng T-id. Human đọc `docs/agents/RUNBOOK.md` khi cần nhớ cách điều khiển; agent không đọc file đó mỗi turn.
 
@@ -38,6 +40,9 @@ Pull. Đọc docs/agents/NOW.md. Nếu Doing là việc của mình, mở đúng
 | ID | Việc | Ghi chú |
 |----|------|---------|
 | — | Risk YAML số thật | Hiến điền `trading_station.yaml` null (SL/TP/equity) — Admin overlay B3 có thể tạm ghi risk placeholders |
+| P1 | EOD liquidity rank | Journal — thay curated Top 240 ladder |
+| P1 | Unsubscribe on watchlist delete | Journal — hiện chỉ idle TTL ondemand |
+| P1 | Portfolio add → watch | Journal — reuse `/api/priceboard/watch` |
 
 ## Master commands
 
@@ -56,16 +61,17 @@ Option B — /ws/stream/alerts + mock_tick_generator smoke Pass · master_ack ·
 Infra — Redis stream listener + Desk SPA FastAPI (prod/dev tách data)
 SPA B1+B2 — auth welcome / Alerts tab / Admin RBAC guard · merged main @ 6733f7c
 SPA B3 — Admin Control Panel GET/PUT + overlay + hot-reload · PR #15 · main @ 930b8e8 · master_ack · archived
+2026-11-04/05 PROD Desk — Master Catalog + Top 240 core + on-demand SSI @ e742ae3 · journal 2d51f2b · live verified
 ```
 
 ## Last executor
 
 ```text
-task: T-admin-control-panel-b3
-result: Pass — master_ack; packet → docs/agents/archive/tasks/; deploy smoke OK
+task: T-prod-desk-live-handoff-20261105
+result: Pass — packet ghi tasks/; NOW idle + PROD live note; smoke DBC 15750/+3.62% OK
 status: idle
-pytest: Pass (admin control plane + RBAC)
-master_ack: done 2026-11-03
+pytest: n/a (docs only)
+master_ack: pending
 ```
 
 Khi ack: Doing về trống; chuyển packet sang `docs/agents/archive/tasks/`. Không chép brief vào file này.
