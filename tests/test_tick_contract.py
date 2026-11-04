@@ -108,6 +108,20 @@ def test_build_tick_ignores_zero_ceil_floor():
     assert tick["ceil"] > tick["ref"] > tick["floor"]
 
 
+def test_build_tick_sanitizes_absurd_change_pct():
+    """SSI equity đôi khi đưa change_pct vô lý — suy lại từ last/ref."""
+    tick = build_tick(
+        symbol="FPT",
+        last=52700,
+        ref=50600,
+        change=2100,
+        change_pct=419175557.0,
+        kind="equity",
+    )
+    assert tick["change_pct"] == pytest.approx(4.15, abs=0.05)
+    assert abs(tick["change_pct"]) < 30
+
+
 def test_build_tick_index_from_parsed():
     parsed = parse_ssi_envelope(
         {"data": {"s": "VN30", "v": "1851.17", "c": "5.66", "cr": "0.31", "tq": "21042392"}}

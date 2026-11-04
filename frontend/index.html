@@ -1490,6 +1490,11 @@
       "ART", "QBS", "VE4", "VNR", "SMT", "LAI", "HAT", "VGP", "KTC", "DTK",
       "VLA", "BRS", "CLX", "SDG", "VCR",
     ]);
+    /** HOSE ngoài VN30 — hydrate stub khi Redis snapshot thiếu mã. */
+    const HOSE_EXTRA_SET = new Set([
+      "VCI", "GEX", "PDR", "HSG", "NKG", "DGC", "DIG", "DXG", "HCM", "KDH",
+      "NLG", "PNJ", "POW", "REE", "TCH", "VND", "VGC", "VPI", "VSH", "GMD",
+    ]);
     const PIN_KEY = "atz.iboard.pinned";
     const MARKET_KEY = "atz.iboard.market";
     const WATCHLIST_KEY = "atz.iboard.watchlist_id";
@@ -1570,9 +1575,13 @@
     let retryMs = 1000;
     let pingTimer = null;
     let searchQuery = "";
-    let marketTab = VALID_MARKETS.has(localStorage.getItem(MARKET_KEY))
-      ? localStorage.getItem(MARKET_KEY)
-      : "HOSE";
+    /** Không restore tab HĐTL từ localStorage — dễ hiểu nhầm “bảng chỉ còn 1 mã”. */
+    function initialMarketTab() {
+      const raw = localStorage.getItem(MARKET_KEY);
+      if (VALID_MARKETS.has(raw) && !FUTURES_BOARD_SYMBOLS.has(raw)) return raw;
+      return "HOSE";
+    }
+    let marketTab = initialMarketTab();
     let storedAppTab = localStorage.getItem(APP_TAB_KEY);
     if (storedAppTab === "signals") storedAppTab = "iboard";
     let appTab = VALID_APP_TABS.has(storedAppTab) ? storedAppTab : "iboard";
@@ -2377,7 +2386,10 @@
       const prevTab = marketTab;
       applyForeignMarketTabMode(tab, prevTab);
       marketTab = tab;
-      localStorage.setItem(MARKET_KEY, tab);
+      // Persist equity/foreign tabs only — futures tabs are intentional single-symbol views.
+      if (!FUTURES_BOARD_SYMBOLS.has(tab)) {
+        localStorage.setItem(MARKET_KEY, tab);
+      }
       document.querySelectorAll(".mkt-tab").forEach((btn) => {
         const on = btn.dataset.market === tab;
         btn.classList.toggle("is-active", on);
@@ -2385,6 +2397,7 @@
       });
       syncScreenerSourceUi();
       applyBoardFilter();
+      updateScreenerStatus(countVisibleBoardRows());
       if (scrSource === "daily" && dailySignalSet) void runDailySignalScan();
     }
 
@@ -3342,6 +3355,51 @@
         return;
       }
       applyEquity(row, opts);
+    }
+
+    function boardUniverseSymbols() {
+      return [
+        ...VN30_SET,
+        ...HOSE_EXTRA_SET,
+        ...HNX_SET,
+        ...UPCOM_SET,
+        ...FUTURES_BOARD_SYMBOLS,
+      ];
+    }
+
+    function stubEquityRow(symbol) {
+      const sym = String(symbol || "").toUpperCase();
+      let exchange = "HOSE";
+      if (HNX_SET.has(sym)) exchange = "HNX";
+      else if (UPCOM_SET.has(sym)) exchange = "UPCOM";
+      return {
+        type: "tick",
+        symbol: sym,
+        exchange,
+        kind: "equity",
+        last: 0,
+        ref: 0,
+        change: 0,
+        change_pct: 0,
+        volume: 0,
+        high: 0,
+        low: 0,
+        ceil: 0,
+        floor: 0,
+        source: "board_stub",
+      };
+    }
+
+    /** Bổ sung stub cho mã universe thiếu trong snapshot — tránh bảng “rỗng / 1 mã”. */
+    function hydrateMissingBoardSymbols(existingRows) {
+      const have = new Set(
+        (existingRows || []).map((r) => String(r && r.symbol || "").toUpperCase()).filter(Boolean)
+      );
+      for (const sym of boardUniverseSymbols()) {
+        if (have.has(sym) || INDEX_SYMBOLS.has(sym)) continue;
+        applyRow(stubEquityRow(sym), { flash: false });
+        have.add(sym);
+      }
     }
 
     /* ===== Screener / Signals (FilterEngine mirror + WS fan-out) ===== */
@@ -5110,12 +5168,20 @@
             if (INDEX_SYMBOLS.has(r.symbol) && inTradingSession()) pushSpark(r.symbol, r.last);
             applyRow(r, { flash: false });
           });
+          hydrateMissingBoardSymbols(rows);
           renderIndexBar();
           rows.forEach((r) => {
             if (INDEX_SYMBOLS.has(r.symbol)) applyIndex(r, { flash: false });
           });
           restorePinnedRows();
+          // Sync tab highlight with restored marketTab (avoid stale futures UI).
+          document.querySelectorAll(".mkt-tab").forEach((btn) => {
+            const on = btn.dataset.market === marketTab;
+            btn.classList.toggle("is-active", on);
+            btn.setAttribute("aria-selected", on ? "true" : "false");
+          });
           applyBoardFilter();
+          updateScreenerStatus(countVisibleBoardRows());
           refreshAllIndexStats();
           renderPortfolioTable();
         });

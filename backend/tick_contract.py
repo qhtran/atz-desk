@@ -173,8 +173,21 @@ def build_tick(
 
     if change is None:
         change = last_f - ref_f
+    derived_pct = (float(change) / ref_f * 100.0) if ref_f else 0.0
     if change_pct is None:
-        change_pct = (float(change) / ref_f * 100.0) if ref_f else 0.0
+        change_pct = derived_pct
+    else:
+        # SSI equity envelopes đôi khi map nhầm field (vd. ``cr``) → % khổng lồ.
+        # Ưu tiên % suy từ last/ref khi giá trị đầu vào vô lý.
+        try:
+            pct_in = float(change_pct)
+        except (TypeError, ValueError):
+            pct_in = derived_pct
+        limit = 50.0 if kind == "index" else 30.0
+        if abs(pct_in) > limit and abs(derived_pct) <= limit:
+            change_pct = derived_pct
+        else:
+            change_pct = pct_in
 
     if kind != "index":
         last_out: float | int = int(round(last_f))
@@ -369,21 +382,27 @@ def parse_ssi_envelope(msg: dict[str, Any]) -> dict[str, Any] | None:
 
     kind = tick_kind_for_symbol(sym)
 
-    # Message shape: indexsummary (v=level) vs trade tick (p=last, v=volume)
-    is_index_summary = any(k in body for k in ("adv", "dec", "cr", "tmv", "tvp", "indexValue", "IndexValue")) or (
-        kind == "index" and "v" in body and "c" in body and ("tq" in body or "tv" in body)
+    # Message shape: indexsummary (v=level) vs trade tick (p=last, v=volume).
+    # Không dùng bare ``cr`` để nhận diện indexsummary — equity SSI cũng có ``cr``.
+    is_index_summary = any(
+        k in body for k in ("adv", "dec", "tmv", "tvp", "indexValue", "IndexValue")
+    ) or (
+        kind == "index" and "v" in body and "c" in body and ("tq" in body or "tv" in body or "cr" in body)
     )
     is_trade_tick = "p" in body and any(k in body for k in ("q", "si", "o", "a"))
 
     change = _first_num(body, "indexChange", "Change", "change", "priceChange", "c")
-    change_pct = _first_num(
-        body,
+    # ``cr`` chỉ tin cậy trên index / indexsummary; equity hay gửi ``cr`` không phải % đổi giá.
+    _pct_keys = (
         "change_pct",
         "changePercent",
         "indexChangePercentage",
         "ratioChange",
-        "cr",
     )
+    if kind == "index" or is_index_summary:
+        change_pct = _first_num(body, *_pct_keys, "cr")
+    else:
+        change_pct = _first_num(body, *_pct_keys)
 
     # --- last (kind + shape aware) ---
     # Never use bare `c` as last (change). Never use trade `v` as index last (volume).
