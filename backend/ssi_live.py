@@ -53,6 +53,7 @@ from backend.ssi_rest_bootstrap import (
 )
 from backend.equity_spark import record_equity_spark
 from backend.index_spark import record_index_spark
+from backend.ondemand_watch import ONDEMAND_HASH, ONDEMAND_IDLE_SEC
 from backend.volume_filter import load_volume_filter_settings, passes_volume_filter
 
 setup("ssi_live")
@@ -180,6 +181,10 @@ class RealSsiWorker:
         self._board: dict[str, dict] = {}
         self._parse_warn_at: float = 0.0
         self._futures_sample_at: float = 0.0
+        self._ondemand_active: set[str] = set()
+        self._ondemand_idle_sec = float(
+            os.getenv("PRICEBOARD_ONDEMAND_IDLE_SEC") or ONDEMAND_IDLE_SEC
+        )
         self._futures_contracts = load_futures_contract_map(ssi)
         self._contract_to_board = invert_contract_map(self._futures_contracts)
         if self._futures_contracts:
@@ -230,9 +235,21 @@ class RealSsiWorker:
         topics.append(f"room.{sym}")
         topics.append(f"market.{sym}")
 
+    def _all_equity_symbols(self) -> list[str]:
+        """Core equity/HĐTL + active on-demand (deduped)."""
+        out: list[str] = []
+        seen: set[str] = set()
+        for sym in (*self._equity_like_symbols(), *sorted(self._ondemand_active)):
+            s = str(sym or "").strip().upper()
+            if not s or s in seen:
+                continue
+            seen.add(s)
+            out.append(s)
+        return out
+
     def _build_topics(self) -> list[str]:
         topics = list(self.index_topics)
-        for sym in self._equity_like_symbols():
+        for sym in self._all_equity_symbols():
             self._append_quote_topics(topics, sym)
         # de-dupe preserve order
         seen: set[str] = set()
@@ -247,8 +264,86 @@ class RealSsiWorker:
         """Legacy X-Quote / X-Trade channels expect symbol topics, not DATA quote.* patterns."""
         ch = str(channel or "").strip().upper()
         if ch in ("X-QUOTE", "X-TRADE", "MI"):
-            return self._equity_like_symbols()
+            return self._all_equity_symbols()
         return data_topics
+
+    def _topics_for_symbols(self, channel: str, symbols: list[str]) -> list[str]:
+        ch = str(channel or "").strip().upper()
+        if ch in ("X-QUOTE", "X-TRADE", "MI"):
+            return list(symbols)
+        topics: list[str] = []
+        for sym in symbols:
+            self._append_quote_topics(topics, sym)
+        return topics
+
+    async def _load_ondemand_from_redis(self, redis: aioredis.Redis) -> None:
+        raw = await redis.hgetall(ONDEMAND_HASH)
+        now = time.time()
+        active: set[str] = set()
+        for sym, val in (raw or {}).items():
+            s = str(sym or "").strip().upper()
+            if not s:
+                continue
+            try:
+                last = float(val)
+            except (TypeError, ValueError):
+                await redis.hdel(ONDEMAND_HASH, sym)
+                continue
+            if now - last > self._ondemand_idle_sec:
+                await redis.hdel(ONDEMAND_HASH, sym)
+                continue
+            active.add(s)
+        self._ondemand_active = active
+
+    async def _sync_ondemand_subscriptions(self, ws: Any, redis: aioredis.Redis) -> None:
+        """SUBSCRIBE new / UNSUBSCRIBE idle on-demand symbols (poll Redis hash)."""
+        raw = await redis.hgetall(ONDEMAND_HASH)
+        now = time.time()
+        wanted: set[str] = set()
+        for sym, val in (raw or {}).items():
+            s = str(sym or "").strip().upper()
+            if not s:
+                continue
+            try:
+                last = float(val)
+            except (TypeError, ValueError):
+                await redis.hdel(ONDEMAND_HASH, sym)
+                continue
+            if now - last > self._ondemand_idle_sec:
+                await redis.hdel(ONDEMAND_HASH, sym)
+                continue
+            wanted.add(s)
+
+        core_like = set(self._equity_like_symbols())
+        wanted -= core_like  # core already subscribed at session start
+        new = sorted(wanted - self._ondemand_active)
+        gone = sorted(self._ondemand_active - wanted)
+        if not new and not gone:
+            return
+
+        for ch in self.channels:
+            if new:
+                topics = self._topics_for_symbols(ch, new)
+                if topics:
+                    await ws.send(
+                        json.dumps({"method": "SUBSCRIBE", "channel": ch, "topics": topics})
+                    )
+            if gone:
+                topics = self._topics_for_symbols(ch, gone)
+                if topics:
+                    await ws.send(
+                        json.dumps({"method": "UNSUBSCRIBE", "channel": ch, "topics": topics})
+                    )
+
+        self._ondemand_active = wanted
+        log(
+            COMPONENT,
+            "SSI-ONDEMAND-SYNC",
+            "ondemand subscribe sync",
+            added=new[:20],
+            removed=gone[:20],
+            active=len(wanted),
+        )
 
     async def _load_board_from_redis(self, redis: aioredis.Redis) -> None:
         """Giữ snapshot phiên trước — không xóa hash khi reconnect WS."""
@@ -509,10 +604,11 @@ class RealSsiWorker:
             raise RuntimeError("missing SSI_CONSUMER_ID / SSI_CONSUMER_SECRET")
 
         token = await asyncio.to_thread(fetch_access_token, self.auth_url, api_key, api_secret)
-        topics = self._build_topics()
         redis = aioredis.from_url(REDIS_URL, decode_responses=True)
         try:
             await self._load_board_from_redis(redis)
+            await self._load_ondemand_from_redis(redis)
+            topics = self._build_topics()
             await self._bootstrap_rest(redis, token)
             headers = {"Authorization": f"Bearer {token}"}
             log(
@@ -522,6 +618,7 @@ class RealSsiWorker:
                 ws_url=self.ws_url,
                 channels=self.channels,
                 topics=len(topics),
+                ondemand=len(self._ondemand_active),
             )
             async with websockets.connect(
                 self.ws_url,
@@ -549,7 +646,23 @@ class RealSsiWorker:
                         )
                 log(COMPONENT, "SSI-LIVE-SUBSCRIBED", "ssi channels subscribed", channels=self.channels)
 
+                ondemand_every = 5.0
+                last_ondemand_sync = 0.0
                 while not self._stop.is_set():
+                    now = time.time()
+                    if now - last_ondemand_sync >= ondemand_every:
+                        last_ondemand_sync = now
+                        try:
+                            await self._sync_ondemand_subscriptions(ws, redis)
+                        except Exception as exc:  # noqa: BLE001
+                            log(
+                                COMPONENT,
+                                "SSI-ONDEMAND-ERR",
+                                "ondemand sync failed",
+                                logging.WARNING,
+                                error_code=ERR_PB_SSI_SESSION,
+                                exc=exc,
+                            )
                     try:
                         raw = await asyncio.wait_for(ws.recv(), timeout=30.0)
                     except asyncio.TimeoutError:

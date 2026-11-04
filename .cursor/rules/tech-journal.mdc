@@ -1,0 +1,26 @@
+---
+description: Ghi nhật ký kỹ thuật khi đổi kiến trúc/logic quan trọng
+alwaysApply: true
+---
+
+# Tech journal (bắt buộc)
+
+Mỗi thay đổi **kiến trúc hoặc logic quan trọng** (API mới, luồng dữ liệu, contract tick/catalog, auth, deploy path) phải được ghi **vắn tắt** vào [`docs/TECH_JOURNAL.md`](../../docs/TECH_JOURNAL.md) trong cùng PR/commit (hoặc ngay sau), ngoài message commit.
+
+## Format một mục
+
+- Ngày (Asia/Saigon)
+- Phạm vi (module / môi trường)
+- Quyết định (vì sao làm vậy)
+- File neo + commit hash nếu đã có
+- Follow-up (P1/P2) nếu còn
+
+## Không
+
+- Không thay ADR bằng journal; ADR vẫn cho quyết định dài hạn.
+- Không ghi changelog dài / dump log / secret.
+- Không bỏ journal vì “chỉ sửa FE nhỏ” nếu đổi contract API hoặc semantics dữ liệu.
+
+## Commit message
+
+Message commit nên nêu *why*; journal nêu *kiến trúc + file neo* để bảo dưỡng/fix bug sau này.

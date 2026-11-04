@@ -4921,13 +4921,30 @@
       }
     }
 
-    async function hydrateQuoteSnapshots(symbols) {
-      const need = [...new Set((symbols || []).map((s) => String(s || "").toUpperCase()).filter(Boolean))]
-        .filter((sym) => {
-          if (INDEX_SYMBOLS.has(sym) && !FUTURES_BOARD_SYMBOLS.has(sym)) return false;
-          const row = state.get(sym);
-          return !row || !(Number(row.last) > 0);
+    async function touchPriceboardWatch(symbols) {
+      const syms = [...new Set((symbols || []).map((s) => String(s || "").toUpperCase()).filter(Boolean))];
+      if (!syms.length) return;
+      try {
+        await fetch(apiUrl("/api/priceboard/watch"), {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ symbols: syms }),
         });
+      } catch (_) {
+        /* offline */
+      }
+    }
+
+    async function hydrateQuoteSnapshots(symbols) {
+      const all = [...new Set((symbols || []).map((s) => String(s || "").toUpperCase()).filter(Boolean))]
+        .filter((sym) => !(INDEX_SYMBOLS.has(sym) && !FUTURES_BOARD_SYMBOLS.has(sym)));
+      if (!all.length) return;
+      void touchPriceboardWatch(all);
+      const need = all.filter((sym) => {
+        const row = state.get(sym);
+        return !row || !(Number(row.last) > 0);
+      });
       if (!need.length) return;
       try {
         const res = await fetch(

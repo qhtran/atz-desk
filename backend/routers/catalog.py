@@ -1,15 +1,21 @@
-"""Catalog + quote snapshot APIs (Top 240 Core + On-Demand P0)."""
+"""Catalog + quote snapshot + on-demand watch APIs (Core + On-Demand)."""
 
 from __future__ import annotations
 
 from typing import Any
 
 from fastapi import APIRouter, Query
+from pydantic import BaseModel, Field
 
 from backend.market_catalog import get_catalog_symbol, search_catalog
+from backend.ondemand_watch import list_active_ondemand, touch_ondemand_symbols
 from backend.quote_snapshot import resolve_quote_snapshots
 
 router = APIRouter(tags=["catalog"])
+
+
+class PriceboardWatchBody(BaseModel):
+    symbols: list[str] = Field(default_factory=list)
 
 
 @router.get("/api/catalog/symbols")
@@ -41,3 +47,16 @@ async def quotes_snapshot(
 ) -> dict[str, Any]:
     """Static/snapshot quotes — Redis → OHLCV → catalog stub (no SSI WS subscribe)."""
     return resolve_quote_snapshots(symbols)
+
+
+@router.post("/api/priceboard/watch")
+async def priceboard_watch(body: PriceboardWatchBody) -> dict[str, Any]:
+    """Touch off-core symbols so SSI worker dynamically SUBSCRIBE (idle unsubscribe)."""
+    return touch_ondemand_symbols(body.symbols)
+
+
+@router.get("/api/priceboard/ondemand")
+async def priceboard_ondemand() -> dict[str, Any]:
+    """Debug/ops: active on-demand symbols (non-expired)."""
+    items = list_active_ondemand()
+    return {"ok": True, "count": len(items), "symbols": items}

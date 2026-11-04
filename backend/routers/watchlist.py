@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 
 from backend.desk_session import COOKIE_NAME as DESK_COOKIE
 from backend.identity import resolve_me
+from backend.ondemand_watch import touch_ondemand_symbols
 from backend.watchlist_store import (
     create_watchlist,
     delete_watchlist,
@@ -60,6 +61,7 @@ def api_create_watchlist(request: Request, body: WatchlistCreateBody) -> dict:
         item = create_watchlist(user, body.name, body.symbols)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    touch_ondemand_symbols(list(item.get("symbols") or []))
     return {"ok": True, "item": _public(item)}
 
 
@@ -83,6 +85,7 @@ def api_update_watchlist(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     if item is None:
         raise HTTPException(status_code=404, detail="Watchlist not found")
+    touch_ondemand_symbols(list(item.get("symbols") or []))
     return {"ok": True, "item": _public(item)}
 
 
