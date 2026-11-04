@@ -50,10 +50,64 @@
       100% { background-color: transparent; }
     }
 
+    /* App header: brand+actions row, then scrollable tabs (mobile-safe) */
+    .app-header {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      border-bottom: 1px solid #2a2a2a;
+      background: #0a0a0a;
+    }
+    .app-header-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 6px 10px;
+      min-width: 0;
+    }
+    .app-brand {
+      flex-shrink: 0;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      color: #fff;
+      white-space: nowrap;
+      max-width: 42vw;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .app-brand-full { display: inline; }
+    .app-brand-short { display: none; }
+    .app-header-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 6px;
+      min-width: 0;
+      flex: 1 1 auto;
+    }
+    .app-header-tabs {
+      display: flex;
+      flex-wrap: nowrap;
+      align-items: stretch;
+      gap: 0;
+      padding: 0 6px;
+      overflow-x: auto;
+      overflow-y: hidden;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior-x: contain;
+      scrollbar-width: none;
+      white-space: nowrap;
+      border-top: 1px solid #1f1f1f;
+    }
+    .app-header-tabs::-webkit-scrollbar { display: none; height: 0; }
+
     .app-tab {
       display: inline-flex;
       align-items: center;
-      height: 28px;
+      flex: 0 0 auto;
+      height: 32px;
       padding: 0 12px;
       border: 0;
       border-bottom: 2px solid transparent;
@@ -63,17 +117,23 @@
       font-weight: 600;
       cursor: pointer;
       border-radius: 0;
+      white-space: nowrap;
     }
     .app-tab:hover { color: #fff; }
     .app-tab.is-active {
       color: #ffd900;
       border-bottom-color: #ffd900;
     }
+    .app-tab .tab-label-short { display: none; }
+    .app-tab .tab-label-full { display: inline; }
 
     .search-wrap {
       position: relative;
       display: flex;
       align-items: center;
+      min-width: 0;
+      flex: 1 1 auto;
+      max-width: 220px;
     }
     .search-wrap svg {
       position: absolute;
@@ -84,8 +144,9 @@
       pointer-events: none;
     }
     .search-wrap input {
-      width: 200px;
-      max-width: 36vw;
+      width: 100%;
+      min-width: 0;
+      max-width: 100%;
       height: 28px;
       padding: 0 10px 0 28px;
       border: 1px solid #2a2a2a;
@@ -100,6 +161,50 @@
       background: #141414;
     }
     .search-wrap input::placeholder { color: #525252; }
+
+    @media (max-width: 768px) {
+      .app-header-top { padding: 6px 8px; gap: 6px; }
+      .app-brand-full { display: none; }
+      .app-brand-short { display: inline; }
+      .app-header-actions { gap: 4px; }
+      .app-header-tabs { padding: 0 4px; }
+      .app-tab {
+        height: 34px;
+        padding: 0 10px;
+        font-size: 12px;
+      }
+      .app-tab .tab-label-full { display: none; }
+      .app-tab .tab-label-short { display: inline; }
+      .search-wrap { max-width: min(140px, 38vw); }
+      .search-wrap input { font-size: 11px; padding-right: 6px; }
+      #clock { display: none !important; }
+      #conn-label { display: none !important; }
+      .auth-chip {
+        max-width: min(132px, 34vw);
+        gap: 4px;
+        padding: 0 6px;
+      }
+      .auth-chip-role { display: none !important; }
+      .auth-login-btn { padding: 0 8px; font-size: 11px; }
+      .market-bar {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        white-space: nowrap;
+      }
+      .market-bar::-webkit-scrollbar { display: none; height: 0; }
+      .mkt-tab { flex: 0 0 auto; }
+      .wl-select-wrap { flex: 0 0 auto; margin-left: 4px; }
+      .panel-toolbar {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+      }
+      .panel-toolbar::-webkit-scrollbar { display: none; height: 0; }
+    }
 
     .icon-btn {
       display: inline-flex;
@@ -1098,28 +1203,21 @@
       <p class="footnote">Protected by Authentik · Desk Session DEV only</p>
     </div>
   </div>
-  <header class="border-b border-[#2a2a2a] bg-[#0a0a0a]">
-    <div class="flex items-center justify-between gap-3 px-3 py-2">
-      <div class="flex items-center gap-1 min-w-0 flex-wrap">
-        <span class="text-[13px] font-semibold tracking-tight text-white shrink-0 pr-3">atz · Realtime</span>
-        <nav class="flex items-center gap-0" role="tablist" aria-label="Chức năng">
-          <button type="button" class="app-tab is-active" data-app="iboard" data-atd-id="pb-ui:app.tab.iboard" role="tab" aria-selected="true">Giao dịch iBoard</button>
-          <button type="button" class="app-tab" data-app="portfolio" data-atd-id="pb-ui:app.tab.portfolio" role="tab" aria-selected="false">Danh mục</button>
-          <button type="button" class="app-tab" data-app="alerts" data-atd-id="pb-ui:app.tab.alerts" role="tab" aria-selected="false">Alerts</button>
-          <button type="button" class="app-tab" data-app="news" data-atd-id="pb-ui:app.tab.news" role="tab" aria-selected="false">Tin tức / Nghiên cứu</button>
-          <button type="button" class="app-tab" data-app="account" id="tab-account" hidden data-atd-id="pb-ui:app.tab.account" role="tab" aria-selected="false">Tài khoản</button>
-          <button type="button" class="app-tab" data-app="admin" id="tab-admin" hidden data-atd-id="pb-ui:app.tab.admin" role="tab" aria-selected="false">Admin</button>
-        </nav>
-      </div>
-      <div class="flex items-center gap-2 shrink-0">
+  <header class="app-header" data-atd-id="pb-ui:app.header">
+    <div class="app-header-top">
+      <span class="app-brand" title="atz · Realtime">
+        <span class="app-brand-full">atz · Realtime</span>
+        <span class="app-brand-short">atz</span>
+      </span>
+      <div class="app-header-actions">
         <label class="search-wrap" title="Tìm mã / ngành" id="global-search-wrap" data-atd-id="pb-ui:iboard.search">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <circle cx="11" cy="11" r="7"></circle>
             <path d="M20 20l-3.5-3.5" stroke-linecap="round"></path>
           </svg>
-          <input id="search-input" type="search" placeholder="Tìm mã CK…" autocomplete="off" spellcheck="false" />
+          <input id="search-input" type="search" placeholder="Tìm mã…" autocomplete="off" spellcheck="false" />
         </label>
-        <div class="relative" id="settings-wrap">
+        <div class="relative shrink-0" id="settings-wrap">
           <button type="button" class="icon-btn" id="btn-settings" data-atd-id="pb-ui:app.settings" aria-label="Cài đặt" aria-expanded="false" title="Cài đặt">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
               <circle cx="12" cy="12" r="3"></circle>
@@ -1131,7 +1229,7 @@
             <button type="button" id="btn-focus-search" role="menuitem">Focus ô tìm kiếm</button>
           </div>
         </div>
-        <div id="auth-slot" data-atd-id="pb-ui:auth.slot" class="inline-flex items-center">
+        <div id="auth-slot" data-atd-id="pb-ui:auth.slot" class="inline-flex items-center shrink-0 min-w-0">
           <button type="button" class="auth-login-btn" id="btn-header-login" hidden>Đăng nhập</button>
           <div class="auth-chip" id="auth-chip" hidden>
             <span id="auth-chip-name" class="truncate"></span>
@@ -1139,13 +1237,33 @@
             <button type="button" id="btn-logout" data-atd-id="pb-ui:auth.logout">Đăng xuất</button>
           </div>
         </div>
-        <span id="conn-wrap" data-atd-id="pb-ui:app.conn" class="inline-flex items-center gap-1">
+        <span id="conn-wrap" data-atd-id="pb-ui:app.conn" class="inline-flex items-center gap-1 shrink-0">
           <span id="conn-dot" class="inline-block h-2 w-2 rounded-full bg-[#ff0000]" title="Trạng thái WS"></span>
           <span id="conn-label" class="text-[11px] text-gray-400 hidden sm:inline">connecting…</span>
         </span>
-        <span id="clock" class="tabular-nums text-[11px] text-gray-500"></span>
+        <span id="clock" class="tabular-nums text-[11px] text-gray-500 shrink-0"></span>
       </div>
     </div>
+    <nav class="app-header-tabs" role="tablist" aria-label="Chức năng" data-atd-id="pb-ui:app.tabs">
+      <button type="button" class="app-tab is-active" data-app="iboard" data-atd-id="pb-ui:app.tab.iboard" role="tab" aria-selected="true">
+        <span class="tab-label-full">Giao dịch iBoard</span><span class="tab-label-short">iBoard</span>
+      </button>
+      <button type="button" class="app-tab" data-app="portfolio" data-atd-id="pb-ui:app.tab.portfolio" role="tab" aria-selected="false">
+        <span class="tab-label-full">Danh mục</span><span class="tab-label-short">Danh mục</span>
+      </button>
+      <button type="button" class="app-tab" data-app="alerts" data-atd-id="pb-ui:app.tab.alerts" role="tab" aria-selected="false">
+        <span class="tab-label-full">Alerts</span><span class="tab-label-short">Alerts</span>
+      </button>
+      <button type="button" class="app-tab" data-app="news" data-atd-id="pb-ui:app.tab.news" role="tab" aria-selected="false">
+        <span class="tab-label-full">Tin tức / Nghiên cứu</span><span class="tab-label-short">Tin tức</span>
+      </button>
+      <button type="button" class="app-tab" data-app="account" id="tab-account" hidden data-atd-id="pb-ui:app.tab.account" role="tab" aria-selected="false">
+        <span class="tab-label-full">Tài khoản</span><span class="tab-label-short">Account</span>
+      </button>
+      <button type="button" class="app-tab" data-app="admin" id="tab-admin" hidden data-atd-id="pb-ui:app.tab.admin" role="tab" aria-selected="false">
+        <span class="tab-label-full">Admin</span><span class="tab-label-short">Admin</span>
+      </button>
+    </nav>
   </header>
 
   <!-- ===== Panel: iBoard ===== -->
