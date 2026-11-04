@@ -1294,15 +1294,27 @@
   <section id="panel-portfolio" class="panel" data-panel="portfolio" data-atd-id="pb-ui:portfolio.panel" role="tabpanel" hidden>
     <div class="panel-toolbar" data-atd-id="pb-ui:portfolio.toolbar">
       <a href="/trading" class="btn-quiet primary" style="margin-right:8px">Trạm Trading (beta)</a>
+      <label for="pf-desk-select">Sổ Desk</label>
+      <select id="pf-desk-select" data-atd-id="pb-ui:portfolio.desk.select" style="min-width:120px" title="Danh mục Desk (ledger)">
+        <option value="">— local —</option>
+      </select>
+      <button type="button" class="btn-quiet" id="pf-desk-refresh" title="Tải lại summary PnL">↻</button>
       <label for="pf-symbol">Thêm mã</label>
       <input id="pf-symbol" type="text" placeholder="VD: FPT" maxlength="12" style="width:88px;text-transform:uppercase" />
       <label for="pf-qty">SL</label>
       <input id="pf-qty" type="number" min="0" step="100" value="100" style="width:96px" />
       <label for="pf-avg">Giá TB</label>
       <input id="pf-avg" type="number" min="0" step="100" value="0" style="width:112px" />
-      <button type="button" class="btn-quiet primary" id="pf-add">Thêm</button>
+      <button type="button" class="btn-quiet primary" id="pf-add">Thêm / Mua</button>
       <button type="button" class="btn-quiet" id="pf-clear-all" title="Xóa toàn bộ mã trong danh mục">Xóa tất cả</button>
       <span class="text-[11px] text-gray-500 ml-auto" id="pf-summary">NAV —</span>
+    </div>
+    <div class="panel-toolbar pf-desk-kpis" data-atd-id="pb-ui:portfolio.desk.kpis" id="pf-desk-kpis" hidden>
+      <span>Cash <strong id="pf-kpi-cash">—</strong></span>
+      <span>CK <strong id="pf-kpi-stock">—</strong></span>
+      <span>Tổng <strong id="pf-kpi-total">—</strong></span>
+      <span>Unreal <strong id="pf-kpi-unreal">—</strong></span>
+      <span>Realized <strong id="pf-kpi-real">—</strong></span>
     </div>
     <div class="pf-f3-sector-panel" data-atd-id="pb-ui:portfolio.f3-picker">
       <div class="pf-f3-toolbar">
@@ -1325,6 +1337,7 @@
             <th class="num">+/-</th>
             <th class="num">%</th>
             <th class="num">P/L</th>
+            <th class="num" title="Tỷ trọng / tổng tài sản">TW%</th>
             <th class="num">KL ngày</th>
             <th class="num">KL TB 10</th>
             <th>Cảnh báo</th>
@@ -1659,6 +1672,11 @@
     const elPortfolioBody = document.getElementById("portfolio-body");
     const elPortfolioEmpty = document.getElementById("portfolio-empty");
     const elPfSummary = document.getElementById("pf-summary");
+    const elPfDeskSelect = document.getElementById("pf-desk-select");
+    const elPfDeskKpis = document.getElementById("pf-desk-kpis");
+    let deskPortfolioId = null;
+    let deskSummary = null;
+    let deskPortfoliosCache = [];
 
     /* ===== App tabs (SPA) ===== */
     function setAppTab(tab) {
@@ -1682,6 +1700,7 @@
       document.getElementById("global-search-wrap").style.display = showSearch ? "" : "none";
       if (tab === "portfolio") {
         loadPortfolioF3Themes();
+        void refreshDeskPortfolioUi();
         renderPortfolioTable();
       }
       if (tab === "alerts") renderAlertsFeed();
@@ -1885,6 +1904,7 @@
       else if (appTab === "account") renderAccountDashboard();
       try { await loadUserWatchlists(); } catch (_) {}
       try { await initPortfolioAuthSync(); } catch (_) {}
+      try { await refreshDeskPortfolioUi(); } catch (_) {}
     }
 
     async function submitDeskLogin(ev) {
@@ -5004,6 +5024,115 @@
       }
     }
 
+    function fmtVndCompact(n) {
+      if (n == null || !Number.isFinite(Number(n))) return "—";
+      return Math.round(Number(n)).toLocaleString("en-US");
+    }
+
+    function paintDeskKpis(summary) {
+      if (!elPfDeskKpis) return;
+      if (!summary) {
+        elPfDeskKpis.hidden = true;
+        return;
+      }
+      elPfDeskKpis.hidden = false;
+      const set = (id, val, tone) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.textContent = fmtVndCompact(val);
+        el.className = tone || "";
+      };
+      set("pf-kpi-cash", summary.cash_balance);
+      set("pf-kpi-stock", summary.stock_market_value);
+      set("pf-kpi-total", summary.total_value);
+      const u = Number(summary.unrealized_pnl) || 0;
+      set("pf-kpi-unreal", u, u > 0 ? "pf-pl-up" : u < 0 ? "pf-pl-down" : "");
+      const r = Number(summary.realized_pnl) || 0;
+      set("pf-kpi-real", r, r > 0 ? "pf-pl-up" : r < 0 ? "pf-pl-down" : "");
+    }
+
+    function applyDeskSummaryToLocalPortfolio(summary) {
+      deskSummary = summary;
+      if (!summary || !Array.isArray(summary.holdings)) {
+        paintDeskKpis(null);
+        return;
+      }
+      portfolio = summary.holdings.map((h) => ({
+        symbol: String(h.symbol || "").toUpperCase(),
+        qty: Number(h.qty) || 0,
+        avg: Number(h.avg_cost != null ? h.avg_cost : h.avg) || 0,
+        weight_pct: h.weight_pct,
+        realized_pnl: h.realized_pnl,
+      }));
+      paintDeskKpis(summary);
+    }
+
+    async function ensureDeskPortfolioList() {
+      if (!pfAuthenticated || !elPfDeskSelect) return [];
+      try {
+        const res = await fetch("/api/portfolios");
+        if (!res.ok) return [];
+        const data = await res.json();
+        deskPortfoliosCache = Array.isArray(data.items) ? data.items : [];
+        if (!deskPortfoliosCache.length) {
+          const created = await fetch("/api/portfolios", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              name: "Mặc định",
+              cash_balance: 10_000_000_000,
+              is_default: true,
+            }),
+          });
+          if (created.ok) {
+            const body = await created.json();
+            if (body.item) deskPortfoliosCache = [body.item];
+          }
+        }
+        const prev = deskPortfolioId;
+        elPfDeskSelect.innerHTML = "";
+        deskPortfoliosCache.forEach((p) => {
+          const opt = document.createElement("option");
+          opt.value = String(p.id);
+          opt.textContent = p.is_default ? `${p.name} ★` : p.name;
+          elPfDeskSelect.appendChild(opt);
+        });
+        const pick =
+          deskPortfoliosCache.find((p) => p.id === prev) ||
+          deskPortfoliosCache.find((p) => p.is_default) ||
+          deskPortfoliosCache[0];
+        deskPortfolioId = pick ? pick.id : null;
+        if (deskPortfolioId != null) elPfDeskSelect.value = String(deskPortfolioId);
+        return deskPortfoliosCache;
+      } catch {
+        return [];
+      }
+    }
+
+    async function refreshDeskPortfolioSummary() {
+      if (!pfAuthenticated || deskPortfolioId == null) {
+        deskSummary = null;
+        paintDeskKpis(null);
+        return null;
+      }
+      try {
+        const res = await fetch(`/api/portfolios/${deskPortfolioId}/summary`);
+        if (!res.ok) return null;
+        const data = await res.json();
+        if (!data.ok) return null;
+        applyDeskSummaryToLocalPortfolio(data);
+        return data;
+      } catch {
+        return null;
+      }
+    }
+
+    async function refreshDeskPortfolioUi() {
+      await ensureDeskPortfolioList();
+      await refreshDeskPortfolioSummary();
+      renderPortfolioTable();
+    }
+
     function renderPortfolioTable() {
       elPortfolioBody.innerHTML = "";
       elPortfolioEmpty.hidden = portfolio.length > 0;
@@ -5031,6 +5160,10 @@
               : "pf-last-below"
             : "";
         const plCls = pl > 0 ? "pf-pl-up" : pl < 0 ? "pf-pl-down" : "";
+        const tw =
+          item.weight_pct != null && Number.isFinite(Number(item.weight_pct))
+            ? Number(item.weight_pct).toFixed(1) + "%"
+            : "—";
         const tr = document.createElement("tr");
         tr.id = "pf-" + item.symbol;
         tr.dataset.symbol = item.symbol;
@@ -5038,22 +5171,32 @@
           <td class="sym">${item.symbol}</td>
           <td class="num tabular-nums" data-f="qty">${qty.toLocaleString("en-US")}</td>
           <td class="num tabular-nums pf-col-avg" data-f="avg">${fmtPrice(avg)}</td>
-          <td class="num tabular-nums ${lastVsAvg}" data-f="last">${row ? fmtPrice(last) : "—"}</td>
+          <td class="num tabular-nums ${lastVsAvg}" data-f="last">${last > 0 ? fmtPrice(last) : "—"}</td>
           <td class="num tabular-nums ${tone}" data-f="change">${row ? fmtChange(row.change) : "—"}</td>
           <td class="num tabular-nums ${tone}" data-f="pct">${row ? fmtPct(row.change_pct) : "—"}</td>
           <td class="num tabular-nums ${plCls}" data-f="pl">${Math.round(pl).toLocaleString("en-US")}</td>
+          <td class="num tabular-nums" data-f="tw">${tw}</td>
           <td class="num tabular-nums" data-f="vol">${row ? fmtVol(row.volume) : "—"}</td>
           <td class="num tabular-nums" data-f="avgvol10">${
             cached && cached.avg_volume_10 > 0 ? fmtVol(cached.avg_volume_10) : "—"
           }</td>
           <td class="pf-alert" data-f="alert">—</td>
-          <td><button type="button" class="btn-quiet" data-rm="${item.symbol}">Xóa</button></td>`;
+          <td>${
+            deskPortfolioId != null
+              ? ""
+              : `<button type="button" class="btn-quiet" data-rm="${item.symbol}">Xóa</button>`
+          }</td>`;
         elPortfolioBody.appendChild(tr);
       });
-      const plAll = nav - cost;
-      elPfSummary.textContent = portfolio.length
-        ? `NAV ${Math.round(nav).toLocaleString("en-US")} · P/L ${Math.round(plAll).toLocaleString("en-US")}`
-        : "NAV —";
+      if (deskSummary) {
+        const u = Number(deskSummary.unrealized_pnl) || 0;
+        elPfSummary.textContent = `Tổng ${fmtVndCompact(deskSummary.total_value)} · Unreal ${fmtVndCompact(u)} · Real ${fmtVndCompact(deskSummary.realized_pnl)}`;
+      } else {
+        const plAll = nav - cost;
+        elPfSummary.textContent = portfolio.length
+          ? `NAV ${Math.round(nav).toLocaleString("en-US")} · P/L ${Math.round(plAll).toLocaleString("en-US")}`
+          : "NAV —";
+      }
       elPortfolioBody.querySelectorAll("[data-rm]").forEach((btn) => {
         btn.addEventListener("click", () => {
           portfolio = portfolio.filter((p) => p.symbol !== btn.dataset.rm);
@@ -5099,7 +5242,7 @@
       tr.querySelector('[data-f="vol"]').textContent = row ? fmtVol(row.volume) : "—";
       if (flash && row && prev !== fmtPrice(last)) flashCell(lastEl, row.change || 1);
       schedulePortfolioSideEffects();
-      // refresh NAV strip
+      // refresh NAV strip (live tick overrides last; Desk KPIs keep server realized)
       let nav = 0, cost = 0;
       portfolio.forEach((it) => {
         const r = state.get(it.symbol);
@@ -5107,7 +5250,21 @@
         nav += l * (Number(it.qty) || 0);
         cost += (Number(it.avg) || 0) * (Number(it.qty) || 0);
       });
-      elPfSummary.textContent = `NAV ${Math.round(nav).toLocaleString("en-US")} · P/L ${Math.round(nav - cost).toLocaleString("en-US")}`;
+      const liveUnreal = nav - cost;
+      if (deskSummary) {
+        elPfSummary.textContent = `Tổng ~${fmtVndCompact(Number(deskSummary.cash_balance || 0) + nav)} · Unreal ${fmtVndCompact(liveUnreal)} · Real ${fmtVndCompact(deskSummary.realized_pnl)}`;
+        const uEl = document.getElementById("pf-kpi-unreal");
+        const sEl = document.getElementById("pf-kpi-stock");
+        const tEl = document.getElementById("pf-kpi-total");
+        if (sEl) sEl.textContent = fmtVndCompact(nav);
+        if (uEl) {
+          uEl.textContent = fmtVndCompact(liveUnreal);
+          uEl.className = liveUnreal > 0 ? "pf-pl-up" : liveUnreal < 0 ? "pf-pl-down" : "";
+        }
+        if (tEl) tEl.textContent = fmtVndCompact(Number(deskSummary.cash_balance || 0) + nav);
+      } else {
+        elPfSummary.textContent = `NAV ${Math.round(nav).toLocaleString("en-US")} · P/L ${Math.round(liveUnreal).toLocaleString("en-US")}`;
+      }
     }
 
     document.getElementById("pf-f3-themes")?.addEventListener("click", onF3BoardClick);
@@ -5115,6 +5272,10 @@
     document.getElementById("pf-f3-collapse-all")?.addEventListener("click", () => setAllF3Sectors(false));
 
     document.getElementById("pf-clear-all")?.addEventListener("click", () => {
+      if (deskPortfolioId != null) {
+        window.alert("Sổ Desk: xóa nắm giữ bằng lệnh SELL (Phase sau). Dùng local để xóa nhanh.");
+        return;
+      }
       if (!portfolio.length) return;
       if (!window.confirm("Xóa toàn bộ mã trong danh mục?")) return;
       portfolio = [];
@@ -5122,11 +5283,59 @@
       renderPortfolioTable();
     });
 
+    elPfDeskSelect?.addEventListener("change", () => {
+      const v = elPfDeskSelect.value;
+      deskPortfolioId = v ? Number(v) : null;
+      void (async () => {
+        if (deskPortfolioId != null) await refreshDeskPortfolioSummary();
+        else {
+          deskSummary = null;
+          paintDeskKpis(null);
+          await initPortfolioAuthSync();
+        }
+        renderPortfolioTable();
+      })();
+    });
+
+    document.getElementById("pf-desk-refresh")?.addEventListener("click", () => {
+      void refreshDeskPortfolioUi();
+    });
+
     document.getElementById("pf-add").addEventListener("click", () => {
       const symbol = String(document.getElementById("pf-symbol").value || "").trim().toUpperCase();
       const qty = Number(document.getElementById("pf-qty").value) || 0;
       const avg = Number(document.getElementById("pf-avg").value) || 0;
       if (!symbol || qty <= 0) return;
+      if (deskPortfolioId != null && pfAuthenticated) {
+        const row = state.get(symbol);
+        const px = avg > 0 ? avg : row ? Number(row.last) || 0 : 0;
+        if (px <= 0) {
+          window.alert("Cần Giá TB > 0 (hoặc mã đã có giá TT trên board) để ghi BUY Desk.");
+          return;
+        }
+        void (async () => {
+          const res = await fetch(`/api/portfolios/${deskPortfolioId}/transactions`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              symbol,
+              side: "BUY",
+              quantity: qty,
+              price: px,
+              fee: 0,
+            }),
+          });
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            window.alert(err.detail || "Không ghi được giao dịch Desk");
+            return;
+          }
+          document.getElementById("pf-symbol").value = "";
+          await refreshDeskPortfolioSummary();
+          renderPortfolioTable();
+        })();
+        return;
+      }
       const existing = portfolio.find((p) => p.symbol === symbol);
       if (existing) {
         existing.qty = qty;
