@@ -687,6 +687,14 @@ class RealSsiWorker:
             if extra:
                 tick["extra"] = extra
         sym = tick["symbol"]
+        # Keep board tabs accurate for Admin Core (listing > SSI default HOSE).
+        if str(tick.get("kind") or "").lower() != "index":
+            try:
+                from backend.market_catalog import resolve_listed_exchange
+
+                tick["exchange"] = resolve_listed_exchange(sym)
+            except Exception:
+                pass
         self._board[sym] = tick
         try:
             if not passes_volume_filter(tick, VOLUME_FILTER):
