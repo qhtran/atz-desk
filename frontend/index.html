@@ -983,41 +983,48 @@
 
     .pf-f3-sector-panel {
       position: relative;
-      margin: 0 12px 10px;
-      padding: 8px 10px;
+      margin: 0 12px 8px;
+      padding: 4px 8px;
       border: 1px solid #2a2a2a;
       background: #0f0f0f;
       border-radius: 6px;
     }
     .pf-f3-toolbar {
       display: flex;
-      flex-wrap: wrap;
+      flex-wrap: nowrap;
       align-items: center;
       gap: 8px;
-      margin-bottom: 4px;
+      margin-bottom: 2px;
       font-size: 11px;
       color: #a3a3a3;
+    }
+    .pf-f3-view-hint {
+      margin-left: auto;
+      font-size: 10px;
+      color: #737373;
+      white-space: nowrap;
     }
     .pf-f3-pills {
       display: flex;
       flex-wrap: nowrap;
-      gap: 0.5rem;
+      gap: 0.4rem;
       overflow-x: auto;
       white-space: nowrap;
-      padding: 0.5rem;
+      padding: 2px 0 4px;
       -webkit-overflow-scrolling: touch;
+      scrollbar-width: thin;
     }
     .pf-f3-pill {
       flex: 0 0 auto;
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-      padding: 5px 10px;
+      gap: 5px;
+      padding: 4px 9px;
       border: 1px solid #2a2a2a;
       border-radius: 999px;
       background: #141414;
       color: #e5e5e5;
-      font-size: 12px;
+      font-size: 11px;
       cursor: pointer;
       line-height: 1.2;
     }
@@ -1876,8 +1883,9 @@
     </div>
     <div class="pf-f3-sector-panel" data-atd-id="pb-ui:portfolio.f3-picker">
       <div class="pf-f3-toolbar">
-        <span>Ngành F3 — chọn pill để xem mã</span>
+        <span>Ngành F3</span>
         <span id="pf-f3-preview-count">0 ngành</span>
+        <span class="pf-f3-view-hint">vuốt ngang · chạm pill mở danh sách mã</span>
       </div>
       <div id="pf-f3-themes" class="pf-f3-pills" data-atd-id="pb-ui:iboard.f3.board" role="region" aria-label="Ngành F3"></div>
       <div id="pf-f3-preview-empty" class="empty-hint" hidden>Không tải được danh sách ngành F3.</div>
@@ -2437,15 +2445,24 @@
 
     async function deskLogout() {
       const source = accountState.authSource;
+      let outpostPath = null;
       try {
-        await fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" });
+        const res = await fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" });
+        const data = await res.json().catch(() => ({}));
+        if (data && data.outpost_sign_out) outpostPath = String(data.outpost_sign_out);
       } catch (_) {}
-      // Desk Session: chỉ xóa cookie SPA — không đẩy sang auth.atz.vn (outpost SLO).
+      // Desk Session: cookie đã xóa — ở lại SPA (không SLO Authentik).
       if (source === "desk_session") {
         window.location.replace("/");
         return;
       }
-      // ForwardAuth: same-host outpost sign_out + rd về SPA.
+      // ForwardAuth: hủy cookie outpost/gateway rồi rd về SPA (tránh nửa phiên).
+      if (outpostPath && outpostPath.startsWith("/")) {
+        const rd = encodeURIComponent(location.origin + "/");
+        const join = outpostPath.includes("?") ? "&" : "?";
+        window.location.href = outpostPath + (outpostPath.includes("rd=") ? "" : join + "rd=" + rd);
+        return;
+      }
       window.location.href = resolveLogoutUrl();
     }
 
