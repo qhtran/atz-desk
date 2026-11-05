@@ -5,6 +5,27 @@ Không thay ADR; không dump changelog dài. Mỗi mục: ngày · phạm vi · 
 
 ---
 
+## 2026-11-05 — Core Top 240 cân sàn (120 / 60 / 60)
+
+**Phạm vi:** Đổi chiến lược chọn Core symbols + regenerate YAML + rebuild prod-desk.
+
+**Quyết định**
+- Phân bổ cố định: **HOSE 120** (đủ VN30 + midcap theo thanh khoản) · **HNX 60** · **UPCOM 60**.
+- Thanh khoản = avg(`close * volume`) 20 phiên OHLCV (`data/ohlcv`).
+- Listing sàn: `config/exchange_listing.csv` (+ overlay `market_catalog.json`).
+- Generator: `python -m backend.core_symbols_builder` (config `config/core_allocation.yaml`).
+
+**File neo**
+- `backend/core_symbols_builder.py`, `backend/market_catalog.py`
+- `config/core_allocation.yaml`, `config/exchange_listing.csv`, `config/priceboard_core_symbols.yaml`
+- `tests/test_core_symbols_builder.py`
+
+**Follow-up**
+- Job EOD tự chạy builder khi có OHLCV mới.
+- Đồng bộ listing CSV định kỳ (nguồn hiện tại snapshot vendored).
+
+---
+
 ## 2026-11-04 — P0 Master Catalog + Quote Snapshot (off-core)
 
 **Phạm vi:** Desk priceboard search / Quick Switcher — mã ngoài Core WS (~80 `default_watchlist`), chưa dynamic SSI subscribe.

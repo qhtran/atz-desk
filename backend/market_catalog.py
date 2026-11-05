@@ -28,6 +28,7 @@ _ROOT = Path(__file__).resolve().parent.parent
 _DEFAULT_CATALOG_JSON = _ROOT / "config" / "market_catalog.json"
 _DEFAULT_CORE_YAML = _ROOT / "config" / "priceboard_core_symbols.yaml"
 _DEFAULT_F3_YAML = _ROOT / "config" / "sector_themes_f3.yaml"
+_DEFAULT_LISTING_CSV = _ROOT / "config" / "exchange_listing.csv"
 
 
 def _catalog_json_path() -> Path:
@@ -42,9 +43,14 @@ def _f3_yaml_path() -> Path:
     return Path(os.getenv("F3_THEMES_CONFIG", str(_DEFAULT_F3_YAML)))
 
 
+def _listing_csv_path() -> Path:
+    return Path(os.getenv("EXCHANGE_LISTING_CSV", str(_DEFAULT_LISTING_CSV)))
+
+
 def clear_catalog_cache() -> None:
     load_market_catalog.cache_clear()
     load_core_symbol_set.cache_clear()
+    load_exchange_listing_map.cache_clear()
 
 
 @lru_cache(maxsize=1)
@@ -137,10 +143,45 @@ def _json_overlay() -> dict[str, dict[str, Any]]:
 
 
 @lru_cache(maxsize=1)
+def load_exchange_listing_map() -> dict[str, str]:
+    """symbol → exchange from ``config/exchange_listing.csv`` (Core allocation source)."""
+    path = _listing_csv_path()
+    if not path.is_file():
+        return {}
+    try:
+        import csv
+
+        out: dict[str, str] = {}
+        with path.open(encoding="utf-8", newline="") as f:
+            for row in csv.DictReader(f):
+                sym = str(row.get("symbol") or "").strip().upper()
+                ex = str(row.get("exchange") or "").strip().upper()
+                if ex in ("HSX",):
+                    ex = "HOSE"
+                if ex.startswith("UPCO"):
+                    ex = "UPCOM"
+                if not sym or ex not in ("HOSE", "HNX", "UPCOM"):
+                    continue
+                out[sym] = ex
+        return out
+    except Exception:
+        return {}
+
+
+def resolve_listed_exchange(symbol: str) -> str:
+    sym = str(symbol or "").strip().upper()
+    hit = load_exchange_listing_map().get(sym)
+    if hit:
+        return hit
+    return exchange_for_symbol(sym)
+
+
+@lru_cache(maxsize=1)
 def load_market_catalog() -> tuple[dict[str, dict[str, Any]], ...]:
     """Return tuple of catalog rows (stable for cache identity)."""
     core = load_core_symbol_set()
     overlay = _json_overlay()
+    listing = load_exchange_listing_map()
     symbols: set[str] = set()
     symbols.update(VN30_SYMBOLS)
     symbols.update(HOSE_EXTRA_SYMBOLS)
@@ -149,11 +190,20 @@ def load_market_catalog() -> tuple[dict[str, dict[str, Any]], ...]:
     symbols.update(default_watchlist())
     symbols.update(_f3_symbols())
     symbols.update(overlay.keys())
+    symbols.update(core)
+    # Keep listing-backed names for Core HNX/UPCOM seats
+    symbols.update(s for s, ex in listing.items() if s in core)
 
     rows: list[dict[str, Any]] = []
     for sym in sorted(symbols):
         ov = overlay.get(sym) or {}
-        exchange = str(ov.get("exchange") or exchange_for_symbol(sym)).upper()
+        exchange = str(
+            ov.get("exchange") or listing.get(sym) or exchange_for_symbol(sym)
+        ).upper()
+        if exchange == "HSX":
+            exchange = "HOSE"
+        if exchange.startswith("UPCO"):
+            exchange = "UPCOM"
         name = str(ov.get("name") or "").strip()
         rows.append(
             {
@@ -217,7 +267,7 @@ def list_core_catalog(*, limit: int | None = None) -> list[dict[str, Any]]:
             out.append(
                 {
                     "symbol": sym,
-                    "exchange": exchange_for_symbol(sym),
+                    "exchange": resolve_listed_exchange(sym),
                     "name": "",
                     "in_core": True,
                 }

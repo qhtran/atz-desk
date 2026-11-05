@@ -1,0 +1,14 @@
+# Core stream allocation — Top 240 cân sàn (liquidity-ranked).
+# Generator: python -m backend.core_symbols_builder
+version: 1
+max_core: 240
+lookback_sessions: 20
+allocation:
+  HOSE: 120
+  HNX: 60
+  UPCOM: 60
+# HOSE luôn gồm đủ VN30 (board_universe.VN30_SYMBOLS), phần còn lại theo thanh khoản.
+force_vn30: true
+listing_csv: config/exchange_listing.csv
+ohlcv_dir: data/ohlcv
+output: config/priceboard_core_symbols.yaml
