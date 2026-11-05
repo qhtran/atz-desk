@@ -180,7 +180,7 @@
       "matchType": "prefix",
       "breadcrumb": ["ATZ Desk", "iBoard", "F3 ngành"],
       "hints": {
-        "fe": "frontend/index.html — accordion #pf-f3-themes, 5 cột (mã, giá, spark, cảnh báo, cộng đồng stub)",
+        "fe": "frontend/index.html — pills #pf-f3-themes + popover, 5 cột (mã, giá, spark, cảnh báo, cộng đồng stub)",
         "be": "GET /api/portfolio/sectors/f3, POST /api/portfolio/alerts, GET /api/iboard/equity-spark",
         "spec": "spec.md"
       },
@@ -191,7 +191,7 @@
       "matchType": "prefix",
       "breadcrumb": ["Danh mục"],
       "hints": {
-        "fe": "frontend/index.html — portfolio localStorage; F3 accordion #pf-f3-themes (5 cột, pb-ui:iboard.f3.*)",
+        "fe": "frontend/index.html — portfolio localStorage; F3 pills #pf-f3-themes + popover (5 cột, pb-ui:iboard.f3.*)",
         "spec": "docs/bots/HANDOFF_NEXT_CHAT.md"
       },
       "err_codes": []

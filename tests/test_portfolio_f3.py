@@ -198,15 +198,21 @@ def test_sectors_endpoint_shape():
     assert theme["kind"] == "f3"
 
 
-def test_f3_accordion_markup():
+def test_f3_pills_popover_markup():
     html = (ROOT / "frontend" / "index.html").read_text(encoding="utf-8")
     assert 'data-atd-id="pb-ui:portfolio.f3-picker"' in html
     assert 'data-atd-id="pb-ui:iboard.f3.board"' in html
     assert "pb-ui:iboard.f3.sector." in html
     assert "Cảnh báo KT" in html
     assert "Sắp có" in html
-    assert "pf-f3-expand-all" in html
-    assert "pf-f3-theme-chip" not in html
+    assert "pf-f3-pills" in html
+    assert "pf-f3-pill" in html
+    assert "pf-f3-popover" in html
+    assert "openF3Pill" in html
+    assert "closeF3Popover" in html
+    assert "pf-f3-expand-all" not in html
+    assert "pf-f3-accordion" not in html
     assert "/api/portfolio/alerts" in html
     assert "/api/iboard/equity-spark" in html
     assert "ensureF3Alerts" in html
+    assert 'fetch("/api/portfolio/sectors/f3")' in html

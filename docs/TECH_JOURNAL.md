@@ -80,3 +80,20 @@ Không thay ADR; không dump changelog dài. Mỗi mục: ngày · phạm vi · 
 
 **Ghi chú ops**
 - `deploy-prod-desk.sh` mặc định **không** bật `--profile live`; recreate SSI worker phải gọi riêng với profile `live`.
+
+---
+
+## 2026-11-05 — F3 ngành: pills ngang + popover
+
+**Phạm vi:** FE Portfolio picker ngành F3 (atz Desk SPA). Không đổi API `/api/portfolio/sectors/f3` hay bảng 5 cột.
+
+**Quyết định**
+- Accordion dọc `#pf-f3-themes` chiếm viewport → thay bằng thanh **pills** `overflow-x:auto` + **một popover** (đóng: X / backdrop / Escape / click pill lại).
+- Giữ `hydrateF3Sector`, `ensureF3Alerts`, `data-pf-add-one`, `data-f3-open`, `data-atd-id` sector.
+
+**File neo**
+- `frontend/index.html` — CSS `.pf-f3-pills` / `.pf-f3-popover`, `openF3Pill` / `closeF3Popover`
+- `tests/test_portfolio_f3.py` — `test_f3_pills_popover_markup`
+
+**Follow-up**
+- P2: neo popover theo pill đang chọn (anchor) nếu panel hẹp trên mobile.

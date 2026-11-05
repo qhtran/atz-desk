@@ -982,8 +982,9 @@
     .pf-score-view-hint { color: #737373; font-size: 10px; }
 
     .pf-f3-sector-panel {
+      position: relative;
       margin: 0 12px 10px;
-      padding: 10px 12px;
+      padding: 8px 10px;
       border: 1px solid #2a2a2a;
       background: #0f0f0f;
       border-radius: 6px;
@@ -993,43 +994,86 @@
       flex-wrap: wrap;
       align-items: center;
       gap: 8px;
-      margin-bottom: 8px;
+      margin-bottom: 4px;
       font-size: 11px;
       color: #a3a3a3;
     }
-    .pf-f3-accordion {
+    .pf-f3-pills {
+      display: flex;
+      flex-wrap: nowrap;
+      gap: 0.5rem;
+      overflow-x: auto;
+      white-space: nowrap;
+      padding: 0.5rem;
+      -webkit-overflow-scrolling: touch;
+    }
+    .pf-f3-pill {
+      flex: 0 0 auto;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 10px;
+      border: 1px solid #2a2a2a;
+      border-radius: 999px;
+      background: #141414;
+      color: #e5e5e5;
+      font-size: 12px;
+      cursor: pointer;
+      line-height: 1.2;
+    }
+    .pf-f3-pill:hover { border-color: #525252; background: rgba(255, 217, 0, 0.06); }
+    .pf-f3-pill.is-active {
+      border-color: #ffd900;
+      background: rgba(255, 217, 0, 0.12);
+      color: #ffd900;
+    }
+    .pf-f3-pill-name { font-weight: 600; }
+    .pf-f3-meta, .pf-f3-delta { font-size: 11px; color: #a3a3a3; }
+    .pf-f3-pill.is-active .pf-f3-meta,
+    .pf-f3-pill.is-active .pf-f3-delta { color: #d4d4d4; }
+    .pf-f3-popover-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 45;
+      background: rgba(0, 0, 0, 0.35);
+    }
+    .pf-f3-popover {
+      position: absolute;
+      left: 10px;
+      right: 10px;
+      top: calc(100% - 4px);
+      z-index: 46;
+      max-height: min(50vh, 420px);
       display: flex;
       flex-direction: column;
-      gap: 6px;
-      max-height: min(52vh, 520px);
-      overflow: auto;
+      border: 1px solid #3f3f3f;
+      border-radius: 6px;
+      background: #121212;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
     }
-    .pf-f3-item {
-      border: 1px solid #2a2a2a;
-      border-radius: 4px;
-      background: #141414;
-    }
-    .pf-f3-head {
-      width: 100%;
+    .pf-f3-popover-head {
       display: flex;
       align-items: center;
       gap: 8px;
-      padding: 6px 8px;
-      background: transparent;
-      border: 0;
-      color: #e5e5e5;
-      cursor: pointer;
-      text-align: left;
+      padding: 8px 10px;
+      border-bottom: 1px solid #2a2a2a;
       font-size: 12px;
+      color: #e5e5e5;
     }
-    .pf-f3-head:hover { background: rgba(255, 217, 0, 0.06); }
-    .pf-f3-caret { width: 12px; color: #ffd900; }
-    .pf-f3-name { font-weight: 600; margin-right: auto; }
-    .pf-f3-meta, .pf-f3-delta { font-size: 11px; color: #a3a3a3; }
+    .pf-f3-popover-title { font-weight: 600; margin-right: auto; }
+    .pf-f3-popover-close {
+      border: 0;
+      background: transparent;
+      color: #a3a3a3;
+      cursor: pointer;
+      font-size: 16px;
+      line-height: 1;
+      padding: 2px 6px;
+    }
+    .pf-f3-popover-close:hover { color: #ffd900; }
     .pf-f3-body {
-      max-height: 260px;
+      max-height: min(44vh, 360px);
       overflow: auto;
-      border-top: 1px solid #2a2a2a;
     }
     .pf-f3-table { font-size: 12px; }
     .pf-f3-table .sym { font-weight: 600; color: #ffd900; white-space: nowrap; }
@@ -1832,13 +1876,20 @@
     </div>
     <div class="pf-f3-sector-panel" data-atd-id="pb-ui:portfolio.f3-picker">
       <div class="pf-f3-toolbar">
-        <span>Ngành F3 — mở ngành để xem giá, đồ thị, cảnh báo</span>
+        <span>Ngành F3 — chọn pill để xem mã</span>
         <span id="pf-f3-preview-count">0 ngành</span>
-        <button type="button" class="btn-quiet" id="pf-f3-expand-all">Mở tất cả</button>
-        <button type="button" class="btn-quiet" id="pf-f3-collapse-all">Đóng</button>
       </div>
-      <div id="pf-f3-themes" class="pf-f3-accordion" data-atd-id="pb-ui:iboard.f3.board" role="region" aria-label="Bảng ngành F3"></div>
+      <div id="pf-f3-themes" class="pf-f3-pills" data-atd-id="pb-ui:iboard.f3.board" role="region" aria-label="Ngành F3"></div>
       <div id="pf-f3-preview-empty" class="empty-hint" hidden>Không tải được danh sách ngành F3.</div>
+      <div id="pf-f3-popover-backdrop" class="pf-f3-popover-backdrop" hidden data-atd-id="pb-ui:iboard.f3.popover-backdrop"></div>
+      <div id="pf-f3-popover" class="pf-f3-popover" hidden role="dialog" aria-modal="true" aria-labelledby="pf-f3-popover-title" data-atd-id="pb-ui:iboard.f3.popover">
+        <div class="pf-f3-popover-head">
+          <span id="pf-f3-popover-title" class="pf-f3-popover-title">Ngành</span>
+          <span id="pf-f3-popover-meta" class="pf-f3-meta"></span>
+          <button type="button" class="pf-f3-popover-close" id="pf-f3-popover-close" aria-label="Đóng">×</button>
+        </div>
+        <div id="pf-f3-popover-body" class="pf-f3-body"></div>
+      </div>
     </div>
     <div class="atz-table-wrap panel-tall">
       <table class="atz-table" id="portfolio-table">
@@ -5868,6 +5919,7 @@
     let pfF3Themes = [];
     let pfF3BoardReady = false;
     let pfF3LoadPromise = null;
+    let pfF3OpenThemeId = null;
     let pfSideTimer = null;
 
     function joinPortfolioAlertCell(f3Text, intradayText) {
@@ -5934,9 +5986,12 @@
       return null;
     }
 
-    function paintF3SectorDelta(section) {
-      const theme = pfF3Themes.find((item) => item.id === section.dataset.f3Id);
-      const el = section.querySelector("[data-f3-delta]");
+    function paintF3SectorDelta(themeId) {
+      const id = themeId || pfF3OpenThemeId;
+      if (!id || typeof CSS === "undefined" || !CSS.escape) return;
+      const theme = pfF3Themes.find((item) => item.id === id);
+      const pill = document.querySelector(`#pf-f3-themes .pf-f3-pill[data-f3-id="${CSS.escape(id)}"]`);
+      const el = pill && pill.querySelector("[data-f3-delta]");
       if (!el || !theme) return;
       const pcts = [];
       (theme.symbols || []).forEach((raw) => {
@@ -5986,13 +6041,13 @@
 
     function patchF3Symbol(symbol, opts = {}) {
       if (!symbol || typeof CSS === "undefined" || !CSS.escape) return;
-      const nodes = document.querySelectorAll(`#pf-f3-themes tr[data-f3-sym="${CSS.escape(symbol)}"]`);
+      const pop = document.getElementById("pf-f3-popover");
+      if (!pop || pop.hidden) return;
+      const nodes = document.querySelectorAll(`#pf-f3-popover-body tr[data-f3-sym="${CSS.escape(symbol)}"]`);
       if (!nodes.length) return;
       const view = f3PriceView(symbol);
       const alertText = pfF3Cache.get(symbol) || "—";
       nodes.forEach((tr) => {
-        const body = tr.closest(".pf-f3-body");
-        if (body && body.hidden) return;
         const lastEl = tr.querySelector("[data-f3-last]");
         const pctEl = tr.querySelector("[data-f3-pct]");
         const alertEl = tr.querySelector("[data-f3-alert]");
@@ -6026,30 +6081,27 @@
           const svg = renderSparkSvg(symbol, pts, view ? view.levels : null, chg, "f3-spark-");
           chartEl.innerHTML = `<button type="button" class="pf-f3-chart-btn" data-f3-open="${escHtml(symbol)}" title="Mở đồ thị trong phiên" aria-label="Đồ thị ${escHtml(symbol)}">${svg}</button>`;
         }
-        const section = tr.closest(".pf-f3-item");
-        if (section) paintF3SectorDelta(section);
       });
+      if (pfF3OpenThemeId) paintF3SectorDelta(pfF3OpenThemeId);
     }
 
     function refreshF3SparkCells() {
-      document.querySelectorAll("#pf-f3-themes .pf-f3-body:not([hidden]) tr[data-f3-sym]").forEach((tr) => {
+      document.querySelectorAll("#pf-f3-popover-body tr[data-f3-sym]").forEach((tr) => {
         patchF3Symbol(tr.dataset.f3Sym);
       });
     }
 
     function refreshOpenF3FromState() {
-      document.querySelectorAll("#pf-f3-themes .pf-f3-body:not([hidden]) tr[data-f3-sym]").forEach((tr) => {
+      if (!pfF3OpenThemeId) return;
+      document.querySelectorAll("#pf-f3-popover-body tr[data-f3-sym]").forEach((tr) => {
         patchF3Symbol(tr.dataset.f3Sym, { spark: false });
       });
-      document.querySelectorAll("#pf-f3-themes .pf-f3-item").forEach((section) => {
-        const body = section.querySelector(".pf-f3-body");
-        if (body && !body.hidden) paintF3SectorDelta(section);
-      });
+      paintF3SectorDelta(pfF3OpenThemeId);
     }
 
     function syncF3InPortfolioFlags() {
       const held = new Set(portfolio.map((item) => item.symbol));
-      document.querySelectorAll("#pf-f3-themes tr[data-f3-sym]").forEach((tr) => {
+      document.querySelectorAll("#pf-f3-popover-body tr[data-f3-sym]").forEach((tr) => {
         const cell = tr.querySelector("[data-f3-action]");
         if (!cell) return;
         const sym = tr.dataset.f3Sym;
@@ -6122,34 +6174,53 @@
       need.forEach((sym) => patchF3Symbol(sym, { spark: false }));
     }
 
-    function setF3SectorOpen(section, open, opts = {}) {
-      const body = section.querySelector(".pf-f3-body");
-      const head = section.querySelector(".pf-f3-head");
-      const caret = section.querySelector(".pf-f3-caret");
-      if (!body || !head) return;
-      if (open && body.dataset.built !== "1") {
-        const theme = pfF3Themes.find((item) => item.id === section.dataset.f3Id);
-        body.innerHTML = f3SectorTableHtml(theme);
-        body.dataset.built = "1";
+    function closeF3Popover() {
+      const pop = document.getElementById("pf-f3-popover");
+      const backdrop = document.getElementById("pf-f3-popover-backdrop");
+      const body = document.getElementById("pf-f3-popover-body");
+      if (pop) pop.hidden = true;
+      if (backdrop) backdrop.hidden = true;
+      if (body) {
+        body.innerHTML = "";
+        delete body.dataset.built;
+        delete body.dataset.f3Id;
       }
-      body.hidden = !open;
-      head.setAttribute("aria-expanded", open ? "true" : "false");
-      if (caret) caret.textContent = open ? "▾" : "▸";
-      if (!open || opts.hydrate === false) return;
-      const theme = pfF3Themes.find((item) => item.id === section.dataset.f3Id);
-      void hydrateF3Sector((theme && theme.symbols) || []);
-      paintF3SectorDelta(section);
+      document.querySelectorAll("#pf-f3-themes .pf-f3-pill.is-active").forEach((pill) => {
+        pill.classList.remove("is-active");
+        pill.setAttribute("aria-expanded", "false");
+      });
+      pfF3OpenThemeId = null;
     }
 
-    function setAllF3Sectors(open) {
-      const syms = [];
-      document.querySelectorAll("#pf-f3-themes .pf-f3-item").forEach((section) => {
-        setF3SectorOpen(section, open, { hydrate: false });
-        if (!open) return;
-        const theme = pfF3Themes.find((item) => item.id === section.dataset.f3Id);
-        ((theme && theme.symbols) || []).forEach((sym) => syms.push(sym));
+    function openF3Pill(themeId, opts = {}) {
+      if (!themeId) return;
+      if (pfF3OpenThemeId === themeId && opts.force !== true) {
+        closeF3Popover();
+        return;
+      }
+      const theme = pfF3Themes.find((item) => item.id === themeId);
+      const pop = document.getElementById("pf-f3-popover");
+      const backdrop = document.getElementById("pf-f3-popover-backdrop");
+      const body = document.getElementById("pf-f3-popover-body");
+      const titleEl = document.getElementById("pf-f3-popover-title");
+      const metaEl = document.getElementById("pf-f3-popover-meta");
+      if (!theme || !pop || !body) return;
+      document.querySelectorAll("#pf-f3-themes .pf-f3-pill").forEach((pill) => {
+        const active = pill.dataset.f3Id === themeId;
+        pill.classList.toggle("is-active", active);
+        pill.setAttribute("aria-expanded", active ? "true" : "false");
       });
-      if (open) void hydrateF3Sector(syms);
+      if (titleEl) titleEl.textContent = theme.name || theme.id;
+      if (metaEl) metaEl.textContent = `${(theme.symbols || []).length} mã`;
+      body.innerHTML = f3SectorTableHtml(theme);
+      body.dataset.built = "1";
+      body.dataset.f3Id = themeId;
+      pop.hidden = false;
+      if (backdrop) backdrop.hidden = false;
+      pfF3OpenThemeId = themeId;
+      if (opts.hydrate === false) return;
+      void hydrateF3Sector(theme.symbols || []);
+      paintF3SectorDelta(themeId);
     }
 
     function renderF3Board(themes) {
@@ -6157,6 +6228,7 @@
       const empty = document.getElementById("pf-f3-preview-empty");
       const countEl = document.getElementById("pf-f3-preview-count");
       if (!box) return;
+      closeF3Popover();
       box.innerHTML = "";
       if (!themes.length) {
         if (empty) {
@@ -6169,19 +6241,17 @@
       if (empty) empty.hidden = true;
       themes.forEach((theme) => {
         const count = (theme.symbols || []).length;
-        const section = document.createElement("section");
-        section.className = "pf-f3-item";
-        section.dataset.f3Id = theme.id;
-        section.dataset.atdId = "pb-ui:iboard.f3.sector." + theme.id;
-        section.innerHTML = `
-          <button type="button" class="pf-f3-head" aria-expanded="false">
-            <span class="pf-f3-caret" aria-hidden="true">▸</span>
-            <span class="pf-f3-name">${escHtml(theme.name || theme.id)}</span>
-            <span class="pf-f3-meta">${count} mã</span>
-            <span class="pf-f3-delta" data-f3-delta></span>
-          </button>
-          <div class="pf-f3-body" hidden></div>`;
-        box.appendChild(section);
+        const pill = document.createElement("button");
+        pill.type = "button";
+        pill.className = "pf-f3-pill";
+        pill.dataset.f3Id = theme.id;
+        pill.dataset.atdId = "pb-ui:iboard.f3.sector." + theme.id;
+        pill.setAttribute("aria-expanded", "false");
+        pill.innerHTML = `
+          <span class="pf-f3-pill-name">${escHtml(theme.name || theme.id)}</span>
+          <span class="pf-f3-meta">${count}</span>
+          <span class="pf-f3-delta" data-f3-delta></span>`;
+        box.appendChild(pill);
       });
       if (countEl) countEl.textContent = `${themes.length} ngành`;
     }
@@ -6203,11 +6273,27 @@
         openSymbolDetail(chartBtn.dataset.f3Open);
         return;
       }
-      const head = ev.target.closest(".pf-f3-head");
-      if (!head) return;
-      const section = head.closest(".pf-f3-item");
-      if (!section) return;
-      setF3SectorOpen(section, head.getAttribute("aria-expanded") !== "true");
+      const pill = ev.target.closest(".pf-f3-pill");
+      if (!pill || !pill.dataset.f3Id) return;
+      openF3Pill(pill.dataset.f3Id);
+    }
+
+    function onF3PopoverClick(ev) {
+      const addBtn = ev.target.closest("[data-pf-add-one]");
+      if (addBtn) {
+        ev.preventDefault();
+        const { qty, avg } = pfDefaultQtyAvg();
+        if (addPortfolioSymbol(addBtn.dataset.pfAddOne, { qty, avg })) {
+          savePortfolio();
+          renderPortfolioTable();
+        }
+        return;
+      }
+      const chartBtn = ev.target.closest("[data-f3-open]");
+      if (chartBtn) {
+        ev.preventDefault();
+        openSymbolDetail(chartBtn.dataset.f3Open);
+      }
     }
 
     function loadPortfolioF3Themes() {
@@ -7004,8 +7090,12 @@
     }
 
     document.getElementById("pf-f3-themes")?.addEventListener("click", onF3BoardClick);
-    document.getElementById("pf-f3-expand-all")?.addEventListener("click", () => setAllF3Sectors(true));
-    document.getElementById("pf-f3-collapse-all")?.addEventListener("click", () => setAllF3Sectors(false));
+    document.getElementById("pf-f3-popover")?.addEventListener("click", onF3PopoverClick);
+    document.getElementById("pf-f3-popover-close")?.addEventListener("click", () => closeF3Popover());
+    document.getElementById("pf-f3-popover-backdrop")?.addEventListener("click", () => closeF3Popover());
+    document.addEventListener("keydown", (ev) => {
+      if (ev.key === "Escape" && pfF3OpenThemeId) closeF3Popover();
+    });
 
     document.getElementById("pf-clear-all")?.addEventListener("click", () => {
       if (deskPortfolioId != null) {
