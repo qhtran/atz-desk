@@ -109,6 +109,31 @@ def load_volume_filter_settings() -> VolumeFilterSettings:
             except (TypeError, ValueError):
                 continue
 
+    # Admin-First overlay thắng YAML (không crash nếu overlay lỗi)
+    try:
+        from backend.admin_config_store import _read_overlay
+        from backend.ops_config import effective_priceboard_ops
+
+        ops = effective_priceboard_ops(_read_overlay())
+        if ops.get("min_volume") is not None and not env.isdigit():
+            default = max(0, int(ops["min_volume"]))
+        raw_ops_map = ops.get("min_volume_by_exchange")
+        if isinstance(raw_ops_map, dict):
+            for key, val in raw_ops_map.items():
+                if val is None:
+                    continue
+                ex = str(key).strip().upper()
+                if ex == "HSX":
+                    ex = "HOSE"
+                if ex.startswith("UPCO"):
+                    ex = "UPCOM"
+                try:
+                    by_ex[ex] = max(0, int(val))
+                except (TypeError, ValueError):
+                    continue
+    except Exception:
+        pass
+
     if env.isdigit():
         by_ex["HOSE"] = default
 
@@ -131,9 +156,22 @@ def passes_volume_filter(
     tick: dict[str, Any],
     settings: VolumeFilterSettings | int | None = None,
 ) -> bool:
-    """Return True if tick should remain on the board / be published."""
+    """Return True if tick should remain on the board / be published.
+
+    Core symbols always pass (Admin-First Top-N must stay visible even when
+    session volume is still below the off-core liquidity gate).
+    """
     if is_index_row(tick):
         return True
+    sym = str(tick.get("symbol") or "").strip().upper()
+    if sym:
+        try:
+            from backend.market_catalog import load_core_symbol_set
+
+            if sym in load_core_symbol_set():
+                return True
+        except Exception:
+            pass
     if isinstance(settings, int):
         threshold = settings
     elif isinstance(settings, VolumeFilterSettings):

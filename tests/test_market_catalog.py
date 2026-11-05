@@ -7,6 +7,7 @@ from pathlib import Path
 from backend.market_catalog import (
     clear_catalog_cache,
     get_catalog_symbol,
+    list_core_catalog,
     load_core_symbol_set,
     search_catalog,
 )
@@ -17,6 +18,18 @@ def setup_function() -> None:
     clear_catalog_cache()
 
 
+def test_list_core_catalog_top240():
+    core = load_core_symbol_set()
+    assert len(core) >= 200
+    items = list_core_catalog()
+    assert len(items) == len(core)
+    assert items[0]["symbol"]
+    assert all(r.get("in_core") for r in items)
+    assert {r["symbol"] for r in items} == set(core)
+    capped = list_core_catalog(limit=30)
+    assert len(capped) == 30
+
+
 def test_catalog_includes_dbc_outside_core():
     core = load_core_symbol_set()
     assert "FPT" in core or "VCB" in core
@@ -24,7 +37,6 @@ def test_catalog_includes_dbc_outside_core():
     assert item is not None
     assert item["symbol"] == "DBC"
     assert item["exchange"] in ("HOSE", "HNX", "UPCOM")
-    # DBC is midcap — typically outside static ~80 core watchlist
     hits = search_catalog("DBC", limit=5)
     assert any(r["symbol"] == "DBC" for r in hits)
     assert hits[0]["symbol"] == "DBC"

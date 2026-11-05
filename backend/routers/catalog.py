@@ -7,7 +7,7 @@ from typing import Any
 from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
 
-from backend.market_catalog import get_catalog_symbol, search_catalog
+from backend.market_catalog import get_catalog_symbol, list_core_catalog, search_catalog
 from backend.ondemand_watch import list_active_ondemand, touch_ondemand_symbols
 from backend.quote_snapshot import resolve_quote_snapshots
 
@@ -33,6 +33,19 @@ async def catalog_symbols(
     }
 
 
+@router.get("/api/catalog/core")
+async def catalog_core(
+    limit: int | None = Query(default=None, ge=1, le=400),
+) -> dict[str, Any]:
+    """Full Top-N Core symbols for iBoard boot hydrate (Master Catalog)."""
+    items = list_core_catalog(limit=limit)
+    return {
+        "ok": True,
+        "count": len(items),
+        "items": items,
+    }
+
+
 @router.get("/api/catalog/symbol/{symbol}")
 async def catalog_symbol_one(symbol: str) -> dict[str, Any]:
     item = get_catalog_symbol(symbol)
@@ -43,7 +56,7 @@ async def catalog_symbol_one(symbol: str) -> dict[str, Any]:
 
 @router.get("/api/quotes/snapshot")
 async def quotes_snapshot(
-    symbols: str = Query(default="", max_length=512),
+    symbols: str = Query(default="", max_length=8000),
 ) -> dict[str, Any]:
     """Static/snapshot quotes — Redis → OHLCV → catalog stub (no SSI WS subscribe)."""
     return resolve_quote_snapshots(symbols)

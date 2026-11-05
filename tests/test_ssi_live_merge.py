@@ -1,5 +1,9 @@
 """Regression: SSI live merge must keep board exchange (HNX/UPCOM tabs)."""
 
+from unittest.mock import AsyncMock
+
+import pytest
+
 from backend.board_universe import FUTURES_BOARD_SYMBOLS
 from backend.futures_contracts import load_futures_contract_map
 from backend.ssi_live import RealSsiWorker
@@ -115,3 +119,39 @@ def test_merge_tick_hnx_even_when_prev_had_wrong_hose():
     )
     merged = worker._merge_tick({"symbol": "SHS", "kind": "equity", "last": 12_100})
     assert merged["exchange"] == "HNX"
+
+
+@pytest.mark.asyncio
+async def test_purge_removed_core_hdel_and_publish_remove():
+    worker = RealSsiWorker()
+    worker._board["ZZZ"] = build_tick(symbol="ZZZ", last=1, ref=1, exchange="HOSE")
+    worker._board["YYY"] = build_tick(symbol="YYY", last=1, ref=1, exchange="HNX")
+    worker._board["KEEP"] = build_tick(symbol="KEEP", last=1, ref=1, exchange="HOSE")
+    redis = AsyncMock()
+    redis.hdel = AsyncMock(return_value=1)
+    redis.publish = AsyncMock(return_value=1)
+    n = await worker._purge_removed_core_from_board(redis, ["ZZZ", "", "yyy"])
+    assert n == 2
+    assert "ZZZ" not in worker._board
+    assert "YYY" not in worker._board
+    assert "KEEP" in worker._board
+    assert redis.hdel.await_count == 2
+    assert redis.publish.await_count == 2
+    published = redis.publish.await_args_list[0].args[1]
+    assert '"type":"remove"' in published.replace(" ", "")
+    assert "ZZZ" in published
+
+
+@pytest.mark.asyncio
+async def test_reconcile_board_hash_drops_off_universe():
+    worker = RealSsiWorker()
+    worker.symbols = ["AAA", "BBB"]
+    worker._ondemand_active = {"OD1"}
+    redis = AsyncMock()
+    redis.hkeys = AsyncMock(return_value=["AAA", "OLD1", "OD1", "VNINDEX", "old2"])
+    redis.hdel = AsyncMock(return_value=1)
+    redis.publish = AsyncMock(return_value=1)
+    n = await worker._reconcile_board_hash_to_universe(redis)
+    assert n == 2
+    purged = {c.args[1] for c in redis.hdel.await_args_list}
+    assert purged == {"OLD1", "OLD2"}

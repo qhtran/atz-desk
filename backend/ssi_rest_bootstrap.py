@@ -208,12 +208,18 @@ def equity_tick_from_summary(row: dict[str, Any], symbol: str) -> dict[str, Any]
     fs = _num(row.get("totalForeignSell"))
     fbv = _num(row.get("totalForeignBuyValue"))
     fsv = _num(row.get("totalForeignSellValue"))
+    try:
+        from backend.market_catalog import resolve_listed_exchange
+
+        ex = resolve_listed_exchange(sym)
+    except Exception:
+        ex = exchange_for_symbol(sym)
     return build_tick(
         symbol=sym,
         last=last,
         ref=ref,
         kind="equity",
-        exchange=exchange_for_symbol(sym),
+        exchange=ex,
         volume=int(vol or 0),
         high=high,
         low=low,
