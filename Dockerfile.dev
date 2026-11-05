@@ -34,6 +34,8 @@ COPY config/account.yaml /app/config/account.yaml
 COPY config/desk_scoring_presets.yaml /app/config/desk_scoring_presets.yaml
 COPY config/market_catalog.json /app/config/market_catalog.json
 COPY config/priceboard_core_symbols.yaml /app/config/priceboard_core_symbols.yaml
+COPY config/exchange_listing.csv /app/config/exchange_listing.csv
+COPY config/core_allocation.yaml /app/config/core_allocation.yaml
 COPY src/atz/analysis/f3_alerts.py src/atz/analysis/candles.py src/atz/analysis/technical.py src/atz/analysis/__init__.py /app/atz_pkg/analysis/
 COPY src/atz/config.py /app/atz_pkg/config.py
 COPY src/atz/storage/__init__.py src/atz/storage/paths.py /app/atz_pkg/storage/
