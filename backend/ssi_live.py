@@ -391,6 +391,71 @@ class RealSsiWorker:
             sample_added=added[:12],
             sample_removed=removed[:12],
         )
+        # Cold-start: seed OHLCV (then optional REST) so Admin-added HNX/UPCOM
+        # không hiện stub trống trên iBoard trước khi có tick.
+        try:
+            await self._seed_missing_core_ohlcv(redis, symbols=added or sorted(new_core))
+        except Exception as exc:  # noqa: BLE001
+            log(
+                COMPONENT,
+                "SSI-CORE-SEED",
+                "ohlcv cold-start seed failed",
+                logging.WARNING,
+                error_code=ERR_PB_SSI_SESSION,
+                exc=exc,
+            )
+
+    async def _seed_missing_core_ohlcv(
+        self,
+        redis: aioredis.Redis,
+        *,
+        symbols: list[str] | None = None,
+    ) -> None:
+        """Publish OHLCV last-close for Core symbols missing displayable last/ref."""
+        from backend.market_catalog import resolve_listed_exchange
+        from backend.portfolio_quotes import DEFAULT_BARS_DIR, ohlcv_last_close_vnd
+        from backend.ssi_rest_bootstrap import needs_rest_bootstrap
+        from backend.tick_contract import build_tick, tick_kind_for_symbol
+
+        bars = Path(os.getenv("OHLCV_BARS_DIR") or str(DEFAULT_BARS_DIR))
+        targets = [
+            str(s).strip().upper()
+            for s in (symbols or self.symbols or [])
+            if str(s).strip() and str(s).strip().upper() not in INDEX_BOARD_SYMBOLS
+        ]
+        need = [s for s in targets if needs_rest_bootstrap(self._board.get(s))]
+        if not need:
+            return
+        seeded = 0
+        for sym in need:
+            try:
+                px = ohlcv_last_close_vnd(bars, sym)
+            except Exception:
+                px = None
+            if px is None or px <= 0:
+                continue
+            tick = build_tick(
+                symbol=sym,
+                last=px,
+                ref=px,
+                kind=tick_kind_for_symbol(sym),
+                exchange=resolve_listed_exchange(sym),
+                volume=0,
+                change=0,
+                change_pct=0.0,
+                source="OHLCV_SNAP",
+                extra={"bootstrap": "core_cold_start"},
+            )
+            await self._publish(redis, tick, merged=False)
+            seeded += 1
+        log(
+            COMPONENT,
+            "SSI-CORE-SEED",
+            "ohlcv cold-start seeded",
+            need=len(need),
+            seeded=seeded,
+            bars_dir=str(bars),
+        )
 
     async def _listen_admin_config_reload(self) -> None:
         """Pub/Sub ``admin:config-reload`` → flag pending core/volume reload."""
@@ -557,6 +622,18 @@ class RealSsiWorker:
             equities=len(equity_need),
             published=published,
         )
+        # Fill gaps REST missed (thin HNX/UPCOM / off-hours) from local OHLCV.
+        try:
+            await self._seed_missing_core_ohlcv(redis)
+        except Exception as exc:  # noqa: BLE001
+            log(
+                COMPONENT,
+                "SSI-CORE-SEED",
+                "post-rest ohlcv seed failed",
+                logging.WARNING,
+                error_code=ERR_PB_SSI_SESSION,
+                exc=exc,
+            )
 
     _MERGE_KEYS = (
         "symbol",

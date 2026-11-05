@@ -56,7 +56,7 @@ async def catalog_symbol_one(symbol: str) -> dict[str, Any]:
 
 @router.get("/api/quotes/snapshot")
 async def quotes_snapshot(
-    symbols: str = Query(default="", max_length=512),
+    symbols: str = Query(default="", max_length=8000),
 ) -> dict[str, Any]:
     """Static/snapshot quotes — Redis → OHLCV → catalog stub (no SSI WS subscribe)."""
     return resolve_quote_snapshots(symbols)

@@ -156,9 +156,22 @@ def passes_volume_filter(
     tick: dict[str, Any],
     settings: VolumeFilterSettings | int | None = None,
 ) -> bool:
-    """Return True if tick should remain on the board / be published."""
+    """Return True if tick should remain on the board / be published.
+
+    Core symbols always pass (Admin-First Top-N must stay visible even when
+    session volume is still below the off-core liquidity gate).
+    """
     if is_index_row(tick):
         return True
+    sym = str(tick.get("symbol") or "").strip().upper()
+    if sym:
+        try:
+            from backend.market_catalog import load_core_symbol_set
+
+            if sym in load_core_symbol_set():
+                return True
+        except Exception:
+            pass
     if isinstance(settings, int):
         threshold = settings
     elif isinstance(settings, VolumeFilterSettings):

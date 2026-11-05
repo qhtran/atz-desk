@@ -5114,41 +5114,45 @@
         return !row || !(Number(row.last) > 0);
       });
       if (!need.length) return;
-      try {
-        const res = await fetch(
-          apiUrl("/api/quotes/snapshot?symbols=" + encodeURIComponent(need.join(","))),
-          { credentials: "same-origin" },
-        );
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok || !data.ok || !data.quotes) return;
-        Object.keys(data.quotes).forEach((sym) => {
-          const tick = data.quotes[sym];
-          if (!tick) return;
-          const last = Number(tick.last);
-          if (tick.priced && Number.isFinite(last) && last > 0) {
-            applyRow(tick, { flash: false });
-            return;
-          }
-          if (!state.get(sym)) {
-            applyRow(
-              {
-                type: "tick",
-                symbol: sym,
-                exchange: tick.exchange || "HOSE",
-                kind: tick.kind || "equity",
-                last: 0,
-                ref: 0,
-                change: 0,
-                change_pct: 0,
-                volume: 0,
-                source: tick.source || "CATALOG",
-              },
-              { flash: false },
-            );
-          }
-        });
-      } catch (_) {
-        /* offline */
+      const chunkSize = 80;
+      for (let i = 0; i < need.length; i += chunkSize) {
+        const chunk = need.slice(i, i + chunkSize);
+        try {
+          const res = await fetch(
+            apiUrl("/api/quotes/snapshot?symbols=" + encodeURIComponent(chunk.join(","))),
+            { credentials: "same-origin" },
+          );
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok || !data.ok || !data.quotes) continue;
+          Object.keys(data.quotes).forEach((sym) => {
+            const tick = data.quotes[sym];
+            if (!tick) return;
+            const last = Number(tick.last);
+            if (tick.priced && Number.isFinite(last) && last > 0) {
+              applyRow(tick, { flash: false });
+              return;
+            }
+            if (!state.get(sym)) {
+              applyRow(
+                {
+                  type: "tick",
+                  symbol: sym,
+                  exchange: tick.exchange || "HOSE",
+                  kind: tick.kind || "equity",
+                  last: 0,
+                  ref: 0,
+                  change: 0,
+                  change_pct: 0,
+                  volume: 0,
+                  source: tick.source || "CATALOG",
+                },
+                { flash: false },
+              );
+            }
+          });
+        } catch (_) {
+          /* offline */
+        }
       }
     }
 
@@ -7286,6 +7290,11 @@
             applyRow(r, { flash: false });
           });
           hydrateMissingBoardSymbols(rows);
+          // Cold-start: snapshot OHLCV/catalog cho mã Core mới chưa có giá (HNX/UPCOM…).
+          void hydrateQuoteSnapshots(boardUniverseSymbols()).then(() => {
+            applyBoardFilter();
+            updateScreenerStatus(countVisibleBoardRows());
+          });
           renderIndexBar();
           rows.forEach((r) => {
             if (INDEX_SYMBOLS.has(r.symbol)) applyIndex(r, { flash: false });
