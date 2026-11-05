@@ -3,13 +3,10 @@
 # Chỉ URL công khai, không để secret ở đây. URL rỗng thì nút tương ứng bị ẩn.
 account:
   enabled: true
-  # OIDC start qua Authentik Outpost (Hướng A — SPA không lưu token).
-  # rd= đưa user về SPA sau login; Welcome Gate gọi URL này khi bấm Đăng nhập.
-  login_url: "https://dev.atz.vn/outpost.goauthentik.io/start?rd=https%3A%2F%2Fdev.atz.vn%2F"
-  # Outpost xóa cookie rồi chạy invalidation flow của provider (default-provider-invalidation-flow).
-  # Dev dùng cùng domain outpost nếu có; mặc định path trên atz.vn vẫn hủy cookie shared domain.
-  # rd= đưa về SPA sau SLO — tránh kẹt trang login auth.atz.vn sau Đăng xuất.
-  logout_url: "https://dev.atz.vn/outpost.goauthentik.io/sign_out?rd=https%3A%2F%2Fdev.atz.vn%2F"
+  # Để trống → SPA dùng same-origin /outpost.goauthentik.io/start|sign_out?rd=
+  # (tránh hardcode dev.atz.vn khi user đang ở atz.vn).
+  login_url: ""
+  logout_url: ""
   password_flow_url: "https://auth.atz.vn/if/flow/default-password-change/"
   mfa_flow_url: "https://auth.atz.vn/if/flow/default-authenticator-totp-setup/"
   # Group Authentik → quyền Admin Control Panel (client + API guard).
