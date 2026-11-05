@@ -94,6 +94,11 @@ Không thay ADR; không dump changelog dài. Mỗi mục: ngày · phạm vi · 
 **File neo**
 - `frontend/index.html` — CSS `.pf-f3-pills` / `.pf-f3-popover`, `openF3Pill` / `closeF3Popover`
 - `tests/test_portfolio_f3.py` — `test_f3_pills_popover_markup`
+- Commit: `3511508` · PROD Desk redeployed (api recreate; SSI worker giữ nguyên)
+
+**Verify atz.vn**
+- iBoard default: `#board-wrap` trong viewport đầu (`boardTop≈388` / `vh≈823`)
+- Portfolio: 14 pills; mở «Chứng khoán» → popover có mã (vd SSI); đóng OK
 
 **Follow-up**
 - P2: neo popover theo pill đang chọn (anchor) nếu panel hẹp trên mobile.
