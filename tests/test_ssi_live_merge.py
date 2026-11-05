@@ -140,3 +140,18 @@ async def test_purge_removed_core_hdel_and_publish_remove():
     published = redis.publish.await_args_list[0].args[1]
     assert '"type":"remove"' in published.replace(" ", "")
     assert "ZZZ" in published
+
+
+@pytest.mark.asyncio
+async def test_reconcile_board_hash_drops_off_universe():
+    worker = RealSsiWorker()
+    worker.symbols = ["AAA", "BBB"]
+    worker._ondemand_active = {"OD1"}
+    redis = AsyncMock()
+    redis.hkeys = AsyncMock(return_value=["AAA", "OLD1", "OD1", "VNINDEX", "old2"])
+    redis.hdel = AsyncMock(return_value=1)
+    redis.publish = AsyncMock(return_value=1)
+    n = await worker._reconcile_board_hash_to_universe(redis)
+    assert n == 2
+    purged = {c.args[1] for c in redis.hdel.await_args_list}
+    assert purged == {"OLD1", "OLD2"}

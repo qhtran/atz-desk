@@ -383,7 +383,10 @@ class RealSsiWorker:
                     await ws.send(
                         json.dumps({"method": "UNSUBSCRIBE", "channel": ch, "topics": topics})
                     )
-        purged = await self._purge_removed_core_from_board(redis, drop_board)
+        purged_diff = await self._purge_removed_core_from_board(redis, drop_board)
+        # Luôn reconcile hash: boot/reload khi old==new vẫn còn mã Core cũ trong Redis.
+        purged_recon = await self._reconcile_board_hash_to_universe(redis)
+        purged = purged_diff + purged_recon
         log(
             COMPONENT,
             "SSI-CORE-RELOAD",
@@ -391,6 +394,8 @@ class RealSsiWorker:
             added=len(added),
             removed=len(removed),
             purged=purged,
+            purged_diff=purged_diff,
+            purged_recon=purged_recon,
             core=len(new_core),
             sample_added=added[:12],
             sample_removed=removed[:12],
@@ -440,6 +445,48 @@ class RealSsiWorker:
                     exc=exc,
                     symbol=s,
                 )
+        return purged
+
+    def _board_keep_symbols(self) -> set[str]:
+        keep = set(self._equity_like_symbols())
+        keep.update(self._ondemand_active)
+        keep.update(INDEX_BOARD_SYMBOLS)
+        keep.update(FUTURES_BOARD_SYMBOLS)
+        return keep
+
+    async def _reconcile_board_hash_to_universe(self, redis: aioredis.Redis) -> int:
+        """Xóa equity trong Redis không thuộc Core/ondemand/index/futures."""
+        keep = self._board_keep_symbols()
+        try:
+            keys = await redis.hkeys(HASH_KEY)
+        except Exception as exc:  # noqa: BLE001
+            log(
+                COMPONENT,
+                "SSI-CORE-RECON",
+                "hkeys failed",
+                logging.WARNING,
+                error_code=ERR_PB_SSI_SESSION,
+                exc=exc,
+            )
+            return 0
+        drop = sorted(
+            {
+                str(k or "").strip().upper()
+                for k in (keys or [])
+                if str(k or "").strip() and str(k).strip().upper() not in keep
+            }
+        )
+        if not drop:
+            return 0
+        purged = await self._purge_removed_core_from_board(redis, drop)
+        log(
+            COMPONENT,
+            "SSI-CORE-RECON",
+            "purged off-universe redis quotes",
+            purged=purged,
+            sample=drop[:12],
+            keep=len(keep),
+        )
         return purged
 
     async def _seed_missing_core_ohlcv(
@@ -919,6 +966,17 @@ class RealSsiWorker:
                 )
             await self._load_board_from_redis(redis)
             await self._load_ondemand_from_redis(redis)
+            try:
+                await self._reconcile_board_hash_to_universe(redis)
+            except Exception as exc:  # noqa: BLE001
+                log(
+                    COMPONENT,
+                    "SSI-CORE-RECON",
+                    "boot reconcile failed",
+                    logging.WARNING,
+                    error_code=ERR_PB_SSI_SESSION,
+                    exc=exc,
+                )
             topics = self._build_topics()
             await self._bootstrap_rest(redis, token)
             headers = {"Authorization": f"Bearer {token}"}
