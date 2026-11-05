@@ -65,6 +65,15 @@ CHANNEL = os.getenv("PRICEBOARD_CHANNEL", "priceboard_ticks")
 HASH_KEY = os.getenv("PRICEBOARD_HASH", "priceboard:quotes")
 VOLUME_FILTER = load_volume_filter_settings()
 
+
+def reload_volume_filter() -> None:
+    """Hot-reload volume gate from Admin-First overlay (never raises)."""
+    global VOLUME_FILTER  # noqa: PLW0603
+    try:
+        VOLUME_FILTER = load_volume_filter_settings()
+    except Exception:
+        pass
+
 DEFAULT_WS = "wss://stream.ssi.com.vn/ws/v3"
 DEFAULT_AUTH = "https://api.ssi.com.vn/api/v3/auth/token"
 
@@ -199,6 +208,9 @@ class RealSsiWorker:
         )
         self._futures_contracts = load_futures_contract_map(ssi)
         self._contract_to_board = invert_contract_map(self._futures_contracts)
+        self._pending_ops_reload = False
+        self._ondemand_sync_enabled = True
+        self._maintenance_mode = False
         if self._futures_contracts:
             log(
                 COMPONENT,
@@ -206,6 +218,23 @@ class RealSsiWorker:
                 "HĐTL board→contract",
                 contracts=self._futures_contracts,
             )
+        self._load_ops_flags()
+
+    def _load_ops_flags(self) -> None:
+        try:
+            from backend.admin_config_store import _read_overlay
+            from backend.ops_config import effective_priceboard_ops
+
+            ops = effective_priceboard_ops(_read_overlay())
+            self._ondemand_sync_enabled = bool(ops.get("ondemand_sync_enabled", True))
+            self._maintenance_mode = bool(ops.get("maintenance_mode", False))
+        except Exception:
+            self._ondemand_sync_enabled = True
+            self._maintenance_mode = False
+
+    def request_ops_reload(self) -> None:
+        """Mark pending Admin-First config reload (applied on WS loop)."""
+        self._pending_ops_reload = True
 
     def request_stop(self) -> None:
         self._stop.set()
@@ -307,8 +336,276 @@ class RealSsiWorker:
             active.add(s)
         self._ondemand_active = active
 
+    async def _reload_core_subscriptions(self, ws: Any, redis: aioredis.Redis) -> None:
+        """Rebuild Core YAML from Admin ops + diff SUBSCRIBE/UNSUBSCRIBE (no full restart)."""
+        reload_volume_filter()
+        self._load_ops_flags()
+        if self._maintenance_mode:
+            log(COMPONENT, "SSI-OPS-MAINT", "maintenance_mode on — skip core rebuild")
+            return
+        old_core = set(self._equity_like_symbols())
+        try:
+            from backend.core_symbols_builder import build_core_symbols
+            from backend.market_catalog import clear_catalog_cache
+
+            build_core_symbols()
+            clear_catalog_cache()
+        except Exception as exc:  # noqa: BLE001
+            log(
+                COMPONENT,
+                "SSI-CORE-REBUILD",
+                "core rebuild failed — keep previous symbols",
+                logging.WARNING,
+                error_code=ERR_PB_SSI_SESSION,
+                exc=exc,
+            )
+            return
+        new_list = _default_core_symbols()
+        if not new_list:
+            log(COMPONENT, "SSI-CORE-REBUILD", "empty core after rebuild — abort")
+            return
+        self.symbols = list(new_list)
+        new_core = set(self._equity_like_symbols())
+        added = sorted(new_core - old_core)
+        removed = sorted(old_core - new_core)
+        # Giữ subscribe nếu mã vẫn on-demand (watchlist/search).
+        drop_board = [s for s in removed if s not in self._ondemand_active]
+        for ch in self.channels:
+            if added:
+                topics = self._topics_for_symbols(ch, added)
+                if topics:
+                    await ws.send(
+                        json.dumps({"method": "SUBSCRIBE", "channel": ch, "topics": topics})
+                    )
+            if drop_board:
+                topics = self._topics_for_symbols(ch, drop_board)
+                if topics:
+                    await ws.send(
+                        json.dumps({"method": "UNSUBSCRIBE", "channel": ch, "topics": topics})
+                    )
+        purged_diff = await self._purge_removed_core_from_board(redis, drop_board)
+        # Luôn reconcile hash: boot/reload khi old==new vẫn còn mã Core cũ trong Redis.
+        purged_recon = await self._reconcile_board_hash_to_universe(redis)
+        purged = purged_diff + purged_recon
+        log(
+            COMPONENT,
+            "SSI-CORE-RELOAD",
+            "core symbols hot-reloaded",
+            added=len(added),
+            removed=len(removed),
+            purged=purged,
+            purged_diff=purged_diff,
+            purged_recon=purged_recon,
+            core=len(new_core),
+            sample_added=added[:12],
+            sample_removed=removed[:12],
+        )
+        # Cold-start: seed OHLCV (then optional REST) so Admin-added HNX/UPCOM
+        # không hiện stub trống trên iBoard trước khi có tick.
+        try:
+            await self._seed_missing_core_ohlcv(redis, symbols=added or sorted(new_core))
+        except Exception as exc:  # noqa: BLE001
+            log(
+                COMPONENT,
+                "SSI-CORE-SEED",
+                "ohlcv cold-start seed failed",
+                logging.WARNING,
+                error_code=ERR_PB_SSI_SESSION,
+                exc=exc,
+            )
+
+    async def _purge_removed_core_from_board(
+        self,
+        redis: aioredis.Redis,
+        symbols: list[str],
+    ) -> int:
+        """HDEL + WS remove cho mã rời Core — FE/iBoard bỏ hàng thừa ngay."""
+        purged = 0
+        for sym in symbols:
+            s = str(sym or "").strip().upper()
+            if not s:
+                continue
+            self._board.pop(s, None)
+            try:
+                await redis.hdel(HASH_KEY, s)
+                remove = json.dumps(
+                    {"type": "remove", "symbol": s},
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                )
+                await redis.publish(CHANNEL, remove)
+                purged += 1
+            except Exception as exc:  # noqa: BLE001
+                log(
+                    COMPONENT,
+                    "SSI-CORE-PURGE",
+                    "failed to purge removed core symbol",
+                    logging.WARNING,
+                    error_code=ERR_PB_SSI_SESSION,
+                    exc=exc,
+                    symbol=s,
+                )
+        return purged
+
+    def _board_keep_symbols(self) -> set[str]:
+        keep = set(self._equity_like_symbols())
+        keep.update(self._ondemand_active)
+        keep.update(INDEX_BOARD_SYMBOLS)
+        keep.update(FUTURES_BOARD_SYMBOLS)
+        return keep
+
+    async def _reconcile_board_hash_to_universe(self, redis: aioredis.Redis) -> int:
+        """Xóa equity trong Redis không thuộc Core/ondemand/index/futures."""
+        keep = self._board_keep_symbols()
+        try:
+            keys = await redis.hkeys(HASH_KEY)
+        except Exception as exc:  # noqa: BLE001
+            log(
+                COMPONENT,
+                "SSI-CORE-RECON",
+                "hkeys failed",
+                logging.WARNING,
+                error_code=ERR_PB_SSI_SESSION,
+                exc=exc,
+            )
+            return 0
+        drop = sorted(
+            {
+                str(k or "").strip().upper()
+                for k in (keys or [])
+                if str(k or "").strip() and str(k).strip().upper() not in keep
+            }
+        )
+        if not drop:
+            return 0
+        purged = await self._purge_removed_core_from_board(redis, drop)
+        log(
+            COMPONENT,
+            "SSI-CORE-RECON",
+            "purged off-universe redis quotes",
+            purged=purged,
+            sample=drop[:12],
+            keep=len(keep),
+        )
+        return purged
+
+    async def _seed_missing_core_ohlcv(
+        self,
+        redis: aioredis.Redis,
+        *,
+        symbols: list[str] | None = None,
+    ) -> None:
+        """Publish OHLCV last-close for Core symbols missing displayable last/ref."""
+        from backend.market_catalog import resolve_listed_exchange
+        from backend.portfolio_quotes import DEFAULT_BARS_DIR, ohlcv_last_close_vnd
+        from backend.ssi_rest_bootstrap import needs_rest_bootstrap
+        from backend.tick_contract import build_tick, tick_kind_for_symbol
+
+        bars = Path(os.getenv("OHLCV_BARS_DIR") or str(DEFAULT_BARS_DIR))
+        targets = [
+            str(s).strip().upper()
+            for s in (symbols or self.symbols or [])
+            if str(s).strip() and str(s).strip().upper() not in INDEX_BOARD_SYMBOLS
+        ]
+        need = [s for s in targets if needs_rest_bootstrap(self._board.get(s))]
+        if not need:
+            return
+        seeded = 0
+        for sym in need:
+            try:
+                px = ohlcv_last_close_vnd(bars, sym)
+            except Exception:
+                px = None
+            if px is None or px <= 0:
+                continue
+            tick = build_tick(
+                symbol=sym,
+                last=px,
+                ref=px,
+                kind=tick_kind_for_symbol(sym),
+                exchange=resolve_listed_exchange(sym),
+                volume=0,
+                change=0,
+                change_pct=0.0,
+                source="OHLCV_SNAP",
+                extra={"bootstrap": "core_cold_start"},
+            )
+            await self._publish(redis, tick, merged=False)
+            seeded += 1
+        log(
+            COMPONENT,
+            "SSI-CORE-SEED",
+            "ohlcv cold-start seeded",
+            need=len(need),
+            seeded=seeded,
+            bars_dir=str(bars),
+        )
+
+    async def _listen_admin_config_reload(self) -> None:
+        """Pub/Sub ``admin:config-reload`` → flag pending core/volume reload."""
+        from backend.admin_config_bus import config_reload_channel
+
+        channel = config_reload_channel()
+        redis = aioredis.from_url(REDIS_URL, decode_responses=True)
+        pubsub = redis.pubsub()
+        try:
+            await pubsub.subscribe(channel)
+            log(COMPONENT, "SSI-CFG-SUB", "listening admin config reload", channel=channel)
+            while not self._stop.is_set():
+                try:
+                    msg = await asyncio.wait_for(pubsub.get_message(ignore_subscribe_messages=True), timeout=2.0)
+                except asyncio.TimeoutError:
+                    continue
+                if not msg or msg.get("type") != "message":
+                    continue
+                raw = msg.get("data")
+                reload_core = True
+                try:
+                    payload = json.loads(raw) if isinstance(raw, str) else {}
+                    if isinstance(payload, dict) and "reload_core" in payload:
+                        reload_core = bool(payload.get("reload_core"))
+                    if isinstance(payload, dict) and isinstance(payload.get("priceboard"), dict):
+                        pb = payload["priceboard"]
+                        if "ondemand_sync_enabled" in pb:
+                            self._ondemand_sync_enabled = bool(pb.get("ondemand_sync_enabled"))
+                        if "maintenance_mode" in pb:
+                            self._maintenance_mode = bool(pb.get("maintenance_mode"))
+                        reload_core = bool(pb.get("reload_core_on_save", reload_core))
+                except Exception:
+                    pass
+                reload_volume_filter()
+                if reload_core:
+                    self._pending_ops_reload = True
+                log(
+                    COMPONENT,
+                    "SSI-CFG-EVENT",
+                    "admin config reload received",
+                    reload_core=reload_core,
+                )
+        except Exception as exc:  # noqa: BLE001
+            log(
+                COMPONENT,
+                "SSI-CFG-SUB",
+                "admin config listener stopped",
+                logging.WARNING,
+                error_code=ERR_PB_SSI_SESSION,
+                exc=exc,
+            )
+        finally:
+            try:
+                await pubsub.unsubscribe(channel)
+                await pubsub.aclose()
+            except Exception:
+                pass
+            try:
+                await redis.aclose()
+            except Exception:
+                pass
+
     async def _sync_ondemand_subscriptions(self, ws: Any, redis: aioredis.Redis) -> None:
         """SUBSCRIBE new / UNSUBSCRIBE idle on-demand symbols (poll Redis hash)."""
+        if not self._ondemand_sync_enabled:
+            return
         raw = await redis.hgetall(ONDEMAND_HASH)
         now = time.time()
         wanted: set[str] = set()
@@ -409,6 +706,18 @@ class RealSsiWorker:
             equities=len(equity_need),
             published=published,
         )
+        # Fill gaps REST missed (thin HNX/UPCOM / off-hours) from local OHLCV.
+        try:
+            await self._seed_missing_core_ohlcv(redis)
+        except Exception as exc:  # noqa: BLE001
+            log(
+                COMPONENT,
+                "SSI-CORE-SEED",
+                "post-rest ohlcv seed failed",
+                logging.WARNING,
+                error_code=ERR_PB_SSI_SESSION,
+                exc=exc,
+            )
 
     _MERGE_KEYS = (
         "symbol",
@@ -462,6 +771,14 @@ class RealSsiWorker:
             if extra:
                 tick["extra"] = extra
         sym = tick["symbol"]
+        # Keep board tabs accurate for Admin Core (listing > SSI default HOSE).
+        if str(tick.get("kind") or "").lower() != "index":
+            try:
+                from backend.market_catalog import resolve_listed_exchange
+
+                tick["exchange"] = resolve_listed_exchange(sym)
+            except Exception:
+                pass
         self._board[sym] = tick
         try:
             if not passes_volume_filter(tick, VOLUME_FILTER):
@@ -587,28 +904,36 @@ class RealSsiWorker:
 
     async def run(self) -> None:
         delay = self.reconnect_initial
-        while not self._stop.is_set():
-            try:
-                await self._session()
-                delay = self.reconnect_initial
-            except asyncio.CancelledError:
-                raise
-            except Exception as exc:  # noqa: BLE001
-                code = ERR_PB_SSI_AUTH if isinstance(exc, PriceboardError) and exc.error_code == ERR_PB_SSI_AUTH else ERR_PB_SSI_SESSION
-                log(
-                    COMPONENT,
-                    "SSI-LIVE-RECONNECT",
-                    "ssi live session error",
-                    logging.ERROR,
-                    error_code=code,
-                    exc=exc,
-                    retry_in_s=delay,
-                )
+        cfg_task = asyncio.create_task(self._listen_admin_config_reload(), name="ssi-admin-cfg")
+        try:
+            while not self._stop.is_set():
                 try:
-                    await asyncio.wait_for(self._stop.wait(), timeout=delay)
-                    return
-                except asyncio.TimeoutError:
-                    delay = min(delay * 2 + random.uniform(0, 0.5), self.reconnect_max)
+                    await self._session()
+                    delay = self.reconnect_initial
+                except asyncio.CancelledError:
+                    raise
+                except Exception as exc:  # noqa: BLE001
+                    code = ERR_PB_SSI_AUTH if isinstance(exc, PriceboardError) and exc.error_code == ERR_PB_SSI_AUTH else ERR_PB_SSI_SESSION
+                    log(
+                        COMPONENT,
+                        "SSI-LIVE-RECONNECT",
+                        "ssi live session error",
+                        logging.ERROR,
+                        error_code=code,
+                        exc=exc,
+                        retry_in_s=delay,
+                    )
+                    try:
+                        await asyncio.wait_for(self._stop.wait(), timeout=delay)
+                        return
+                    except asyncio.TimeoutError:
+                        delay = min(delay * 2 + random.uniform(0, 0.5), self.reconnect_max)
+        finally:
+            cfg_task.cancel()
+            try:
+                await cfg_task
+            except (asyncio.CancelledError, Exception):
+                pass
 
     async def _session(self) -> None:
         api_key, api_secret = _ssi_credentials()
@@ -618,8 +943,40 @@ class RealSsiWorker:
         token = await asyncio.to_thread(fetch_access_token, self.auth_url, api_key, api_secret)
         redis = aioredis.from_url(REDIS_URL, decode_responses=True)
         try:
+            # Apply Admin-First allocation before subscribe (overlay → rebuild YAML)
+            try:
+                from backend.core_symbols_builder import build_core_symbols
+                from backend.market_catalog import clear_catalog_cache
+
+                build_core_symbols()
+                clear_catalog_cache()
+                rebuilt = _default_core_symbols()
+                if rebuilt:
+                    self.symbols = list(rebuilt)
+                reload_volume_filter()
+                self._load_ops_flags()
+            except Exception as exc:  # noqa: BLE001
+                log(
+                    COMPONENT,
+                    "SSI-CORE-BOOT",
+                    "core rebuild at boot skipped",
+                    logging.WARNING,
+                    error_code=ERR_PB_SSI_SESSION,
+                    exc=exc,
+                )
             await self._load_board_from_redis(redis)
             await self._load_ondemand_from_redis(redis)
+            try:
+                await self._reconcile_board_hash_to_universe(redis)
+            except Exception as exc:  # noqa: BLE001
+                log(
+                    COMPONENT,
+                    "SSI-CORE-RECON",
+                    "boot reconcile failed",
+                    logging.WARNING,
+                    error_code=ERR_PB_SSI_SESSION,
+                    exc=exc,
+                )
             topics = self._build_topics()
             await self._bootstrap_rest(redis, token)
             headers = {"Authorization": f"Bearer {token}"}
@@ -662,6 +1019,19 @@ class RealSsiWorker:
                 last_ondemand_sync = 0.0
                 while not self._stop.is_set():
                     now = time.time()
+                    if self._pending_ops_reload:
+                        self._pending_ops_reload = False
+                        try:
+                            await self._reload_core_subscriptions(ws, redis)
+                        except Exception as exc:  # noqa: BLE001
+                            log(
+                                COMPONENT,
+                                "SSI-CORE-RELOAD-ERR",
+                                "core hot-reload failed",
+                                logging.WARNING,
+                                error_code=ERR_PB_SSI_SESSION,
+                                exc=exc,
+                            )
                     if now - last_ondemand_sync >= ondemand_every:
                         last_ondemand_sync = now
                         try:

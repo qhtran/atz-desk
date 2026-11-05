@@ -1974,10 +1974,34 @@
   <!-- ===== Panel: Admin (RBAC — chỉ hiện khi is_admin) ===== -->
   <section id="panel-admin" class="panel" data-panel="admin" data-atd-id="pb-ui:admin.panel" role="tabpanel" hidden>
     <div class="panel-toolbar">
-      <span class="text-[12px] text-gray-400">Parameter Control Panel · Screening Filters · Redis <code class="text-gray-300">admin:config-reload</code> · <code class="text-gray-300">/api/admin/control-plane</code></span>
+      <span class="text-[12px] text-gray-400">Admin-First Config · Core / Volume / Flags · <code class="text-gray-300">/api/admin/config</code> · Screening · <code class="text-gray-300">admin:config-reload</code></span>
     </div>
     <form id="admin-control-form" data-atd-id="pb-ui:admin.form" onsubmit="return false;">
       <div class="admin-form">
+        <div class="admin-card" data-atd-id="pb-ui:admin.ops.card">
+          <h3>Ops · Core allocation &amp; volume</h3>
+          <label class="admin-field">HOSE Core <input id="adm-core-hose" type="number" min="0" max="400" step="1" placeholder="160" /></label>
+          <label class="admin-field">HNX Core <input id="adm-core-hnx" type="number" min="0" max="400" step="1" placeholder="80" /></label>
+          <label class="admin-field">UPCOM Core <input id="adm-core-upcom" type="number" min="0" max="400" step="1" placeholder="60" /></label>
+          <label class="admin-field">max_core (≤500) <input id="adm-max-core" type="number" min="50" max="500" step="1" placeholder="300" /></label>
+          <label class="admin-field">min_volume HOSE <input id="adm-minvol-hose" type="number" min="0" max="50000000" step="1000" placeholder="500000" /></label>
+          <label class="admin-field">min_volume HNX <input id="adm-minvol-hnx" type="number" min="0" max="50000000" step="1000" placeholder="50000" /></label>
+          <label class="admin-field">min_volume UPCOM <input id="adm-minvol-upcom" type="number" min="0" max="50000000" step="1000" placeholder="50000" /></label>
+          <label class="admin-field" style="flex-direction:row;align-items:center;gap:8px;">
+            <input id="adm-maint" type="checkbox" /> Chế độ bảo trì (maintenance)
+          </label>
+          <label class="admin-field" style="flex-direction:row;align-items:center;gap:8px;">
+            <input id="adm-ondemand" type="checkbox" checked /> On-demand SSI sync
+          </label>
+          <label class="admin-field" style="flex-direction:row;align-items:center;gap:8px;">
+            <input id="adm-reload-core" type="checkbox" checked /> Reload Core khi Lưu &amp; Áp dụng
+          </label>
+          <div class="admin-actions" style="margin-top:8px;">
+            <button type="button" class="primary" id="adm-ops-save" data-atd-id="pb-ui:admin.ops.save">Lưu &amp; Áp dụng</button>
+            <button type="button" id="adm-ops-reload" data-atd-id="pb-ui:admin.ops.reload">Tải ops</button>
+            <span id="adm-ops-status" class="admin-status" role="status"></span>
+          </div>
+        </div>
         <div class="admin-card">
           <h3>Screening Filters · RSI</h3>
           <label class="admin-field">RSI length <input id="adm-rsi-length" type="number" min="2" max="100" step="1" placeholder="14" /></label>
@@ -2082,6 +2106,13 @@
       "VCI", "GEX", "PDR", "HSG", "NKG", "DGC", "DIG", "DXG", "HCM", "KDH",
       "NLG", "PNJ", "POW", "REE", "TCH", "VND", "VGC", "VPI", "VSH", "GMD",
     ]);
+    /** Top-N Core từ /api/catalog/core — hydrate iBoard lúc boot / sau Admin ops. */
+    /** @type {Map<string, {symbol:string, exchange:string, name?:string}>} */
+    const coreCatalogBySymbol = new Map();
+    /** @type {string[]} */
+    let coreCatalogSymbols = [];
+    /** @type {Promise<string[]>|null} */
+    let coreCatalogLoadPromise = null;
     const PIN_KEY = "atz.iboard.pinned";
     const MARKET_KEY = "atz.iboard.market";
     const WATCHLIST_KEY = "atz.iboard.watchlist_id";
@@ -2445,24 +2476,17 @@
 
     async function deskLogout() {
       const source = accountState.authSource;
-      let outpostPath = null;
+      const deskForm = !!accountState.deskSessionForm;
       try {
-        const res = await fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" });
-        const data = await res.json().catch(() => ({}));
-        if (data && data.outpost_sign_out) outpostPath = String(data.outpost_sign_out);
+        await fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" });
       } catch (_) {}
-      // Desk Session: cookie đã xóa — ở lại SPA (không SLO Authentik).
-      if (source === "desk_session") {
+      // Unified Login (Desk Session form): luôn ở lại SPA.
+      // Navigate tới outpost sign_out dễ kẹt vòng auth.atz.vn (invalidation flow).
+      if (deskForm || source === "desk_session" || source == null) {
         window.location.replace("/");
         return;
       }
-      // ForwardAuth: hủy cookie outpost/gateway rồi rd về SPA (tránh nửa phiên).
-      if (outpostPath && outpostPath.startsWith("/")) {
-        const rd = encodeURIComponent(location.origin + "/");
-        const join = outpostPath.includes("?") ? "&" : "?";
-        window.location.href = outpostPath + (outpostPath.includes("rd=") ? "" : join + "rd=" + rd);
-        return;
-      }
+      // Chỉ ForwardAuth thuần (không Desk form): same-host outpost SLO + rd về app.
       window.location.href = resolveLogoutUrl();
     }
 
@@ -2679,9 +2703,111 @@
       return Number.isFinite(n) ? n : null;
     }
 
+
+    function admOpsSetStatus(text, kind) {
+      const el = document.getElementById("adm-ops-status");
+      if (!el) return;
+      el.textContent = text || "";
+      el.classList.toggle("is-ok", kind === "ok");
+      el.classList.toggle("is-err", kind === "err");
+    }
+
+    async function loadAdminOpsConfig() {
+      if (!accountState.isAdmin) return;
+      admOpsSetStatus("Đang tải ops…");
+      try {
+        const res = await fetch("/api/admin/config", { credentials: "same-origin" });
+        if (res.status === 401 || res.status === 403) {
+          admOpsSetStatus("Không đủ quyền admin", "err");
+          return;
+        }
+        const data = await res.json();
+        const cfg = data.config || {};
+        const alloc = cfg.core_allocation || {};
+        const mv = cfg.min_volume_by_exchange || {};
+        admFill("adm-core-hose", alloc.HOSE);
+        admFill("adm-core-hnx", alloc.HNX);
+        admFill("adm-core-upcom", alloc.UPCOM);
+        admFill("adm-max-core", cfg.max_core);
+        admFill("adm-minvol-hose", mv.HOSE != null ? mv.HOSE : cfg.min_volume);
+        admFill("adm-minvol-hnx", mv.HNX);
+        admFill("adm-minvol-upcom", mv.UPCOM);
+        const maint = document.getElementById("adm-maint");
+        const ond = document.getElementById("adm-ondemand");
+        const rel = document.getElementById("adm-reload-core");
+        if (maint) maint.checked = !!cfg.maintenance_mode;
+        if (ond) ond.checked = cfg.ondemand_sync_enabled !== false;
+        if (rel) rel.checked = cfg.reload_core_on_save !== false;
+        const sum = (Number(alloc.HOSE) || 0) + (Number(alloc.HNX) || 0) + (Number(alloc.UPCOM) || 0);
+        admOpsSetStatus(`Đã tải ops · tổng Core ${sum}/${cfg.max_core || "?"} · guardrail ≤500`, "ok");
+      } catch (_) {
+        admOpsSetStatus("Lỗi tải /api/admin/config", "err");
+      }
+    }
+
+    async function saveAdminOpsConfig() {
+      if (!accountState.isAdmin) return;
+      admOpsSetStatus("Đang lưu & áp dụng…");
+      const hose = admNum("adm-core-hose");
+      const hnx = admNum("adm-core-hnx");
+      const up = admNum("adm-core-upcom");
+      const body = {
+        config: {
+          core_allocation: {
+            HOSE: hose,
+            HNX: hnx,
+            UPCOM: up,
+          },
+          max_core: admNum("adm-max-core"),
+          min_volume: admNum("adm-minvol-hose"),
+          min_volume_by_exchange: {
+            HOSE: admNum("adm-minvol-hose"),
+            HNX: admNum("adm-minvol-hnx"),
+            UPCOM: admNum("adm-minvol-upcom"),
+          },
+          maintenance_mode: !!document.getElementById("adm-maint")?.checked,
+          ondemand_sync_enabled: !!document.getElementById("adm-ondemand")?.checked,
+          reload_core_on_save: !!document.getElementById("adm-reload-core")?.checked,
+        },
+      };
+      try {
+        const res = await fetch("/api/admin/config", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || data.ok === false) {
+          admOpsSetStatus(data.error || data.detail || ("HTTP " + res.status), "err");
+          return;
+        }
+        const warn = (data.warnings || []).slice(0, 2).join("; ");
+        await loadAdminOpsConfig();
+        let boardSync = null;
+        try {
+          if (typeof refreshBoardAfterCoreOpsChange === "function") {
+            boardSync = await refreshBoardAfterCoreOpsChange();
+          }
+        } catch (_) {
+          boardSync = null;
+        }
+        const syncLabel = boardSync
+          ? ` · board ${boardSync.total} (HOSE ${boardSync.hose}/HNX ${boardSync.hnx}/UPCOM ${boardSync.upcom})`
+          : "";
+        admOpsSetStatus(
+          "Đã lưu & áp dụng" + (warn ? " · " + warn : " · hot-reload worker") + syncLabel,
+          "ok",
+        );
+      } catch (_) {
+        admOpsSetStatus("Lỗi lưu ops config", "err");
+      }
+    }
+
     async function loadAdminControlPlane() {
       if (!accountState.isAdmin) return;
       admSetStatus("Đang tải…");
+      void loadAdminOpsConfig();
       try {
         const res = await fetch("/api/admin/control-plane", { credentials: "same-origin" });
         if (res.status === 401 || res.status === 403) {
@@ -2764,6 +2890,8 @@
 
     document.getElementById("adm-save")?.addEventListener("click", () => { void saveAdminControlPlane(); });
     document.getElementById("adm-reload")?.addEventListener("click", () => { void loadAdminControlPlane(); });
+    document.getElementById("adm-ops-save")?.addEventListener("click", () => { void saveAdminOpsConfig(); });
+    document.getElementById("adm-ops-reload")?.addEventListener("click", () => { void loadAdminOpsConfig(); });
 
     /* ===== Connection ===== */
     function setConn(status) {
@@ -4049,7 +4177,7 @@
       applyEquity(row, opts);
     }
 
-    function boardUniverseSymbols() {
+    function fallbackBoardUniverseSymbols() {
       return [
         ...VN30_SET,
         ...HOSE_EXTRA_SET,
@@ -4059,10 +4187,101 @@
       ];
     }
 
+    function boardUniverseSymbols() {
+      if (coreCatalogSymbols.length) {
+        return [...coreCatalogSymbols, ...FUTURES_BOARD_SYMBOLS];
+      }
+      return fallbackBoardUniverseSymbols();
+    }
+
+    async function loadCoreCatalog(force = false) {
+      if (!force && coreCatalogSymbols.length) return boardUniverseSymbols();
+      if (!force && coreCatalogLoadPromise) return coreCatalogLoadPromise;
+      if (force) {
+        coreCatalogSymbols = [];
+        coreCatalogBySymbol.clear();
+        coreCatalogLoadPromise = null;
+      }
+      coreCatalogLoadPromise = (async () => {
+        try {
+          const res = await fetch(apiUrl("/api/catalog/core"), {
+            credentials: "same-origin",
+            cache: "no-store",
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok || !data.ok || !Array.isArray(data.items)) return fallbackBoardUniverseSymbols();
+          coreCatalogBySymbol.clear();
+          const syms = [];
+          for (const item of data.items) {
+            const sym = String(item && item.symbol || "").toUpperCase();
+            if (!sym || INDEX_SYMBOLS.has(sym)) continue;
+            let exchange = String(item.exchange || "HOSE").toUpperCase();
+            if (exchange === "HSX") exchange = "HOSE";
+            if (exchange === "UPX") exchange = "UPCOM";
+            if (exchange !== "HOSE" && exchange !== "HNX" && exchange !== "UPCOM") exchange = "HOSE";
+            coreCatalogBySymbol.set(sym, { symbol: sym, exchange, name: item.name || "" });
+            syms.push(sym);
+          }
+          if (syms.length) coreCatalogSymbols = syms;
+          return boardUniverseSymbols();
+        } catch (_) {
+          return fallbackBoardUniverseSymbols();
+        }
+      })();
+      return coreCatalogLoadPromise;
+    }
+
+    /** Bỏ hàng equity không còn trong Core (sau Admin đổi allocation / WS remove). */
+    function pruneBoardToCoreUniverse() {
+      const keep = new Set(boardUniverseSymbols());
+      for (const sym of [...state.keys()]) {
+        if (!sym) continue;
+        if (INDEX_SYMBOLS.has(sym) && !FUTURES_BOARD_SYMBOLS.has(sym)) continue;
+        if (keep.has(sym)) continue;
+        if (activeWatchlistSymbols && activeWatchlistSymbols.has(sym)) continue;
+        state.delete(sym);
+        const tr = document.getElementById("row-" + sym);
+        if (tr) tr.remove();
+      }
+      applyBoardFilter();
+      updatePinnedPositions();
+      scheduleIndexStatsRefresh();
+    }
+
+    function coreCatalogCountsByExchange() {
+      const counts = { HOSE: 0, HNX: 0, UPCOM: 0 };
+      for (const sym of coreCatalogSymbols) {
+        const ex = (coreCatalogBySymbol.get(sym) || {}).exchange || "HOSE";
+        if (counts[ex] != null) counts[ex] += 1;
+        else counts.HOSE += 1;
+      }
+      return counts;
+    }
+
+    async function refreshBoardAfterCoreOpsChange() {
+      await loadCoreCatalog(true);
+      pruneBoardToCoreUniverse();
+      hydrateMissingBoardSymbols([...state.values()]);
+      try {
+        await hydrateQuoteSnapshots(boardUniverseSymbols());
+      } catch (_) { /* ignore */ }
+      applyBoardFilter();
+      updateScreenerStatus(countVisibleBoardRows());
+      const c = coreCatalogCountsByExchange();
+      return {
+        total: coreCatalogSymbols.length,
+        hose: c.HOSE,
+        hnx: c.HNX,
+        upcom: c.UPCOM,
+      };
+    }
+
     function stubEquityRow(symbol) {
       const sym = String(symbol || "").toUpperCase();
+      const coreHit = coreCatalogBySymbol.get(sym);
       let exchange = "HOSE";
-      if (HNX_SET.has(sym)) exchange = "HNX";
+      if (coreHit && coreHit.exchange) exchange = coreHit.exchange;
+      else if (HNX_SET.has(sym)) exchange = "HNX";
       else if (UPCOM_SET.has(sym)) exchange = "UPCOM";
       return {
         type: "tick",
@@ -4082,7 +4301,7 @@
       };
     }
 
-    /** Bổ sung stub cho mã universe thiếu trong snapshot — tránh bảng “rỗng / 1 mã”. */
+    /** Bổ sung stub Core thiếu trong snapshot — tránh bảng chỉ ~30/80 mã hardcoded. */
     function hydrateMissingBoardSymbols(existingRows) {
       const have = new Set(
         (existingRows || []).map((r) => String(r && r.symbol || "").toUpperCase()).filter(Boolean)
@@ -7270,12 +7489,22 @@
         const equitySyms = rows
           .map((r) => r && r.symbol)
           .filter((s) => s && !INDEX_SYMBOLS.has(s));
-        void Promise.all([fetchIndexSpark(), fetchEquitySpark(equitySyms)]).then(() => {
+        void Promise.all([
+          loadCoreCatalog(),
+          fetchIndexSpark(),
+          fetchEquitySpark(equitySyms),
+        ]).then(() => {
           rows.forEach((r) => {
             if (INDEX_SYMBOLS.has(r.symbol) && inTradingSession()) pushSpark(r.symbol, r.last);
             applyRow(r, { flash: false });
           });
           hydrateMissingBoardSymbols(rows);
+          pruneBoardToCoreUniverse();
+          void hydrateQuoteSnapshots(boardUniverseSymbols()).then(() => {
+            pruneBoardToCoreUniverse();
+            applyBoardFilter();
+            updateScreenerStatus(countVisibleBoardRows());
+          });
           renderIndexBar();
           rows.forEach((r) => {
             if (INDEX_SYMBOLS.has(r.symbol)) applyIndex(r, { flash: false });

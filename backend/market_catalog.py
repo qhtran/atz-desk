@@ -28,6 +28,7 @@ _ROOT = Path(__file__).resolve().parent.parent
 _DEFAULT_CATALOG_JSON = _ROOT / "config" / "market_catalog.json"
 _DEFAULT_CORE_YAML = _ROOT / "config" / "priceboard_core_symbols.yaml"
 _DEFAULT_F3_YAML = _ROOT / "config" / "sector_themes_f3.yaml"
+_DEFAULT_LISTING_CSV = _ROOT / "config" / "exchange_listing.csv"
 
 
 def _catalog_json_path() -> Path:
@@ -42,9 +43,14 @@ def _f3_yaml_path() -> Path:
     return Path(os.getenv("F3_THEMES_CONFIG", str(_DEFAULT_F3_YAML)))
 
 
+def _listing_csv_path() -> Path:
+    return Path(os.getenv("EXCHANGE_LISTING_CSV", str(_DEFAULT_LISTING_CSV)))
+
+
 def clear_catalog_cache() -> None:
     load_market_catalog.cache_clear()
     load_core_symbol_set.cache_clear()
+    load_exchange_listing_map.cache_clear()
 
 
 @lru_cache(maxsize=1)
@@ -137,10 +143,45 @@ def _json_overlay() -> dict[str, dict[str, Any]]:
 
 
 @lru_cache(maxsize=1)
+def load_exchange_listing_map() -> dict[str, str]:
+    """symbol → exchange from ``config/exchange_listing.csv`` (Core allocation source)."""
+    path = _listing_csv_path()
+    if not path.is_file():
+        return {}
+    try:
+        import csv
+
+        out: dict[str, str] = {}
+        with path.open(encoding="utf-8", newline="") as f:
+            for row in csv.DictReader(f):
+                sym = str(row.get("symbol") or "").strip().upper()
+                ex = str(row.get("exchange") or "").strip().upper()
+                if ex in ("HSX",):
+                    ex = "HOSE"
+                if ex.startswith("UPCO"):
+                    ex = "UPCOM"
+                if not sym or ex not in ("HOSE", "HNX", "UPCOM"):
+                    continue
+                out[sym] = ex
+        return out
+    except Exception:
+        return {}
+
+
+def resolve_listed_exchange(symbol: str) -> str:
+    sym = str(symbol or "").strip().upper()
+    hit = load_exchange_listing_map().get(sym)
+    if hit:
+        return hit
+    return exchange_for_symbol(sym)
+
+
+@lru_cache(maxsize=1)
 def load_market_catalog() -> tuple[dict[str, dict[str, Any]], ...]:
     """Return tuple of catalog rows (stable for cache identity)."""
     core = load_core_symbol_set()
     overlay = _json_overlay()
+    listing = load_exchange_listing_map()
     symbols: set[str] = set()
     symbols.update(VN30_SYMBOLS)
     symbols.update(HOSE_EXTRA_SYMBOLS)
@@ -149,11 +190,20 @@ def load_market_catalog() -> tuple[dict[str, dict[str, Any]], ...]:
     symbols.update(default_watchlist())
     symbols.update(_f3_symbols())
     symbols.update(overlay.keys())
+    symbols.update(core)
+    # Keep listing-backed names for Core HNX/UPCOM seats
+    symbols.update(s for s, ex in listing.items() if s in core)
 
     rows: list[dict[str, Any]] = []
     for sym in sorted(symbols):
         ov = overlay.get(sym) or {}
-        exchange = str(ov.get("exchange") or exchange_for_symbol(sym)).upper()
+        exchange = str(
+            ov.get("exchange") or listing.get(sym) or exchange_for_symbol(sym)
+        ).upper()
+        if exchange == "HSX":
+            exchange = "HOSE"
+        if exchange.startswith("UPCO"):
+            exchange = "UPCOM"
         name = str(ov.get("name") or "").strip()
         rows.append(
             {
@@ -168,6 +218,61 @@ def load_market_catalog() -> tuple[dict[str, dict[str, Any]], ...]:
 
 def catalog_index() -> dict[str, dict[str, Any]]:
     return {row["symbol"]: row for row in load_market_catalog()}
+
+
+def _core_symbol_list_ordered() -> list[str]:
+    """Ordered Top-N core symbols (YAML order); fallback default_watchlist."""
+    path = _core_yaml_path()
+    symbols: list[str] = []
+    max_core = 240
+    if path.is_file():
+        try:
+            import yaml
+
+            doc = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+            if isinstance(doc, dict):
+                if doc.get("max_core"):
+                    max_core = max(50, min(400, int(doc["max_core"])))
+                raw = doc.get("symbols")
+                if isinstance(raw, list) and raw:
+                    symbols = [str(s).strip().upper() for s in raw if str(s).strip()]
+        except Exception:
+            symbols = []
+    if not symbols:
+        symbols = list(default_watchlist())
+    out: list[str] = []
+    seen: set[str] = set()
+    for s in symbols:
+        if s in seen:
+            continue
+        seen.add(s)
+        out.append(s)
+        if len(out) >= max_core:
+            break
+    return out
+
+
+def list_core_catalog(*, limit: int | None = None) -> list[dict[str, Any]]:
+    """Full Top-N core rows for iBoard boot (Master Catalog + core YAML order)."""
+    by_sym = catalog_index()
+    ordered = _core_symbol_list_ordered()
+    if limit is not None:
+        ordered = ordered[: max(1, int(limit))]
+    out: list[dict[str, Any]] = []
+    for sym in ordered:
+        row = by_sym.get(sym)
+        if row:
+            out.append(dict(row))
+        else:
+            out.append(
+                {
+                    "symbol": sym,
+                    "exchange": resolve_listed_exchange(sym),
+                    "name": "",
+                    "in_core": True,
+                }
+            )
+    return out
 
 
 def search_catalog(query: str, *, limit: int = 12) -> list[dict[str, Any]]:

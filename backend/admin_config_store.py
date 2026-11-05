@@ -12,6 +12,11 @@ from typing import Any
 from backend.admin_config_bus import config_reload_channel
 from backend.core.trading_config import load_trading_config
 from backend.engine.stream_listener import load_stream_alerts_config
+from backend.ops_config import (
+    DEFAULT_PRICEBOARD_OPS,
+    effective_priceboard_ops,
+    sanitize_priceboard_ops,
+)
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_OVERLAY = Path(
@@ -149,7 +154,7 @@ def inflate_flat_screening_filters(body: dict[str, Any] | None) -> dict[str, Any
 
 
 def normalize_control_plane_body(body: dict[str, Any] | None) -> dict[str, Any]:
-    """Merge nested ``stream_alerts`` / ``risk`` with flat screening aliases."""
+    """Merge nested ``stream_alerts`` / ``risk`` / ``priceboard`` with flat screening aliases."""
     raw = body if isinstance(body, dict) else {}
     stream = raw.get("stream_alerts") if isinstance(raw.get("stream_alerts"), dict) else {}
     stream = dict(stream)
@@ -165,6 +170,12 @@ def normalize_control_plane_body(body: dict[str, Any] | None) -> dict[str, Any]:
         out["stream_alerts"] = stream
     if isinstance(raw.get("risk"), dict):
         out["risk"] = raw["risk"]
+    # Accept priceboard under priceboard or config alias
+    pb = raw.get("priceboard") if isinstance(raw.get("priceboard"), dict) else None
+    if pb is None and isinstance(raw.get("config"), dict):
+        pb = raw.get("config")
+    if isinstance(pb, dict):
+        out["priceboard"] = pb
     return out
 
 
@@ -305,14 +316,37 @@ def effective_risk_config(overlay_path: Path | None = None) -> dict[str, Any]:
 def get_control_plane(overlay_path: Path | None = None) -> dict[str, Any]:
     overlay = _read_overlay(overlay_path)
     stream = effective_stream_config(overlay_path)
+    priceboard = effective_priceboard_ops(overlay)
     return {
         "ok": True,
         "stream_alerts": stream,
         "screening_filters": flatten_screening_filters(stream),
         "risk": effective_risk_config(overlay_path),
+        "priceboard": priceboard,
+        "config": priceboard,  # alias for Admin-First ops UI
+        "defaults": {"priceboard": copy.deepcopy(DEFAULT_PRICEBOARD_OPS)},
         "overlay_path": str(overlay_path or DEFAULT_OVERLAY),
         "has_overlay": bool(overlay),
         "config_reload_channel": config_reload_channel(),
+    }
+
+
+def get_ops_config(overlay_path: Path | None = None) -> dict[str, Any]:
+    """Focused Admin-First ops payload (``GET /api/admin/config``)."""
+    plane = get_control_plane(overlay_path)
+    return {
+        "ok": True,
+        "config": plane.get("priceboard") or effective_priceboard_ops(),
+        "defaults": plane.get("defaults") or {"priceboard": copy.deepcopy(DEFAULT_PRICEBOARD_OPS)},
+        "overlay_path": plane.get("overlay_path"),
+        "has_overlay": plane.get("has_overlay"),
+        "config_reload_channel": plane.get("config_reload_channel"),
+        "guardrails": {
+            "max_core_total": 500,
+            "max_per_exchange": 400,
+            "min_volume": 0,
+            "max_volume": 50_000_000,
+        },
     }
 
 
@@ -330,6 +364,13 @@ def put_control_plane(
     risk_patch = sanitize_risk_patch(
         normalized.get("risk") if isinstance(normalized.get("risk"), dict) else {}
     )
+    warnings: list[str] = []
+    if isinstance(normalized.get("priceboard"), dict):
+        prev_pb = current.get("priceboard") if isinstance(current.get("priceboard"), dict) else {}
+        merged_base = _deep_merge(copy.deepcopy(DEFAULT_PRICEBOARD_OPS), prev_pb)
+        pb_safe, pb_warn = sanitize_priceboard_ops(normalized["priceboard"], base=merged_base)
+        current["priceboard"] = pb_safe
+        warnings.extend(pb_warn)
 
     if stream_patch:
         prev = current.get("stream_alerts") if isinstance(current.get("stream_alerts"), dict) else {}
@@ -339,4 +380,73 @@ def put_control_plane(
         current["risk"] = _deep_merge(prev_r, risk_patch)
 
     _write_overlay(current, overlay_path)
-    return get_control_plane(overlay_path)
+    try:
+        from backend.market_catalog import clear_catalog_cache
+
+        clear_catalog_cache()
+    except Exception:
+        pass
+    # Rebuild Core YAML on API host when allocation changed (worker also rebuilds on pubsub)
+    pb_eff = current.get("priceboard") if isinstance(current.get("priceboard"), dict) else {}
+    if pb_eff.get("reload_core_on_save", True) and (
+        "core_allocation" in (normalized.get("priceboard") or {})
+        or "max_core" in (normalized.get("priceboard") or {})
+    ):
+        try:
+            from backend.core_symbols_builder import build_core_symbols
+
+            build_info = build_core_symbols()
+            warnings.append(
+                f"core rebuilt count={build_info.get('count')} alloc={build_info.get('allocation')}"
+            )
+        except Exception as exc:  # noqa: BLE001
+            warnings.append(f"core rebuild skipped: {exc}")
+    result = get_control_plane(overlay_path)
+    if warnings:
+        result["warnings"] = warnings
+    return result
+
+
+def put_ops_config(
+    body: dict[str, Any] | None,
+    *,
+    overlay_path: Path | None = None,
+) -> dict[str, Any]:
+    """Save Admin-First ops config (``POST /api/admin/config``)."""
+    raw = body if isinstance(body, dict) else {}
+    pb = raw.get("priceboard") if isinstance(raw.get("priceboard"), dict) else None
+    if pb is None and isinstance(raw.get("config"), dict):
+        pb = raw["config"]
+    if pb is None:
+        # Accept flat top-level ops fields
+        pb = {
+            k: raw[k]
+            for k in (
+                "core_allocation",
+                "max_core",
+                "lookback_sessions",
+                "force_vn30",
+                "min_volume",
+                "min_volume_by_exchange",
+                "maintenance_mode",
+                "ondemand_sync_enabled",
+                "reload_core_on_save",
+            )
+            if k in raw
+        }
+    result = put_control_plane({"priceboard": pb or {}}, overlay_path=overlay_path)
+    return {
+        "ok": True,
+        "config": result.get("priceboard"),
+        "warnings": result.get("warnings") or [],
+        "overlay_path": result.get("overlay_path"),
+        "has_overlay": result.get("has_overlay"),
+        "config_reload_channel": result.get("config_reload_channel"),
+        "defaults": result.get("defaults"),
+        "guardrails": {
+            "max_core_total": 500,
+            "max_per_exchange": 400,
+            "min_volume": 0,
+            "max_volume": 50_000_000,
+        },
+    }
