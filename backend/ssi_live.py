@@ -368,6 +368,8 @@ class RealSsiWorker:
         new_core = set(self._equity_like_symbols())
         added = sorted(new_core - old_core)
         removed = sorted(old_core - new_core)
+        # Giữ subscribe nếu mã vẫn on-demand (watchlist/search).
+        drop_board = [s for s in removed if s not in self._ondemand_active]
         for ch in self.channels:
             if added:
                 topics = self._topics_for_symbols(ch, added)
@@ -375,18 +377,20 @@ class RealSsiWorker:
                     await ws.send(
                         json.dumps({"method": "SUBSCRIBE", "channel": ch, "topics": topics})
                     )
-            if removed:
-                topics = self._topics_for_symbols(ch, removed)
+            if drop_board:
+                topics = self._topics_for_symbols(ch, drop_board)
                 if topics:
                     await ws.send(
                         json.dumps({"method": "UNSUBSCRIBE", "channel": ch, "topics": topics})
                     )
+        purged = await self._purge_removed_core_from_board(redis, drop_board)
         log(
             COMPONENT,
             "SSI-CORE-RELOAD",
             "core symbols hot-reloaded",
             added=len(added),
             removed=len(removed),
+            purged=purged,
             core=len(new_core),
             sample_added=added[:12],
             sample_removed=removed[:12],
@@ -404,6 +408,39 @@ class RealSsiWorker:
                 error_code=ERR_PB_SSI_SESSION,
                 exc=exc,
             )
+
+    async def _purge_removed_core_from_board(
+        self,
+        redis: aioredis.Redis,
+        symbols: list[str],
+    ) -> int:
+        """HDEL + WS remove cho mã rời Core — FE/iBoard bỏ hàng thừa ngay."""
+        purged = 0
+        for sym in symbols:
+            s = str(sym or "").strip().upper()
+            if not s:
+                continue
+            self._board.pop(s, None)
+            try:
+                await redis.hdel(HASH_KEY, s)
+                remove = json.dumps(
+                    {"type": "remove", "symbol": s},
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                )
+                await redis.publish(CHANNEL, remove)
+                purged += 1
+            except Exception as exc:  # noqa: BLE001
+                log(
+                    COMPONENT,
+                    "SSI-CORE-PURGE",
+                    "failed to purge removed core symbol",
+                    logging.WARNING,
+                    error_code=ERR_PB_SSI_SESSION,
+                    exc=exc,
+                    symbol=s,
+                )
+        return purged
 
     async def _seed_missing_core_ohlcv(
         self,

@@ -2667,11 +2667,20 @@
           return;
         }
         const warn = (data.warnings || []).slice(0, 2).join("; ");
+        await loadAdminOpsConfig();
+        let boardSync = null;
+        try {
+          boardSync = await refreshBoardAfterCoreOpsChange();
+        } catch (_) {
+          boardSync = null;
+        }
+        const syncLabel = boardSync
+          ? ` · board ${boardSync.total} (HOSE ${boardSync.hose}/HNX ${boardSync.hnx}/UPCOM ${boardSync.upcom})`
+          : "";
         admOpsSetStatus(
-          "Đã lưu & áp dụng" + (warn ? " · " + warn : " · hot-reload worker"),
+          "Đã lưu & áp dụng" + (warn ? " · " + warn : " · hot-reload worker") + syncLabel,
           "ok",
         );
-        await loadAdminOpsConfig();
       } catch (_) {
         admOpsSetStatus("Lỗi lưu ops config", "err");
       }
@@ -4074,12 +4083,20 @@
       return fallbackBoardUniverseSymbols();
     }
 
-    async function loadCoreCatalog() {
-      if (coreCatalogSymbols.length) return coreCatalogSymbols;
-      if (coreCatalogLoadPromise) return coreCatalogLoadPromise;
+    async function loadCoreCatalog(force = false) {
+      if (!force && coreCatalogSymbols.length) return boardUniverseSymbols();
+      if (!force && coreCatalogLoadPromise) return coreCatalogLoadPromise;
+      if (force) {
+        coreCatalogSymbols = [];
+        coreCatalogBySymbol.clear();
+        coreCatalogLoadPromise = null;
+      }
       coreCatalogLoadPromise = (async () => {
         try {
-          const res = await fetch(apiUrl("/api/catalog/core"), { credentials: "same-origin" });
+          const res = await fetch(apiUrl("/api/catalog/core"), {
+            credentials: "same-origin",
+            cache: "no-store",
+          });
           const data = await res.json().catch(() => ({}));
           if (!res.ok || !data.ok || !Array.isArray(data.items)) return fallbackBoardUniverseSymbols();
           coreCatalogBySymbol.clear();
@@ -4101,6 +4118,51 @@
         }
       })();
       return coreCatalogLoadPromise;
+    }
+
+    /** Bỏ hàng equity không còn trong Core (sau Admin đổi allocation / WS remove). */
+    function pruneBoardToCoreUniverse() {
+      const keep = new Set(boardUniverseSymbols());
+      for (const sym of [...state.keys()]) {
+        if (!sym) continue;
+        if (INDEX_SYMBOLS.has(sym) && !FUTURES_BOARD_SYMBOLS.has(sym)) continue;
+        if (keep.has(sym)) continue;
+        if (activeWatchlistSymbols && activeWatchlistSymbols.has(sym)) continue;
+        state.delete(sym);
+        const tr = document.getElementById("row-" + sym);
+        if (tr) tr.remove();
+      }
+      applyBoardFilter();
+      updatePinnedPositions();
+      scheduleIndexStatsRefresh();
+    }
+
+    function coreCatalogCountsByExchange() {
+      const counts = { HOSE: 0, HNX: 0, UPCOM: 0 };
+      for (const sym of coreCatalogSymbols) {
+        const ex = (coreCatalogBySymbol.get(sym) || {}).exchange || "HOSE";
+        if (counts[ex] != null) counts[ex] += 1;
+        else counts.HOSE += 1;
+      }
+      return counts;
+    }
+
+    async function refreshBoardAfterCoreOpsChange() {
+      await loadCoreCatalog(true);
+      pruneBoardToCoreUniverse();
+      hydrateMissingBoardSymbols([...state.values()]);
+      try {
+        await hydrateQuoteSnapshots(boardUniverseSymbols());
+      } catch (_) { /* ignore */ }
+      applyBoardFilter();
+      updateScreenerStatus(countVisibleBoardRows());
+      const c = coreCatalogCountsByExchange();
+      return {
+        total: coreCatalogSymbols.length,
+        hose: c.HOSE,
+        hnx: c.HNX,
+        upcom: c.UPCOM,
+      };
     }
 
     function stubEquityRow(symbol) {
@@ -4128,7 +4190,7 @@
       };
     }
 
-    /** Bổ sung stub Top 240 Core thiếu trong snapshot — tránh bảng chỉ ~30/80 mã hardcoded. */
+    /** Bổ sung stub Core thiếu trong snapshot — tránh bảng chỉ ~30/80 mã hardcoded. */
     function hydrateMissingBoardSymbols(existingRows) {
       const have = new Set(
         (existingRows || []).map((r) => String(r && r.symbol || "").toUpperCase()).filter(Boolean)
@@ -7290,8 +7352,10 @@
             applyRow(r, { flash: false });
           });
           hydrateMissingBoardSymbols(rows);
+          pruneBoardToCoreUniverse();
           // Cold-start: snapshot OHLCV/catalog cho mã Core mới chưa có giá (HNX/UPCOM…).
           void hydrateQuoteSnapshots(boardUniverseSymbols()).then(() => {
+            pruneBoardToCoreUniverse();
             applyBoardFilter();
             updateScreenerStatus(countVisibleBoardRows());
           });
