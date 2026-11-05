@@ -1,17 +1,17 @@
-"""Build ``config/priceboard_core_symbols.yaml`` with exchange-balanced Top 240.
+"""Build ``config/priceboard_core_symbols.yaml`` with exchange-balanced Core.
 
-Default allocation (``config/core_allocation.yaml``):
-  HOSE 120 (force-include full VN30 + midcap by liquidity)
-  HNX  60  (top liquidity)
-  UPCOM 60 (top liquidity)
+Default allocation (Admin-First ops / ``config/core_allocation.yaml``):
+  HOSE 160 · HNX 80 · UPCOM 60 (total 300).
 
 Liquidity score = average(close * volume) over the last N OHLCV sessions.
+Admin overlay (``data/admin_runtime_config.json`` → ``priceboard``) thắng YAML tĩnh.
 """
 
 from __future__ import annotations
 
 import argparse
 import csv
+import json
 import os
 from collections import defaultdict
 from datetime import date
@@ -22,6 +22,9 @@ from backend.board_universe import VN30_SYMBOLS
 
 _ROOT = Path(__file__).resolve().parent.parent
 _DEFAULT_ALLOC = _ROOT / "config" / "core_allocation.yaml"
+_DEFAULT_OVERLAY = Path(
+    os.getenv("ADMIN_RUNTIME_CONFIG", str(_ROOT / "data" / "admin_runtime_config.json"))
+)
 
 
 def _norm_exchange(raw: str) -> str:
@@ -35,12 +38,26 @@ def _norm_exchange(raw: str) -> str:
     return ""
 
 
+def _read_admin_priceboard_overlay(overlay_path: Path | None = None) -> dict[str, Any]:
+    path = overlay_path or _DEFAULT_OVERLAY
+    if not path.is_file():
+        return {}
+    try:
+        doc = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    if not isinstance(doc, dict):
+        return {}
+    pb = doc.get("priceboard")
+    return pb if isinstance(pb, dict) else {}
+
+
 def load_allocation_config(path: Path | None = None) -> dict[str, Any]:
     p = path or Path(os.getenv("CORE_ALLOCATION_CONFIG", str(_DEFAULT_ALLOC)))
     doc: dict[str, Any] = {
-        "max_core": 240,
+        "max_core": 300,
         "lookback_sessions": 20,
-        "allocation": {"HOSE": 120, "HNX": 60, "UPCOM": 60},
+        "allocation": {"HOSE": 160, "HNX": 80, "UPCOM": 60},
         "force_vn30": True,
         "listing_csv": "config/exchange_listing.csv",
         "ohlcv_dir": "data/ohlcv",
@@ -55,6 +72,23 @@ def load_allocation_config(path: Path | None = None) -> dict[str, Any]:
                 doc.update(loaded)
         except Exception:
             pass
+    # Admin-First overlay wins (sanitized)
+    try:
+        from backend.ops_config import sanitize_priceboard_ops
+
+        pb_raw = _read_admin_priceboard_overlay()
+        if pb_raw:
+            safe, _ = sanitize_priceboard_ops(pb_raw)
+            if isinstance(safe.get("core_allocation"), dict):
+                doc["allocation"] = dict(safe["core_allocation"])
+            if safe.get("max_core") is not None:
+                doc["max_core"] = int(safe["max_core"])
+            if safe.get("lookback_sessions") is not None:
+                doc["lookback_sessions"] = int(safe["lookback_sessions"])
+            if "force_vn30" in safe:
+                doc["force_vn30"] = bool(safe["force_vn30"])
+    except Exception:
+        pass
     return doc
 
 

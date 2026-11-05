@@ -5,6 +5,25 @@ Không thay ADR; không dump changelog dài. Mỗi mục: ngày · phạm vi · 
 
 ---
 
+## 2026-11-05 — Admin-First ops config (Core / volume / flags)
+
+**Phạm vi:** atz.vn Admin Dashboard điều khiển allocation Core + `min_volume` + feature flags, không sửa file tĩnh tay.
+
+**Quyết định**
+- Overlay JSON `data/admin_runtime_config.json` key `priceboard` (cùng store control-plane).
+- API: `GET/POST /api/admin/config` (admin ForwardAuth) + guardrails clamp (tổng Core ≤500).
+- Default: HOSE 160 / HNX 80 / UPCOM 60 (max_core 300).
+- SSI worker listen `admin:config-reload` → rebuild Core + diff SUBSCRIBE; volume filter đọc overlay.
+- Invalid input → clamp/fallback, không crash service.
+
+**File neo**
+- `backend/ops_config.py`, `backend/admin_config_store.py`, `backend/routers/admin.py`
+- `backend/ssi_live.py`, `backend/core_symbols_builder.py`, `backend/volume_filter.py`
+- `frontend/index.html` (Admin Ops card)
+- `tests/test_ops_config.py`
+
+---
+
 ## 2026-11-05 — Core Top 240 cân sàn (120 / 60 / 60)
 
 **Phạm vi:** Đổi chiến lược chọn Core symbols + regenerate YAML + rebuild prod-desk.

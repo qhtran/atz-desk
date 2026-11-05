@@ -1,12 +1,12 @@
 # Core stream — Top 240 cân sàn (liquidity-ranked).
-# Allocation: HOSE 120 · HNX 60 · UPCOM 60.
+# Allocation: HOSE 160 · HNX 80 · UPCOM 60.
 # HOSE includes full VN30; remaining seats by avg(close*volume) OHLCV.
-# Regenerated 2026-11-05. lookback_sessions=20. Soft cap 240.
+# Regenerated 2026-11-05. lookback_sessions=20. Soft cap 300.
 version: 1
-max_core: 240
+max_core: 300
 allocation:
-  HOSE: 120
-  HNX: 60
+  HOSE: 160
+  HNX: 80
   UPCOM: 60
 symbols:
   - ACB
@@ -129,6 +129,46 @@ symbols:
   - ELC
   - YEG
   - CDC
+  - FCN
+  - HII
+  - TV2
+  - MSH
+  - VDS
+  - CMG
+  - TRC
+  - LCG
+  - CTI
+  - HSL
+  - SCR
+  - PTB
+  - SIP
+  - HQC
+  - CTF
+  - VAB
+  - NTL
+  - KDC
+  - ASP
+  - PAC
+  - SHI
+  - TAL
+  - HPX
+  - IDI
+  - HTN
+  - APH
+  - BWE
+  - DRC
+  - SBG
+  - HVH
+  - HID
+  - TCO
+  - AGR
+  - VRC
+  - QCG
+  - TCD
+  - CRC
+  - EVG
+  - ASM
+  - TLD
   - SHS
   - PVS
   - CEO
@@ -153,10 +193,10 @@ symbols:
   - PSD
   - C69
   - TIG
-  - CAR
   - PPT
   - HDA
   - APS
+  - CAR
   - NRC
   - PVB
   - DTD
@@ -189,6 +229,26 @@ symbols:
   - AAV
   - PSI
   - VMS
+  - HVT
+  - QTC
+  - BCC
+  - DST
+  - PTD
+  - HGM
+  - AMV
+  - API
+  - DL1
+  - SZB
+  - PIA
+  - TVD
+  - L18
+  - CST
+  - CAP
+  - VIG
+  - PV2
+  - PDB
+  - SLS
+  - DHT
   - BSR
   - MSR
   - MCH
