@@ -375,8 +375,16 @@ async def desk_auth_login(body: DeskLoginBody, response: Response):
 @app.post("/api/auth/logout")
 async def desk_auth_logout(response: Response) -> dict:
     """Xóa cookie desk session (DEV). Outpost logout vẫn dùng logout_url nếu cần."""
-    response.delete_cookie(DESK_COOKIE, path="/")
-    return {"ok": True, "success": True}
+    secure = (os.getenv("DESK_SESSION_SECURE") or "1").strip() not in ("0", "false", "no")
+    # Phải khớp attribute lúc set_cookie — nếu không browser có thể không xóa.
+    response.delete_cookie(
+        DESK_COOKIE,
+        path="/",
+        secure=secure,
+        httponly=True,
+        samesite="lax",
+    )
+    return {"ok": True, "success": True, "local_logout": True}
 
 
 @app.get("/api/account/me")

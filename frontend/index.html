@@ -2409,12 +2409,25 @@
     }
 
     async function deskLogout() {
+      const source = accountState.authSource;
       try {
         await fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" });
       } catch (_) {}
-      const url = accountState.logoutUrl;
-      if (url) window.location.href = url;
-      else window.location.reload();
+      // Desk Session: chỉ xóa cookie SPA — không đẩy sang auth.atz.vn (outpost SLO).
+      if (source === "desk_session" || !accountState.logoutUrl) {
+        window.location.replace("/");
+        return;
+      }
+      // ForwardAuth: sign_out outpost; gắn rd về SPA nếu thiếu (tránh kẹt trên auth.atz.vn).
+      let url = String(accountState.logoutUrl || "").trim();
+      try {
+        const u = new URL(url, location.origin);
+        if (!u.searchParams.has("rd")) {
+          u.searchParams.set("rd", location.origin + "/");
+        }
+        url = u.toString();
+      } catch (_) {}
+      window.location.href = url;
     }
 
     async function initAuthShell() {
@@ -2533,7 +2546,12 @@
           }
           return;
         }
-        await finishDeskLoginOk(data, passEl);
+        // Cookie Set-Cookie đã có — hard navigate để /api/account/me + gate đồng bộ
+        // (tránh SPA vẫn hiện form mật khẩu cho đến khi user F5 thủ công).
+        applyMePayload(data);
+        if (passEl) passEl.value = "";
+        window.location.replace("/");
+        return;
       } catch {
         if (errEl) errEl.textContent = "Không kết nối được máy chủ đăng nhập";
       } finally {
@@ -5866,7 +5884,7 @@
 
     async function initPortfolioAuthSync() {
       try {
-        const meRes = await fetch("/api/account/me");
+        const meRes = await fetch("/api/account/me", { credentials: "same-origin" });
         const meData = await meRes.json();
         pfAuthenticated = meData.authenticated === true;
         if (!pfAuthenticated) {
@@ -5877,6 +5895,7 @@
         if (localItems.length) {
           const migRes = await fetch("/api/portfolio/positions/migrate", {
             method: "POST",
+            credentials: "same-origin",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ items: localItems }),
           });
@@ -5889,7 +5908,7 @@
             }
           }
         }
-        const res = await fetch("/api/portfolio/positions");
+        const res = await fetch("/api/portfolio/positions", { credentials: "same-origin" });
         if (res.ok) {
           const data = await res.json();
           if (data.ok && Array.isArray(data.items)) {

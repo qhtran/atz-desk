@@ -8,7 +8,8 @@ account:
   login_url: "https://dev.atz.vn/outpost.goauthentik.io/start?rd=https%3A%2F%2Fdev.atz.vn%2F"
   # Outpost xóa cookie rồi chạy invalidation flow của provider (default-provider-invalidation-flow).
   # Dev dùng cùng domain outpost nếu có; mặc định path trên atz.vn vẫn hủy cookie shared domain.
-  logout_url: "https://dev.atz.vn/outpost.goauthentik.io/sign_out"
+  # rd= đưa về SPA sau SLO — tránh kẹt trang login auth.atz.vn sau Đăng xuất.
+  logout_url: "https://dev.atz.vn/outpost.goauthentik.io/sign_out?rd=https%3A%2F%2Fdev.atz.vn%2F"
   password_flow_url: "https://auth.atz.vn/if/flow/default-password-change/"
   mfa_flow_url: "https://auth.atz.vn/if/flow/default-authenticator-totp-setup/"
   # Group Authentik → quyền Admin Control Panel (client + API guard).

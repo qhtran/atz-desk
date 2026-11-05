@@ -122,6 +122,32 @@ def test_login_ropc_bad_password(desk_env, monkeypatch):
     assert "Sai tài khoản" in res.json()["detail"]
 
 
+def test_logout_clears_desk_cookie(desk_env, monkeypatch):
+    def fake_grant(username, password, **kwargs):
+        return {
+            "username": "hoa",
+            "email": "hoa@example.com",
+            "name": "Hoa",
+            "uid": "u1",
+            "groups": ["members"],
+        }
+
+    monkeypatch.setattr("backend.main.password_grant", fake_grant)
+    client = TestClient(app)
+    login = client.post("/api/auth/login", json={"username": "hoa", "password": "secret"})
+    assert login.status_code == 200
+    assert COOKIE_NAME in client.cookies
+    out = client.post("/api/auth/logout")
+    assert out.status_code == 200
+    body = out.json()
+    assert body["ok"] is True
+    assert body.get("local_logout") is True
+    # TestClient may keep cookie jar; Set-Cookie delete must be present on response.
+    set_cookie = out.headers.get("set-cookie") or ""
+    assert COOKIE_NAME in set_cookie
+    assert "Max-Age=0" in set_cookie or "max-age=0" in set_cookie.lower()
+
+
 def test_login_mfa_challenge_then_otp(desk_env, monkeypatch):
     from backend.authentik_ropc import MfaRequired
 
