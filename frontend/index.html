@@ -2018,11 +2018,18 @@
       "ART", "QBS", "VE4", "VNR", "SMT", "LAI", "HAT", "VGP", "KTC", "DTK",
       "VLA", "BRS", "CLX", "SDG", "VCR",
     ]);
-    /** HOSE ngoài VN30 — hydrate stub khi Redis snapshot thiếu mã. */
+    /** HOSE ngoài VN30 — fallback hydrate khi /api/catalog/core chưa sẵn. */
     const HOSE_EXTRA_SET = new Set([
       "VCI", "GEX", "PDR", "HSG", "NKG", "DGC", "DIG", "DXG", "HCM", "KDH",
       "NLG", "PNJ", "POW", "REE", "TCH", "VND", "VGC", "VPI", "VSH", "GMD",
     ]);
+    /** Top 240 Core từ Master Catalog — hydrate iBoard lúc boot. */
+    /** @type {Map<string, {symbol:string, exchange:string, name?:string}>} */
+    const coreCatalogBySymbol = new Map();
+    /** @type {string[]} */
+    let coreCatalogSymbols = [];
+    /** @type {Promise<string[]>|null} */
+    let coreCatalogLoadPromise = null;
     const PIN_KEY = "atz.iboard.pinned";
     const MARKET_KEY = "atz.iboard.market";
     const WATCHLIST_KEY = "atz.iboard.watchlist_id";
@@ -2660,6 +2667,13 @@
 
     function resolveExchange(row) {
       const sym = String(row.symbol || "").toUpperCase();
+      const coreHit = coreCatalogBySymbol.get(sym);
+      if (coreHit) {
+        const cex = String(coreHit.exchange || "").toUpperCase();
+        if (cex === "HOSE" || cex === "HSX") return "HOSE";
+        if (cex === "HNX") return "HNX";
+        if (cex === "UPCOM" || cex === "UPX") return "UPCOM";
+      }
       if (HNX_SET.has(sym)) return "HNX";
       if (UPCOM_SET.has(sym)) return "UPCOM";
       const ex = String(row.exchange || "").toUpperCase();
@@ -3927,7 +3941,7 @@
       applyEquity(row, opts);
     }
 
-    function boardUniverseSymbols() {
+    function fallbackBoardUniverseSymbols() {
       return [
         ...VN30_SET,
         ...HOSE_EXTRA_SET,
@@ -3937,10 +3951,48 @@
       ];
     }
 
+    function boardUniverseSymbols() {
+      if (coreCatalogSymbols.length) {
+        return [...coreCatalogSymbols, ...FUTURES_BOARD_SYMBOLS];
+      }
+      return fallbackBoardUniverseSymbols();
+    }
+
+    async function loadCoreCatalog() {
+      if (coreCatalogSymbols.length) return coreCatalogSymbols;
+      if (coreCatalogLoadPromise) return coreCatalogLoadPromise;
+      coreCatalogLoadPromise = (async () => {
+        try {
+          const res = await fetch(apiUrl("/api/catalog/core"), { credentials: "same-origin" });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok || !data.ok || !Array.isArray(data.items)) return fallbackBoardUniverseSymbols();
+          coreCatalogBySymbol.clear();
+          const syms = [];
+          for (const item of data.items) {
+            const sym = String(item && item.symbol || "").toUpperCase();
+            if (!sym || INDEX_SYMBOLS.has(sym)) continue;
+            let exchange = String(item.exchange || "HOSE").toUpperCase();
+            if (exchange === "HSX") exchange = "HOSE";
+            if (exchange === "UPX") exchange = "UPCOM";
+            if (exchange !== "HOSE" && exchange !== "HNX" && exchange !== "UPCOM") exchange = "HOSE";
+            coreCatalogBySymbol.set(sym, { symbol: sym, exchange, name: item.name || "" });
+            syms.push(sym);
+          }
+          if (syms.length) coreCatalogSymbols = syms;
+          return boardUniverseSymbols();
+        } catch (_) {
+          return fallbackBoardUniverseSymbols();
+        }
+      })();
+      return coreCatalogLoadPromise;
+    }
+
     function stubEquityRow(symbol) {
       const sym = String(symbol || "").toUpperCase();
+      const coreHit = coreCatalogBySymbol.get(sym);
       let exchange = "HOSE";
-      if (HNX_SET.has(sym)) exchange = "HNX";
+      if (coreHit && coreHit.exchange) exchange = coreHit.exchange;
+      else if (HNX_SET.has(sym)) exchange = "HNX";
       else if (UPCOM_SET.has(sym)) exchange = "UPCOM";
       return {
         type: "tick",
@@ -3960,7 +4012,7 @@
       };
     }
 
-    /** Bổ sung stub cho mã universe thiếu trong snapshot — tránh bảng “rỗng / 1 mã”. */
+    /** Bổ sung stub Top 240 Core thiếu trong snapshot — tránh bảng chỉ ~30/80 mã hardcoded. */
     function hydrateMissingBoardSymbols(existingRows) {
       const have = new Set(
         (existingRows || []).map((r) => String(r && r.symbol || "").toUpperCase()).filter(Boolean)
@@ -7108,7 +7160,11 @@
         const equitySyms = rows
           .map((r) => r && r.symbol)
           .filter((s) => s && !INDEX_SYMBOLS.has(s));
-        void Promise.all([fetchIndexSpark(), fetchEquitySpark(equitySyms)]).then(() => {
+        void Promise.all([
+          loadCoreCatalog(),
+          fetchIndexSpark(),
+          fetchEquitySpark(equitySyms),
+        ]).then(() => {
           rows.forEach((r) => {
             if (INDEX_SYMBOLS.has(r.symbol) && inTradingSession()) pushSpark(r.symbol, r.last);
             applyRow(r, { flash: false });
@@ -7229,6 +7285,7 @@
     (async () => {
       await initAuthShell();
       await initPortfolioAuthSync();
+      void loadCoreCatalog();
       await fetchIndexSpark();
       renderIndexBar();
       setMarketTab(marketTab);

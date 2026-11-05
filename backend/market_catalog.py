@@ -170,6 +170,61 @@ def catalog_index() -> dict[str, dict[str, Any]]:
     return {row["symbol"]: row for row in load_market_catalog()}
 
 
+def _core_symbol_list_ordered() -> list[str]:
+    """Ordered Top-N core symbols (YAML order); fallback default_watchlist."""
+    path = _core_yaml_path()
+    symbols: list[str] = []
+    max_core = 240
+    if path.is_file():
+        try:
+            import yaml
+
+            doc = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+            if isinstance(doc, dict):
+                if doc.get("max_core"):
+                    max_core = max(50, min(400, int(doc["max_core"])))
+                raw = doc.get("symbols")
+                if isinstance(raw, list) and raw:
+                    symbols = [str(s).strip().upper() for s in raw if str(s).strip()]
+        except Exception:
+            symbols = []
+    if not symbols:
+        symbols = list(default_watchlist())
+    out: list[str] = []
+    seen: set[str] = set()
+    for s in symbols:
+        if s in seen:
+            continue
+        seen.add(s)
+        out.append(s)
+        if len(out) >= max_core:
+            break
+    return out
+
+
+def list_core_catalog(*, limit: int | None = None) -> list[dict[str, Any]]:
+    """Full Top-N core rows for iBoard boot (Master Catalog + core YAML order)."""
+    by_sym = catalog_index()
+    ordered = _core_symbol_list_ordered()
+    if limit is not None:
+        ordered = ordered[: max(1, int(limit))]
+    out: list[dict[str, Any]] = []
+    for sym in ordered:
+        row = by_sym.get(sym)
+        if row:
+            out.append(dict(row))
+        else:
+            out.append(
+                {
+                    "symbol": sym,
+                    "exchange": exchange_for_symbol(sym),
+                    "name": "",
+                    "in_core": True,
+                }
+            )
+    return out
+
+
 def search_catalog(query: str, *, limit: int = 12) -> list[dict[str, Any]]:
     q = str(query or "").strip().upper()
     limit = max(1, min(50, int(limit or 12)))
