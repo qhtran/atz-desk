@@ -34,6 +34,12 @@ from backend.core.logging_middleware import TraceMiddleware
 from backend.debug_ui import public_debug_ui_config
 from backend.portfolio_alerts import position_alert
 from backend.account_config import load_account_config
+from backend.auth_rate_limit import (
+    client_ip as auth_client_ip,
+    enforce as auth_rate_enforce,
+    login_rate_keys,
+    logout_rate_keys,
+)
 from backend.desk_session import COOKIE_NAME as DESK_COOKIE, desk_session_enabled, issue_session_value
 from backend.identity import is_admin_user, resolve_me, roles_for_user
 from backend.portfolio_f3 import batch_f3_alerts, load_f3_sector_themes
@@ -325,9 +331,25 @@ register_admin_routes(
 )
 
 
+def _auth_rate_blocked(retry_after: int) -> JSONResponse:
+    return JSONResponse(
+        status_code=429,
+        content={
+            "ok": False,
+            "success": False,
+            "detail": "Quá nhiều lần thử — thử lại sau",
+            "retry_after": retry_after,
+        },
+        headers={"Retry-After": str(retry_after)},
+    )
+
+
 @app.post("/api/auth/login", response_model=None)
-async def desk_auth_login(body: DeskLoginBody, response: Response):
-    """DEV headless login: Authentik Flow (+ optional TOTP) → ``atz_desk_session``."""
+async def desk_auth_login(request: Request, body: DeskLoginBody, response: Response):
+    """Headless login: Authentik Flow (+ optional TOTP) → ``atz_desk_session``.
+
+    Nginx bypasses ForwardAuth for this path — rate-limit here against brute-force.
+    """
     if not desk_session_enabled() or not ropc_configured():
         raise HTTPException(status_code=503, detail="Desk session login disabled on this host")
 
@@ -335,6 +357,11 @@ async def desk_auth_login(body: DeskLoginBody, response: Response):
     code = (body.code or "").strip()
     username = (body.username or "").strip()
     password = body.password or ""
+    ip = auth_client_ip(dict(request.headers), fallback=request.client.host if request.client else "unknown")
+    retry = auth_rate_enforce(login_rate_keys(ip, username or None))
+    if retry is not None:
+        log(COMPONENT, "AUTH-RATE", "login rate limited", logging.WARNING, ip=ip, user=username or None)
+        return _auth_rate_blocked(retry)
 
     try:
         if mfa_token or code:
@@ -373,10 +400,40 @@ async def desk_auth_login(body: DeskLoginBody, response: Response):
 
 
 @app.post("/api/auth/logout")
-async def desk_auth_logout(response: Response) -> dict:
-    """Xóa cookie desk session (DEV). Outpost logout vẫn dùng logout_url nếu cần."""
-    response.delete_cookie(DESK_COOKIE, path="/")
-    return {"ok": True, "success": True}
+async def desk_auth_logout(request: Request, response: Response) -> dict:
+    """Clear Desk Session cookie; FE follows outpost SLO when ``auth_source=forward_auth``.
+
+    Cannot revoke Authentik server-side without Admin API — returns ``outpost_sign_out``
+    so the browser completes gateway logout (avoids half-logged state).
+    """
+    ip = auth_client_ip(dict(request.headers), fallback=request.client.host if request.client else "unknown")
+    retry = auth_rate_enforce(logout_rate_keys(ip))
+    if retry is not None:
+        return _auth_rate_blocked(retry)
+
+    me = _resolve_request_me(request)
+    source = str((me or {}).get("source") or "") or None
+    secure = (os.getenv("DESK_SESSION_SECURE") or "1").strip() not in ("0", "false", "no")
+    # Phải khớp attribute lúc set_cookie — nếu không browser có thể không xóa.
+    response.delete_cookie(
+        DESK_COOKIE,
+        path="/",
+        secure=secure,
+        httponly=True,
+        samesite="lax",
+    )
+    # Same-origin outpost path — SPA gắn rd= current origin.
+    outpost = None
+    if source == "forward_auth":
+        outpost = "/outpost.goauthentik.io/sign_out"
+    return {
+        "ok": True,
+        "success": True,
+        "local_logout": True,
+        "auth_source": source,
+        "desk_cookie_cleared": True,
+        "outpost_sign_out": outpost,
+    }
 
 
 @app.get("/api/account/me")
