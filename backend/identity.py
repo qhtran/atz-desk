@@ -72,18 +72,50 @@ def resolve_me(
     headers: Mapping[str, str] | None,
     *,
     desk_cookie: str | None = None,
+    desk_form_mode: bool = False,
 ) -> dict[str, Any] | None:
-    """Ưu tiên ForwardAuth headers; fallback cookie ``atz_desk_session`` (DEV)."""
+    """Resolve identity.
+
+    - ``desk_form_mode=True`` (Unified Login / Desk Session form): **chỉ** cookie
+      ``atz_desk_session``. Bỏ qua ForwardAuth headers — tránh cookie Outpost sót
+      khiến SPA vẫn “đã login” hoặc đẩy user sang auth.atz.vn.
+    - Mặc định (legacy): ForwardAuth trước, fallback desk cookie.
+    """
+    desk_me: dict[str, Any] | None = None
+    try:
+        from backend.desk_session import desk_session_enabled, me_from_cookie
+
+        if desk_session_enabled():
+            desk_me = me_from_cookie(desk_cookie)
+    except Exception:
+        desk_me = None
+
+    if desk_form_mode:
+        return desk_me
+
     me = me_from_headers(headers)
     if me:
         me = dict(me)
         me["source"] = "forward_auth"
         return me
-    try:
-        from backend.desk_session import desk_session_enabled, me_from_cookie
+    return desk_me
 
-        if desk_session_enabled():
-            return me_from_cookie(desk_cookie)
+
+def resolve_request_identity(
+    headers: Mapping[str, str] | None,
+    *,
+    desk_cookie: str | None = None,
+) -> dict[str, Any] | None:
+    """resolve_me + đọc ``desk_session_form`` từ account config (Unified Login)."""
+    desk_form = False
+    try:
+        from backend.account_config import load_account_config
+
+        desk_form = bool(load_account_config().get("desk_session_form"))
     except Exception:
-        return None
-    return None
+        desk_form = False
+    return resolve_me(
+        headers,
+        desk_cookie=desk_cookie,
+        desk_form_mode=desk_form,
+    )

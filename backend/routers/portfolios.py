@@ -17,7 +17,7 @@ from backend.desk_portfolio_store import (
 )
 from backend.desk_portfolio_valuation import portfolio_summary
 from backend.desk_session import COOKIE_NAME as DESK_COOKIE
-from backend.identity import resolve_me
+from backend.identity import resolve_request_identity as resolve_me
 
 router = APIRouter(prefix="/api/portfolios", tags=["desk-portfolios"])
 

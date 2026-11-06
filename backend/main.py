@@ -41,7 +41,7 @@ from backend.auth_rate_limit import (
     logout_rate_keys,
 )
 from backend.desk_session import COOKIE_NAME as DESK_COOKIE, desk_session_enabled, issue_session_value
-from backend.identity import is_admin_user, resolve_me, roles_for_user
+from backend.identity import is_admin_user, resolve_request_identity, roles_for_user
 from backend.portfolio_f3 import batch_f3_alerts, load_f3_sector_themes
 from backend.portfolio_quotes import normalize_symbols, resolve_portfolio_quotes
 from backend.daily_signals import ALLOWED_FILTERS, scan_daily_signals
@@ -215,7 +215,10 @@ class PortfolioPositionsBody(BaseModel):
 
 
 def _resolve_request_me(request: Request) -> dict[str, Any] | None:
-    return resolve_me(request.headers, desk_cookie=request.cookies.get(DESK_COOKIE))
+    return resolve_request_identity(
+        request.headers,
+        desk_cookie=request.cookies.get(DESK_COOKIE),
+    )
 
 
 def _require_authentik_user(request: Request) -> str:
@@ -375,13 +378,15 @@ async def desk_auth_login(request: Request, body: DeskLoginBody, response: Respo
         profile = await asyncio.to_thread(password_grant, username, password)
         return _issue_desk_cookie(response, profile)
     except MfaRequired as exc:
+        # Dùng 200 (không 202): một số trình duyệt/mobile prefetch xử lý 202 kém,
+        # FE tưởng request “treo” dù body MFA đã về.
         return JSONResponse(
-            status_code=202,
+            status_code=200,
             content={
                 "success": False,
                 "mfa_required": True,
                 "mfa_token": exc.mfa_token,
-                "detail": "Nhập mã xác thực (TOTP)",
+                "detail": "Mật khẩu đúng — nhập mã TOTP để hoàn tất",
             },
         )
     except HTTPException:
@@ -750,7 +755,13 @@ async def ws_priceboard(websocket: WebSocket) -> None:
 
 @app.get("/")
 async def index() -> FileResponse:
-    return FileResponse(FRONTEND_DIR / "index.html")
+    return FileResponse(
+        FRONTEND_DIR / "index.html",
+        headers={
+            "Cache-Control": "no-store, no-cache, must-revalidate",
+            "Pragma": "no-cache",
+        },
+    )
 
 
 @app.get("/trading")

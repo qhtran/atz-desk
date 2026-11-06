@@ -20,7 +20,7 @@ from backend.desk_scoring_store import (
     upsert_rule,
 )
 from backend.desk_session import COOKIE_NAME as DESK_COOKIE
-from backend.identity import resolve_me
+from backend.identity import resolve_request_identity as resolve_me
 
 router = APIRouter(tags=["desk-scoring"])
 

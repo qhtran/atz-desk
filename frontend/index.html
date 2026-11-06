@@ -1459,7 +1459,7 @@
       cursor: wait;
     }
     .welcome-outpost-link {
-      display: inline-block;
+      display: none; /* Desk Session: ẩn Outpost mặc định — tránh auth.atz.vn */
       margin-top: 10px;
       color: #737373;
       font-size: 11px;
@@ -1469,7 +1469,24 @@
       border: 0;
       padding: 0;
     }
+    .welcome-outpost-link.is-visible { display: inline-block; }
     .welcome-outpost-link:hover { color: #ffd900; }
+    .welcome-card.is-mfa #welcome-step-mfa { display: block !important; }
+    .welcome-card.is-mfa #welcome-step-pass { display: none !important; }
+    .welcome-card.is-mfa #welcome-continue,
+    .welcome-card.is-mfa #welcome-outpost { display: none !important; }
+    .welcome-mfa-hint {
+      margin: 0 0 12px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 217, 0, 0.35);
+      background: rgba(255, 217, 0, 0.08);
+      color: #ffd900;
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1.4;
+      text-align: left;
+    }
     .alerts-feed {
       list-style: none;
       margin: 0;
@@ -1576,11 +1593,12 @@
           <button type="submit" id="welcome-login" class="cta" data-atd-id="pb-ui:auth.login">Đăng nhập</button>
         </div>
         <div id="welcome-step-mfa" hidden>
+          <p id="welcome-mfa-hint" class="welcome-mfa-hint" role="status">Mật khẩu đúng — nhập mã 6 số từ app Authenticator (TOTP).</p>
           <label>Mã xác thực (TOTP)
             <input id="welcome-otp" name="otp" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code" maxlength="8" placeholder="6 chữ số" />
           </label>
           <button type="submit" id="welcome-mfa-submit" class="cta" data-atd-id="pb-ui:auth.mfa">Xác nhận OTP</button>
-          <button type="button" class="ghost" id="welcome-mfa-back" data-atd-id="pb-ui:auth.mfa-back">Quay lại</button>
+          <button type="button" class="ghost" id="welcome-mfa-back" data-atd-id="pb-ui:auth.mfa-back">Quay lại mật khẩu</button>
         </div>
         <p id="welcome-error" class="welcome-error" role="alert"></p>
       </form>
@@ -2428,9 +2446,15 @@
         const outpostBtn = document.getElementById("welcome-outpost");
         if (form) form.style.display = accountState.deskSessionForm ? "" : "none";
         if (outpostBtn) {
-          outpostBtn.textContent = accountState.deskSessionForm
-            ? "Hoặc đăng nhập qua Authentik Outpost"
-            : "Đăng nhập qua Hệ thống (Authentik Outpost)";
+          // Desk form bật: ẩn Outpost (tránh auth.atz.vn). Chỉ hiện khi form tắt.
+          if (accountState.deskSessionForm) {
+            outpostBtn.classList.remove("is-visible");
+            outpostBtn.setAttribute("hidden", "");
+          } else {
+            outpostBtn.classList.add("is-visible");
+            outpostBtn.removeAttribute("hidden");
+            outpostBtn.textContent = "Đăng nhập qua Hệ thống (Authentik Outpost)";
+          }
         }
       }
       applyRbacTabs();
@@ -2538,11 +2562,15 @@
     let deskMfaToken = "";
 
     function showWelcomeMfaStep(on) {
+      const card = document.querySelector(".welcome-card");
+      const title = document.getElementById("welcome-title");
       const passStep = document.getElementById("welcome-step-pass");
       const mfaStep = document.getElementById("welcome-step-mfa");
       const userEl = document.getElementById("welcome-username");
       const passEl = document.getElementById("welcome-password");
       const otpEl = document.getElementById("welcome-otp");
+      if (card) card.classList.toggle("is-mfa", !!on);
+      if (title) title.textContent = on ? "Xác thực 2 bước (TOTP)" : "Nền tảng Giao dịch & Định lượng";
       if (passStep) passStep.hidden = !!on;
       if (mfaStep) mfaStep.hidden = !on;
       if (userEl) userEl.required = !on;
@@ -2637,10 +2665,11 @@
           return;
         }
         const data = await res.json().catch(() => ({}));
-        if (res.status === 202 && data.mfa_required && data.mfa_token) {
+        // MFA challenge: 200 (mới) hoặc 202 (cũ) + mfa_required — không phải login xong.
+        if (data.mfa_required && data.mfa_token) {
           deskMfaToken = String(data.mfa_token);
           showWelcomeMfaStep(true);
-          if (errEl) errEl.textContent = data.detail || "Mật khẩu đúng — nhập mã TOTP để hoàn tất";
+          if (errEl) errEl.textContent = "";
           return;
         }
         if (!res.ok || data.success !== true) {
