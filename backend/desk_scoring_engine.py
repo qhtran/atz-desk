@@ -9,6 +9,15 @@ from typing import Any
 
 DECISIONS = ("STRONG_BUY", "ACCUMULATE", "HOLD", "TRIM", "SELL")
 
+# Vietnamese short labels for UI (decision support — not order placement).
+DECISION_LABELS_VI: dict[str, str] = {
+    "STRONG_BUY": "Mua mạnh",
+    "ACCUMULATE": "Tích lũy",
+    "HOLD": "Giữ",
+    "TRIM": "Giảm",
+    "SELL": "Bán",
+}
+
 # score_pct thresholds (inclusive lower bound)
 _DECISION_BANDS: list[tuple[float, str]] = [
     (80.0, "STRONG_BUY"),
@@ -40,6 +49,11 @@ def decision_from_score_pct(score_pct: float) -> str:
         if pct >= lo:
             return label
     return "SELL"
+
+
+def decision_label_vi(decision: str) -> str:
+    key = str(decision or "").strip().upper()
+    return DECISION_LABELS_VI.get(key, key or "—")
 
 
 def _num(v: Any) -> float | None:
@@ -159,6 +173,7 @@ def evaluate_rules(
         "max_score": round(max_score, 4),
         "score_pct": round(score_pct, 4),
         "decision": decision,
+        "decision_label": decision_label_vi(decision),
         "breakdown": breakdown,
     }
 
