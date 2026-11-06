@@ -30,6 +30,7 @@ class AdminControlPlaneBody(BaseModel):
     ma_slow_period: int | None = Field(default=None, ge=2, le=400)
     volume_spike_mult: float | None = Field(default=None, ge=0.5, le=20)
     volume_spike_lookback: int | None = Field(default=None, ge=2, le=200)
+    min_traded_value: dict[str, Any] | None = None
 
 
 def register_admin_routes(
@@ -53,7 +54,8 @@ def register_admin_routes(
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         stream = result.get("stream_alerts") or {}
         apply_stream_config(stream if isinstance(stream, dict) else {})
-        await publish_config_reload(stream if isinstance(stream, dict) else None)
+        floors = result.get("min_traded_value") if isinstance(result.get("min_traded_value"), dict) else None
+        await publish_config_reload(stream if isinstance(stream, dict) else None, min_traded_value=floors)
         return result
 
     @app.put("/api/admin/control-plane")

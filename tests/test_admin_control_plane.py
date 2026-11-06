@@ -176,3 +176,15 @@ def test_admin_post_flat_keys(tmp_path: Path, monkeypatch):
     assert body["stream_alerts"]["ma"]["fast"] == 9
     assert body["stream_alerts"]["ma"]["slow"] == 26
     assert body["screening_filters"]["ma_fast_period"] == 9
+
+
+def test_admin_min_traded_value_overlay(tmp_path: Path):
+    path = tmp_path / "admin_runtime_config.json"
+    put_control_plane(
+        {"min_traded_value": {"HOSE": 4_000_000_000, "HNX": "nope", "UPCOM": 1_000_000_000}},
+        overlay_path=path,
+    )
+    data = get_control_plane(path)
+    assert data["min_traded_value"]["HOSE"] == 4_000_000_000
+    assert data["min_traded_value"]["HNX"] == 1_000_000_000
+    assert data["min_traded_value"]["UPCOM"] == 1_000_000_000

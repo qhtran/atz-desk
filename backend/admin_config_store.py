@@ -11,6 +11,7 @@ from typing import Any
 
 from backend.admin_config_bus import config_reload_channel
 from backend.core.trading_config import load_trading_config
+from backend.core_selector import effective_min_traded_value, sanitize_min_traded_value
 from backend.engine.stream_listener import load_stream_alerts_config
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -165,6 +166,8 @@ def normalize_control_plane_body(body: dict[str, Any] | None) -> dict[str, Any]:
         out["stream_alerts"] = stream
     if isinstance(raw.get("risk"), dict):
         out["risk"] = raw["risk"]
+    if "min_traded_value" in raw:
+        out["min_traded_value"] = raw.get("min_traded_value")
     return out
 
 
@@ -296,6 +299,12 @@ def effective_stream_config(overlay_path: Path | None = None) -> dict[str, Any]:
     return _deep_merge(base_stream_config(), stream_ov)
 
 
+def effective_liquidity_config(overlay_path: Path | None = None) -> dict[str, int]:
+    overlay = _read_overlay(overlay_path)
+    raw = overlay.get("min_traded_value") if isinstance(overlay.get("min_traded_value"), dict) else {}
+    return effective_min_traded_value(raw)
+
+
 def effective_risk_config(overlay_path: Path | None = None) -> dict[str, Any]:
     overlay = _read_overlay(overlay_path)
     risk_ov = overlay.get("risk") if isinstance(overlay.get("risk"), dict) else {}
@@ -310,6 +319,7 @@ def get_control_plane(overlay_path: Path | None = None) -> dict[str, Any]:
         "stream_alerts": stream,
         "screening_filters": flatten_screening_filters(stream),
         "risk": effective_risk_config(overlay_path),
+        "min_traded_value": effective_liquidity_config(overlay_path),
         "overlay_path": str(overlay_path or DEFAULT_OVERLAY),
         "has_overlay": bool(overlay),
         "config_reload_channel": config_reload_channel(),
@@ -330,6 +340,9 @@ def put_control_plane(
     risk_patch = sanitize_risk_patch(
         normalized.get("risk") if isinstance(normalized.get("risk"), dict) else {}
     )
+    liquidity_patch = sanitize_min_traded_value(
+        normalized.get("min_traded_value") if isinstance(normalized.get("min_traded_value"), dict) else None
+    )
 
     if stream_patch:
         prev = current.get("stream_alerts") if isinstance(current.get("stream_alerts"), dict) else {}
@@ -337,6 +350,9 @@ def put_control_plane(
     if risk_patch:
         prev_r = current.get("risk") if isinstance(current.get("risk"), dict) else {}
         current["risk"] = _deep_merge(prev_r, risk_patch)
+    if liquidity_patch:
+        prev_l = current.get("min_traded_value") if isinstance(current.get("min_traded_value"), dict) else {}
+        current["min_traded_value"] = {**prev_l, **liquidity_patch}
 
     _write_overlay(current, overlay_path)
     return get_control_plane(overlay_path)

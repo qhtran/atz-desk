@@ -5,6 +5,26 @@ Không thay ADR; không dump changelog dài. Mỗi mục: ngày · phạm vi · 
 
 ---
 
+## 2026-11-07 — Core 300 ADTV gate + admin min_traded_value
+
+**Phạm vi:** ATZ Desk — script sinh core + Admin control-plane. Chưa ghi đè `priceboard_core_symbols.yaml` (local không có universe ADTV đủ 300 mã).
+
+**Quyết định**
+- Selector: quota 160 HOSE / 80 HNX / 60 UPCOM; ADTV <= 0 luôn loại; sàn so với `min_traded_value` (HOSE 3 tỷ, HNX/UPCOM 1 tỷ VNĐ).
+- Ngưỡng nằm `config/priceboard.yaml`, admin overlay JSON ghi đè và publish kèm key Redis `priceboard:core:min_traded_value`.
+- `backend/build_core_symbols.py` từ chối `--write-yaml` khi một sàn chưa đủ quota.
+
+**File neo**
+- `backend/core_selector.py`, `backend/build_core_symbols.py`
+- `backend/admin_config_store.py`, `backend/routers/admin.py`, `backend/admin_config_bus.py`
+- `config/priceboard.yaml`, `frontend/index.html`
+- `tests/test_core_selector.py`
+
+**Follow-up (P1)**
+- Chạy builder khi có CSV/EOD đủ mã rồi mới thay file core 240 đang curated.
+
+---
+
 ## 2026-11-04 — P0 Master Catalog + Quote Snapshot (off-core)
 
 **Phạm vi:** Desk priceboard search / Quick Switcher — mã ngoài Core WS (~80 `default_watchlist`), chưa dynamic SSI subscribe.

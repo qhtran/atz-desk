@@ -1993,6 +1993,12 @@
           <label class="admin-field">Default equity % <input id="adm-eq" type="number" min="0" max="100" step="0.1" placeholder="null" /></label>
           <label class="admin-field">Max positions <input id="adm-maxpos" type="number" min="1" max="500" step="1" placeholder="null" /></label>
         </div>
+        <div class="admin-card">
+          <h3>Core liquidity · ADTV (VNĐ)</h3>
+          <label class="admin-field">min_traded_value HOSE <input id="adm-adtv-hose" type="number" min="0" step="1000000" placeholder="3000000000" /></label>
+          <label class="admin-field">min_traded_value HNX <input id="adm-adtv-hnx" type="number" min="0" step="1000000" placeholder="1000000000" /></label>
+          <label class="admin-field">min_traded_value UPCOM <input id="adm-adtv-upcom" type="number" min="0" step="1000000" placeholder="1000000000" /></label>
+        </div>
       </div>
       <div class="admin-actions">
         <button type="button" class="primary" id="adm-save" data-atd-id="pb-ui:admin.save">Lưu cấu hình</button>
@@ -2623,6 +2629,7 @@
         const ma = sa.ma || {};
         const vol = sa.volume_spike || {};
         const risk = data.risk || {};
+        const adtv = data.min_traded_value || {};
         admFill("adm-rsi-length", rsi.length);
         admFill("adm-rsi-oversold", rsi.oversold);
         admFill("adm-rsi-overbought", rsi.overbought);
@@ -2637,6 +2644,9 @@
         admFill("adm-mpr", risk.max_portfolio_risk_pct);
         admFill("adm-eq", risk.default_equity_pct);
         admFill("adm-maxpos", risk.max_positions);
+        admFill("adm-adtv-hose", adtv.HOSE);
+        admFill("adm-adtv-hnx", adtv.HNX);
+        admFill("adm-adtv-upcom", adtv.UPCOM);
         admSetStatus(data.has_overlay ? "Đã tải (có overlay)" : "Đã tải (YAML mặc định)", "ok");
       } catch (err) {
         admSetStatus("Lỗi tải control-plane", "err");
@@ -2670,6 +2680,11 @@
           max_portfolio_risk_pct: admNum("adm-mpr"),
           default_equity_pct: admNum("adm-eq"),
           max_positions: admNum("adm-maxpos"),
+        },
+        min_traded_value: {
+          HOSE: admNum("adm-adtv-hose"),
+          HNX: admNum("adm-adtv-hnx"),
+          UPCOM: admNum("adm-adtv-upcom"),
         },
       };
       try {

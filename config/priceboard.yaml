@@ -13,6 +13,12 @@ priceboard:
     HOSE: 500000
     HNX: 50000
     UPCOM: 50000
+  # ADTV tối thiểu (VNĐ) khi sinh core 300. Admin overlay ghi đè từng sàn.
+  # HOSE >= 3 tỷ; HNX/UPCOM >= 1 tỷ. ADTV <= 0 luôn loại.
+  min_traded_value:
+    HOSE: 3000000000
+    HNX: 1000000000
+    UPCOM: 1000000000
   redis:
     channel: priceboard_ticks
     hash: priceboard:quotes
