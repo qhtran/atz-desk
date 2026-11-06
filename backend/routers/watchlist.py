@@ -8,7 +8,7 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from backend.desk_session import COOKIE_NAME as DESK_COOKIE
-from backend.identity import resolve_me
+from backend.identity import resolve_request_identity as resolve_me
 from backend.ondemand_watch import touch_ondemand_symbols
 from backend.watchlist_store import (
     create_watchlist,

@@ -983,41 +983,48 @@
 
     .pf-f3-sector-panel {
       position: relative;
-      margin: 0 12px 10px;
-      padding: 8px 10px;
+      margin: 0 12px 8px;
+      padding: 4px 8px;
       border: 1px solid #2a2a2a;
       background: #0f0f0f;
       border-radius: 6px;
     }
     .pf-f3-toolbar {
       display: flex;
-      flex-wrap: wrap;
+      flex-wrap: nowrap;
       align-items: center;
       gap: 8px;
-      margin-bottom: 4px;
+      margin-bottom: 2px;
       font-size: 11px;
       color: #a3a3a3;
+    }
+    .pf-f3-view-hint {
+      margin-left: auto;
+      font-size: 10px;
+      color: #737373;
+      white-space: nowrap;
     }
     .pf-f3-pills {
       display: flex;
       flex-wrap: nowrap;
-      gap: 0.5rem;
+      gap: 0.4rem;
       overflow-x: auto;
       white-space: nowrap;
-      padding: 0.5rem;
+      padding: 2px 0 4px;
       -webkit-overflow-scrolling: touch;
+      scrollbar-width: thin;
     }
     .pf-f3-pill {
       flex: 0 0 auto;
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-      padding: 5px 10px;
+      gap: 5px;
+      padding: 4px 9px;
       border: 1px solid #2a2a2a;
       border-radius: 999px;
       background: #141414;
       color: #e5e5e5;
-      font-size: 12px;
+      font-size: 11px;
       cursor: pointer;
       line-height: 1.2;
     }
@@ -1452,7 +1459,7 @@
       cursor: wait;
     }
     .welcome-outpost-link {
-      display: inline-block;
+      display: none; /* Desk Session: ẩn Outpost mặc định — tránh auth.atz.vn */
       margin-top: 10px;
       color: #737373;
       font-size: 11px;
@@ -1462,7 +1469,24 @@
       border: 0;
       padding: 0;
     }
+    .welcome-outpost-link.is-visible { display: inline-block; }
     .welcome-outpost-link:hover { color: #ffd900; }
+    .welcome-card.is-mfa #welcome-step-mfa { display: block !important; }
+    .welcome-card.is-mfa #welcome-step-pass { display: none !important; }
+    .welcome-card.is-mfa #welcome-continue,
+    .welcome-card.is-mfa #welcome-outpost { display: none !important; }
+    .welcome-mfa-hint {
+      margin: 0 0 12px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 217, 0, 0.35);
+      background: rgba(255, 217, 0, 0.08);
+      color: #ffd900;
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1.4;
+      text-align: left;
+    }
     .alerts-feed {
       list-style: none;
       margin: 0;
@@ -1557,7 +1581,7 @@
         <div class="brand-name">atz<span>.vn</span></div>
       </div>
       <h1 id="welcome-title">Nền tảng Giao dịch &amp; Định lượng</h1>
-      <p>Đăng nhập trong modal (DEV Desk Session). Mật khẩu / OTP chỉ gửi FastAPI → Authentik; SPA không lưu token.</p>
+      <p>Đăng nhập tại đây (Desk Session). Nếu tài khoản bật TOTP, sau mật khẩu sẽ hỏi mã OTP — không chuyển sang auth.atz.vn.</p>
       <form id="welcome-login-form" class="welcome-form" data-atd-id="pb-ui:auth.form" autocomplete="on">
         <div id="welcome-step-pass">
           <label>Tài khoản
@@ -1569,11 +1593,12 @@
           <button type="submit" id="welcome-login" class="cta" data-atd-id="pb-ui:auth.login">Đăng nhập</button>
         </div>
         <div id="welcome-step-mfa" hidden>
+          <p id="welcome-mfa-hint" class="welcome-mfa-hint" role="status">Mật khẩu đúng — nhập mã 6 số từ app Authenticator (TOTP).</p>
           <label>Mã xác thực (TOTP)
             <input id="welcome-otp" name="otp" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code" maxlength="8" placeholder="6 chữ số" />
           </label>
           <button type="submit" id="welcome-mfa-submit" class="cta" data-atd-id="pb-ui:auth.mfa">Xác nhận OTP</button>
-          <button type="button" class="ghost" id="welcome-mfa-back" data-atd-id="pb-ui:auth.mfa-back">Quay lại</button>
+          <button type="button" class="ghost" id="welcome-mfa-back" data-atd-id="pb-ui:auth.mfa-back">Quay lại mật khẩu</button>
         </div>
         <p id="welcome-error" class="welcome-error" role="alert"></p>
       </form>
@@ -1876,8 +1901,9 @@
     </div>
     <div class="pf-f3-sector-panel" data-atd-id="pb-ui:portfolio.f3-picker">
       <div class="pf-f3-toolbar">
-        <span>Ngành F3 — chọn pill để xem mã</span>
+        <span>Ngành F3</span>
         <span id="pf-f3-preview-count">0 ngành</span>
+        <span class="pf-f3-view-hint">vuốt ngang · chạm pill mở danh sách mã</span>
       </div>
       <div id="pf-f3-themes" class="pf-f3-pills" data-atd-id="pb-ui:iboard.f3.board" role="region" aria-label="Ngành F3"></div>
       <div id="pf-f3-preview-empty" class="empty-hint" hidden>Không tải được danh sách ngành F3.</div>
@@ -1966,10 +1992,34 @@
   <!-- ===== Panel: Admin (RBAC — chỉ hiện khi is_admin) ===== -->
   <section id="panel-admin" class="panel" data-panel="admin" data-atd-id="pb-ui:admin.panel" role="tabpanel" hidden>
     <div class="panel-toolbar">
-      <span class="text-[12px] text-gray-400">Parameter Control Panel · Screening Filters · Redis <code class="text-gray-300">admin:config-reload</code> · <code class="text-gray-300">/api/admin/control-plane</code></span>
+      <span class="text-[12px] text-gray-400">Admin-First Config · Core / Volume / Flags · <code class="text-gray-300">/api/admin/config</code> · Screening · <code class="text-gray-300">admin:config-reload</code></span>
     </div>
     <form id="admin-control-form" data-atd-id="pb-ui:admin.form" onsubmit="return false;">
       <div class="admin-form">
+        <div class="admin-card" data-atd-id="pb-ui:admin.ops.card">
+          <h3>Ops · Core allocation &amp; volume</h3>
+          <label class="admin-field">HOSE Core <input id="adm-core-hose" type="number" min="0" max="400" step="1" placeholder="160" /></label>
+          <label class="admin-field">HNX Core <input id="adm-core-hnx" type="number" min="0" max="400" step="1" placeholder="80" /></label>
+          <label class="admin-field">UPCOM Core <input id="adm-core-upcom" type="number" min="0" max="400" step="1" placeholder="60" /></label>
+          <label class="admin-field">max_core (≤500) <input id="adm-max-core" type="number" min="50" max="500" step="1" placeholder="300" /></label>
+          <label class="admin-field">min_volume HOSE <input id="adm-minvol-hose" type="number" min="0" max="50000000" step="1000" placeholder="500000" /></label>
+          <label class="admin-field">min_volume HNX <input id="adm-minvol-hnx" type="number" min="0" max="50000000" step="1000" placeholder="50000" /></label>
+          <label class="admin-field">min_volume UPCOM <input id="adm-minvol-upcom" type="number" min="0" max="50000000" step="1000" placeholder="50000" /></label>
+          <label class="admin-field" style="flex-direction:row;align-items:center;gap:8px;">
+            <input id="adm-maint" type="checkbox" /> Chế độ bảo trì (maintenance)
+          </label>
+          <label class="admin-field" style="flex-direction:row;align-items:center;gap:8px;">
+            <input id="adm-ondemand" type="checkbox" checked /> On-demand SSI sync
+          </label>
+          <label class="admin-field" style="flex-direction:row;align-items:center;gap:8px;">
+            <input id="adm-reload-core" type="checkbox" checked /> Reload Core khi Lưu &amp; Áp dụng
+          </label>
+          <div class="admin-actions" style="margin-top:8px;">
+            <button type="button" class="primary" id="adm-ops-save" data-atd-id="pb-ui:admin.ops.save">Lưu &amp; Áp dụng</button>
+            <button type="button" id="adm-ops-reload" data-atd-id="pb-ui:admin.ops.reload">Tải ops</button>
+            <span id="adm-ops-status" class="admin-status" role="status"></span>
+          </div>
+        </div>
         <div class="admin-card">
           <h3>Screening Filters · RSI</h3>
           <label class="admin-field">RSI length <input id="adm-rsi-length" type="number" min="2" max="100" step="1" placeholder="14" /></label>
@@ -2074,6 +2124,13 @@
       "VCI", "GEX", "PDR", "HSG", "NKG", "DGC", "DIG", "DXG", "HCM", "KDH",
       "NLG", "PNJ", "POW", "REE", "TCH", "VND", "VGC", "VPI", "VSH", "GMD",
     ]);
+    /** Top-N Core từ /api/catalog/core — hydrate iBoard lúc boot / sau Admin ops. */
+    /** @type {Map<string, {symbol:string, exchange:string, name?:string}>} */
+    const coreCatalogBySymbol = new Map();
+    /** @type {string[]} */
+    let coreCatalogSymbols = [];
+    /** @type {Promise<string[]>|null} */
+    let coreCatalogLoadPromise = null;
     const PIN_KEY = "atz.iboard.pinned";
     const MARKET_KEY = "atz.iboard.market";
     const WATCHLIST_KEY = "atz.iboard.watchlist_id";
@@ -2096,12 +2153,61 @@
 
     function resolveLoginUrl() {
       const u = (accountState.loginUrl || "").trim();
-      if (u.startsWith("https://") || u.startsWith("/")) return u;
+      if (u.startsWith("/")) return u;
+      if (u.startsWith("https://")) {
+        try {
+          // Tránh login_url trỏ host khác (vd. config còn dev.atz.vn khi đang ở atz.vn).
+          if (new URL(u).host !== location.host) return defaultOutpostLoginUrl();
+        } catch (_) {
+          return defaultOutpostLoginUrl();
+        }
+        return u;
+      }
       return defaultOutpostLoginUrl();
+    }
+
+    function resolveLogoutUrl() {
+      const u = (accountState.logoutUrl || "").trim();
+      const rd = location.origin + "/";
+      if (!u) {
+        return "/outpost.goauthentik.io/sign_out?rd=" + encodeURIComponent(rd);
+      }
+      try {
+        const parsed = new URL(u, location.origin);
+        if (parsed.host !== location.host) {
+          return "/outpost.goauthentik.io/sign_out?rd=" + encodeURIComponent(rd);
+        }
+        if (!parsed.searchParams.has("rd")) parsed.searchParams.set("rd", rd);
+        return parsed.pathname + parsed.search;
+      } catch (_) {
+        return "/outpost.goauthentik.io/sign_out?rd=" + encodeURIComponent(rd);
+      }
     }
 
     function triggerSystemLogin() {
       window.location.href = resolveLoginUrl();
+    }
+
+    /** Mở Welcome Gate Desk Session — không đẩy Outpost/auth.atz.vn. */
+    function openDeskLoginGate() {
+      setGuestMode(false);
+      showWelcomeMfaStep(false);
+      const errEl = document.getElementById("welcome-error");
+      if (errEl) errEl.textContent = "";
+      const gate = document.getElementById("welcome-gate");
+      if (gate) gate.removeAttribute("hidden");
+      const form = document.getElementById("welcome-login-form");
+      if (form) form.style.display = accountState.deskSessionForm ? "" : "none";
+      const userEl = document.getElementById("welcome-username");
+      try { userEl && userEl.focus(); } catch (_) {}
+    }
+
+    function startLoginFlow() {
+      if (accountState.deskSessionForm) {
+        openDeskLoginGate();
+        return;
+      }
+      triggerSystemLogin();
     }
 
     function isGuestMode() {
@@ -2307,7 +2413,7 @@
       const chipName = document.getElementById("auth-chip-name");
       const chipRole = document.getElementById("auth-chip-role");
       const btnLogin = document.getElementById("btn-header-login");
-      if (btnLogin) btnLogin.onclick = () => triggerSystemLogin();
+      if (btnLogin) btnLogin.onclick = () => startLoginFlow();
       if (accountState.authenticated) {
         setGuestMode(false);
         if (gate) gate.setAttribute("hidden", "");
@@ -2340,9 +2446,15 @@
         const outpostBtn = document.getElementById("welcome-outpost");
         if (form) form.style.display = accountState.deskSessionForm ? "" : "none";
         if (outpostBtn) {
-          outpostBtn.textContent = accountState.deskSessionForm
-            ? "Hoặc đăng nhập qua Authentik Outpost"
-            : "Đăng nhập qua Hệ thống (Authentik Outpost)";
+          // Desk form bật: ẩn Outpost (tránh auth.atz.vn). Chỉ hiện khi form tắt.
+          if (accountState.deskSessionForm) {
+            outpostBtn.classList.remove("is-visible");
+            outpostBtn.setAttribute("hidden", "");
+          } else {
+            outpostBtn.classList.add("is-visible");
+            outpostBtn.removeAttribute("hidden");
+            outpostBtn.textContent = "Đăng nhập qua Hệ thống (Authentik Outpost)";
+          }
         }
       }
       applyRbacTabs();
@@ -2410,11 +2522,17 @@
 
     async function deskLogout() {
       try {
-        await fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" });
+        await fetch("/api/auth/logout", {
+          method: "POST",
+          credentials: "same-origin",
+          redirect: "manual",
+        });
       } catch (_) {}
-      const url = accountState.logoutUrl;
-      if (url) window.location.href = url;
-      else window.location.reload();
+      // API đã xóa atz_desk_session + authentik_proxy_*.
+      // Không bao giờ navigate /outpost/.../sign_out: khi hết session Authentik
+      // trả 302 → /start → auth.atz.vn (đúng bug logout→login trên PROD).
+      setGuestMode(false);
+      window.location.replace("/");
     }
 
     async function initAuthShell() {
@@ -2436,18 +2554,23 @@
       }
       renderAuthChrome();
       const form = document.getElementById("welcome-login-form");
-      if (form) form.style.display = accountState.deskSessionForm || !accountState.authenticated ? "" : "";
+      // Chỉ hiện form mật khẩu khi Desk Session bật — tránh atz.vn hard-auth POST → 302 Authentik.
+      if (form) form.style.display = accountState.deskSessionForm ? "" : "none";
       try { await loadUserWatchlists(); } catch (_) {}
     }
 
     let deskMfaToken = "";
 
     function showWelcomeMfaStep(on) {
+      const card = document.querySelector(".welcome-card");
+      const title = document.getElementById("welcome-title");
       const passStep = document.getElementById("welcome-step-pass");
       const mfaStep = document.getElementById("welcome-step-mfa");
       const userEl = document.getElementById("welcome-username");
       const passEl = document.getElementById("welcome-password");
       const otpEl = document.getElementById("welcome-otp");
+      if (card) card.classList.toggle("is-mfa", !!on);
+      if (title) title.textContent = on ? "Xác thực 2 bước (TOTP)" : "Nền tảng Giao dịch & Định lượng";
       if (passStep) passStep.hidden = !!on;
       if (mfaStep) mfaStep.hidden = !on;
       if (userEl) userEl.required = !on;
@@ -2509,18 +2632,44 @@
 
       if (btn) btn.disabled = true;
       if (mfaBtn) mfaBtn.disabled = true;
+      if (errEl) errEl.textContent = onMfa ? "Đang xác nhận OTP…" : "Đang đăng nhập…";
+      const ac = typeof AbortController !== "undefined" ? new AbortController() : null;
+      const timer = ac ? setTimeout(() => ac.abort(), 25000) : null;
       try {
+        if (!accountState.deskSessionForm) {
+          if (errEl) errEl.textContent = "Form Desk Session tắt — bấm «Hoặc đăng nhập qua Authentik Outpost».";
+          return;
+        }
         const res = await fetch("/api/auth/login", {
           method: "POST",
           credentials: "same-origin",
+          redirect: "manual",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
+          signal: ac ? ac.signal : undefined,
         });
+        // Nginx hard ForwardAuth từng 302 → outpost. Không tự nhảy auth.atz.vn khi Desk form bật.
+        if (res.type === "opaqueredirect" || (res.status >= 300 && res.status < 400)) {
+          if (errEl) {
+            errEl.textContent = "Máy chủ chuyển hướng Authentik — kiểm tra nginx bypass /api/auth/login, hoặc dùng Outpost.";
+          }
+          return;
+        }
+        if (res.status === 429) {
+          const data429 = await res.json().catch(() => ({}));
+          const wait = data429.retry_after || res.headers.get("Retry-After") || "";
+          if (errEl) {
+            errEl.textContent = (data429.detail || "Quá nhiều lần thử")
+              + (wait ? ` — thử lại sau ${wait}s` : "");
+          }
+          return;
+        }
         const data = await res.json().catch(() => ({}));
-        if (res.status === 202 && data.mfa_required && data.mfa_token) {
+        // MFA challenge: 200 (mới) hoặc 202 (cũ) + mfa_required — không phải login xong.
+        if (data.mfa_required && data.mfa_token) {
           deskMfaToken = String(data.mfa_token);
           showWelcomeMfaStep(true);
-          if (errEl) errEl.textContent = data.detail || "Nhập mã xác thực (TOTP)";
+          if (errEl) errEl.textContent = "";
           return;
         }
         if (!res.ok || data.success !== true) {
@@ -2533,10 +2682,21 @@
           }
           return;
         }
-        await finishDeskLoginOk(data, passEl);
-      } catch {
-        if (errEl) errEl.textContent = "Không kết nối được máy chủ đăng nhập";
+        // Cookie Set-Cookie đã có — hard navigate để /api/account/me + gate đồng bộ.
+        applyMePayload(data);
+        if (passEl) passEl.value = "";
+        window.location.replace("/");
+        return;
+      } catch (err) {
+        const aborted = err && (err.name === "AbortError" || /abort/i.test(String(err.message || "")));
+        if (errEl) {
+          errEl.textContent = aborted
+            ? "Đăng nhập quá hạn (25s) — thử lại hoặc kiểm tra Authentik/TOTP"
+            : ("Không kết nối được máy chủ đăng nhập"
+              + (err && err.message ? ` (${err.message})` : ""));
+        }
       } finally {
+        if (timer) clearTimeout(timer);
         if (btn) btn.disabled = false;
         if (mfaBtn) mfaBtn.disabled = false;
       }
@@ -2608,9 +2768,111 @@
       return Number.isFinite(n) ? n : null;
     }
 
+
+    function admOpsSetStatus(text, kind) {
+      const el = document.getElementById("adm-ops-status");
+      if (!el) return;
+      el.textContent = text || "";
+      el.classList.toggle("is-ok", kind === "ok");
+      el.classList.toggle("is-err", kind === "err");
+    }
+
+    async function loadAdminOpsConfig() {
+      if (!accountState.isAdmin) return;
+      admOpsSetStatus("Đang tải ops…");
+      try {
+        const res = await fetch("/api/admin/config", { credentials: "same-origin" });
+        if (res.status === 401 || res.status === 403) {
+          admOpsSetStatus("Không đủ quyền admin", "err");
+          return;
+        }
+        const data = await res.json();
+        const cfg = data.config || {};
+        const alloc = cfg.core_allocation || {};
+        const mv = cfg.min_volume_by_exchange || {};
+        admFill("adm-core-hose", alloc.HOSE);
+        admFill("adm-core-hnx", alloc.HNX);
+        admFill("adm-core-upcom", alloc.UPCOM);
+        admFill("adm-max-core", cfg.max_core);
+        admFill("adm-minvol-hose", mv.HOSE != null ? mv.HOSE : cfg.min_volume);
+        admFill("adm-minvol-hnx", mv.HNX);
+        admFill("adm-minvol-upcom", mv.UPCOM);
+        const maint = document.getElementById("adm-maint");
+        const ond = document.getElementById("adm-ondemand");
+        const rel = document.getElementById("adm-reload-core");
+        if (maint) maint.checked = !!cfg.maintenance_mode;
+        if (ond) ond.checked = cfg.ondemand_sync_enabled !== false;
+        if (rel) rel.checked = cfg.reload_core_on_save !== false;
+        const sum = (Number(alloc.HOSE) || 0) + (Number(alloc.HNX) || 0) + (Number(alloc.UPCOM) || 0);
+        admOpsSetStatus(`Đã tải ops · tổng Core ${sum}/${cfg.max_core || "?"} · guardrail ≤500`, "ok");
+      } catch (_) {
+        admOpsSetStatus("Lỗi tải /api/admin/config", "err");
+      }
+    }
+
+    async function saveAdminOpsConfig() {
+      if (!accountState.isAdmin) return;
+      admOpsSetStatus("Đang lưu & áp dụng…");
+      const hose = admNum("adm-core-hose");
+      const hnx = admNum("adm-core-hnx");
+      const up = admNum("adm-core-upcom");
+      const body = {
+        config: {
+          core_allocation: {
+            HOSE: hose,
+            HNX: hnx,
+            UPCOM: up,
+          },
+          max_core: admNum("adm-max-core"),
+          min_volume: admNum("adm-minvol-hose"),
+          min_volume_by_exchange: {
+            HOSE: admNum("adm-minvol-hose"),
+            HNX: admNum("adm-minvol-hnx"),
+            UPCOM: admNum("adm-minvol-upcom"),
+          },
+          maintenance_mode: !!document.getElementById("adm-maint")?.checked,
+          ondemand_sync_enabled: !!document.getElementById("adm-ondemand")?.checked,
+          reload_core_on_save: !!document.getElementById("adm-reload-core")?.checked,
+        },
+      };
+      try {
+        const res = await fetch("/api/admin/config", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || data.ok === false) {
+          admOpsSetStatus(data.error || data.detail || ("HTTP " + res.status), "err");
+          return;
+        }
+        const warn = (data.warnings || []).slice(0, 2).join("; ");
+        await loadAdminOpsConfig();
+        let boardSync = null;
+        try {
+          if (typeof refreshBoardAfterCoreOpsChange === "function") {
+            boardSync = await refreshBoardAfterCoreOpsChange();
+          }
+        } catch (_) {
+          boardSync = null;
+        }
+        const syncLabel = boardSync
+          ? ` · board ${boardSync.total} (HOSE ${boardSync.hose}/HNX ${boardSync.hnx}/UPCOM ${boardSync.upcom})`
+          : "";
+        admOpsSetStatus(
+          "Đã lưu & áp dụng" + (warn ? " · " + warn : " · hot-reload worker") + syncLabel,
+          "ok",
+        );
+      } catch (_) {
+        admOpsSetStatus("Lỗi lưu ops config", "err");
+      }
+    }
+
     async function loadAdminControlPlane() {
       if (!accountState.isAdmin) return;
       admSetStatus("Đang tải…");
+      void loadAdminOpsConfig();
       try {
         const res = await fetch("/api/admin/control-plane", { credentials: "same-origin" });
         if (res.status === 401 || res.status === 403) {
@@ -2693,6 +2955,8 @@
 
     document.getElementById("adm-save")?.addEventListener("click", () => { void saveAdminControlPlane(); });
     document.getElementById("adm-reload")?.addEventListener("click", () => { void loadAdminControlPlane(); });
+    document.getElementById("adm-ops-save")?.addEventListener("click", () => { void saveAdminOpsConfig(); });
+    document.getElementById("adm-ops-reload")?.addEventListener("click", () => { void loadAdminOpsConfig(); });
 
     /* ===== Connection ===== */
     function setConn(status) {
@@ -3978,7 +4242,7 @@
       applyEquity(row, opts);
     }
 
-    function boardUniverseSymbols() {
+    function fallbackBoardUniverseSymbols() {
       return [
         ...VN30_SET,
         ...HOSE_EXTRA_SET,
@@ -3988,10 +4252,101 @@
       ];
     }
 
+    function boardUniverseSymbols() {
+      if (coreCatalogSymbols.length) {
+        return [...coreCatalogSymbols, ...FUTURES_BOARD_SYMBOLS];
+      }
+      return fallbackBoardUniverseSymbols();
+    }
+
+    async function loadCoreCatalog(force = false) {
+      if (!force && coreCatalogSymbols.length) return boardUniverseSymbols();
+      if (!force && coreCatalogLoadPromise) return coreCatalogLoadPromise;
+      if (force) {
+        coreCatalogSymbols = [];
+        coreCatalogBySymbol.clear();
+        coreCatalogLoadPromise = null;
+      }
+      coreCatalogLoadPromise = (async () => {
+        try {
+          const res = await fetch(apiUrl("/api/catalog/core"), {
+            credentials: "same-origin",
+            cache: "no-store",
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok || !data.ok || !Array.isArray(data.items)) return fallbackBoardUniverseSymbols();
+          coreCatalogBySymbol.clear();
+          const syms = [];
+          for (const item of data.items) {
+            const sym = String(item && item.symbol || "").toUpperCase();
+            if (!sym || INDEX_SYMBOLS.has(sym)) continue;
+            let exchange = String(item.exchange || "HOSE").toUpperCase();
+            if (exchange === "HSX") exchange = "HOSE";
+            if (exchange === "UPX") exchange = "UPCOM";
+            if (exchange !== "HOSE" && exchange !== "HNX" && exchange !== "UPCOM") exchange = "HOSE";
+            coreCatalogBySymbol.set(sym, { symbol: sym, exchange, name: item.name || "" });
+            syms.push(sym);
+          }
+          if (syms.length) coreCatalogSymbols = syms;
+          return boardUniverseSymbols();
+        } catch (_) {
+          return fallbackBoardUniverseSymbols();
+        }
+      })();
+      return coreCatalogLoadPromise;
+    }
+
+    /** Bỏ hàng equity không còn trong Core (sau Admin đổi allocation / WS remove). */
+    function pruneBoardToCoreUniverse() {
+      const keep = new Set(boardUniverseSymbols());
+      for (const sym of [...state.keys()]) {
+        if (!sym) continue;
+        if (INDEX_SYMBOLS.has(sym) && !FUTURES_BOARD_SYMBOLS.has(sym)) continue;
+        if (keep.has(sym)) continue;
+        if (activeWatchlistSymbols && activeWatchlistSymbols.has(sym)) continue;
+        state.delete(sym);
+        const tr = document.getElementById("row-" + sym);
+        if (tr) tr.remove();
+      }
+      applyBoardFilter();
+      updatePinnedPositions();
+      scheduleIndexStatsRefresh();
+    }
+
+    function coreCatalogCountsByExchange() {
+      const counts = { HOSE: 0, HNX: 0, UPCOM: 0 };
+      for (const sym of coreCatalogSymbols) {
+        const ex = (coreCatalogBySymbol.get(sym) || {}).exchange || "HOSE";
+        if (counts[ex] != null) counts[ex] += 1;
+        else counts.HOSE += 1;
+      }
+      return counts;
+    }
+
+    async function refreshBoardAfterCoreOpsChange() {
+      await loadCoreCatalog(true);
+      pruneBoardToCoreUniverse();
+      hydrateMissingBoardSymbols([...state.values()]);
+      try {
+        await hydrateQuoteSnapshots(boardUniverseSymbols());
+      } catch (_) { /* ignore */ }
+      applyBoardFilter();
+      updateScreenerStatus(countVisibleBoardRows());
+      const c = coreCatalogCountsByExchange();
+      return {
+        total: coreCatalogSymbols.length,
+        hose: c.HOSE,
+        hnx: c.HNX,
+        upcom: c.UPCOM,
+      };
+    }
+
     function stubEquityRow(symbol) {
       const sym = String(symbol || "").toUpperCase();
+      const coreHit = coreCatalogBySymbol.get(sym);
       let exchange = "HOSE";
-      if (HNX_SET.has(sym)) exchange = "HNX";
+      if (coreHit && coreHit.exchange) exchange = coreHit.exchange;
+      else if (HNX_SET.has(sym)) exchange = "HNX";
       else if (UPCOM_SET.has(sym)) exchange = "UPCOM";
       return {
         type: "tick",
@@ -4011,7 +4366,7 @@
       };
     }
 
-    /** Bổ sung stub cho mã universe thiếu trong snapshot — tránh bảng “rỗng / 1 mã”. */
+    /** Bổ sung stub Core thiếu trong snapshot — tránh bảng chỉ ~30/80 mã hardcoded. */
     function hydrateMissingBoardSymbols(existingRows) {
       const have = new Set(
         (existingRows || []).map((r) => String(r && r.symbol || "").toUpperCase()).filter(Boolean)
@@ -5866,7 +6221,7 @@
 
     async function initPortfolioAuthSync() {
       try {
-        const meRes = await fetch("/api/account/me");
+        const meRes = await fetch("/api/account/me", { credentials: "same-origin" });
         const meData = await meRes.json();
         pfAuthenticated = meData.authenticated === true;
         if (!pfAuthenticated) {
@@ -5877,6 +6232,7 @@
         if (localItems.length) {
           const migRes = await fetch("/api/portfolio/positions/migrate", {
             method: "POST",
+            credentials: "same-origin",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ items: localItems }),
           });
@@ -5889,7 +6245,7 @@
             }
           }
         }
-        const res = await fetch("/api/portfolio/positions");
+        const res = await fetch("/api/portfolio/positions", { credentials: "same-origin" });
         if (res.ok) {
           const data = await res.json();
           if (data.ok && Array.isArray(data.items)) {
@@ -7198,12 +7554,22 @@
         const equitySyms = rows
           .map((r) => r && r.symbol)
           .filter((s) => s && !INDEX_SYMBOLS.has(s));
-        void Promise.all([fetchIndexSpark(), fetchEquitySpark(equitySyms)]).then(() => {
+        void Promise.all([
+          loadCoreCatalog(),
+          fetchIndexSpark(),
+          fetchEquitySpark(equitySyms),
+        ]).then(() => {
           rows.forEach((r) => {
             if (INDEX_SYMBOLS.has(r.symbol) && inTradingSession()) pushSpark(r.symbol, r.last);
             applyRow(r, { flash: false });
           });
           hydrateMissingBoardSymbols(rows);
+          pruneBoardToCoreUniverse();
+          void hydrateQuoteSnapshots(boardUniverseSymbols()).then(() => {
+            pruneBoardToCoreUniverse();
+            applyBoardFilter();
+            updateScreenerStatus(countVisibleBoardRows());
+          });
           renderIndexBar();
           rows.forEach((r) => {
             if (INDEX_SYMBOLS.has(r.symbol)) applyIndex(r, { flash: false });

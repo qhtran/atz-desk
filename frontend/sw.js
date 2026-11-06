@@ -1,6 +1,6 @@
 /* ATZ Desk PWA service worker — shell cache for installability (dev.atz.vn). */
 /* eslint-disable no-restricted-globals */
-const CACHE = "atz-desk-shell-v1";
+const CACHE = "atz-desk-shell-v3";
 const PRECACHE = [
   "/",
   "/manifest.json",

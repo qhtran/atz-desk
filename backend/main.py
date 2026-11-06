@@ -34,8 +34,14 @@ from backend.core.logging_middleware import TraceMiddleware
 from backend.debug_ui import public_debug_ui_config
 from backend.portfolio_alerts import position_alert
 from backend.account_config import load_account_config
+from backend.auth_rate_limit import (
+    client_ip as auth_client_ip,
+    enforce as auth_rate_enforce,
+    login_rate_keys,
+    logout_rate_keys,
+)
 from backend.desk_session import COOKIE_NAME as DESK_COOKIE, desk_session_enabled, issue_session_value
-from backend.identity import is_admin_user, resolve_me, roles_for_user
+from backend.identity import is_admin_user, resolve_request_identity, roles_for_user
 from backend.portfolio_f3 import batch_f3_alerts, load_f3_sector_themes
 from backend.portfolio_quotes import normalize_symbols, resolve_portfolio_quotes
 from backend.daily_signals import ALLOWED_FILTERS, scan_daily_signals
@@ -209,7 +215,10 @@ class PortfolioPositionsBody(BaseModel):
 
 
 def _resolve_request_me(request: Request) -> dict[str, Any] | None:
-    return resolve_me(request.headers, desk_cookie=request.cookies.get(DESK_COOKIE))
+    return resolve_request_identity(
+        request.headers,
+        desk_cookie=request.cookies.get(DESK_COOKIE),
+    )
 
 
 def _require_authentik_user(request: Request) -> str:
@@ -325,9 +334,25 @@ register_admin_routes(
 )
 
 
+def _auth_rate_blocked(retry_after: int) -> JSONResponse:
+    return JSONResponse(
+        status_code=429,
+        content={
+            "ok": False,
+            "success": False,
+            "detail": "Quá nhiều lần thử — thử lại sau",
+            "retry_after": retry_after,
+        },
+        headers={"Retry-After": str(retry_after)},
+    )
+
+
 @app.post("/api/auth/login", response_model=None)
-async def desk_auth_login(body: DeskLoginBody, response: Response):
-    """DEV headless login: Authentik Flow (+ optional TOTP) → ``atz_desk_session``."""
+async def desk_auth_login(request: Request, body: DeskLoginBody, response: Response):
+    """Headless login: Authentik Flow (+ optional TOTP) → ``atz_desk_session``.
+
+    Nginx bypasses ForwardAuth for this path — rate-limit here against brute-force.
+    """
     if not desk_session_enabled() or not ropc_configured():
         raise HTTPException(status_code=503, detail="Desk session login disabled on this host")
 
@@ -335,6 +360,11 @@ async def desk_auth_login(body: DeskLoginBody, response: Response):
     code = (body.code or "").strip()
     username = (body.username or "").strip()
     password = body.password or ""
+    ip = auth_client_ip(dict(request.headers), fallback=request.client.host if request.client else "unknown")
+    retry = auth_rate_enforce(login_rate_keys(ip, username or None))
+    if retry is not None:
+        log(COMPONENT, "AUTH-RATE", "login rate limited", logging.WARNING, ip=ip, user=username or None)
+        return _auth_rate_blocked(retry)
 
     try:
         if mfa_token or code:
@@ -348,13 +378,15 @@ async def desk_auth_login(body: DeskLoginBody, response: Response):
         profile = await asyncio.to_thread(password_grant, username, password)
         return _issue_desk_cookie(response, profile)
     except MfaRequired as exc:
+        # Dùng 200 (không 202): một số trình duyệt/mobile prefetch xử lý 202 kém,
+        # FE tưởng request “treo” dù body MFA đã về.
         return JSONResponse(
-            status_code=202,
+            status_code=200,
             content={
                 "success": False,
                 "mfa_required": True,
                 "mfa_token": exc.mfa_token,
-                "detail": "Nhập mã xác thực (TOTP)",
+                "detail": "Mật khẩu đúng — nhập mã TOTP để hoàn tất",
             },
         )
     except HTTPException:
@@ -372,11 +404,72 @@ async def desk_auth_login(body: DeskLoginBody, response: Response):
         raise HTTPException(status_code=502, detail="Authentik login failed") from exc
 
 
+def _clear_authentik_proxy_cookies(request: Request, response: Response, *, secure: bool) -> list[str]:
+    """Expire same-host Authentik Outpost cookies so ForwardAuth không giữ phiên sau Desk logout.
+
+    Không navigate ``/outpost.goauthentik.io/sign_out``: khi đã hết session Authentik
+    trả 302 → ``/start`` → ``auth.atz.vn`` (vòng login cứng).
+    """
+    cleared: list[str] = []
+    host = (request.headers.get("host") or "").split(":")[0].strip().lower()
+    domains: list[str | None] = [None]
+    if host and "localhost" not in host and not host.replace(".", "").isdigit():
+        domains.extend([host, f".{host.lstrip('.')}"])
+    for name in list(request.cookies.keys()):
+        low = name.lower()
+        if not (
+            low.startswith("authentik_proxy")
+            or low.startswith("authentik_session")
+            or low.startswith("ak-")
+        ):
+            continue
+        for domain in domains:
+            kwargs: dict = {
+                "path": "/",
+                "secure": secure,
+                "httponly": True,
+                "samesite": "lax",
+            }
+            if domain:
+                kwargs["domain"] = domain
+            response.delete_cookie(name, **kwargs)
+        cleared.append(name)
+    return cleared
+
+
 @app.post("/api/auth/logout")
-async def desk_auth_logout(response: Response) -> dict:
-    """Xóa cookie desk session (DEV). Outpost logout vẫn dùng logout_url nếu cần."""
-    response.delete_cookie(DESK_COOKIE, path="/")
-    return {"ok": True, "success": True}
+async def desk_auth_logout(request: Request, response: Response) -> dict:
+    """Clear Desk Session + Authentik proxy cookies (local). Không trả outpost sign_out URL.
+
+    Outpost ``sign_out`` khi chưa/không còn session → redirect ``start`` → auth.atz.vn.
+    """
+    ip = auth_client_ip(dict(request.headers), fallback=request.client.host if request.client else "unknown")
+    retry = auth_rate_enforce(logout_rate_keys(ip))
+    if retry is not None:
+        return _auth_rate_blocked(retry)
+
+    me = _resolve_request_me(request)
+    source = str((me or {}).get("source") or "") or None
+    secure = (os.getenv("DESK_SESSION_SECURE") or "1").strip() not in ("0", "false", "no")
+    # Phải khớp attribute lúc set_cookie — nếu không browser có thể không xóa.
+    response.delete_cookie(
+        DESK_COOKIE,
+        path="/",
+        secure=secure,
+        httponly=True,
+        samesite="lax",
+    )
+    proxy_cleared = _clear_authentik_proxy_cookies(request, response, secure=secure)
+    return {
+        "ok": True,
+        "success": True,
+        "local_logout": True,
+        "auth_source": source,
+        "desk_cookie_cleared": True,
+        "authentik_cookies_cleared": proxy_cleared,
+        # Luôn null — FE không được navigate sign_out (tránh auth.atz.vn).
+        "outpost_sign_out": None,
+    }
 
 
 @app.get("/api/account/me")
@@ -662,7 +755,13 @@ async def ws_priceboard(websocket: WebSocket) -> None:
 
 @app.get("/")
 async def index() -> FileResponse:
-    return FileResponse(FRONTEND_DIR / "index.html")
+    return FileResponse(
+        FRONTEND_DIR / "index.html",
+        headers={
+            "Cache-Control": "no-store, no-cache, must-revalidate",
+            "Pragma": "no-cache",
+        },
+    )
 
 
 @app.get("/trading")

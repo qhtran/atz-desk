@@ -9,7 +9,7 @@ from typing import Any
 
 from fastapi import WebSocket, WebSocketDisconnect
 
-from backend.identity import resolve_me
+from backend.identity import resolve_request_identity as resolve_me
 from backend.observability import ERR_PB_WS, log, setup
 from backend.websocket_manager import ConnectionManager
 

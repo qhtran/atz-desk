@@ -41,6 +41,24 @@ def test_resolve_me_prefers_forward_auth(desk_env):
     assert me["source"] == "forward_auth"
 
 
+def test_resolve_me_desk_form_mode_ignores_forward_auth(desk_env):
+    token = issue_session_value(username="cookie-user", groups=["vip"])
+    me = resolve_me(
+        {"x-authentik-username": "header-user", "x-authentik-groups": "admin"},
+        desk_cookie=token,
+        desk_form_mode=True,
+    )
+    assert me is not None
+    assert me["username"] == "cookie-user"
+    assert me["source"] == "desk_session"
+    me2 = resolve_me(
+        {"x-authentik-username": "header-user"},
+        desk_cookie=None,
+        desk_form_mode=True,
+    )
+    assert me2 is None
+
+
 def test_resolve_me_falls_back_to_cookie(desk_env):
     token = issue_session_value(username="cookie-user", groups=["vip"])
     me = resolve_me({}, desk_cookie=token)
@@ -122,6 +140,32 @@ def test_login_ropc_bad_password(desk_env, monkeypatch):
     assert "Sai tài khoản" in res.json()["detail"]
 
 
+def test_logout_clears_desk_cookie(desk_env, monkeypatch):
+    def fake_grant(username, password, **kwargs):
+        return {
+            "username": "hoa",
+            "email": "hoa@example.com",
+            "name": "Hoa",
+            "uid": "u1",
+            "groups": ["members"],
+        }
+
+    monkeypatch.setattr("backend.main.password_grant", fake_grant)
+    client = TestClient(app)
+    login = client.post("/api/auth/login", json={"username": "hoa", "password": "secret"})
+    assert login.status_code == 200
+    assert COOKIE_NAME in client.cookies
+    out = client.post("/api/auth/logout")
+    assert out.status_code == 200
+    body = out.json()
+    assert body["ok"] is True
+    assert body.get("local_logout") is True
+    # TestClient may keep cookie jar; Set-Cookie delete must be present on response.
+    set_cookie = out.headers.get("set-cookie") or ""
+    assert COOKIE_NAME in set_cookie
+    assert "Max-Age=0" in set_cookie or "max-age=0" in set_cookie.lower()
+
+
 def test_login_mfa_challenge_then_otp(desk_env, monkeypatch):
     from backend.authentik_ropc import MfaRequired
 
@@ -143,8 +187,9 @@ def test_login_mfa_challenge_then_otp(desk_env, monkeypatch):
     monkeypatch.setattr("backend.main.mfa_grant", finish_mfa)
     client = TestClient(app)
     res1 = client.post("/api/auth/login", json={"username": "hoa", "password": "secret"})
-    assert res1.status_code == 202
+    assert res1.status_code == 200
     body1 = res1.json()
+    assert body1["success"] is False
     assert body1["mfa_required"] is True
     assert body1["mfa_token"] == "tok-abc"
     assert COOKIE_NAME not in res1.cookies

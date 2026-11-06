@@ -50,6 +50,8 @@ services:
         condition: service_healthy
     env_file:
       - .env.prod-desk
+      - path: .env.desk-session
+        required: false
     environment:
       REDIS_URL: redis://redis:6379/0
       PRICEBOARD_CHANNEL: priceboard_ticks
@@ -99,6 +101,7 @@ services:
       PRICEBOARD_CONFIG: /app/config/priceboard.yaml
       PRICEBOARD_SOURCE: ${PRICEBOARD_SOURCE:-ssi}
       PRICEBOARD_REST_BOOTSTRAP: ${PRICEBOARD_REST_BOOTSTRAP:-1}
+      OHLCV_BARS_DIR: /app/data/ohlcv
       SSI_CONSUMER_ID: ${SSI_CONSUMER_ID:-}
       SSI_CONSUMER_SECRET: ${SSI_CONSUMER_SECRET:-}
       SSI_WS_URL: ${SSI_WS_URL:-wss://stream.ssi.com.vn/ws/v3}
@@ -109,6 +112,7 @@ services:
     command: ["python", "-m", "backend.ssi_worker"]
     volumes:
       - ./config/priceboard.yaml:/app/config/priceboard.yaml:ro
+      - ./data/ohlcv:/app/data/ohlcv:ro
       - atz_prod_data:/app/data
     networks:
       - atz_prod_net

@@ -1,0 +1,15 @@
+# Core stream allocation — default cân sàn (liquidity-ranked).
+# Admin-First overlay (data/admin_runtime_config.json → priceboard) thắng file này.
+# Generator: python -m backend.core_symbols_builder
+version: 1
+max_core: 300
+lookback_sessions: 20
+allocation:
+  HOSE: 160
+  HNX: 80
+  UPCOM: 60
+# HOSE luôn gồm đủ VN30 (board_universe.VN30_SYMBOLS), phần còn lại theo thanh khoản.
+force_vn30: true
+listing_csv: config/exchange_listing.csv
+ohlcv_dir: data/ohlcv
+output: config/priceboard_core_symbols.yaml

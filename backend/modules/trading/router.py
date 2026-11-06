@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from backend.core.database import get_db
 from backend.core.trading_config import load_trading_config
 from backend.desk_session import COOKIE_NAME as DESK_COOKIE
-from backend.identity import resolve_me
+from backend.identity import resolve_request_identity as resolve_me
 from backend.modules.trading.schemas import BuyRequest, LevelsPatch, SellRequest
 from backend.modules.trading import service
 
