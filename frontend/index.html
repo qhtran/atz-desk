@@ -1564,7 +1564,7 @@
         <div class="brand-name">atz<span>.vn</span></div>
       </div>
       <h1 id="welcome-title">Nền tảng Giao dịch &amp; Định lượng</h1>
-      <p>Đăng nhập trong modal (DEV Desk Session). Mật khẩu / OTP chỉ gửi FastAPI → Authentik; SPA không lưu token.</p>
+      <p>Đăng nhập tại đây (Desk Session). Nếu tài khoản bật TOTP, sau mật khẩu sẽ hỏi mã OTP — không chuyển sang auth.atz.vn.</p>
       <form id="welcome-login-form" class="welcome-form" data-atd-id="pb-ui:auth.form" autocomplete="on">
         <div id="welcome-step-pass">
           <label>Tài khoản
@@ -2170,6 +2170,28 @@
       window.location.href = resolveLoginUrl();
     }
 
+    /** Mở Welcome Gate Desk Session — không đẩy Outpost/auth.atz.vn. */
+    function openDeskLoginGate() {
+      setGuestMode(false);
+      showWelcomeMfaStep(false);
+      const errEl = document.getElementById("welcome-error");
+      if (errEl) errEl.textContent = "";
+      const gate = document.getElementById("welcome-gate");
+      if (gate) gate.removeAttribute("hidden");
+      const form = document.getElementById("welcome-login-form");
+      if (form) form.style.display = accountState.deskSessionForm ? "" : "none";
+      const userEl = document.getElementById("welcome-username");
+      try { userEl && userEl.focus(); } catch (_) {}
+    }
+
+    function startLoginFlow() {
+      if (accountState.deskSessionForm) {
+        openDeskLoginGate();
+        return;
+      }
+      triggerSystemLogin();
+    }
+
     function isGuestMode() {
       try {
         return sessionStorage.getItem(GUEST_SKIP_KEY) === "1";
@@ -2373,7 +2395,7 @@
       const chipName = document.getElementById("auth-chip-name");
       const chipRole = document.getElementById("auth-chip-role");
       const btnLogin = document.getElementById("btn-header-login");
-      if (btnLogin) btnLogin.onclick = () => triggerSystemLogin();
+      if (btnLogin) btnLogin.onclick = () => startLoginFlow();
       if (accountState.authenticated) {
         setGuestMode(false);
         if (gate) gate.setAttribute("hidden", "");
@@ -2475,19 +2497,18 @@
     }
 
     async function deskLogout() {
-      const source = accountState.authSource;
-      const deskForm = !!accountState.deskSessionForm;
       try {
-        await fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" });
+        await fetch("/api/auth/logout", {
+          method: "POST",
+          credentials: "same-origin",
+          redirect: "manual",
+        });
       } catch (_) {}
-      // Unified Login (Desk Session form): luôn ở lại SPA.
-      // Navigate tới outpost sign_out dễ kẹt vòng auth.atz.vn (invalidation flow).
-      if (deskForm || source === "desk_session" || source == null) {
-        window.location.replace("/");
-        return;
-      }
-      // Chỉ ForwardAuth thuần (không Desk form): same-host outpost SLO + rd về app.
-      window.location.href = resolveLogoutUrl();
+      // API đã xóa atz_desk_session + authentik_proxy_*.
+      // Không bao giờ navigate /outpost/.../sign_out: khi hết session Authentik
+      // trả 302 → /start → auth.atz.vn (đúng bug logout→login trên PROD).
+      setGuestMode(false);
+      window.location.replace("/");
     }
 
     async function initAuthShell() {
@@ -2583,10 +2604,12 @@
 
       if (btn) btn.disabled = true;
       if (mfaBtn) mfaBtn.disabled = true;
+      if (errEl) errEl.textContent = onMfa ? "Đang xác nhận OTP…" : "Đang đăng nhập…";
+      const ac = typeof AbortController !== "undefined" ? new AbortController() : null;
+      const timer = ac ? setTimeout(() => ac.abort(), 25000) : null;
       try {
         if (!accountState.deskSessionForm) {
-          if (errEl) errEl.textContent = "Form Desk Session tắt — dùng Đăng nhập hệ thống (Authentik).";
-          triggerSystemLogin();
+          if (errEl) errEl.textContent = "Form Desk Session tắt — bấm «Hoặc đăng nhập qua Authentik Outpost».";
           return;
         }
         const res = await fetch("/api/auth/login", {
@@ -2595,20 +2618,29 @@
           redirect: "manual",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
+          signal: ac ? ac.signal : undefined,
         });
-        // Nginx hard ForwardAuth từng 302 → outpost; fetch follow → CORS → “không kết nối”.
+        // Nginx hard ForwardAuth từng 302 → outpost. Không tự nhảy auth.atz.vn khi Desk form bật.
         if (res.type === "opaqueredirect" || (res.status >= 300 && res.status < 400)) {
           if (errEl) {
-            errEl.textContent = "Máy chủ chuyển sang Authentik — mở Đăng nhập hệ thống.";
+            errEl.textContent = "Máy chủ chuyển hướng Authentik — kiểm tra nginx bypass /api/auth/login, hoặc dùng Outpost.";
           }
-          triggerSystemLogin();
+          return;
+        }
+        if (res.status === 429) {
+          const data429 = await res.json().catch(() => ({}));
+          const wait = data429.retry_after || res.headers.get("Retry-After") || "";
+          if (errEl) {
+            errEl.textContent = (data429.detail || "Quá nhiều lần thử")
+              + (wait ? ` — thử lại sau ${wait}s` : "");
+          }
           return;
         }
         const data = await res.json().catch(() => ({}));
         if (res.status === 202 && data.mfa_required && data.mfa_token) {
           deskMfaToken = String(data.mfa_token);
           showWelcomeMfaStep(true);
-          if (errEl) errEl.textContent = data.detail || "Nhập mã xác thực (TOTP)";
+          if (errEl) errEl.textContent = data.detail || "Mật khẩu đúng — nhập mã TOTP để hoàn tất";
           return;
         }
         if (!res.ok || data.success !== true) {
@@ -2627,11 +2659,15 @@
         window.location.replace("/");
         return;
       } catch (err) {
+        const aborted = err && (err.name === "AbortError" || /abort/i.test(String(err.message || "")));
         if (errEl) {
-          errEl.textContent = "Không kết nối được máy chủ đăng nhập"
-            + (err && err.message ? ` (${err.message})` : "");
+          errEl.textContent = aborted
+            ? "Đăng nhập quá hạn (25s) — thử lại hoặc kiểm tra Authentik/TOTP"
+            : ("Không kết nối được máy chủ đăng nhập"
+              + (err && err.message ? ` (${err.message})` : ""));
         }
       } finally {
+        if (timer) clearTimeout(timer);
         if (btn) btn.disabled = false;
         if (mfaBtn) mfaBtn.disabled = false;
       }

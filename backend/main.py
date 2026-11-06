@@ -399,12 +399,44 @@ async def desk_auth_login(request: Request, body: DeskLoginBody, response: Respo
         raise HTTPException(status_code=502, detail="Authentik login failed") from exc
 
 
+def _clear_authentik_proxy_cookies(request: Request, response: Response, *, secure: bool) -> list[str]:
+    """Expire same-host Authentik Outpost cookies so ForwardAuth không giữ phiên sau Desk logout.
+
+    Không navigate ``/outpost.goauthentik.io/sign_out``: khi đã hết session Authentik
+    trả 302 → ``/start`` → ``auth.atz.vn`` (vòng login cứng).
+    """
+    cleared: list[str] = []
+    host = (request.headers.get("host") or "").split(":")[0].strip().lower()
+    domains: list[str | None] = [None]
+    if host and "localhost" not in host and not host.replace(".", "").isdigit():
+        domains.extend([host, f".{host.lstrip('.')}"])
+    for name in list(request.cookies.keys()):
+        low = name.lower()
+        if not (
+            low.startswith("authentik_proxy")
+            or low.startswith("authentik_session")
+            or low.startswith("ak-")
+        ):
+            continue
+        for domain in domains:
+            kwargs: dict = {
+                "path": "/",
+                "secure": secure,
+                "httponly": True,
+                "samesite": "lax",
+            }
+            if domain:
+                kwargs["domain"] = domain
+            response.delete_cookie(name, **kwargs)
+        cleared.append(name)
+    return cleared
+
+
 @app.post("/api/auth/logout")
 async def desk_auth_logout(request: Request, response: Response) -> dict:
-    """Clear Desk Session cookie; FE follows outpost SLO when ``auth_source=forward_auth``.
+    """Clear Desk Session + Authentik proxy cookies (local). Không trả outpost sign_out URL.
 
-    Cannot revoke Authentik server-side without Admin API — returns ``outpost_sign_out``
-    so the browser completes gateway logout (avoids half-logged state).
+    Outpost ``sign_out`` khi chưa/không còn session → redirect ``start`` → auth.atz.vn.
     """
     ip = auth_client_ip(dict(request.headers), fallback=request.client.host if request.client else "unknown")
     retry = auth_rate_enforce(logout_rate_keys(ip))
@@ -422,17 +454,16 @@ async def desk_auth_logout(request: Request, response: Response) -> dict:
         httponly=True,
         samesite="lax",
     )
-    # Same-origin outpost path — SPA gắn rd= current origin.
-    outpost = None
-    if source == "forward_auth":
-        outpost = "/outpost.goauthentik.io/sign_out"
+    proxy_cleared = _clear_authentik_proxy_cookies(request, response, secure=secure)
     return {
         "ok": True,
         "success": True,
         "local_logout": True,
         "auth_source": source,
         "desk_cookie_cleared": True,
-        "outpost_sign_out": outpost,
+        "authentik_cookies_cleared": proxy_cleared,
+        # Luôn null — FE không được navigate sign_out (tránh auth.atz.vn).
+        "outpost_sign_out": None,
     }
 
 

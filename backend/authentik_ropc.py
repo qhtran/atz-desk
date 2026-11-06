@@ -152,7 +152,13 @@ def _import_cookies(session: requests.Session, cookies: list[dict[str, Any]]) ->
 
 
 def _redis() -> redis.Redis:
-    return redis.Redis.from_url(REDIS_URL, decode_responses=True)
+    # Timeout cứng — tránh login treo vô hạn nếu Redis/network kẹt.
+    return redis.Redis.from_url(
+        REDIS_URL,
+        decode_responses=True,
+        socket_connect_timeout=2.0,
+        socket_timeout=2.0,
+    )
 
 
 def _store_mfa_pending(session: requests.Session, flow_url: str) -> str:
