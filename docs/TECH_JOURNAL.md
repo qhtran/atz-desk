@@ -5,6 +5,21 @@ Không thay ADR; không dump changelog dài. Mỗi mục: ngày · phạm vi · 
 
 ---
 
+## 2026-11-07 — Prod desk API nạp Desk Session env
+
+**Phạm vi:** atz.vn prod-desk (`atz-desk-api` :8001). Dev :8000 đã bật sẵn.
+
+**Quyết định**
+- `POST /api/auth/login` trả 503 khi thiếu `DESK_SESSION_*` hoặc `AUTHENTIK_FLOW_URL`.
+- File `/opt/atz-desk/.env.desk-session` đã có các key đó nhưng `docker-compose.prod-desk.yml` chỉ nạp `.env.prod-desk`.
+- API prod thêm `env_file: .env.desk-session` (`required: false`). Không đụng SSI worker.
+
+**File neo**
+- `docker-compose.prod-desk.yml`
+- `docs/env.desk-session.example`
+
+---
+
 ## 2026-11-07 — Core 300 ADTV gate + admin min_traded_value
 
 **Phạm vi:** ATZ Desk — script sinh core + Admin control-plane. Chưa ghi đè `priceboard_core_symbols.yaml` (local không có universe ADTV đủ 300 mã).

@@ -50,6 +50,8 @@ services:
         condition: service_healthy
     env_file:
       - .env.prod-desk
+      - path: .env.desk-session
+        required: false
     environment:
       REDIS_URL: redis://redis:6379/0
       PRICEBOARD_CHANNEL: priceboard_ticks
