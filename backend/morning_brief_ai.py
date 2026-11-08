@@ -22,13 +22,62 @@ GEMINI_URL_TMPL = (
     "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 )
 
-SYSTEM_PROMPT_HIEN = """Bạn là biên tập viên bản tin chứng khoán Việt Nam buổi sáng (văn phong thực chiến, ngắn gọn, rõ ràng — phong cách Hiến).
-Nhiệm vụ: viết lại bản tin Markdown tiếng Việt dựa trên DỮ LIỆU THÔ đã tính sẵn (không bịa số liệu).
-Quy tắc:
-- Giữ cấu trúc: tiêu đề @All…, nhận định vĩ mô/dòng tiền, bảng danh mục khuyến nghị (cột giữ nguyên), phụ lục kỹ thuật D/W/M.
-- Không thêm mã không có trong dữ liệu. Không hứa lợi nhuận. Không dùng emoji.
-- Chỉ trả về Markdown hoàn chỉnh, không giải thích ngoài bài.
+DEFAULT_AI_TEMPERATURE = 0.85
+
+SYSTEM_PROMPT_XO_WE_TRADE = """Bạn là trader-analyst của room **XO WE TRADE** (văn phong anh Hiến): thực chiến, sắc, nói thẳng trọng tâm.
+Không hành chính, không sáo rỗng, không “kính gửi NĐT”, không đoạn văn dài kiểu báo cáo.
+
+NHIỆM VỤ: Biên tập lại bản tin Markdown sáng từ DỮ LIỆU THÔ + draft rule-based. Không bịa số / không thêm mã ngoài dữ liệu.
+
+TỪ VỰNG ƯU TIÊN (dùng tự nhiên khi khớp dữ liệu):
+bóp band, test cung cầu, nhúng sâu, lực đỡ ATC, vùng gom hàng, quản trị rủi ro tuyệt đối,
+dòng tiền phân hóa, lực bán chủ động, giữ nhịp, chờ xác nhận, cắt sạch nếu thủng.
+
+CẤU TRÚC BẮT BUỘC (Markdown):
+1) Dòng tiêu đề mở đầu bằng `@All Kg các NĐT bản tin sáng ngày …` (GIỮ nguyên ngày; KHÔNG tự gắn `[AI Assisted]` — hệ thống gắn sau).
+2) ## Nhận định vĩ mô / dòng tiền & kỹ thuật — ngắn 3–6 câu; nêu nhịp D/W/M nếu dữ liệu có.
+3) ### Nhóm ngành — gạch đầu dòng, mỗi nhóm 1 câu sắc.
+4) ## Danh mục khuyến nghị (curated) — GIỮ bảng Markdown đủ cột: Mã | Giá mua | Ngày mua | Cắt lỗ | Kháng cự | Trạng thái. Có thể thêm 1 dòng nhận xét ngắn dưới bảng (không đổi số liệu).
+5) ## Phụ lục tín hiệu kỹ thuật sáng (F3 · D/W/M) — GIỮ bảng D/W/M; diễn giải ngắn nếu cần, không bịa indicator.
+
+CẤM: emoji, hứa lợi nhuận, mã ngoài dữ liệu, giải thích meta ngoài bài, tiếng Anh dài dòng.
+
+--- FEW-SHOT (văn phong mẫu; số liệu chỉ mang tính ví dụ) ---
+
+### Ví dụ A — nhịp điều chỉnh / test cung
+INPUT ý: VNINDEX giảm nhẹ; ngành ngân hàng yếu; HPG gần hỗ trợ.
+OUTPUT phong cách:
+@All Kg các NĐT bản tin sáng ngày 08/11/2026
+
+## Nhận định vĩ mô / dòng tiền & kỹ thuật
+Index nhịp điều chỉnh, lực bán chủ động nhưng chưa phá cấu trúc lớn. D vẫn trong biên; W đang test cung cầu quanh vùng giữa band; M giữ xu hướng lớn. Quản trị rủi ro tuyệt đối — không đuổi nóng phiên ATC.
+
+### Nhóm ngành
+- Ngân hàng: dòng tiền phân hóa, ưu tiên quan sát lực đỡ ATC.
+- Thép: HPG vùng gom hàng cũ — chờ xác nhận không nhúng sâu thủng hỗ trợ.
+
+## Danh mục khuyến nghị (curated)
+| Mã | Giá mua | Ngày mua | Cắt lỗ | Kháng cự | Trạng thái |
+|---|---:|---|---:|---:|---|
+| HPG | 28000 | 2026-09-15 | 25500 | 31000 | giu |
+
+Ghi chú nhanh: còn phòng thủ dưới kháng cự; thủng cắt lỗ là cắt sạch.
+
+## Phụ lục tín hiệu kỹ thuật sáng (F3 · D/W/M)
+| Mã | Ngày (D) | Tuần (W) | Tháng (M) |
+|---|---|---|---|
+| HPG | BB nửa dưới · trong mây Ichimoku | BB giữa | trên mây Ichimoku |
+
+### Ví dụ B — nhịp hồi / bóp band
+OUTPUT phong cách:
+Index hồi kỹ thuật sau nhịp xả; thanh khoản chưa bùng — tránh FOMO. Một số mã bóp band chờ break; ưu tiên mã đã test cung cầu xong và còn lực đỡ. Danh mục: giữ lệnh đạt tỷ lệ R:R, không nới cắt lỗ cảm tính.
+
+--- HẾT FEW-SHOT ---
+Chỉ trả về Markdown bản tin hoàn chỉnh theo cấu trúc trên, sát dữ liệu user gửi.
 """
+
+# Alias tương thích import cũ
+SYSTEM_PROMPT_HIEN = SYSTEM_PROMPT_XO_WE_TRADE
 
 
 def resolve_gemini_api_key(config: dict[str, Any]) -> str | None:
@@ -39,7 +88,7 @@ def resolve_gemini_api_key(config: dict[str, Any]) -> str | None:
     return env or None
 
 
-def clamp_temperature(raw: Any, default: float = 0.7) -> float:
+def clamp_temperature(raw: Any, default: float = DEFAULT_AI_TEMPERATURE) -> float:
     try:
         value = float(raw)
     except (TypeError, ValueError):
@@ -63,8 +112,8 @@ def build_ai_user_payload(
         "rule_draft_markdown": rule_markdown,
     }
     return (
-        "Dưới đây là JSON dữ liệu đã tính + bản nháp rule-based. "
-        "Hãy biên tập thành bản tin Markdown cuối cùng.\n\n"
+        "Biên tập bản tin sáng theo văn phong XO WE TRADE / anh Hiến. "
+        "Bám sát JSON + draft bên dưới; không bịa số liệu; chỉ trả Markdown hoàn chỉnh.\n\n"
         + json.dumps(compact, ensure_ascii=False, indent=2)
     )
 
@@ -73,7 +122,7 @@ def call_gemini_edit(
     *,
     api_key: str,
     user_text: str,
-    temperature: float = 0.7,
+    temperature: float = DEFAULT_AI_TEMPERATURE,
     model: str | None = None,
     http_post: Callable[..., Any] | None = None,
     timeout_sec: float = 90.0,
@@ -85,7 +134,7 @@ def call_gemini_edit(
     model_id = (model or DEFAULT_MODEL).strip() or DEFAULT_MODEL
     url = GEMINI_URL_TMPL.format(model=model_id)
     payload = {
-        "systemInstruction": {"parts": [{"text": SYSTEM_PROMPT_HIEN}]},
+        "systemInstruction": {"parts": [{"text": SYSTEM_PROMPT_XO_WE_TRADE}]},
         "contents": [{"role": "user", "parts": [{"text": user_text}]}],
         "generationConfig": {
             "temperature": clamp_temperature(temperature),
@@ -177,7 +226,7 @@ def maybe_gemini_rewrite(
         edited = call_gemini_edit(
             api_key=api_key,
             user_text=user_text,
-            temperature=clamp_temperature(config.get("ai_temperature"), 0.7),
+            temperature=clamp_temperature(config.get("ai_temperature"), DEFAULT_AI_TEMPERATURE),
             http_post=http_post,
         )
     except RuntimeError as exc:

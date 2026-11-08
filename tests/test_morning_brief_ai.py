@@ -6,7 +6,12 @@ from pathlib import Path
 
 import pytest
 
-from backend.morning_brief_ai import call_gemini_edit, maybe_gemini_rewrite
+from backend.morning_brief_ai import (
+    DEFAULT_AI_TEMPERATURE,
+    SYSTEM_PROMPT_XO_WE_TRADE,
+    call_gemini_edit,
+    maybe_gemini_rewrite,
+)
 from backend.morning_brief_store import get_config, init_brief_store, public_config, put_config
 
 
@@ -17,6 +22,13 @@ class _FakeResp:
 
     def json(self):
         return self._payload
+
+
+def test_xo_we_trade_prompt_and_default_temperature():
+    assert DEFAULT_AI_TEMPERATURE == 0.85
+    assert "XO WE TRADE" in SYSTEM_PROMPT_XO_WE_TRADE
+    assert "bóp band" in SYSTEM_PROMPT_XO_WE_TRADE
+    assert "Few-shot" in SYSTEM_PROMPT_XO_WE_TRADE or "FEW-SHOT" in SYSTEM_PROMPT_XO_WE_TRADE
 
 
 def test_public_config_masks_api_key(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):

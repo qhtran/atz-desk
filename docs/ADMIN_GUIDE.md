@@ -46,7 +46,7 @@ Xem thêm flowchart & crontab: mục Dual Mode trong bản trước / [`morning_
 |---|---|---|
 | Kích hoạt Chế độ AI | `ai_mode_enabled` | Bật = Mode 2 |
 | Gemini API Key | `gemini_api_key` | Tuỳ chọn. Ưu tiên SQLite; không thì env container `GEMINI_API_KEY`. Để trống khi lưu = **không đổi** key cũ. Nút xoá key → `__CLEAR__`. |
-| Temperature | `ai_temperature` | 0.1–1.0 (mặc định 0.7) |
+| Temperature | `ai_temperature` | 0.1–1.0 (mặc định **0.85** — văn phong XO WE TRADE) |
 
 **Ops khuyến nghị:** đặt key trong `/opt/atz-desk/.env` (compose inject), không commit secret. Model: env `GEMINI_MODEL` (mặc định `gemini-flash-lite-latest`).
 

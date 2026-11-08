@@ -62,7 +62,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
     # Mode 2 (Gemini) — mặc định tắt để giữ ổn định Mode 1
     "ai_mode_enabled": False,
     "gemini_api_key": "",
-    "ai_temperature": 0.7,
+    "ai_temperature": 0.85,
 }
 
 _SECRET_KEYS = frozenset({"gemini_api_key"})
