@@ -5,6 +5,20 @@ Không thay ADR; không dump changelog dài. Mỗi mục: ngày · phạm vi · 
 
 ---
 
+## 2026-11-08 — Admin guide + macro_override UI
+
+**Phạm vi:** `dev.atz.vn` — vận hành Bản tin sáng.
+
+**Quyết định**
+- Tài liệu SoT cho admin: `docs/ADMIN_GUIDE.md` (cron Mode 1, watchbook JSON, chạy tay).
+- `macro_override` + `enabled` chỉnh trên Admin SPA; alias `POST /api/admin/generate-brief` → `briefs/run`.
+- Markdown Tin tức đã render HTML (`cfbe1a3`); guide nhắc hard-refresh.
+
+**File neo**
+- `docs/ADMIN_GUIDE.md`, `frontend/index.html`, `backend/routers/briefs.py`, `backend/morning_brief.py`
+
+---
+
 ## 2026-11-08 — Morning brief hybrid + signals.db
 
 **Phạm vi:** `dev.atz.vn` (compose.dev). Không đụng Nginx/Authentik / prod-desk.

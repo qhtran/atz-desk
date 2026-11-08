@@ -45,6 +45,7 @@ class BriefConfigBody(BaseModel):
     enabled: bool | None = None
     timezone: str | None = None
     title_template: str | None = None
+    macro_override: str | None = None
     index_symbols: list[str] | None = None
     sector_theme_ids: list[str] | None = None
     tech_symbols: list[str] | None = None
@@ -131,8 +132,7 @@ def register_brief_routes(
             raise HTTPException(status_code=404, detail="ERR-BRIEF-004: watch item not found")
         return {"ok": True}
 
-    @app.post("/api/admin/briefs/run")
-    async def admin_briefs_run(request: Request) -> dict[str, Any]:
+    async def _admin_run_brief(request: Request) -> dict[str, Any]:
         """Manual generate (does not replace host cron)."""
         require_admin(request)
         bars = Path(DEFAULT_BARS_DIR)
@@ -147,3 +147,12 @@ def register_brief_routes(
         except Exception as exc:  # noqa: BLE001
             raise HTTPException(status_code=500, detail=f"ERR-BRIEF-000: {exc}") from exc
         return {"ok": True, "brief": brief}
+
+    @app.post("/api/admin/briefs/run")
+    async def admin_briefs_run(request: Request) -> dict[str, Any]:
+        return await _admin_run_brief(request)
+
+    @app.post("/api/admin/generate-brief")
+    async def admin_generate_brief_alias(request: Request) -> dict[str, Any]:
+        """Alias thân thiện — cùng hành vi ``POST /api/admin/briefs/run``."""
+        return await _admin_run_brief(request)

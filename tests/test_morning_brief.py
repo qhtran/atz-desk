@@ -181,3 +181,30 @@ def test_generate_fails_without_index_ohlcv(tmp_path: Path):
             db_path=db,
             seed_yaml=tmp_path / "missing.yaml",
         )
+
+
+def test_macro_override_and_disabled(tmp_path: Path):
+    bars = tmp_path / "ohlcv"
+    closes = [100.0 + (i % 5) * 0.1 for i in range(40)]
+    _write_bars(bars, "VNINDEX", closes)
+    for sym in ("FPT", "HPG", "MBB", "VCB", "SSI"):
+        _write_bars(bars, sym, closes)
+    db = tmp_path / "signals.db"
+    put_config({"macro_override": "MACRO_ADMIN_NOTE_XYZ"}, db_path=db)
+    seed = Path(__file__).resolve().parents[1] / "config" / "morning_brief_watchbook.yaml"
+    result = generate_morning_brief(
+        brief_date=date(2026, 11, 9),
+        bars_dir=bars,
+        db_path=db,
+        seed_yaml=seed,
+    )
+    assert "MACRO_ADMIN_NOTE_XYZ" in result["body_markdown"]
+
+    put_config({"enabled": False}, db_path=db)
+    with pytest.raises(RuntimeError, match="ERR-BRIEF-010"):
+        generate_morning_brief(
+            brief_date=date(2026, 11, 10),
+            bars_dir=bars,
+            db_path=db,
+            seed_yaml=seed,
+        )

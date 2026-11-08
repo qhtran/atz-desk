@@ -318,7 +318,8 @@ def generate_morning_brief(
     watchbook = refresh_watchbook_statuses(bars_dir=bars, db_path=db_path)
     tech_symbols = collect_tech_symbols(config, watchbook)
     tech_rows = build_tech_appendix(tech_symbols, bars_dir=bars, session_date=day)
-    macro = _index_macro_line(bars, primary)
+    override = str(config.get("macro_override") or "").strip()
+    macro = override if override else _index_macro_line(bars, primary)
     sectors = _sector_lines(list(config.get("sector_theme_ids") or []), bars)
 
     title, body, body_json = render_brief_markdown(

@@ -1627,7 +1627,8 @@
       text-align: left;
     }
     .brief-table th { background: #1a1a1a; color: #a3a3a3; font-weight: 600; }
-    #adm-brief-watch-json {
+    #adm-brief-watch-json,
+    #adm-brief-macro {
       width: 100%;
       min-height: 140px;
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
@@ -1637,6 +1638,11 @@
       border: 1px solid #2a2a2a;
       border-radius: 6px;
       padding: 8px;
+    }
+    #adm-brief-macro {
+      min-height: 72px;
+      font-family: inherit;
+      font-size: 12px;
     }
     .admin-status.is-err { color: #f87171; }
   </style>
@@ -2092,13 +2098,28 @@
           <label class="admin-field">min_traded_value UPCOM <input id="adm-adtv-upcom" type="number" min="0" step="1000000" placeholder="1000000000" /></label>
         </div>
         <div class="admin-card">
+          <h3>Bản tin sáng · Cấu hình</h3>
+          <p class="text-[11px] text-gray-400" style="margin:0 0 8px">Cron host 06:00 chỉ chạy khi <code class="text-gray-300">enabled</code>. Xem <code class="text-gray-300">docs/ADMIN_GUIDE.md</code>.</p>
+          <label class="admin-field" style="flex-direction:row;align-items:center;gap:8px">
+            <input id="adm-brief-enabled" type="checkbox" data-atd-id="pb-ui:admin.brief.enabled" />
+            Tự động publish (cron 06:00 / CLI)
+          </label>
+          <label class="admin-field">Ghi chú vĩ mô nhanh (macro_override — để trống = rule-based VNINDEX)
+            <textarea id="adm-brief-macro" rows="3" data-atd-id="pb-ui:admin.brief.macro" spellcheck="true" placeholder="VD: Dòng tiền thận trọng; ưu tiên nhóm ngân hàng…"></textarea>
+          </label>
+          <div class="admin-actions" style="margin-top:8px">
+            <button type="button" id="adm-brief-cfg-reload" data-atd-id="pb-ui:admin.brief.cfg.reload">Tải cấu hình brief</button>
+            <button type="button" class="primary" id="adm-brief-cfg-save" data-atd-id="pb-ui:admin.brief.cfg.save">Lưu cấu hình brief</button>
+          </div>
+        </div>
+        <div class="admin-card">
           <h3>Bản tin sáng · Watchbook (JSON)</h3>
           <p class="text-[11px] text-gray-400" style="margin:0 0 8px">Curated danh mục khuyến nghị → SQLite <code class="text-gray-300">signals.db</code>. Nút chạy tay không thay cron 06:00.</p>
           <textarea id="adm-brief-watch-json" data-atd-id="pb-ui:admin.brief.watchbook" spellcheck="false"></textarea>
           <div class="admin-actions" style="margin-top:8px">
             <button type="button" id="adm-brief-watch-reload" data-atd-id="pb-ui:admin.brief.watch.reload">Tải watchbook</button>
             <button type="button" class="primary" id="adm-brief-watch-save" data-atd-id="pb-ui:admin.brief.watch.save">Lưu watchbook</button>
-            <button type="button" id="adm-brief-run" data-atd-id="pb-ui:admin.brief.run">Chạy bản tin</button>
+            <button type="button" id="adm-brief-run" data-atd-id="pb-ui:admin.brief.run">Chạy bản tin ngay</button>
             <span id="adm-brief-status" class="admin-status" role="status"></span>
           </div>
         </div>
@@ -2373,6 +2394,7 @@
       if (tab === "account" && accountState.authenticated) renderAccountDashboard();
       if (tab === "admin" && accountState.isAdmin) {
         void loadAdminControlPlane();
+        void loadAdminBriefConfig();
         void loadAdminBriefWatchbook();
       }
     }
@@ -2952,6 +2974,54 @@
       }
     }
 
+    async function loadAdminBriefConfig() {
+      if (!accountState.isAdmin) return;
+      briefSetStatus("Đang tải cấu hình brief…");
+      try {
+        const res = await fetch("/api/admin/briefs/config", { credentials: "same-origin" });
+        if (!res.ok) {
+          briefSetStatus("HTTP " + res.status, "err");
+          return;
+        }
+        const data = await res.json();
+        const cfg = data.config || {};
+        const en = document.getElementById("adm-brief-enabled");
+        if (en) en.checked = cfg.enabled !== false;
+        const macro = document.getElementById("adm-brief-macro");
+        if (macro) macro.value = cfg.macro_override == null ? "" : String(cfg.macro_override);
+        briefSetStatus("Đã tải cấu hình brief", "ok");
+      } catch {
+        briefSetStatus("Lỗi tải cấu hình brief", "err");
+      }
+    }
+
+    async function saveAdminBriefConfig() {
+      if (!accountState.isAdmin) return;
+      const en = document.getElementById("adm-brief-enabled");
+      const macro = document.getElementById("adm-brief-macro");
+      briefSetStatus("Đang lưu cấu hình brief…");
+      try {
+        const res = await fetch("/api/admin/briefs/config", {
+          method: "PUT",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            enabled: !!(en && en.checked),
+            macro_override: macro ? macro.value : "",
+          }),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          briefSetStatus(err.detail || ("HTTP " + res.status), "err");
+          return;
+        }
+        briefSetStatus("Đã lưu cấu hình brief", "ok");
+        await loadAdminBriefConfig();
+      } catch {
+        briefSetStatus("Lỗi lưu cấu hình brief", "err");
+      }
+    }
+
     async function loadAdminBriefWatchbook() {
       if (!accountState.isAdmin) return;
       briefSetStatus("Đang tải watchbook…");
@@ -3021,6 +3091,8 @@
     }
 
     document.getElementById("brief-refresh")?.addEventListener("click", () => { void loadMorningBrief(); });
+    document.getElementById("adm-brief-cfg-reload")?.addEventListener("click", () => { void loadAdminBriefConfig(); });
+    document.getElementById("adm-brief-cfg-save")?.addEventListener("click", () => { void saveAdminBriefConfig(); });
     document.getElementById("adm-brief-watch-reload")?.addEventListener("click", () => { void loadAdminBriefWatchbook(); });
     document.getElementById("adm-brief-watch-save")?.addEventListener("click", () => { void saveAdminBriefWatchbook(); });
     document.getElementById("adm-brief-run")?.addEventListener("click", () => { void runAdminMorningBrief(); });

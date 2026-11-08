@@ -55,6 +55,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "enabled": True,
     "timezone": "Asia/Ho_Chi_Minh",
     "title_template": "@All Kg các NĐT bản tin sáng ngày {date}",
+    "macro_override": "",
     "index_symbols": ["VNINDEX"],
     "sector_theme_ids": ["ngan_hang", "chung_khoan", "thep", "xay_lap", "ban_le"],
     "tech_symbols": [],
