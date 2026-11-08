@@ -15,7 +15,8 @@ import requests
 
 logger = logging.getLogger("morning_brief_ai")
 
-DEFAULT_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+# Google may retire flash aliases for new keys — override via GEMINI_MODEL.
+DEFAULT_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
 GEMINI_URL_TMPL = (
     "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 )
@@ -98,14 +99,23 @@ def call_gemini_edit(
     except requests.RequestException as exc:
         raise RuntimeError(f"ERR-BRIEF-030: Gemini network error: {exc}") from exc
 
-    if resp.status_code >= 400:
-        # Không log query string (chứa key).
-        raise RuntimeError(f"ERR-BRIEF-031: Gemini HTTP {resp.status_code}")
-
     try:
         data = resp.json()
     except ValueError as exc:
+        if resp.status_code >= 400:
+            raise RuntimeError(f"ERR-BRIEF-031: Gemini HTTP {resp.status_code}") from exc
         raise RuntimeError("ERR-BRIEF-032: Gemini response not JSON") from exc
+
+    if resp.status_code >= 400:
+        # Không log query string (chứa key); chỉ status + message API rút gọn.
+        err = data.get("error") if isinstance(data, dict) else None
+        detail = ""
+        if isinstance(err, dict):
+            detail = str(err.get("status") or "")
+            msg = str(err.get("message") or "").replace(api_key, "***")[:160]
+            if msg:
+                detail = f"{detail}: {msg}" if detail else msg
+        raise RuntimeError(f"ERR-BRIEF-031: Gemini HTTP {resp.status_code} {detail}".strip())
 
     candidates = data.get("candidates") if isinstance(data, dict) else None
     if not isinstance(candidates, list) or not candidates:
