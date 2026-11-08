@@ -9,10 +9,13 @@ import pandas as pd
 import pytest
 
 from backend.morning_brief import (
+    AI_TITLE_SUFFIX,
+    apply_ai_title_suffix,
     evaluate_watch_status,
     generate_morning_brief,
     render_brief_markdown,
     resample_ohlcv,
+    sync_body_title_line,
 )
 from backend.morning_brief_store import (
     STATUS_HOLD,
@@ -181,6 +184,17 @@ def test_generate_fails_without_index_ohlcv(tmp_path: Path):
             db_path=db,
             seed_yaml=tmp_path / "missing.yaml",
         )
+
+
+def test_ai_title_suffix_helpers():
+    base = "@All Kg các NĐT bản tin sáng ngày 08/11/2026"
+    labeled = apply_ai_title_suffix(base)
+    assert labeled.endswith(AI_TITLE_SUFFIX.strip())
+    assert apply_ai_title_suffix(labeled) == labeled  # idempotent
+    body = sync_body_title_line(base + "\n\n## Macro\nhello", labeled)
+    assert body.startswith(labeled)
+    assert "## Macro" in body
+    assert body.count("[AI Assisted]") == 1
 
 
 def test_macro_override_and_disabled(tmp_path: Path):

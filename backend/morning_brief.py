@@ -38,6 +38,32 @@ _ROOT = Path(__file__).resolve().parent.parent
 _DEFAULT_SEED = _ROOT / "config" / "morning_brief_watchbook.yaml"
 TZ_NAME = "Asia/Ho_Chi_Minh"
 DEFAULT_TITLE = "@All Kg các NĐT bản tin sáng ngày {date}"
+AI_TITLE_SUFFIX = " [AI Assisted]"
+
+
+def apply_ai_title_suffix(title: str) -> str:
+    """Gắn hậu tố nhận diện Mode 2; idempotent."""
+    base = str(title or "").rstrip()
+    if not base:
+        return AI_TITLE_SUFFIX.strip()
+    if base.endswith(AI_TITLE_SUFFIX.strip()) or "[AI Assisted]" in base:
+        return base
+    return base + AI_TITLE_SUFFIX
+
+
+def sync_body_title_line(body: str, title: str) -> str:
+    """Đồng bộ dòng đầu markdown với title đã gắn nhãn AI (nếu có)."""
+    text = str(body or "")
+    if not text.strip():
+        return str(title or "")
+    lines = text.splitlines()
+    first = lines[0].strip() if lines else ""
+    if first.startswith("@All") or "[AI Assisted]" in first:
+        lines = lines[1:]
+        while lines and not lines[0].strip():
+            lines.pop(0)
+    rest = "\n".join(lines).strip("\n")
+    return str(title) + ("\n\n" + rest if rest else "")
 
 
 def _vn_today() -> date:
@@ -337,6 +363,10 @@ def generate_morning_brief(
         rule_markdown=body,
         body_json=body_json,
     )
+    # Chỉ gắn nhãn khi Gemini thành công (không gắn trên fallback Mode 1).
+    if engine == "gemini":
+        title = apply_ai_title_suffix(title)
+        body = sync_body_title_line(body, title)
     body_json = dict(body_json)
     body_json["engine"] = engine
     saved = save_daily_brief(

@@ -1559,6 +1559,20 @@
       color: #f5f5f5;
     }
     .brief-meta { font-size: 12px; color: #a3a3a3; }
+    .brief-title-ai {
+      color: #fde68a;
+    }
+    .brief-title-ai .ai-tag {
+      display: inline-block;
+      margin-left: 6px;
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #0a0a0a;
+      background: #fbbf24;
+      vertical-align: middle;
+    }
     .brief-body {
       font-size: 13px;
       line-height: 1.6;
@@ -2976,7 +2990,10 @@
       try {
         const res = await fetch("/api/briefs/latest", { credentials: "same-origin" });
         if (res.status === 404) {
-          if (titleEl) titleEl.textContent = "Bản tin sáng";
+          if (titleEl) {
+            titleEl.classList.remove("brief-title-ai");
+            titleEl.textContent = "Bản tin sáng";
+          }
           if (metaEl) metaEl.textContent = "Chưa có bản tin — admin chạy tay hoặc chờ cron 06:00.";
           setBriefBodyHtml("");
           return;
@@ -2984,8 +3001,28 @@
         if (!res.ok) throw new Error("HTTP " + res.status);
         const data = await res.json();
         const brief = data.brief || {};
-        if (titleEl) titleEl.textContent = brief.title || "Bản tin sáng";
-        if (metaEl) metaEl.textContent = "Ngày " + (brief.brief_date || "—") + " · tạo " + (brief.created_at || "—");
+        const rawTitle = brief.title || "Bản tin sáng";
+        const engine = (brief.body_json && brief.body_json.engine) || "";
+        if (titleEl) {
+          titleEl.classList.toggle("brief-title-ai", engine === "gemini" || rawTitle.includes("[AI Assisted]"));
+          if (rawTitle.includes("[AI Assisted]")) {
+            const clean = rawTitle.replace(/\s*\[AI Assisted\]\s*$/, "").trim();
+            titleEl.innerHTML = "";
+            titleEl.appendChild(document.createTextNode(clean + " "));
+            const tag = document.createElement("span");
+            tag.className = "ai-tag";
+            tag.textContent = "AI Assisted";
+            titleEl.appendChild(tag);
+          } else {
+            titleEl.textContent = rawTitle;
+          }
+        }
+        if (metaEl) {
+          metaEl.textContent =
+            "Ngày " + (brief.brief_date || "—") +
+            " · tạo " + (brief.created_at || "—") +
+            (engine ? (" · engine=" + engine) : "");
+        }
         setBriefBodyHtml(renderBriefMarkdown(brief.body_markdown || ""));
       } catch (err) {
         if (metaEl) metaEl.textContent = "Lỗi tải bản tin";
