@@ -1,0 +1,26 @@
+# Bootstrap curated morning-brief watchbook (chỉ seed khi SQLite trống).
+# SoT sau bootstrap: Admin CRUD → data/signals.db
+
+version: 1
+items:
+  - symbol: FPT
+    buy_price: 95000
+    buy_date: "2026-10-01"
+    stop_loss: 88000
+    resistance: 105000
+    status: giu
+    note: seed
+  - symbol: HPG
+    buy_price: 28000
+    buy_date: "2026-09-15"
+    stop_loss: 25500
+    resistance: 31000
+    status: giu
+    note: seed
+  - symbol: MBB
+    buy_price: 24000
+    buy_date: "2026-08-20"
+    stop_loss: 22000
+    resistance: 27000
+    status: giu
+    note: seed

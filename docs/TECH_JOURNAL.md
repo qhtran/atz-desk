@@ -5,6 +5,30 @@ Không thay ADR; không dump changelog dài. Mỗi mục: ngày · phạm vi · 
 
 ---
 
+## 2026-11-08 — Morning brief hybrid + signals.db
+
+**Phạm vi:** `dev.atz.vn` (compose.dev). Không đụng Nginx/Authentik / prod-desk.
+
+**Quyết định**
+- Bản tin sáng Hybrid (2c): curated watchbook SQLite + phụ lục F3 BB/Ichimoku D/W/M.
+- Trigger: cron host `python -m backend.morning_brief` (exec vào container `api`), tách event-loop FastAPI.
+- SoT config/portfolio/brief: `data/signals.db` (`SIGNALS_DB_PATH`) — bảng `brief_configs`, `watchlist_portfolio`, `daily_briefs`.
+- Seed YAML chỉ bootstrap khi watchbook trống; Admin CRUD là SoT sau đó.
+- API: `GET /api/briefs/latest`, admin watchbook + `POST /api/admin/briefs/run`.
+- Mã lỗi: `ERR-BRIEF-000`…`011`, `ERR-BRIEF-020` (404 chưa có brief).
+
+**File neo**
+- `backend/morning_brief_store.py`, `backend/morning_brief.py`, `backend/routers/briefs.py`
+- `config/morning_brief_watchbook.yaml`, `docs/morning_brief_crontab.example`
+- `docker-compose.dev.yml` (`SIGNALS_DB_PATH`), `frontend/index.html` (tab Tin tức + Admin)
+- `tests/test_morning_brief.py`
+
+**Follow-up (P1)**
+- Cài crontab trên VPS theo `docs/morning_brief_crontab.example`.
+- Bổ sung OHLCV đủ bar cho W/M trước khi tin tưởng phụ lục đa khung.
+
+---
+
 ## 2026-11-07 — Prod desk API nạp Desk Session env
 
 **Phạm vi:** atz.vn prod-desk (`atz-desk-api` :8001). Dev :8000 đã bật sẵn.

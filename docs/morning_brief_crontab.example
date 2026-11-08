@@ -1,0 +1,10 @@
+# Host cron (Asia/Ho_Chi_Minh) — generate morning brief via compose.dev api container.
+# Install: crontab -e  (on VPS hosting /opt/atz-desk)
+# Does NOT touch prod-desk (:8001).
+
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+# Weekdays 06:00 Vietnam time — adjust TZ if host is UTC (use CRON_TZ).
+CRON_TZ=Asia/Ho_Chi_Minh
+0 6 * * 1-5 cd /opt/atz-desk && docker compose -f docker-compose.dev.yml exec -T api python -m backend.morning_brief >> /var/log/atz-morning-brief.log 2>&1

@@ -29,6 +29,9 @@ Registry trong code: [`backend/observability/codes.py`](../../backend/observabil
 | ERR-PB-007 | WebSocket stale / handler | Client disconnect, proxy timeout |
 | ERR-PB-008 | Screener rule/request invalid | API trả `error_code` + sửa rule |
 | ERR-PB-009 | Fallback mock (thiếu SSI cred) | Bổ sung secret hoặc `PRICEBOARD_SOURCE=mock` (chỉ test UI) |
+| ERR-BRIEF-000 | Morning brief generate thất bại (generic) | Log CLI / `POST /api/admin/briefs/run` |
+| ERR-BRIEF-011 | Thiếu OHLCV index (VNINDEX) | Seed `data/ohlcv`, `OHLCV_BARS_DIR` |
+| ERR-BRIEF-020 | Chưa có / không tìm thấy brief | Chạy cron hoặc admin run |
 
 **Dữ liệu thật / đóng cửa:** mặc định `PRICEBOARD_SOURCE=ssi`, `PRICEBOARD_REST_BOOTSTRAP=1` — worker gọi `indexSummary` + `securitiesSummary` khi hash thiếu giá. Fake depth UI: chỉ `?fake_depth=1` hoặc `localStorage pb_fake_depth=1`.
 

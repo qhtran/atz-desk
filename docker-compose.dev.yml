@@ -66,6 +66,8 @@ services:
       PORTFOLIO_DB_PATH: /app/data/portfolio.db
       TRADING_DB_PATH: /app/data/dev_trading.db
       MARKET_DB_PATH: /app/data/market.db
+      SIGNALS_DB_PATH: /app/data/signals.db
+      MORNING_BRIEF_SEED: /app/config/morning_brief_watchbook.yaml
       TRADING_CONFIG: /app/config/trading_station.yaml
       F3_ALERTS_CONFIG: /app/config/f3_alerts.yaml
       LOG_LEVEL: INFO

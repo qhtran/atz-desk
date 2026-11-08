@@ -49,12 +49,14 @@ from backend.redis_listener import HASH_KEY, REDIS_URL, RedisTickListener, load_
 from backend.screener import PRESETS, FilterEngine, build_compose_rules, find_invalid_raw_rules
 from backend.websocket_manager import ConnectionManager
 from backend.routers.admin import register_admin_routes
+from backend.routers.briefs import register_brief_routes
 from backend.routers.alerts_ws import register_alerts_ws_alias
 from backend.routers.watchlist import router as watchlist_router
 from backend.routers.portfolios import router as portfolios_router
 from backend.routers.scoring import router as scoring_router
 from backend.routers.catalog import router as catalog_router
 from backend.watchlist_store import init_watchlist_store
+from backend.morning_brief_store import init_brief_store
 from backend.desk_portfolio_store import init_desk_portfolio_store
 from backend.desk_scoring_store import init_desk_scoring_store
 from backend.ws_alerts import register_alerts_ws
@@ -76,6 +78,7 @@ async def lifespan(_app: FastAPI):
     init_market_db()
     init_eod_store()
     init_watchlist_store()
+    init_brief_store()
     init_desk_portfolio_store()
     init_desk_scoring_store()
     listener.start()
@@ -323,6 +326,7 @@ register_admin_routes(
     require_admin=_require_admin,
     apply_stream_config=stream_listener.apply_config,
 )
+register_brief_routes(app, require_admin=_require_admin)
 
 
 @app.post("/api/auth/login", response_model=None)

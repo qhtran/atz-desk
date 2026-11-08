@@ -1546,6 +1546,55 @@
     }
     .admin-status { font-size: 11px; color: #737373; }
     .admin-status.is-ok { color: #4ade80; }
+    .brief-panel {
+      display: grid;
+      gap: 16px;
+      padding: 12px 16px 24px;
+      max-width: 1100px;
+    }
+    .brief-panel h2 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 600;
+      color: #f5f5f5;
+    }
+    .brief-meta { font-size: 12px; color: #a3a3a3; }
+    .brief-body {
+      white-space: pre-wrap;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 12px;
+      line-height: 1.55;
+      color: #e5e5e5;
+      background: #141414;
+      border: 1px solid #2a2a2a;
+      border-radius: 8px;
+      padding: 14px 16px;
+      overflow-x: auto;
+    }
+    .brief-table-wrap { overflow-x: auto; }
+    .brief-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    .brief-table th,
+    .brief-table td {
+      border: 1px solid #2a2a2a;
+      padding: 6px 8px;
+      text-align: left;
+    }
+    .brief-table th { background: #1a1a1a; color: #a3a3a3; font-weight: 600; }
+    #adm-brief-watch-json {
+      width: 100%;
+      min-height: 140px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 11px;
+      background: #141414;
+      color: #e5e5e5;
+      border: 1px solid #2a2a2a;
+      border-radius: 6px;
+      padding: 8px;
+    }
     .admin-status.is-err { color: #f87171; }
   </style>
 </head>
@@ -1999,6 +2048,17 @@
           <label class="admin-field">min_traded_value HNX <input id="adm-adtv-hnx" type="number" min="0" step="1000000" placeholder="1000000000" /></label>
           <label class="admin-field">min_traded_value UPCOM <input id="adm-adtv-upcom" type="number" min="0" step="1000000" placeholder="1000000000" /></label>
         </div>
+        <div class="admin-card">
+          <h3>Bản tin sáng · Watchbook (JSON)</h3>
+          <p class="text-[11px] text-gray-400" style="margin:0 0 8px">Curated danh mục khuyến nghị → SQLite <code class="text-gray-300">signals.db</code>. Nút chạy tay không thay cron 06:00.</p>
+          <textarea id="adm-brief-watch-json" data-atd-id="pb-ui:admin.brief.watchbook" spellcheck="false"></textarea>
+          <div class="admin-actions" style="margin-top:8px">
+            <button type="button" id="adm-brief-watch-reload" data-atd-id="pb-ui:admin.brief.watch.reload">Tải watchbook</button>
+            <button type="button" class="primary" id="adm-brief-watch-save" data-atd-id="pb-ui:admin.brief.watch.save">Lưu watchbook</button>
+            <button type="button" id="adm-brief-run" data-atd-id="pb-ui:admin.brief.run">Chạy bản tin</button>
+            <span id="adm-brief-status" class="admin-status" role="status"></span>
+          </div>
+        </div>
       </div>
       <div class="admin-actions">
         <button type="button" class="primary" id="adm-save" data-atd-id="pb-ui:admin.save">Lưu cấu hình</button>
@@ -2011,29 +2071,37 @@
   <!-- ===== Panel: News ===== -->
   <section id="panel-news" class="panel" data-panel="news" data-atd-id="pb-ui:news.panel" role="tabpanel" hidden>
     <div class="panel-toolbar">
-      <span class="text-[12px] text-gray-400">Tin tức / Nghiên cứu — nội dung trong app (không điều hướng site cũ)</span>
+      <span class="text-[12px] text-gray-400">Bản tin sáng (hybrid curated + F3) · <code class="text-gray-300">/api/briefs/latest</code></span>
+      <button type="button" id="brief-refresh" class="text-[12px] text-gray-300 underline" data-atd-id="pb-ui:brief.refresh">Tải lại</button>
     </div>
-    <div class="news-grid" id="news-grid">
-      <article class="news-card">
-        <h3>Realtime priceboard</h3>
-        <p>Bảng iBoard kết nối WebSocket <code class="text-gray-300">/ws/priceboard</code>. Snapshot + tick cập nhật mọi tab đang mở.</p>
-        <span class="tag">Hạ tầng</span>
-      </article>
-      <article class="news-card">
-        <h3>Bộ lọc trên iBoard</h3>
-        <p>Toolbar screener trên tab Giao dịch iBoard — lọc % / KL / trần–sàn trực tiếp trên bảng depth (cùng rổ HOSE/VN30…).</p>
-        <span class="tag">Tín hiệu</span>
-      </article>
-      <article class="news-card">
-        <h3>Danh mục cá nhân</h3>
-        <p>Lưu localStorage trên trình duyệt; giá / P/L cập nhật theo tick SSI (hoặc mock) cùng kênh WS.</p>
-        <span class="tag">Danh mục</span>
-      </article>
-      <article class="news-card">
-        <h3>Giờ mở cửa — P1 depth</h3>
-        <p>Map X-Quote / X-Trade / MI → bid/ask/NN theo plan <span class="text-gray-300">PRICEBOARD_P1_DEPTH_NN</span>.</p>
-        <span class="tag">Roadmap</span>
-      </article>
+    <div class="brief-panel" id="brief-panel" data-atd-id="pb-ui:brief.panel">
+      <div>
+        <h2 id="brief-title">Bản tin sáng</h2>
+        <div class="brief-meta" id="brief-meta">Chưa có bản tin — admin chạy tay hoặc chờ cron 06:00.</div>
+      </div>
+      <pre class="brief-body" id="brief-body" aria-live="polite"></pre>
+      <div>
+        <h2>Danh mục khuyến nghị</h2>
+        <div class="brief-table-wrap">
+          <table class="brief-table" id="brief-watch-table">
+            <thead>
+              <tr><th>Mã</th><th>Giá mua</th><th>Ngày mua</th><th>Cắt lỗ</th><th>Kháng cự</th><th>Trạng thái</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+      <div>
+        <h2>Phụ lục kỹ thuật F3 (D/W/M)</h2>
+        <div class="brief-table-wrap">
+          <table class="brief-table" id="brief-tech-table">
+            <thead>
+              <tr><th>Mã</th><th>Ngày</th><th>Tuần</th><th>Tháng</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -2280,8 +2348,12 @@
         void ensurePfScoreViewReady();
       }
       if (tab === "alerts") renderAlertsFeed();
+      if (tab === "news") void loadMorningBrief();
       if (tab === "account" && accountState.authenticated) renderAccountDashboard();
-      if (tab === "admin" && accountState.isAdmin) void loadAdminControlPlane();
+      if (tab === "admin" && accountState.isAdmin) {
+        void loadAdminControlPlane();
+        void loadAdminBriefWatchbook();
+      }
     }
 
     document.querySelectorAll(".app-tab").forEach((btn) => {
@@ -2708,6 +2780,150 @@
 
     document.getElementById("adm-save")?.addEventListener("click", () => { void saveAdminControlPlane(); });
     document.getElementById("adm-reload")?.addEventListener("click", () => { void loadAdminControlPlane(); });
+
+    function briefSetStatus(msg, kind) {
+      const el = document.getElementById("adm-brief-status");
+      if (!el) return;
+      el.textContent = msg || "";
+      el.classList.toggle("is-ok", kind === "ok");
+      el.classList.toggle("is-err", kind === "err");
+    }
+
+    function briefFmt(v) {
+      if (v == null || v === "") return "—";
+      const n = Number(v);
+      return Number.isFinite(n) ? n.toLocaleString("vi-VN") : String(v);
+    }
+
+    function fillBriefTable(tableId, rows, cols) {
+      const tb = document.querySelector("#" + tableId + " tbody");
+      if (!tb) return;
+      tb.innerHTML = "";
+      (rows || []).forEach((row) => {
+        const tr = document.createElement("tr");
+        cols.forEach((key) => {
+          const td = document.createElement("td");
+          td.textContent = row[key] == null || row[key] === "" ? "—" : String(row[key]);
+          tr.appendChild(td);
+        });
+        tb.appendChild(tr);
+      });
+    }
+
+    async function loadMorningBrief() {
+      const titleEl = document.getElementById("brief-title");
+      const metaEl = document.getElementById("brief-meta");
+      const bodyEl = document.getElementById("brief-body");
+      try {
+        const res = await fetch("/api/briefs/latest", { credentials: "same-origin" });
+        if (res.status === 404) {
+          if (titleEl) titleEl.textContent = "Bản tin sáng";
+          if (metaEl) metaEl.textContent = "Chưa có bản tin — admin chạy tay hoặc chờ cron 06:00.";
+          if (bodyEl) bodyEl.textContent = "";
+          fillBriefTable("brief-watch-table", [], []);
+          fillBriefTable("brief-tech-table", [], []);
+          return;
+        }
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const data = await res.json();
+        const brief = data.brief || {};
+        if (titleEl) titleEl.textContent = brief.title || "Bản tin sáng";
+        if (metaEl) metaEl.textContent = "Ngày " + (brief.brief_date || "—") + " · tạo " + (brief.created_at || "—");
+        if (bodyEl) bodyEl.textContent = brief.body_markdown || "";
+        const bj = brief.body_json || {};
+        const watch = (bj.watchbook || []).map((it) => ({
+          symbol: it.symbol,
+          buy_price: briefFmt(it.buy_price),
+          buy_date: it.buy_date || "—",
+          stop_loss: briefFmt(it.stop_loss),
+          resistance: briefFmt(it.resistance),
+          status: it.status || "giu",
+        }));
+        fillBriefTable("brief-watch-table", watch, ["symbol", "buy_price", "buy_date", "stop_loss", "resistance", "status"]);
+        const tech = (brief.tech_appendix || []).map((it) => ({
+          symbol: it.symbol,
+          D: it.D || "—",
+          W: it.W || "—",
+          M: it.M || "—",
+        }));
+        fillBriefTable("brief-tech-table", tech, ["symbol", "D", "W", "M"]);
+      } catch (err) {
+        if (metaEl) metaEl.textContent = "Lỗi tải bản tin";
+      }
+    }
+
+    async function loadAdminBriefWatchbook() {
+      if (!accountState.isAdmin) return;
+      briefSetStatus("Đang tải watchbook…");
+      try {
+        const res = await fetch("/api/admin/briefs/watchbook", { credentials: "same-origin" });
+        if (!res.ok) {
+          briefSetStatus("HTTP " + res.status, "err");
+          return;
+        }
+        const data = await res.json();
+        const el = document.getElementById("adm-brief-watch-json");
+        if (el) el.value = JSON.stringify(data.items || [], null, 2);
+        briefSetStatus("Đã tải watchbook (" + (data.items || []).length + ")", "ok");
+      } catch {
+        briefSetStatus("Lỗi tải watchbook", "err");
+      }
+    }
+
+    async function saveAdminBriefWatchbook() {
+      if (!accountState.isAdmin) return;
+      const el = document.getElementById("adm-brief-watch-json");
+      let items;
+      try {
+        items = JSON.parse(el?.value || "[]");
+      } catch {
+        briefSetStatus("JSON không hợp lệ", "err");
+        return;
+      }
+      briefSetStatus("Đang lưu…");
+      try {
+        const res = await fetch("/api/admin/briefs/watchbook", {
+          method: "PUT",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ items }),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          briefSetStatus(err.detail || ("HTTP " + res.status), "err");
+          return;
+        }
+        briefSetStatus("Đã lưu watchbook", "ok");
+        await loadAdminBriefWatchbook();
+      } catch {
+        briefSetStatus("Lỗi lưu watchbook", "err");
+      }
+    }
+
+    async function runAdminMorningBrief() {
+      if (!accountState.isAdmin) return;
+      briefSetStatus("Đang chạy bản tin…");
+      try {
+        const res = await fetch("/api/admin/briefs/run", {
+          method: "POST",
+          credentials: "same-origin",
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          briefSetStatus(data.detail || ("HTTP " + res.status), "err");
+          return;
+        }
+        briefSetStatus("Đã tạo " + ((data.brief && data.brief.brief_date) || ""), "ok");
+        await loadMorningBrief();
+      } catch {
+        briefSetStatus("Lỗi chạy bản tin", "err");
+      }
+    }
+
+    document.getElementById("brief-refresh")?.addEventListener("click", () => { void loadMorningBrief(); });
+    document.getElementById("adm-brief-watch-reload")?.addEventListener("click", () => { void loadAdminBriefWatchbook(); });
+    document.getElementById("adm-brief-watch-save")?.addEventListener("click", () => { void saveAdminBriefWatchbook(); });
+    document.getElementById("adm-brief-run")?.addEventListener("click", () => { void runAdminMorningBrief(); });
 
     /* ===== Connection ===== */
     function setConn(status) {
