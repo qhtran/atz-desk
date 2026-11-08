@@ -5,6 +5,22 @@ Không thay ADR; không dump changelog dài. Mỗi mục: ngày · phạm vi · 
 
 ---
 
+## 2026-11-08 — Dual Mode Gemini (ai_mode_enabled)
+
+**Phạm vi:** `dev.atz.vn` Bản tin sáng. Mặc định Mode 1.
+
+**Quyết định**
+- `brief_configs`: `ai_mode_enabled`, `gemini_api_key`, `ai_temperature`.
+- Luồng: luôn sinh draft rule → nếu AI bật thì Gemini biên tập; lỗi → fallback rule (`body_json.engine`).
+- HTTP `generateContent` (requests), không thêm SDK pip nặng; key: SQLite hoặc env `GEMINI_API_KEY`.
+- Admin GET config **mask** key; PUT bỏ qua placeholder `••••` / trống.
+
+**File neo**
+- `backend/morning_brief_ai.py`, `morning_brief.py`, `morning_brief_store.py`, `routers/briefs.py`
+- `frontend/index.html`, `docs/ADMIN_GUIDE.md`, `tests/test_morning_brief_ai.py`
+
+---
+
 ## 2026-11-08 — Admin guide + macro_override UI
 
 **Phạm vi:** `dev.atz.vn` — vận hành Bản tin sáng.

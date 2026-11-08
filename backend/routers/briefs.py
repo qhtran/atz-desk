@@ -13,9 +13,9 @@ from backend.morning_brief import generate_morning_brief
 from backend.morning_brief_store import (
     delete_watch_item,
     get_brief_by_date,
-    get_config,
     get_latest_brief,
     list_watchbook,
+    public_config,
     put_config,
     replace_watchbook,
     upsert_watch_item,
@@ -49,6 +49,9 @@ class BriefConfigBody(BaseModel):
     index_symbols: list[str] | None = None
     sector_theme_ids: list[str] | None = None
     tech_symbols: list[str] | None = None
+    ai_mode_enabled: bool | None = None
+    gemini_api_key: str | None = None
+    ai_temperature: float | None = Field(default=None, ge=0.1, le=1.0)
 
 
 def register_brief_routes(
@@ -78,14 +81,15 @@ def register_brief_routes(
     @app.get("/api/admin/briefs/config")
     async def admin_briefs_config(request: Request) -> dict[str, Any]:
         require_admin(request)
-        return {"ok": True, "config": await asyncio.to_thread(get_config)}
+        return {"ok": True, "config": await asyncio.to_thread(public_config)}
 
     @app.put("/api/admin/briefs/config")
     async def admin_briefs_config_put(request: Request, body: BriefConfigBody) -> dict[str, Any]:
         require_admin(request)
         payload = body.model_dump(exclude_none=True)
         try:
-            cfg = await asyncio.to_thread(put_config, payload)
+            await asyncio.to_thread(put_config, payload)
+            cfg = await asyncio.to_thread(public_config)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         return {"ok": True, "config": cfg}

@@ -2113,6 +2113,25 @@
           </div>
         </div>
         <div class="admin-card">
+          <h3>Cấu hình Trợ lý Biên tập AI (Gemini)</h3>
+          <p class="text-[11px] text-gray-400" style="margin:0 0 8px">Mặc định tắt (Mode 1). Khi bật Mode 2: biên tập qua Gemini; lỗi API tự fallback template. Key ưu tiên ô dưới, không thì env <code class="text-gray-300">GEMINI_API_KEY</code>.</p>
+          <label class="admin-field" style="flex-direction:row;align-items:center;gap:8px">
+            <input id="adm-brief-ai-enabled" type="checkbox" data-atd-id="pb-ui:admin.brief.ai.enabled" />
+            <strong>Kích hoạt Chế độ AI (Gemini API)</strong>
+          </label>
+          <label class="admin-field">Gemini API Key (tuỳ chọn)
+            <input id="adm-brief-gemini-key" type="password" autocomplete="off" data-atd-id="pb-ui:admin.brief.ai.key" placeholder="Để trống nếu đã có GEMINI_API_KEY trên server" />
+          </label>
+          <p class="text-[11px] text-gray-500" id="adm-brief-gemini-key-hint" style="margin:0 0 8px"></p>
+          <label class="admin-field">Độ sáng tạo (Temperature 0.1–1.0)
+            <input id="adm-brief-ai-temp" type="number" min="0.1" max="1" step="0.1" value="0.7" data-atd-id="pb-ui:admin.brief.ai.temp" />
+          </label>
+          <div class="admin-actions" style="margin-top:8px">
+            <button type="button" class="primary" id="adm-brief-ai-save" data-atd-id="pb-ui:admin.brief.ai.save">Lưu cấu hình AI</button>
+            <button type="button" id="adm-brief-ai-clear-key" data-atd-id="pb-ui:admin.brief.ai.clear">Xoá key đã lưu</button>
+          </div>
+        </div>
+        <div class="admin-card">
           <h3>Bản tin sáng · Watchbook (JSON)</h3>
           <p class="text-[11px] text-gray-400" style="margin:0 0 8px">Curated danh mục khuyến nghị → SQLite <code class="text-gray-300">signals.db</code>. Nút chạy tay không thay cron 06:00.</p>
           <textarea id="adm-brief-watch-json" data-atd-id="pb-ui:admin.brief.watchbook" spellcheck="false"></textarea>
@@ -2989,6 +3008,18 @@
         if (en) en.checked = cfg.enabled !== false;
         const macro = document.getElementById("adm-brief-macro");
         if (macro) macro.value = cfg.macro_override == null ? "" : String(cfg.macro_override);
+        const aiEn = document.getElementById("adm-brief-ai-enabled");
+        if (aiEn) aiEn.checked = !!cfg.ai_mode_enabled;
+        const temp = document.getElementById("adm-brief-ai-temp");
+        if (temp) temp.value = cfg.ai_temperature == null ? "0.7" : String(cfg.ai_temperature);
+        const keyInput = document.getElementById("adm-brief-gemini-key");
+        if (keyInput) keyInput.value = "";
+        const hint = document.getElementById("adm-brief-gemini-key-hint");
+        if (hint) {
+          hint.textContent = cfg.gemini_api_key_set
+            ? ("Key đã cấu hình" + (cfg.gemini_api_key ? (" (" + cfg.gemini_api_key + ")") : " (env hoặc SQLite)"))
+            : "Chưa có key — Mode 2 sẽ fallback Mode 1 nếu bật AI.";
+        }
         briefSetStatus("Đã tải cấu hình brief", "ok");
       } catch {
         briefSetStatus("Lỗi tải cấu hình brief", "err");
@@ -3019,6 +3050,40 @@
         await loadAdminBriefConfig();
       } catch {
         briefSetStatus("Lỗi lưu cấu hình brief", "err");
+      }
+    }
+
+    async function saveAdminBriefAiConfig(clearKey) {
+      if (!accountState.isAdmin) return;
+      const aiEn = document.getElementById("adm-brief-ai-enabled");
+      const temp = document.getElementById("adm-brief-ai-temp");
+      const keyInput = document.getElementById("adm-brief-gemini-key");
+      const body = {
+        ai_mode_enabled: !!(aiEn && aiEn.checked),
+        ai_temperature: temp && temp.value !== "" ? Number(temp.value) : 0.7,
+      };
+      if (clearKey) {
+        body.gemini_api_key = "__CLEAR__";
+      } else if (keyInput && keyInput.value.trim()) {
+        body.gemini_api_key = keyInput.value.trim();
+      }
+      briefSetStatus("Đang lưu cấu hình AI…");
+      try {
+        const res = await fetch("/api/admin/briefs/config", {
+          method: "PUT",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          briefSetStatus(err.detail || ("HTTP " + res.status), "err");
+          return;
+        }
+        briefSetStatus("Đã lưu cấu hình AI", "ok");
+        await loadAdminBriefConfig();
+      } catch {
+        briefSetStatus("Lỗi lưu cấu hình AI", "err");
       }
     }
 
@@ -3093,6 +3158,8 @@
     document.getElementById("brief-refresh")?.addEventListener("click", () => { void loadMorningBrief(); });
     document.getElementById("adm-brief-cfg-reload")?.addEventListener("click", () => { void loadAdminBriefConfig(); });
     document.getElementById("adm-brief-cfg-save")?.addEventListener("click", () => { void saveAdminBriefConfig(); });
+    document.getElementById("adm-brief-ai-save")?.addEventListener("click", () => { void saveAdminBriefAiConfig(false); });
+    document.getElementById("adm-brief-ai-clear-key")?.addEventListener("click", () => { void saveAdminBriefAiConfig(true); });
     document.getElementById("adm-brief-watch-reload")?.addEventListener("click", () => { void loadAdminBriefWatchbook(); });
     document.getElementById("adm-brief-watch-save")?.addEventListener("click", () => { void saveAdminBriefWatchbook(); });
     document.getElementById("adm-brief-run")?.addEventListener("click", () => { void runAdminMorningBrief(); });

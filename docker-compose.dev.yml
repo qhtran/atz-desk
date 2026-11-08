@@ -68,6 +68,9 @@ services:
       MARKET_DB_PATH: /app/data/market.db
       SIGNALS_DB_PATH: /app/data/signals.db
       MORNING_BRIEF_SEED: /app/config/morning_brief_watchbook.yaml
+      # Mode 2 optional — không commit secret; export trên host hoặc .env
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.0-flash}
       TRADING_CONFIG: /app/config/trading_station.yaml
       F3_ALERTS_CONFIG: /app/config/f3_alerts.yaml
       LOG_LEVEL: INFO

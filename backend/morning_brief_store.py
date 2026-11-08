@@ -59,7 +59,14 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "index_symbols": ["VNINDEX"],
     "sector_theme_ids": ["ngan_hang", "chung_khoan", "thep", "xay_lap", "ban_le"],
     "tech_symbols": [],
+    # Mode 2 (Gemini) — mặc định tắt để giữ ổn định Mode 1
+    "ai_mode_enabled": False,
+    "gemini_api_key": "",
+    "ai_temperature": 0.7,
 }
+
+_SECRET_KEYS = frozenset({"gemini_api_key"})
+_MASK_PLACEHOLDERS = frozenset({"", "••••", "****", "__UNCHANGED__"})
 
 
 def _utcnow() -> str:
@@ -121,6 +128,20 @@ def put_config(updates: dict[str, Any], *, db_path: Path | None = None) -> dict[
             k = str(key).strip()
             if not k:
                 continue
+            if k == "gemini_api_key":
+                raw = "" if value is None else str(value).strip()
+                if raw in _MASK_PLACEHOLDERS or raw.startswith("••••"):
+                    continue  # không ghi đè bằng placeholder / để trống
+                if raw in {"__CLEAR__", "CLEAR"}:
+                    value = ""
+            if k == "ai_temperature":
+                try:
+                    value = float(value)
+                except (TypeError, ValueError) as exc:
+                    raise ValueError("ERR-BRIEF-001: ai_temperature must be a number") from exc
+                value = min(max(value, 0.1), 1.0)
+            if k == "ai_mode_enabled":
+                value = bool(value)
             conn.execute(
                 """
                 INSERT INTO brief_configs (key, value, updated_at)
@@ -131,6 +152,22 @@ def put_config(updates: dict[str, Any], *, db_path: Path | None = None) -> dict[
             )
         conn.commit()
     return get_config(db_path)
+
+
+def public_config(db_path: Path | None = None) -> dict[str, Any]:
+    """Config cho Admin UI — che ``gemini_api_key``, thêm ``gemini_api_key_set``."""
+    cfg = get_config(db_path)
+    out = dict(cfg)
+    secret = str(cfg.get("gemini_api_key") or "").strip()
+    out["gemini_api_key_set"] = bool(secret) or bool(str(os.getenv("GEMINI_API_KEY") or "").strip())
+    if secret:
+        out["gemini_api_key"] = "••••" + secret[-4:] if len(secret) >= 4 else "••••"
+    else:
+        out["gemini_api_key"] = ""
+    for key in _SECRET_KEYS:
+        if key != "gemini_api_key" and key in out:
+            out[key] = "••••"
+    return out
 
 
 def _row_watch(row: sqlite3.Row) -> dict[str, Any]:

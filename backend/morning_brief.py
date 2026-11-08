@@ -17,6 +17,7 @@ from zoneinfo import ZoneInfo
 import pandas as pd
 
 from backend.f3_indicators import alert_column_for_bars, load_f3_alert_config
+from backend.morning_brief_ai import maybe_gemini_rewrite
 from backend.morning_brief_store import (
     STATUS_HOLD,
     STATUS_RESIST,
@@ -330,6 +331,14 @@ def generate_morning_brief(
         macro_line=macro,
         sector_lines=sectors,
     )
+    body, engine = maybe_gemini_rewrite(
+        config=config,
+        title=title,
+        rule_markdown=body,
+        body_json=body_json,
+    )
+    body_json = dict(body_json)
+    body_json["engine"] = engine
     saved = save_daily_brief(
         brief_date=day.isoformat(),
         title=title,
@@ -339,11 +348,12 @@ def generate_morning_brief(
         db_path=db_path,
     )
     logger.info(
-        "[DBG-%s-MORNING-BRIEF] ok date=%s watch=%s tech=%s",
+        "[DBG-%s-MORNING-BRIEF] ok date=%s watch=%s tech=%s engine=%s",
         datetime.now(ZoneInfo(TZ_NAME)).strftime("%Y%m%d-%H%M"),
         day.isoformat(),
         len(watchbook),
         len(tech_rows),
+        engine,
     )
     return saved
 

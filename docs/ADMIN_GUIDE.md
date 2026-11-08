@@ -7,15 +7,28 @@ Không áp dụng thao tác này lên prod-desk (`:8001`) trừ khi được yê
 
 ## 1. Tổng quan hệ thống
 
-**Mode 1 — Rule-based / không AI**
+**Dual Mode (bật/tắt trên Admin)**
 
-- Mỗi sáng **06:00** (Asia/Ho_Chi_Minh, T2–T6) cron trên host VPS gọi:
+```mermaid
+flowchart TD
+  start["Trigger Cron 06:00 hoặc Admin Click"] --> fetch["OHLCV + F3 Indicators"]
+  fetch --> checkConfig["Đọc brief_configs"]
+  checkConfig --> modeCheck{"ai_mode_enabled?"}
+  modeCheck -- Không Mode1 --> ruleEngine["Rule-based template Python"]
+  modeCheck -- Có Mode2 --> aiEngine["Gemini biên tập văn phong Hiến"]
+  ruleEngine --> save["Lưu daily_briefs"]
+  aiEngine --> save
+  save --> ui["Tab Tin tức + Admin"]
+```
+
+- **Mode 1 (mặc định):** rule-based thuần Python — ổn định, không cần API key.
+- **Mode 2:** sau khi có draft Mode 1, gọi Gemini để biên tập; lỗi mạng/API → **tự fallback Mode 1** (cron không sập).
+- Mỗi sáng **06:00** (Asia/Ho_Chi_Minh, T2–T6) cron host:
   ```bash
   docker compose -f docker-compose.dev.yml exec -T api python -m backend.morning_brief
   ```
-- Engine đọc OHLCV CSV (`OHLCV_BARS_DIR`), cập nhật trạng thái danh mục curated, sinh nhận định kỹ thuật (Bollinger + Ichimoku D/W/M qua `backend/f3_indicators.py`), ghi SQLite `data/signals.db`.
-- **Hybrid:** bảng khuyến nghị do admin duy trì (watchbook) + phụ lục tín hiệu F3 tự động.
-- SPA tab **Tin tức** gọi `GET /api/briefs/latest` và **render Markdown → HTML** (heading, list, bảng). Hard-refresh trình duyệt nếu vẫn thấy raw `#` / `|`.
+- Engine đọc OHLCV, cập nhật watchbook, F3 (BB/Ichimoku D/W/M), ghi `data/signals.db`.
+- SPA tab **Tin tức** render Markdown → HTML. Hard-refresh nếu cache cũ.
 
 **Nguồn sự thật**
 
@@ -69,7 +82,33 @@ Content-Type: application/json
 }
 ```
 
-Đọc lại: `GET /api/admin/briefs/config`.
+Đọc lại: `GET /api/admin/briefs/config` (response **che** API key — chỉ hiện `••••xxxx` + `gemini_api_key_set`).
+
+### 2.3 Chế độ AI Gemini (Mode 2)
+
+Card **Cấu hình Trợ lý Biên tập AI (Gemini)**:
+
+| Ô | Trường config | Ghi chú |
+|---|---|---|
+| Kích hoạt Chế độ AI | `ai_mode_enabled` | Mặc định **tắt** |
+| Gemini API Key | `gemini_api_key` | Tuỳ chọn; để trống khi lưu = không đổi key cũ. Ưu tiên key SQLite, không thì env `GEMINI_API_KEY` trên container |
+| Temperature | `ai_temperature` | 0.1–1.0 (mặc định 0.7) |
+| Xoá key đã lưu | gửi `__CLEAR__` | Chỉ xoá key trong SQLite; env server vẫn dùng được |
+
+```http
+PUT /api/admin/briefs/config
+Content-Type: application/json
+
+{
+  "ai_mode_enabled": true,
+  "ai_temperature": 0.7,
+  "gemini_api_key": "AIza...."
+}
+```
+
+Gợi ý ops an toàn: đặt `GEMINI_API_KEY` trong env host/compose (**không** commit secret), để trống ô key trên UI.
+
+`body_json.engine` trong brief đã lưu: `rule` | `gemini` | `gemini_fallback_rule` | `rule_missing_key`.
 
 ---
 
@@ -184,6 +223,8 @@ docker compose -f docker-compose.dev.yml exec -T api python -m backend.morning_b
 | `ERR-BRIEF-011` | Thiếu OHLCV index | Kiểm tra `data/ohlcv/VNINDEX.csv` |
 | `ERR-BRIEF-020` | Chưa có brief | Chạy tay hoặc chờ cron |
 | `ERR-BRIEF-002/003` | Symbol / status không hợp lệ | Sửa JSON watchbook |
+| `ERR-BRIEF-030…033` | Lỗi gọi Gemini | Log API; brief vẫn lưu Mode 1 (fallback) |
+| `ERR-BRIEF-034` | Bật AI nhưng thiếu key | Cấu hình env hoặc SQLite key |
 
 ---
 
