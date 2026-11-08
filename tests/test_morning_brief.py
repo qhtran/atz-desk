@@ -146,7 +146,8 @@ def test_resample_and_render_sections(tmp_path: Path):
         sector_lines=["- Ngân hàng (VCB): —"],
     )
     assert "08/11/2026" in title
-    assert "## Danh mục khuyến nghị (curated)" in body
+    assert "## Danh mục khuyến nghị (Watchbook chuẩn)" in body
+    assert "Giá Cắt Lỗ (5%)" in body
     assert "## Phụ lục tín hiệu kỹ thuật sáng" in body
     assert "FPT" in body
     assert payload["macro"] == "VNINDEX test"
@@ -213,6 +214,9 @@ def test_macro_override_and_disabled(tmp_path: Path):
         seed_yaml=seed,
     )
     assert "MACRO_ADMIN_NOTE_XYZ" in result["body_markdown"]
+    assert "Ghi chú admin" in result["body_markdown"]
+    assert "session_facts" in (result.get("body_json") or {})
+    assert "Watchbook chuẩn" in result["body_markdown"]
 
     put_config({"enabled": False}, db_path=db)
     with pytest.raises(RuntimeError, match="ERR-BRIEF-010"):

@@ -42,8 +42,9 @@ CẤU TRÚC BẮT BUỘC (Markdown)
 1) Tiêu đề 1 dòng:
 `@All Kg các NĐT bản tin sáng ngày DD/MM/YYYY`
 
-2) ## Nhận định đa khung (XO WE TRADE)
-Phải có đúng 3 mục con, mỗi mục 2–5 câu sắc (dựa tech_appendix / macro / sectors):
+2) ## Nhận định thị trường / đa khung (XO WE TRADE)
+Mở đầu 2–3 bullet từ `session_facts` (session_line, liquidity_line, foreign_prop_line) — CHỈ số có trong JSON.
+Phải có đúng 3 mục con, mỗi mục 2–5 câu sắc (dựa `session_facts.index_tf` / tech_appendix / sectors):
 
 ### Khung Tháng (M)
 - Đọc nến tháng / vị trí mây Ichimoku / Tenkan–Kijun nếu dữ liệu có.
@@ -55,12 +56,12 @@ Phải có đúng 3 mục con, mỗi mục 2–5 câu sắc (dựa tech_appendix
 
 ### Khung Ngày (D)
 - Nhịp phiên: sideway trong band hướng xuống/lên, nhúng sâu, lực đỡ ATC nếu khớp dữ liệu.
-- KLGD / GTGD (tỷ đồng) CHỈ nêu khi có trong JSON (`liquidity` / macro).
-- Tự doanh / khối ngoại mua–bán ròng CHỈ nêu khi có trong JSON; nếu thiếu → một câu «thiếu dữ liệu NN/tự doanh — bỏ qua».
+- GTGD / NN / tự doanh CHỈ lấy từ `session_facts` (hoặc foreign_prop_note / liquidity_note); thiếu → «thiếu dữ liệu — bỏ qua».
 - Lực đỡ cổ phiếu trụ nếu sectors/tech có.
+- Kết: 1 dòng `forecast_line` + `Kế hoạch giao dịch: {session_facts.plan}`.
 
 3) ### Nhóm ngành
-Gạch đầu dòng, mỗi ngành 1 câu.
+Gạch đầu dòng, mỗi ngành 1 câu (nếu sectors có).
 
 4) ## Danh mục khuyến nghị (Watchbook chuẩn)
 Bảng Markdown ĐÚNG cột (theo thứ tự):
@@ -240,6 +241,7 @@ def build_ai_user_payload(
     """Gói dữ liệu thô + draft Mode 1 cho model."""
     compact = {
         "title": title,
+        "session_facts": body_json.get("session_facts") or {},
         "macro": body_json.get("macro"),
         "sectors": body_json.get("sectors"),
         "watchbook_enriched": body_json.get("watchbook_enriched") or body_json.get("watchbook"),

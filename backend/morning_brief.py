@@ -18,6 +18,7 @@ import pandas as pd
 
 from backend.f3_indicators import alert_column_for_bars, load_f3_alert_config
 from backend.morning_brief_ai import enrich_watchbook_for_ai, maybe_gemini_rewrite
+from backend.morning_brief_facts import build_session_facts, format_facts_macro_block
 from backend.morning_brief_store import (
     STATUS_HOLD,
     STATUS_RESIST,
@@ -233,6 +234,54 @@ def _sector_lines(theme_ids: list[str], bars_dir: Path) -> list[str]:
     return lines
 
 
+def _cell(value: Any) -> str:
+    if value is None or value == "":
+        return "—"
+    try:
+        return f"{float(value):,.2f}"
+    except (TypeError, ValueError):
+        return str(value)
+
+
+def _pct_cell(value: Any) -> str:
+    if value is None or value == "":
+        return "—"
+    try:
+        return f"{float(value):+.2f}%"
+    except (TypeError, ValueError):
+        return str(value)
+
+
+def _render_watchbook_table(enriched: list[dict[str, Any]]) -> list[str]:
+    """Bảng Watchbook chuẩn Fireant/XO (Mode 1)."""
+    lines = [
+        "## Danh mục khuyến nghị (Watchbook chuẩn)",
+        "",
+        "| TT | Mã CP | Giá Hiện Tại | Ngày KN | GD T+ | Giá Mua | Giá Cắt Lỗ (5%) | "
+        "Hỗ trợ kỹ thuật | Kháng cự KT (Mục tiêu giá) | LN Tạm Tính | (%) | Khuyến nghị |",
+        "|---:|:---:|---:|---|---|---:|---:|---:|---:|---:|---:|---|",
+    ]
+    for item in enriched:
+        lines.append(
+            "| {tt} | {sym} | {last} | {bd} | {tplus} | {bp} | {sl5} | {sup} | {res} | {pnl} | {pct} | {kn} |".format(
+                tt=item.get("tt") or "",
+                sym=item.get("symbol") or "",
+                last=_cell(item.get("last_price")),
+                bd=item.get("buy_date") or "—",
+                tplus=item.get("gd_t_plus") or "—",
+                bp=_cell(item.get("buy_price")),
+                sl5=_cell(item.get("stop_loss_5pct")),
+                sup=_cell(item.get("support_kt")),
+                res=_cell(item.get("resistance_kt")),
+                pnl=_cell(item.get("pnl")),
+                pct=_pct_cell(item.get("pnl_pct")),
+                kn=item.get("khuyen_nghi_goi_y") or "Giữ",
+            )
+        )
+    lines.append("")
+    return lines
+
+
 def render_brief_markdown(
     *,
     brief_date: date,
@@ -241,33 +290,43 @@ def render_brief_markdown(
     tech_rows: list[dict[str, Any]],
     macro_line: str,
     sector_lines: list[str],
+    session_facts: dict[str, Any] | None = None,
+    watchbook_enriched: list[dict[str, Any]] | None = None,
 ) -> tuple[str, str, dict[str, Any]]:
     date_label = _format_vn_date(brief_date)
     title_tpl = str(config.get("title_template") or DEFAULT_TITLE)
     title = title_tpl.format(date=date_label)
 
-    parts: list[str] = [title, "", "## Nhận định vĩ mô / dòng tiền & kỹ thuật", "", macro_line, ""]
+    facts = session_facts or {}
+    parts: list[str] = [
+        title,
+        "",
+        f"## Nhận định thị trường ngày {date_label}",
+        "",
+    ]
+    if facts:
+        parts.append(format_facts_macro_block(facts))
+        parts.append("")
+    else:
+        parts.append(macro_line)
+        parts.append("")
+
+    override = str(config.get("macro_override") or "").strip()
+    if override and override not in "\n".join(parts):
+        # Tuỳ chọn: ghi chú admin — không thay số liệu auto.
+        parts.append(f"> Ghi chú admin: {override}")
+        parts.append("")
+
     if sector_lines:
         parts.append("### Nhóm ngành")
         parts.extend(sector_lines)
         parts.append("")
 
-    parts.append("## Danh mục khuyến nghị (curated)")
-    parts.append("")
-    parts.append("| Mã | Giá mua | Ngày mua | Cắt lỗ | Kháng cự | Trạng thái |")
-    parts.append("|---|---:|---|---:|---:|---|")
-    for item in watchbook:
-        parts.append(
-            "| {sym} | {bp} | {bd} | {sl} | {rs} | {st} |".format(
-                sym=item.get("symbol") or "",
-                bp=_cell(item.get("buy_price")),
-                bd=item.get("buy_date") or "—",
-                sl=_cell(item.get("stop_loss")),
-                rs=_cell(item.get("resistance")),
-                st=item.get("status") or STATUS_HOLD,
-            )
-        )
-    parts.append("")
+    enriched = watchbook_enriched
+    if enriched is None:
+        enriched = enrich_watchbook_for_ai(watchbook, tech_rows=tech_rows)
+    parts.extend(_render_watchbook_table(enriched))
+
     parts.append("## Phụ lục tín hiệu kỹ thuật sáng (F3 · D/W/M)")
     parts.append("")
     parts.append("| Mã | Ngày (D) | Tuần (W) | Tháng (M) |")
@@ -281,20 +340,13 @@ def render_brief_markdown(
     body_json = {
         "brief_date": brief_date.isoformat(),
         "macro": macro_line,
+        "session_facts": facts,
         "sectors": sector_lines,
         "watchbook": watchbook,
+        "watchbook_enriched": enriched,
         "tech_appendix": tech_rows,
     }
     return title, body, body_json
-
-
-def _cell(value: Any) -> str:
-    if value is None or value == "":
-        return "—"
-    try:
-        return f"{float(value):,.2f}"
-    except (TypeError, ValueError):
-        return str(value)
 
 
 def collect_tech_symbols(config: dict[str, Any], watchbook: list[dict[str, Any]]) -> list[str]:
@@ -345,9 +397,24 @@ def generate_morning_brief(
     watchbook = refresh_watchbook_statuses(bars_dir=bars, db_path=db_path)
     tech_symbols = collect_tech_symbols(config, watchbook)
     tech_rows = build_tech_appendix(tech_symbols, bars_dir=bars, session_date=day)
-    override = str(config.get("macro_override") or "").strip()
-    macro = override if override else _index_macro_line(bars, primary)
     sectors = _sector_lines(list(config.get("sector_theme_ids") or []), bars)
+
+    index_tech = next(
+        (row for row in tech_rows if str(row.get("symbol") or "").upper() == primary),
+        None,
+    )
+    session_facts = build_session_facts(
+        bars_dir=bars,
+        index_symbol=primary,
+        index_tech=index_tech,
+    )
+    # macro_line: luôn auto từ bars (không phụ thuộc Admin paste).
+    macro = _index_macro_line(bars, primary)
+    watchbook_enriched = enrich_watchbook_for_ai(
+        watchbook,
+        tech_rows=tech_rows,
+        bars_dir=bars,
+    )
 
     title, body, body_json = render_brief_markdown(
         brief_date=day,
@@ -356,17 +423,10 @@ def generate_morning_brief(
         tech_rows=tech_rows,
         macro_line=macro,
         sector_lines=sectors,
+        session_facts=session_facts,
+        watchbook_enriched=watchbook_enriched,
     )
     body_json = dict(body_json)
-    body_json["watchbook_enriched"] = enrich_watchbook_for_ai(
-        watchbook,
-        tech_rows=tech_rows,
-        bars_dir=bars,
-    )
-    index_tech = next(
-        (row for row in tech_rows if str(row.get("symbol") or "").upper() == primary),
-        None,
-    )
     if index_tech:
         body_json["index_multi_tf"] = {
             "symbol": primary,
@@ -374,9 +434,9 @@ def generate_morning_brief(
             "W": index_tech.get("W"),
             "D": index_tech.get("D"),
         }
-    body_json.setdefault(
-        "foreign_prop_note",
-        "thiếu dữ liệu NN/tự doanh trong payload — nêu rõ là thiếu, không bịa",
+    body_json["liquidity_note"] = session_facts.get("liquidity_line")
+    body_json["foreign_prop_note"] = session_facts.get("foreign_prop_line") or (
+        "thiếu dữ liệu NN/tự doanh trong payload — nêu rõ là thiếu, không bịa"
     )
     body, engine = maybe_gemini_rewrite(
         config=config,

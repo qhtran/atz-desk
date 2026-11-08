@@ -5,6 +5,26 @@ Không thay ADR; không dump changelog dài. Mỗi mục: ngày · phạm vi · 
 
 ---
 
+## 2026-11-09 — Morning brief full-auto session_facts
+
+**Phạm vi:** `dev.atz.vn` Bản tin sáng — số liệu thị trường không nhập tay.
+
+**Quyết định**
+- Collector `morning_brief_facts.py`: VNI từ OHLCV; GTGD ước lượng + NN từ Redis board; NN/tự doanh ưu tiên vnstock Insights (optional, env `BRIEF_ENABLE_VNSTOCK`).
+- Mode 1 template: nhận định từ facts + bảng Watchbook cột Fireant (giá/LN từ close mới nhất).
+- `macro_override` chỉ còn ghi chú admin (không thay số phiên).
+- UI Tin tức: bảng Watchbook `tabular-nums` / căn cột tài chính; badge `[AI Assisted]` giữ nguyên khi `engine=gemini`.
+
+**File neo**
+- `backend/morning_brief_facts.py`, `morning_brief.py`, `morning_brief_ai.py`
+- `frontend/index.html`, `tests/test_morning_brief_facts.py`
+
+**Follow-up (P2)**
+- GTGD chính thức (không ước lượng Σ last×vol) nếu có feed SSI/index value.
+- Cron host có thể gọi vnstock ngoài container nếu Insights không có trong image api.
+
+---
+
 ## 2026-11-08 — Dual Mode Gemini (ai_mode_enabled)
 
 **Phạm vi:** `dev.atz.vn` Bản tin sáng. Mặc định Mode 1.

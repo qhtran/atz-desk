@@ -39,7 +39,7 @@ Xem thêm flowchart & crontab: mục Dual Mode trong bản trước / [`morning_
 | Ô UI | Trường | Ý nghĩa |
 |---|---|---|
 | Tự động publish | `enabled` | Tắt → CLI/cron/`run` trả `ERR-BRIEF-010` |
-| Ghi chú vĩ mô | `macro_override` | Có text → ghi đè khối vĩ mô; trống → rule VNINDEX |
+| Ghi chú vĩ mô | `macro_override` | **Tuỳ chọn** — chỉ append «Ghi chú admin». Số liệu phiên (VNI/GTGD/NN/tự doanh) **luôn auto** từ OHLCV + Redis (+ vnstock nếu có). |
 
 ### 2.2 Trợ lý AI (Gemini) — chuyển Mode
 

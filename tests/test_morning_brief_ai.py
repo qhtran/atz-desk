@@ -34,6 +34,7 @@ def test_xo_we_trade_prompt_and_default_temperature():
     assert "Khung Tuần" in SYSTEM_PROMPT_XO_WE_TRADE
     assert "Khung Ngày" in SYSTEM_PROMPT_XO_WE_TRADE
     assert "Giá Cắt Lỗ (5%)" in SYSTEM_PROMPT_XO_WE_TRADE
+    assert "session_facts" in SYSTEM_PROMPT_XO_WE_TRADE
     assert "FEW-SHOT" in SYSTEM_PROMPT_XO_WE_TRADE
 
 
