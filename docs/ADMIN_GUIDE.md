@@ -46,7 +46,7 @@ Xem thêm flowchart & crontab: mục Dual Mode trong bản trước / [`morning_
 | Gemini API Key | `gemini_api_key` | Tuỳ chọn. Ưu tiên SQLite; không thì env container `GEMINI_API_KEY`. Để trống khi lưu = **không đổi** key cũ. Nút xoá key → `__CLEAR__`. |
 | Temperature | `ai_temperature` | 0.1–1.0 (mặc định 0.7) |
 
-**Ops khuyến nghị:** đặt key trong `/opt/atz-desk/.env` (compose inject), không commit secret. Model: env `GEMINI_MODEL` (mặc định `gemini-3.8-flash`).
+**Ops khuyến nghị:** đặt key trong `/opt/atz-desk/.env` (compose inject), không commit secret. Model: env `GEMINI_MODEL` (mặc định `gemini-flash-lite-latest`).
 
 GET `/api/admin/briefs/config` **mask** key (`••••xxxx` + `gemini_api_key_set`).
 
@@ -97,7 +97,7 @@ GET `/api/admin/briefs/config` **mask** key (`••••xxxx` + `gemini_api_ke
 2. `docker compose -f docker-compose.dev.yml up -d api --force-recreate` để container nhận env.  
 3. Trong container: `GEMINI_API_KEY` len > 0 (không in giá trị).  
 4. Admin bật AI → Chạy bản tin → `body_json.engine` kỳ vọng `gemini`.  
-5. Nếu model cũ 404: set `GEMINI_MODEL=gemini-3.8-flash` (hoặc model `generateContent` còn sống trên key).  
+5. Nếu model 404/503: thử `GEMINI_MODEL=gemini-flash-lite-latest` (đã verify trên key dev) rồi recreate api.  
 6. Tắt AI hoặc xoá key → engine `rule` / `rule_missing_key` / fallback — app không 500.
 
 ---

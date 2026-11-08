@@ -15,8 +15,9 @@ import requests
 
 logger = logging.getLogger("morning_brief_ai")
 
-# Google may retire flash aliases for new keys — override via GEMINI_MODEL.
-DEFAULT_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
+# Google retires flash aliases often for new keys — override via GEMINI_MODEL.
+# Verified on dev key (2026-11-08): gemini-flash-lite-latest OK; 2.x/3.8 often 404/503.
+DEFAULT_MODEL = os.getenv("GEMINI_MODEL", "gemini-flash-lite-latest")
 GEMINI_URL_TMPL = (
     "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 )
@@ -75,9 +76,12 @@ def call_gemini_edit(
     temperature: float = 0.7,
     model: str | None = None,
     http_post: Callable[..., Any] | None = None,
-    timeout_sec: float = 45.0,
+    timeout_sec: float = 90.0,
+    max_retries: int = 2,
 ) -> str:
     """Gọi Gemini generateContent; trả về text Markdown. Raise RuntimeError nếu lỗi."""
+    import time
+
     model_id = (model or DEFAULT_MODEL).strip() or DEFAULT_MODEL
     url = GEMINI_URL_TMPL.format(model=model_id)
     payload = {
@@ -89,46 +93,59 @@ def call_gemini_edit(
         },
     }
     post = http_post or requests.post
-    try:
-        resp = post(
-            url,
-            params={"key": api_key},
-            json=payload,
-            timeout=timeout_sec,
-        )
-    except requests.RequestException as exc:
-        raise RuntimeError(f"ERR-BRIEF-030: Gemini network error: {exc}") from exc
+    last_err: Exception | None = None
+    for attempt in range(max(1, int(max_retries) + 1)):
+        try:
+            resp = post(
+                url,
+                params={"key": api_key},
+                json=payload,
+                timeout=timeout_sec,
+            )
+        except requests.RequestException as exc:
+            last_err = RuntimeError(f"ERR-BRIEF-030: Gemini network error: {exc}")
+            if attempt < max_retries:
+                time.sleep(1.5 * (attempt + 1))
+                continue
+            raise last_err from exc
 
-    try:
-        data = resp.json()
-    except ValueError as exc:
+        try:
+            data = resp.json()
+        except ValueError as exc:
+            if resp.status_code >= 400:
+                raise RuntimeError(f"ERR-BRIEF-031: Gemini HTTP {resp.status_code}") from exc
+            raise RuntimeError("ERR-BRIEF-032: Gemini response not JSON") from exc
+
+        if resp.status_code in (429, 503) and attempt < max_retries:
+            time.sleep(1.5 * (attempt + 1))
+            continue
+
         if resp.status_code >= 400:
-            raise RuntimeError(f"ERR-BRIEF-031: Gemini HTTP {resp.status_code}") from exc
-        raise RuntimeError("ERR-BRIEF-032: Gemini response not JSON") from exc
+            err = data.get("error") if isinstance(data, dict) else None
+            detail = ""
+            if isinstance(err, dict):
+                detail = str(err.get("status") or "")
+                msg = str(err.get("message") or "").replace(api_key, "***")[:160]
+                if msg:
+                    detail = f"{detail}: {msg}" if detail else msg
+            raise RuntimeError(f"ERR-BRIEF-031: Gemini HTTP {resp.status_code} {detail}".strip())
 
-    if resp.status_code >= 400:
-        # Không log query string (chứa key); chỉ status + message API rút gọn.
-        err = data.get("error") if isinstance(data, dict) else None
-        detail = ""
-        if isinstance(err, dict):
-            detail = str(err.get("status") or "")
-            msg = str(err.get("message") or "").replace(api_key, "***")[:160]
-            if msg:
-                detail = f"{detail}: {msg}" if detail else msg
-        raise RuntimeError(f"ERR-BRIEF-031: Gemini HTTP {resp.status_code} {detail}".strip())
+        candidates = data.get("candidates") if isinstance(data, dict) else None
+        if not isinstance(candidates, list) or not candidates:
+            raise RuntimeError("ERR-BRIEF-033: Gemini empty candidates")
+        content = candidates[0].get("content") if isinstance(candidates[0], dict) else None
+        parts = content.get("parts") if isinstance(content, dict) else None
+        if not isinstance(parts, list) or not parts:
+            raise RuntimeError("ERR-BRIEF-033: Gemini empty parts")
+        texts = [str(p.get("text") or "") for p in parts if isinstance(p, dict)]
+        joined = "\n".join(t for t in texts if t.strip()).strip()
+        if not joined:
+            raise RuntimeError("ERR-BRIEF-033: Gemini empty text")
+        return joined
 
-    candidates = data.get("candidates") if isinstance(data, dict) else None
-    if not isinstance(candidates, list) or not candidates:
-        raise RuntimeError("ERR-BRIEF-033: Gemini empty candidates")
-    content = candidates[0].get("content") if isinstance(candidates[0], dict) else None
-    parts = content.get("parts") if isinstance(content, dict) else None
-    if not isinstance(parts, list) or not parts:
-        raise RuntimeError("ERR-BRIEF-033: Gemini empty parts")
-    texts = [str(p.get("text") or "") for p in parts if isinstance(p, dict)]
-    joined = "\n".join(t for t in texts if t.strip()).strip()
-    if not joined:
-        raise RuntimeError("ERR-BRIEF-033: Gemini empty text")
-    return joined
+    if last_err:
+        raise last_err
+    raise RuntimeError("ERR-BRIEF-031: Gemini retries exhausted")
 
 
 def maybe_gemini_rewrite(
