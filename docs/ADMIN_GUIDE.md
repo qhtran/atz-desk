@@ -24,6 +24,7 @@ Không thao tác lên prod-desk (`:8001`) trừ khi được yêu cầu rõ.
 - `daily_briefs` — bản tin theo ngày (`body_json.engine`: `rule` \| `gemini` \| `gemini_fallback_rule` \| `rule_missing_key`)
 - **Tích lũy vĩnh viễn:** mỗi ngày một dòng; **không** có job tự xóa lịch sử. Cùng ngày chạy lại = `UPSERT` ghi đè bản của ngày đó; các ngày khác giữ nguyên để tra cứu.
 - Mode 2 thành công (`engine=gemini`): tiêu đề tự gắn hậu tố ` [AI Assisted]` (Mode 1 / fallback giữ tiêu đề truyền thống).
+- Prompt AI chuẩn **XO WE TRADE**: nhận định đa khung M/W/D + bảng Watchbook cột Fireant (`TT…Khuyến nghị`); `temperature` mặc định `0.85`.
 
 Xem thêm flowchart & crontab: mục Dual Mode trong bản trước / [`morning_brief_crontab.example`](morning_brief_crontab.example).
 

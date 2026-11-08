@@ -17,7 +17,7 @@ from zoneinfo import ZoneInfo
 import pandas as pd
 
 from backend.f3_indicators import alert_column_for_bars, load_f3_alert_config
-from backend.morning_brief_ai import maybe_gemini_rewrite
+from backend.morning_brief_ai import enrich_watchbook_for_ai, maybe_gemini_rewrite
 from backend.morning_brief_store import (
     STATUS_HOLD,
     STATUS_RESIST,
@@ -356,6 +356,27 @@ def generate_morning_brief(
         tech_rows=tech_rows,
         macro_line=macro,
         sector_lines=sectors,
+    )
+    body_json = dict(body_json)
+    body_json["watchbook_enriched"] = enrich_watchbook_for_ai(
+        watchbook,
+        tech_rows=tech_rows,
+        bars_dir=bars,
+    )
+    index_tech = next(
+        (row for row in tech_rows if str(row.get("symbol") or "").upper() == primary),
+        None,
+    )
+    if index_tech:
+        body_json["index_multi_tf"] = {
+            "symbol": primary,
+            "M": index_tech.get("M"),
+            "W": index_tech.get("W"),
+            "D": index_tech.get("D"),
+        }
+    body_json.setdefault(
+        "foreign_prop_note",
+        "thiếu dữ liệu NN/tự doanh trong payload — nêu rõ là thiếu, không bịa",
     )
     body, engine = maybe_gemini_rewrite(
         config=config,
