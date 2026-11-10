@@ -395,6 +395,36 @@ def get_latest_brief(*, db_path: Path | None = None) -> dict[str, Any] | None:
     return _row_brief(row) if row else None
 
 
+def list_brief_archive(
+    *,
+    limit: int = 30,
+    db_path: Path | None = None,
+) -> list[dict[str, Any]]:
+    """Index lịch sử bản tin (không kèm body_markdown) — News archive picker."""
+    lim = max(1, min(90, int(limit or 30)))
+    with connect(db_path) as conn:
+        rows = conn.execute(
+            """
+            SELECT id, brief_date, title, created_at
+            FROM daily_briefs
+            ORDER BY brief_date DESC, id DESC
+            LIMIT ?
+            """,
+            (lim,),
+        ).fetchall()
+    out: list[dict[str, Any]] = []
+    for row in rows:
+        out.append(
+            {
+                "id": int(row["id"]),
+                "brief_date": str(row["brief_date"]),
+                "title": str(row["title"] or ""),
+                "created_at": str(row["created_at"] or ""),
+            }
+        )
+    return out
+
+
 def _row_brief(row: sqlite3.Row) -> dict[str, Any]:
     body_json = None
     tech = None

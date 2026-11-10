@@ -14,6 +14,7 @@ from backend.morning_brief_store import (
     delete_watch_item,
     get_brief_by_date,
     get_latest_brief,
+    list_brief_archive,
     list_watchbook,
     public_config,
     put_config,
@@ -68,15 +69,35 @@ def register_brief_routes(
             raise HTTPException(status_code=404, detail="ERR-BRIEF-020: no brief yet")
         return {"ok": True, "brief": item}
 
+    @app.get("/api/briefs/archive")
+    async def briefs_archive(limit: int = 30) -> dict[str, Any]:
+        """Danh sách ngày có bản tin (mặc định 30, tối đa 90)."""
+        items = await asyncio.to_thread(list_brief_archive, limit=limit)
+        return {"ok": True, "count": len(items), "items": items}
+
+    # Alias thân thiện theo yêu cầu News Archive.
+    @app.get("/api/news/archive")
+    async def news_archive_alias(limit: int = 30) -> dict[str, Any]:
+        items = await asyncio.to_thread(list_brief_archive, limit=limit)
+        return {"ok": True, "count": len(items), "items": items}
+
     @app.get("/api/briefs")
     async def briefs_by_date(date: str | None = None) -> dict[str, Any]:
         if not date:
             item = await asyncio.to_thread(get_latest_brief)
         else:
-            item = await asyncio.to_thread(get_brief_by_date, date.strip())
+            day = date.strip()
+            if len(day) != 10 or day[4] != "-" or day[7] != "-":
+                raise HTTPException(status_code=400, detail="ERR-BRIEF-021: date must be YYYY-MM-DD")
+            item = await asyncio.to_thread(get_brief_by_date, day)
         if item is None:
             raise HTTPException(status_code=404, detail="ERR-BRIEF-020: brief not found")
         return {"ok": True, "brief": item}
+
+    @app.get("/api/news")
+    async def news_by_date_alias(date: str | None = None) -> dict[str, Any]:
+        """Alias ``/api/briefs`` cho News tab."""
+        return await briefs_by_date(date=date)
 
     @app.get("/api/admin/briefs/config")
     async def admin_briefs_config(request: Request) -> dict[str, Any]:

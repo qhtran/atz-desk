@@ -1559,6 +1559,49 @@
       color: #f5f5f5;
     }
     .brief-meta { font-size: 12px; color: #a3a3a3; }
+    .brief-archive-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px 12px;
+      margin-left: auto;
+    }
+    .brief-archive-bar label {
+      font-size: 12px;
+      color: #a3a3a3;
+      white-space: nowrap;
+    }
+    .brief-archive-select {
+      min-width: 11rem;
+      max-width: min(18rem, 70vw);
+      background: #141414;
+      border: 1px solid #333;
+      color: #e5e5e5;
+      font-size: 12px;
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
+    .brief-archive-nav {
+      display: inline-flex;
+      gap: 4px;
+    }
+    .brief-archive-nav button {
+      background: #1a1a1a;
+      border: 1px solid #333;
+      color: #d4d4d4;
+      font-size: 12px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .brief-archive-nav button:hover:not(:disabled) {
+      border-color: #555;
+      color: #fff;
+    }
+    .brief-archive-nav button:disabled {
+      opacity: 0.35;
+      cursor: default;
+    }
     .brief-title-ai {
       color: #fde68a;
     }
@@ -2195,9 +2238,19 @@
 
   <!-- ===== Panel: News ===== -->
   <section id="panel-news" class="panel" data-panel="news" data-atd-id="pb-ui:news.panel" role="tabpanel" hidden>
-    <div class="panel-toolbar">
-      <span class="text-[12px] text-gray-400">Bản tin sáng (hybrid curated + F3) · <code class="text-gray-300">/api/briefs/latest</code></span>
-      <button type="button" id="brief-refresh" class="text-[12px] text-gray-300 underline" data-atd-id="pb-ui:brief.refresh">Tải lại</button>
+    <div class="panel-toolbar" data-atd-id="pb-ui:app.tab.news">
+      <span class="text-[12px] text-gray-400">Bản tin sáng (hybrid curated + F3)</span>
+      <div class="brief-archive-bar" data-atd-id="pb-ui:brief.archive">
+        <label for="brief-archive-select">Lịch sử</label>
+        <select id="brief-archive-select" class="brief-archive-select" data-atd-id="pb-ui:brief.archive.select" aria-label="Chọn ngày bản tin">
+          <option value="">Đang tải…</option>
+        </select>
+        <div class="brief-archive-nav">
+          <button type="button" id="brief-archive-prev" data-atd-id="pb-ui:brief.archive.prev" title="Bản tin cũ hơn">←</button>
+          <button type="button" id="brief-archive-next" data-atd-id="pb-ui:brief.archive.next" title="Bản tin mới hơn">→</button>
+        </div>
+        <button type="button" id="brief-refresh" class="text-[12px] text-gray-300 underline" data-atd-id="pb-ui:brief.refresh">Tải lại</button>
+      </div>
     </div>
     <div class="brief-panel" id="brief-panel" data-atd-id="pb-ui:brief.panel">
       <div>
@@ -2451,7 +2504,7 @@
         void ensurePfScoreViewReady();
       }
       if (tab === "alerts") renderAlertsFeed();
-      if (tab === "news") void loadMorningBrief();
+      if (tab === "news") void openNewsTabBriefs();
       if (tab === "account" && accountState.authenticated) renderAccountDashboard();
       if (tab === "admin" && accountState.isAdmin) {
         void loadAdminControlPlane();
@@ -3030,50 +3083,131 @@
       bodyEl.innerHTML = html || "";
     }
 
-    async function loadMorningBrief() {
+    /** @type {{ brief_date: string, title: string }[]} */
+    let briefArchiveItems = [];
+    let briefSelectedDate = "";
+
+    function syncBriefArchiveNav() {
+      const sel = document.getElementById("brief-archive-select");
+      const prevBtn = document.getElementById("brief-archive-prev");
+      const nextBtn = document.getElementById("brief-archive-next");
+      const idx = briefArchiveItems.findIndex((it) => it.brief_date === briefSelectedDate);
+      if (prevBtn) prevBtn.disabled = idx < 0 || idx >= briefArchiveItems.length - 1;
+      if (nextBtn) nextBtn.disabled = idx <= 0;
+      if (sel && briefSelectedDate && sel.value !== briefSelectedDate) {
+        sel.value = briefSelectedDate;
+      }
+    }
+
+    function fillBriefArchiveSelect(items, preferredDate) {
+      const sel = document.getElementById("brief-archive-select");
+      if (!sel) return;
+      briefArchiveItems = Array.isArray(items) ? items.slice() : [];
+      sel.innerHTML = "";
+      if (!briefArchiveItems.length) {
+        const opt = document.createElement("option");
+        opt.value = "";
+        opt.textContent = "Chưa có bản tin trong archive";
+        sel.appendChild(opt);
+        briefSelectedDate = "";
+        syncBriefArchiveNav();
+        return;
+      }
+      for (const it of briefArchiveItems) {
+        const opt = document.createElement("option");
+        opt.value = it.brief_date;
+        const titleHint = (it.title || "").replace(/\s*\[AI Assisted\]\s*$/, "").trim();
+        opt.textContent = titleHint
+          ? (it.brief_date + " — " + titleHint.slice(0, 48))
+          : it.brief_date;
+        sel.appendChild(opt);
+      }
+      const pick = preferredDate && briefArchiveItems.some((it) => it.brief_date === preferredDate)
+        ? preferredDate
+        : briefArchiveItems[0].brief_date;
+      sel.value = pick;
+      briefSelectedDate = pick;
+      syncBriefArchiveNav();
+    }
+
+    function renderMorningBrief(brief) {
       const titleEl = document.getElementById("brief-title");
       const metaEl = document.getElementById("brief-meta");
+      const rawTitle = brief.title || "Bản tin sáng";
+      const engine = (brief.body_json && brief.body_json.engine) || "";
+      if (titleEl) {
+        titleEl.classList.toggle("brief-title-ai", engine === "gemini" || rawTitle.includes("[AI Assisted]"));
+        if (rawTitle.includes("[AI Assisted]")) {
+          const clean = rawTitle.replace(/\s*\[AI Assisted\]\s*$/, "").trim();
+          titleEl.innerHTML = "";
+          titleEl.appendChild(document.createTextNode(clean + " "));
+          const tag = document.createElement("span");
+          tag.className = "ai-tag";
+          tag.textContent = "AI Assisted";
+          titleEl.appendChild(tag);
+        } else {
+          titleEl.textContent = rawTitle;
+        }
+      }
+      if (metaEl) {
+        metaEl.textContent =
+          "Ngày " + (brief.brief_date || "—") +
+          " · tạo " + (brief.created_at || "—") +
+          (engine ? (" · engine=" + engine) : "");
+      }
+      setBriefBodyHtml(renderBriefMarkdown(brief.body_markdown || ""));
+      if (brief.brief_date) {
+        briefSelectedDate = brief.brief_date;
+        syncBriefArchiveNav();
+      }
+    }
+
+    async function loadBriefArchive(preferredDate) {
       try {
-        const res = await fetch("/api/briefs/latest", { credentials: "same-origin" });
+        const res = await fetch("/api/briefs/archive?limit=30", { credentials: "same-origin" });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const data = await res.json();
+        fillBriefArchiveSelect(data.items || [], preferredDate || briefSelectedDate);
+      } catch {
+        fillBriefArchiveSelect([], preferredDate);
+      }
+    }
+
+    async function loadMorningBrief(dateOpt) {
+      const titleEl = document.getElementById("brief-title");
+      const metaEl = document.getElementById("brief-meta");
+      const day = (dateOpt == null ? briefSelectedDate : String(dateOpt || "")).trim();
+      const url = day
+        ? ("/api/briefs?date=" + encodeURIComponent(day))
+        : "/api/briefs/latest";
+      try {
+        const res = await fetch(url, { credentials: "same-origin" });
         if (res.status === 404) {
           if (titleEl) {
             titleEl.classList.remove("brief-title-ai");
             titleEl.textContent = "Bản tin sáng";
           }
-          if (metaEl) metaEl.textContent = "Chưa có bản tin — admin chạy tay hoặc chờ cron 06:00.";
+          if (metaEl) {
+            metaEl.textContent = day
+              ? ("Không có bản tin cho ngày " + day)
+              : "Chưa có bản tin — admin chạy tay hoặc chờ cron 06:00.";
+          }
           setBriefBodyHtml("");
           return;
         }
         if (!res.ok) throw new Error("HTTP " + res.status);
         const data = await res.json();
         const brief = data.brief || {};
-        const rawTitle = brief.title || "Bản tin sáng";
-        const engine = (brief.body_json && brief.body_json.engine) || "";
-        if (titleEl) {
-          titleEl.classList.toggle("brief-title-ai", engine === "gemini" || rawTitle.includes("[AI Assisted]"));
-          if (rawTitle.includes("[AI Assisted]")) {
-            const clean = rawTitle.replace(/\s*\[AI Assisted\]\s*$/, "").trim();
-            titleEl.innerHTML = "";
-            titleEl.appendChild(document.createTextNode(clean + " "));
-            const tag = document.createElement("span");
-            tag.className = "ai-tag";
-            tag.textContent = "AI Assisted";
-            titleEl.appendChild(tag);
-          } else {
-            titleEl.textContent = rawTitle;
-          }
-        }
-        if (metaEl) {
-          metaEl.textContent =
-            "Ngày " + (brief.brief_date || "—") +
-            " · tạo " + (brief.created_at || "—") +
-            (engine ? (" · engine=" + engine) : "");
-        }
-        setBriefBodyHtml(renderBriefMarkdown(brief.body_markdown || ""));
+        renderMorningBrief(brief);
       } catch (err) {
         if (metaEl) metaEl.textContent = "Lỗi tải bản tin";
         setBriefBodyHtml("");
       }
+    }
+
+    async function openNewsTabBriefs() {
+      await loadBriefArchive(briefSelectedDate);
+      await loadMorningBrief(briefSelectedDate || undefined);
     }
 
     async function loadAdminBriefConfig() {
@@ -3232,13 +3366,42 @@
           return;
         }
         briefSetStatus("Đã tạo " + ((data.brief && data.brief.brief_date) || ""), "ok");
-        await loadMorningBrief();
+        const newDate = data.brief && data.brief.brief_date ? String(data.brief.brief_date) : "";
+        await loadBriefArchive(newDate);
+        await loadMorningBrief(newDate || undefined);
       } catch {
         briefSetStatus("Lỗi chạy bản tin", "err");
       }
     }
 
-    document.getElementById("brief-refresh")?.addEventListener("click", () => { void loadMorningBrief(); });
+    document.getElementById("brief-refresh")?.addEventListener("click", () => {
+      void (async () => {
+        await loadBriefArchive(briefSelectedDate);
+        await loadMorningBrief(briefSelectedDate || undefined);
+      })();
+    });
+    document.getElementById("brief-archive-select")?.addEventListener("change", (ev) => {
+      const day = String(ev.target && ev.target.value || "");
+      briefSelectedDate = day;
+      syncBriefArchiveNav();
+      void loadMorningBrief(day);
+    });
+    document.getElementById("brief-archive-prev")?.addEventListener("click", () => {
+      const idx = briefArchiveItems.findIndex((it) => it.brief_date === briefSelectedDate);
+      if (idx < 0 || idx >= briefArchiveItems.length - 1) return;
+      const day = briefArchiveItems[idx + 1].brief_date;
+      briefSelectedDate = day;
+      syncBriefArchiveNav();
+      void loadMorningBrief(day);
+    });
+    document.getElementById("brief-archive-next")?.addEventListener("click", () => {
+      const idx = briefArchiveItems.findIndex((it) => it.brief_date === briefSelectedDate);
+      if (idx <= 0) return;
+      const day = briefArchiveItems[idx - 1].brief_date;
+      briefSelectedDate = day;
+      syncBriefArchiveNav();
+      void loadMorningBrief(day);
+    });
     document.getElementById("adm-brief-cfg-reload")?.addEventListener("click", () => { void loadAdminBriefConfig(); });
     document.getElementById("adm-brief-cfg-save")?.addEventListener("click", () => { void saveAdminBriefConfig(); });
     document.getElementById("adm-brief-ai-save")?.addEventListener("click", () => { void saveAdminBriefAiConfig(false); });
