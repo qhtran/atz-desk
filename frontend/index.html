@@ -62,7 +62,71 @@
       100% { background-color: transparent; }
     }
 
-    /* App header: brand+actions row, then scrollable tabs (mobile-safe) */
+    /* App shell: collapsible sidebar (desktop rail) + main workspace */
+    .app-shell {
+      display: flex;
+      align-items: stretch;
+      min-height: 100vh;
+      min-height: 100dvh;
+    }
+    .sidebar-backdrop {
+      display: none;
+    }
+    .app-sidebar {
+      flex: 0 0 228px;
+      width: 228px;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      border-right: 1px solid #2a2a2a;
+      background: #0a0a0a;
+      background-color: #0a0a0a;
+      z-index: 70;
+      transition: width 0.18s ease, flex-basis 0.18s ease;
+      padding-left: constant(safe-area-inset-left);
+      padding-left: env(safe-area-inset-left, 0px);
+    }
+    .app-shell[data-sidebar="collapsed"] .app-sidebar {
+      flex-basis: 52px;
+      width: 52px;
+    }
+    .sidebar-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      min-height: 40px;
+      padding: 8px 10px;
+      border-bottom: 1px solid #1f1f1f;
+    }
+    .sidebar-title {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: #737373;
+      white-space: nowrap;
+      overflow: hidden;
+    }
+    .app-shell[data-sidebar="collapsed"] .sidebar-title { display: none; }
+    .app-sidebar-nav {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding: 8px 6px;
+      overflow-y: auto;
+      overflow-x: hidden;
+      -webkit-overflow-scrolling: touch;
+      flex: 1 1 auto;
+    }
+    .app-main {
+      flex: 1 1 auto;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* App header: brand+actions (tabs moved to sidebar) */
     .app-header {
       display: flex;
       flex-direction: column;
@@ -94,8 +158,15 @@
       background: #0a0a0a;
       background-color: #0a0a0a;
     }
+    .app-header-leading {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+      flex-shrink: 1;
+    }
     .app-brand {
-      flex-shrink: 0;
+      flex-shrink: 1;
       font-size: 13px;
       font-weight: 600;
       letter-spacing: -0.02em;
@@ -115,47 +186,65 @@
       min-width: 0;
       flex: 1 1 auto;
     }
-    .app-header-tabs {
-      display: flex;
-      flex-wrap: nowrap;
-      align-items: stretch;
-      gap: 0;
-      padding: 0 6px;
-      overflow-x: auto;
-      overflow-y: hidden;
-      -webkit-overflow-scrolling: touch;
-      overscroll-behavior-x: contain;
-      scrollbar-width: none;
-      white-space: nowrap;
-      border-top: 1px solid #1f1f1f;
-      background: #0a0a0a;
-      background-color: #0a0a0a;
-    }
-    .app-header-tabs::-webkit-scrollbar { display: none; height: 0; }
+    #btn-sidebar-open { display: none; }
 
     .app-tab {
-      display: inline-flex;
+      display: flex;
       align-items: center;
-      flex: 0 0 auto;
-      height: 32px;
-      padding: 0 12px;
+      gap: 10px;
+      width: 100%;
+      min-height: 36px;
+      padding: 0 10px;
       border: 0;
-      border-bottom: 2px solid transparent;
+      border-left: 2px solid transparent;
       background: transparent;
       color: #a3a3a3;
       font-size: 12px;
       font-weight: 600;
       cursor: pointer;
-      border-radius: 0;
+      border-radius: 4px;
       white-space: nowrap;
+      text-align: left;
     }
-    .app-tab:hover { color: #fff; }
+    .app-tab:hover { color: #fff; background: #141414; }
     .app-tab.is-active {
       color: #ffd900;
-      border-bottom-color: #ffd900;
+      border-left-color: #ffd900;
+      background: #16140a;
+    }
+    .app-tab .tab-ico {
+      flex: 0 0 auto;
+      width: 28px;
+      height: 28px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 4px;
+      border: 1px solid #2a2a2a;
+      background: #111;
+      color: inherit;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+    .app-tab.is-active .tab-ico {
+      border-color: rgba(255, 217, 0, 0.45);
+      background: #1c1808;
     }
     .app-tab .tab-label-short { display: none; }
     .app-tab .tab-label-full { display: inline; }
+    .app-shell[data-sidebar="collapsed"] .app-tab {
+      justify-content: center;
+      padding: 0;
+      gap: 0;
+      border-left-color: transparent;
+    }
+    .app-shell[data-sidebar="collapsed"] .app-tab.is-active {
+      border-left-color: transparent;
+      box-shadow: inset 0 0 0 1px rgba(255, 217, 0, 0.35);
+    }
+    .app-shell[data-sidebar="collapsed"] .app-tab .tab-label-full,
+    .app-shell[data-sidebar="collapsed"] .app-tab .tab-label-short { display: none; }
 
     .search-wrap {
       position: relative;
@@ -193,18 +282,67 @@
     .search-wrap input::placeholder { color: #525252; }
 
     @media (max-width: 768px) {
+      .app-shell { display: block; }
+      .app-sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        width: min(280px, 86vw);
+        flex-basis: auto;
+        transform: translateX(-105%);
+        transition: transform 0.2s ease;
+        padding-top: constant(safe-area-inset-top);
+        padding-top: env(safe-area-inset-top, 0px);
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+        box-shadow: 8px 0 28px rgba(0, 0, 0, 0.45);
+      }
+      .app-shell[data-sidebar="collapsed"] .app-sidebar {
+        width: min(280px, 86vw);
+        flex-basis: auto;
+      }
+      .app-shell[data-drawer="open"] .app-sidebar {
+        transform: translateX(0);
+      }
+      .sidebar-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 65;
+        background: rgba(0, 0, 0, 0.55);
+        border: 0;
+        padding: 0;
+        margin: 0;
+        cursor: pointer;
+      }
+      .app-shell[data-drawer="open"] .sidebar-backdrop {
+        display: block;
+      }
+      /* Drawer luôn hiện label đầy đủ (không dùng mode icon-only) */
+      .app-shell[data-sidebar="collapsed"] .sidebar-title { display: inline; }
+      .app-shell[data-sidebar="collapsed"] .app-tab {
+        justify-content: flex-start;
+        padding: 0 10px;
+        gap: 10px;
+        border-left: 2px solid transparent;
+        box-shadow: none;
+      }
+      .app-shell[data-sidebar="collapsed"] .app-tab.is-active {
+        border-left-color: #ffd900;
+        box-shadow: none;
+      }
+      .app-shell[data-sidebar="collapsed"] .app-tab .tab-label-full { display: inline; }
+      #btn-sidebar-collapse { display: none !important; }
+      #btn-sidebar-open { display: inline-flex; }
       .app-header-top { padding: 6px 8px; gap: 6px; }
       .app-brand-full { display: none; }
       .app-brand-short { display: inline; }
       .app-header-actions { gap: 4px; }
-      .app-header-tabs { padding: 0 4px; }
       .app-tab {
-        height: 34px;
-        padding: 0 10px;
-        font-size: 12px;
+        min-height: 40px;
+        font-size: 13px;
       }
-      .app-tab .tab-label-full { display: none; }
-      .app-tab .tab-label-short { display: inline; }
+      .app-tab .tab-label-full { display: inline; }
+      .app-tab .tab-label-short { display: none; }
       .search-wrap { max-width: min(140px, 38vw); }
       .search-wrap input { font-size: 11px; padding-right: 6px; }
       #clock { display: none !important; }
@@ -1722,12 +1860,59 @@
       <p class="footnote">Protected by Authentik · Desk Session DEV only</p>
     </div>
   </div>
+  <div id="app-shell" class="app-shell" data-sidebar="expanded" data-drawer="closed" data-atd-id="pb-ui:app.shell">
+    <button type="button" id="sidebar-backdrop" class="sidebar-backdrop" hidden aria-label="Đóng menu" data-atd-id="pb-ui:app.sidebar.backdrop"></button>
+    <aside id="app-sidebar" class="app-sidebar" data-atd-id="pb-ui:app.sidebar" aria-label="Thanh bên">
+      <div class="sidebar-head">
+        <span class="sidebar-title">Menu</span>
+        <button type="button" class="icon-btn" id="btn-sidebar-collapse" data-atd-id="pb-ui:app.sidebar.collapse" aria-label="Thu gọn thanh bên" title="Thu gọn / Mở rộng">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+            <path d="M4 6h16M4 12h10M4 18h16" stroke-linecap="round"></path>
+          </svg>
+        </button>
+      </div>
+      <nav class="app-sidebar-nav" role="tablist" aria-label="Chức năng" data-atd-id="pb-ui:app.tabs">
+        <button type="button" class="app-tab is-active" data-app="iboard" data-atd-id="pb-ui:app.tab.iboard" role="tab" aria-selected="true" title="iBoard">
+          <span class="tab-ico" aria-hidden="true">IB</span>
+          <span class="tab-label-full">Giao dịch iBoard</span><span class="tab-label-short">iBoard</span>
+        </button>
+        <button type="button" class="app-tab" data-app="portfolio" data-atd-id="pb-ui:app.tab.portfolio" role="tab" aria-selected="false" title="Danh mục">
+          <span class="tab-ico" aria-hidden="true">DM</span>
+          <span class="tab-label-full">Danh mục</span><span class="tab-label-short">Danh mục</span>
+        </button>
+        <button type="button" class="app-tab" data-app="alerts" data-atd-id="pb-ui:app.tab.alerts" role="tab" aria-selected="false" title="Alerts">
+          <span class="tab-ico" aria-hidden="true">AL</span>
+          <span class="tab-label-full">Alerts</span><span class="tab-label-short">Alerts</span>
+        </button>
+        <button type="button" class="app-tab" data-app="news" data-atd-id="pb-ui:app.tab.news" role="tab" aria-selected="false" title="Tin tức">
+          <span class="tab-ico" aria-hidden="true">TN</span>
+          <span class="tab-label-full">Tin tức / Nghiên cứu</span><span class="tab-label-short">Tin tức</span>
+        </button>
+        <button type="button" class="app-tab" data-app="account" id="tab-account" hidden data-atd-id="pb-ui:app.tab.account" role="tab" aria-selected="false" title="Tài khoản">
+          <span class="tab-ico" aria-hidden="true">TK</span>
+          <span class="tab-label-full">Tài khoản</span><span class="tab-label-short">Account</span>
+        </button>
+        <button type="button" class="app-tab" data-app="admin" id="tab-admin" hidden data-atd-id="pb-ui:app.tab.admin" role="tab" aria-selected="false" title="Admin">
+          <span class="tab-ico" aria-hidden="true">AD</span>
+          <span class="tab-label-full">Admin</span><span class="tab-label-short">Admin</span>
+        </button>
+      </nav>
+    </aside>
+
+    <div id="app-main" class="app-main" data-atd-id="pb-ui:app.main">
   <header class="app-header bg-[#0a0a0a] pt-[env(safe-area-inset-top)]" data-atd-id="pb-ui:app.header">
     <div class="app-header-top bg-[#0a0a0a]">
-      <span class="app-brand" title="atz · Realtime">
-        <span class="app-brand-full">atz · Realtime</span>
-        <span class="app-brand-short">atz</span>
-      </span>
+      <div class="app-header-leading">
+        <button type="button" class="icon-btn" id="btn-sidebar-open" data-atd-id="pb-ui:app.sidebar.open" aria-label="Mở menu" aria-controls="app-sidebar" aria-expanded="false" title="Menu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+            <path d="M4 7h16M4 12h16M4 17h16" stroke-linecap="round"></path>
+          </svg>
+        </button>
+        <span class="app-brand" title="atz · Realtime">
+          <span class="app-brand-full">atz · Realtime</span>
+          <span class="app-brand-short">atz</span>
+        </span>
+      </div>
       <div class="app-header-actions">
         <label class="search-wrap" title="Tìm mã / ngành" id="global-search-wrap" data-atd-id="pb-ui:iboard.search">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
@@ -1763,26 +1948,6 @@
         <span id="clock" class="tabular-nums text-[11px] text-gray-500 shrink-0"></span>
       </div>
     </div>
-    <nav class="app-header-tabs" role="tablist" aria-label="Chức năng" data-atd-id="pb-ui:app.tabs">
-      <button type="button" class="app-tab is-active" data-app="iboard" data-atd-id="pb-ui:app.tab.iboard" role="tab" aria-selected="true">
-        <span class="tab-label-full">Giao dịch iBoard</span><span class="tab-label-short">iBoard</span>
-      </button>
-      <button type="button" class="app-tab" data-app="portfolio" data-atd-id="pb-ui:app.tab.portfolio" role="tab" aria-selected="false">
-        <span class="tab-label-full">Danh mục</span><span class="tab-label-short">Danh mục</span>
-      </button>
-      <button type="button" class="app-tab" data-app="alerts" data-atd-id="pb-ui:app.tab.alerts" role="tab" aria-selected="false">
-        <span class="tab-label-full">Alerts</span><span class="tab-label-short">Alerts</span>
-      </button>
-      <button type="button" class="app-tab" data-app="news" data-atd-id="pb-ui:app.tab.news" role="tab" aria-selected="false">
-        <span class="tab-label-full">Tin tức / Nghiên cứu</span><span class="tab-label-short">Tin tức</span>
-      </button>
-      <button type="button" class="app-tab" data-app="account" id="tab-account" hidden data-atd-id="pb-ui:app.tab.account" role="tab" aria-selected="false">
-        <span class="tab-label-full">Tài khoản</span><span class="tab-label-short">Account</span>
-      </button>
-      <button type="button" class="app-tab" data-app="admin" id="tab-admin" hidden data-atd-id="pb-ui:app.tab.admin" role="tab" aria-selected="false">
-        <span class="tab-label-full">Admin</span><span class="tab-label-short">Admin</span>
-      </button>
-    </nav>
   </header>
 
   <!-- ===== Panel: iBoard ===== -->
@@ -2207,6 +2372,8 @@
       <div class="brief-body" id="brief-body" aria-live="polite" data-atd-id="pb-ui:brief.body"></div>
     </div>
   </section>
+    </div><!-- /#app-main -->
+  </div><!-- /#app-shell -->
 
   <script src="/static/vendor/lightweight-charts.standalone.production.js"></script>
   <script>
@@ -2255,6 +2422,7 @@
     const MARKET_KEY = "atz.iboard.market";
     const WATCHLIST_KEY = "atz.iboard.watchlist_id";
     const APP_TAB_KEY = "atz.app.tab";
+    const SIDEBAR_KEY = "atz.ui.sidebar";
     const PORTFOLIO_KEY = "atz.app.portfolio";
     const PF_SCORE_VIEW_KEY = "atz.pf.scoreView";
     const VALID_MARKETS = new Set(["HOSE", "VN30", "VN30F1M", "VN30F2M", "HNX", "UPCOM", "FOREIGN"]);
@@ -2266,6 +2434,77 @@
     const VALID_APP_TABS = new Set(["iboard", "portfolio", "alerts", "news", "account", "admin"]);
     const GUEST_SKIP_KEY = "atz.auth.guest_skip";
     const ALERTS_MAX = 80;
+    const SIDEBAR_MQ = window.matchMedia("(max-width: 768px)");
+
+    function isMobileSidebar() {
+      return SIDEBAR_MQ.matches;
+    }
+
+    function readSidebarPref() {
+      const raw = String(localStorage.getItem(SIDEBAR_KEY) || "").trim();
+      return raw === "collapsed" ? "collapsed" : "expanded";
+    }
+
+    function writeSidebarPref(mode) {
+      const next = mode === "collapsed" ? "collapsed" : "expanded";
+      localStorage.setItem(SIDEBAR_KEY, next);
+      return next;
+    }
+
+    function setSidebarDrawerOpen(open) {
+      const shell = document.getElementById("app-shell");
+      const backdrop = document.getElementById("sidebar-backdrop");
+      const btnOpen = document.getElementById("btn-sidebar-open");
+      if (!shell) return;
+      const on = !!open && isMobileSidebar();
+      shell.setAttribute("data-drawer", on ? "open" : "closed");
+      if (backdrop) {
+        if (on) backdrop.removeAttribute("hidden");
+        else backdrop.setAttribute("hidden", "");
+      }
+      if (btnOpen) btnOpen.setAttribute("aria-expanded", on ? "true" : "false");
+      document.body.style.overflow = on ? "hidden" : "";
+    }
+
+    function applySidebarMode(mode, { persist } = { persist: true }) {
+      const shell = document.getElementById("app-shell");
+      if (!shell) return;
+      const next = mode === "collapsed" ? "collapsed" : "expanded";
+      shell.setAttribute("data-sidebar", next);
+      if (persist) writeSidebarPref(next);
+      const btn = document.getElementById("btn-sidebar-collapse");
+      if (btn) {
+        btn.setAttribute("aria-label", next === "collapsed" ? "Mở rộng thanh bên" : "Thu gọn thanh bên");
+        btn.title = next === "collapsed" ? "Mở rộng" : "Thu gọn";
+      }
+      // Mobile: luôn đóng drawer khi đổi mode / resize — không chiếm workspace.
+      if (isMobileSidebar()) setSidebarDrawerOpen(false);
+    }
+
+    function initSidebarChrome() {
+      applySidebarMode(readSidebarPref(), { persist: false });
+      setSidebarDrawerOpen(false);
+      document.getElementById("btn-sidebar-collapse")?.addEventListener("click", () => {
+        if (isMobileSidebar()) return;
+        const cur = document.getElementById("app-shell")?.getAttribute("data-sidebar") || "expanded";
+        applySidebarMode(cur === "collapsed" ? "expanded" : "collapsed", { persist: true });
+      });
+      document.getElementById("btn-sidebar-open")?.addEventListener("click", () => {
+        setSidebarDrawerOpen(true);
+      });
+      document.getElementById("sidebar-backdrop")?.addEventListener("click", () => {
+        setSidebarDrawerOpen(false);
+      });
+      document.addEventListener("keydown", (ev) => {
+        if (ev.key === "Escape") setSidebarDrawerOpen(false);
+      });
+      const onMq = () => {
+        applySidebarMode(readSidebarPref(), { persist: false });
+        setSidebarDrawerOpen(false);
+      };
+      if (typeof SIDEBAR_MQ.addEventListener === "function") SIDEBAR_MQ.addEventListener("change", onMq);
+      else if (typeof SIDEBAR_MQ.addListener === "function") SIDEBAR_MQ.addListener(onMq);
+    }
 
     function defaultOutpostLoginUrl() {
       return "/outpost.goauthentik.io/start?rd=" + encodeURIComponent(location.origin + "/");
@@ -2461,7 +2700,11 @@
     }
 
     document.querySelectorAll(".app-tab").forEach((btn) => {
-      btn.addEventListener("click", () => setAppTab(btn.dataset.app));
+      btn.addEventListener("click", () => {
+        setAppTab(btn.dataset.app);
+        // Mobile drawer: auto-close sau khi chọn tab để trả full workspace.
+        if (isMobileSidebar()) setSidebarDrawerOpen(false);
+      });
     });
 
     function applyRbacTabs() {
@@ -7870,6 +8113,7 @@
     }
 
     (async () => {
+      initSidebarChrome();
       await initAuthShell();
       await initPortfolioAuthSync();
       await fetchIndexSpark();
