@@ -1718,7 +1718,7 @@
         <p id="welcome-error" class="welcome-error" role="alert"></p>
       </form>
       <button type="button" class="ghost" id="welcome-continue" data-atd-id="pb-ui:auth.continue">Chế độ Khách / Trải nghiệm nhanh</button>
-      <button type="button" class="welcome-outpost-link" id="welcome-outpost" data-atd-id="pb-ui:auth.outpost">Hoặc đăng nhập qua Authentik Outpost</button>
+      <button type="button" class="welcome-outpost-link" id="welcome-outpost" hidden data-atd-id="pb-ui:auth.outpost">Hoặc đăng nhập qua Authentik Outpost</button>
       <p class="footnote">Protected by Authentik · Desk Session DEV only</p>
     </div>
   </div>
@@ -2110,6 +2110,15 @@
     </div>
     <form id="admin-control-form" data-atd-id="pb-ui:admin.form" onsubmit="return false;">
       <div class="admin-form">
+        <div class="admin-card" data-atd-id="pb-ui:admin.auth.card">
+          <h3>Auth · Session &amp; 2FA remember</h3>
+          <p class="text-[11px] text-gray-400" style="margin:0 0 8px">TTL Desk Session + bỏ qua TOTP trên thiết bị đã xác thực (cookie tin cậy). Mặc định 7 ngày.</p>
+          <label class="admin-field">Session TTL (giây) <input id="adm-session-ttl" type="number" min="3600" max="2592000" step="3600" placeholder="604800" /></label>
+          <label class="admin-field">2FA remember (giây) <input id="adm-mfa-remember" type="number" min="3600" max="2592000" step="3600" placeholder="604800" /></label>
+          <label class="admin-field" style="flex-direction:row;align-items:center;gap:8px;">
+            <input id="adm-mfa-remember-on" type="checkbox" checked /> Bật nhớ 2FA trên thiết bị tin cậy
+          </label>
+        </div>
         <div class="admin-card">
           <h3>Screening Filters · RSI</h3>
           <label class="admin-field">RSI length <input id="adm-rsi-length" type="number" min="2" max="100" step="1" placeholder="14" /></label>
@@ -2279,6 +2288,38 @@
 
     function triggerSystemLogin() {
       window.location.href = resolveLoginUrl();
+    }
+
+    /** Guest / header Login → Welcome Gate Desk (không nhảy Authentik). */
+    function openDeskLoginGate() {
+      setGuestMode(false);
+      showWelcomeMfaStep(false);
+      const errEl = document.getElementById("welcome-error");
+      if (errEl) errEl.textContent = "";
+      const gate = document.getElementById("welcome-gate");
+      if (gate) gate.removeAttribute("hidden");
+      const form = document.getElementById("welcome-login-form");
+      if (form) form.style.display = accountState.deskSessionForm ? "" : "none";
+      const outpostBtn = document.getElementById("welcome-outpost");
+      if (outpostBtn) {
+        if (accountState.deskSessionForm) outpostBtn.setAttribute("hidden", "");
+        else outpostBtn.removeAttribute("hidden");
+      }
+      try { document.getElementById("welcome-username")?.focus(); } catch (_) {}
+    }
+
+    function startLoginFlow() {
+      if (accountState.deskSessionForm) {
+        openDeskLoginGate();
+        return;
+      }
+      // Fallback hiếm khi Desk form tắt — vẫn ưu tiên gate nếu có form.
+      const form = document.getElementById("welcome-login-form");
+      if (form) {
+        openDeskLoginGate();
+        return;
+      }
+      triggerSystemLogin();
     }
 
     function isGuestMode() {
@@ -2489,7 +2530,7 @@
       const chipName = document.getElementById("auth-chip-name");
       const chipRole = document.getElementById("auth-chip-role");
       const btnLogin = document.getElementById("btn-header-login");
-      if (btnLogin) btnLogin.onclick = () => triggerSystemLogin();
+      if (btnLogin) btnLogin.onclick = () => startLoginFlow();
       if (accountState.authenticated) {
         setGuestMode(false);
         if (gate) gate.setAttribute("hidden", "");
@@ -2522,9 +2563,13 @@
         const outpostBtn = document.getElementById("welcome-outpost");
         if (form) form.style.display = accountState.deskSessionForm ? "" : "none";
         if (outpostBtn) {
-          outpostBtn.textContent = accountState.deskSessionForm
-            ? "Hoặc đăng nhập qua Authentik Outpost"
-            : "Đăng nhập qua Hệ thống (Authentik Outpost)";
+          // Desk Session: ẩn Outpost — Authentik không lộ cho end-user.
+          if (accountState.deskSessionForm) {
+            outpostBtn.setAttribute("hidden", "");
+          } else {
+            outpostBtn.removeAttribute("hidden");
+            outpostBtn.textContent = "Đăng nhập qua Hệ thống (Authentik Outpost)";
+          }
         }
       }
       applyRbacTabs();
@@ -2699,10 +2744,10 @@
           body: JSON.stringify(body),
         });
         const data = await res.json().catch(() => ({}));
-        if (res.status === 202 && data.mfa_required && data.mfa_token) {
+        if (data.mfa_required && data.mfa_token) {
           deskMfaToken = String(data.mfa_token);
           showWelcomeMfaStep(true);
-          if (errEl) errEl.textContent = data.detail || "Nhập mã xác thực (TOTP)";
+          if (errEl) errEl.textContent = data.detail || "Mật khẩu đúng — nhập mã TOTP";
           return;
         }
         if (!res.ok || data.success !== true) {
@@ -2806,6 +2851,11 @@
         const vol = sa.volume_spike || {};
         const risk = data.risk || {};
         const adtv = data.min_traded_value || {};
+        const auth = data.auth || {};
+        admFill("adm-session-ttl", auth.session_ttl_sec);
+        admFill("adm-mfa-remember", auth.mfa_remember_sec);
+        const mfaOn = document.getElementById("adm-mfa-remember-on");
+        if (mfaOn) mfaOn.checked = auth.mfa_remember_enabled !== false;
         admFill("adm-rsi-length", rsi.length);
         admFill("adm-rsi-oversold", rsi.oversold);
         admFill("adm-rsi-overbought", rsi.overbought);
@@ -2861,6 +2911,11 @@
           HOSE: admNum("adm-adtv-hose"),
           HNX: admNum("adm-adtv-hnx"),
           UPCOM: admNum("adm-adtv-upcom"),
+        },
+        auth: {
+          session_ttl_sec: admNum("adm-session-ttl"),
+          mfa_remember_sec: admNum("adm-mfa-remember"),
+          mfa_remember_enabled: !!document.getElementById("adm-mfa-remember-on")?.checked,
         },
       };
       try {

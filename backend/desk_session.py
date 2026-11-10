@@ -11,7 +11,8 @@ import time
 from typing import Any
 
 COOKIE_NAME = "atz_desk_session"
-DEFAULT_TTL_SEC = 12 * 3600
+# 7 ngày — overnight login không bị đá; Admin có thể chỉnh qua runtime overlay.
+DEFAULT_TTL_SEC = 7 * 24 * 3600
 
 
 def _b64url_encode(raw: bytes) -> str:
@@ -52,7 +53,15 @@ def issue_session_value(
     if not secret:
         raise RuntimeError("DESK_SESSION_SECRET missing")
     now = int(time.time())
-    ttl = int(ttl_sec or os.getenv("DESK_SESSION_TTL_SEC") or DEFAULT_TTL_SEC)
+    if ttl_sec is None:
+        try:
+            from backend.auth_policy import session_ttl_sec
+
+            ttl = int(session_ttl_sec())
+        except Exception:
+            ttl = int(os.getenv("DESK_SESSION_TTL_SEC") or DEFAULT_TTL_SEC)
+    else:
+        ttl = int(ttl_sec)
     payload = {
         "u": str(username).strip(),
         "e": str(email or "").strip(),
