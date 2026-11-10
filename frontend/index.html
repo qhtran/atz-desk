@@ -983,41 +983,48 @@
 
     .pf-f3-sector-panel {
       position: relative;
-      margin: 0 12px 10px;
-      padding: 8px 10px;
+      margin: 0 12px 8px;
+      padding: 4px 8px;
       border: 1px solid #2a2a2a;
       background: #0f0f0f;
       border-radius: 6px;
     }
     .pf-f3-toolbar {
       display: flex;
-      flex-wrap: wrap;
+      flex-wrap: nowrap;
       align-items: center;
       gap: 8px;
-      margin-bottom: 4px;
+      margin-bottom: 2px;
       font-size: 11px;
       color: #a3a3a3;
+    }
+    .pf-f3-view-hint {
+      margin-left: auto;
+      font-size: 10px;
+      color: #737373;
+      white-space: nowrap;
     }
     .pf-f3-pills {
       display: flex;
       flex-wrap: nowrap;
-      gap: 0.5rem;
+      gap: 0.4rem;
       overflow-x: auto;
       white-space: nowrap;
-      padding: 0.5rem;
+      padding: 2px 0 4px;
       -webkit-overflow-scrolling: touch;
+      scrollbar-width: thin;
     }
     .pf-f3-pill {
       flex: 0 0 auto;
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-      padding: 5px 10px;
+      gap: 5px;
+      padding: 4px 9px;
       border: 1px solid #2a2a2a;
       border-radius: 999px;
       background: #141414;
       color: #e5e5e5;
-      font-size: 12px;
+      font-size: 11px;
       cursor: pointer;
       line-height: 1.2;
     }
@@ -2016,8 +2023,9 @@
     </div>
     <div class="pf-f3-sector-panel" data-atd-id="pb-ui:portfolio.f3-picker">
       <div class="pf-f3-toolbar">
-        <span>Ngành F3 — chọn pill để xem mã</span>
+        <span>Ngành F3</span>
         <span id="pf-f3-preview-count">0 ngành</span>
+        <span class="pf-f3-view-hint">vuốt ngang · chạm pill mở danh sách mã</span>
       </div>
       <div id="pf-f3-themes" class="pf-f3-pills" data-atd-id="pb-ui:iboard.f3.board" role="region" aria-label="Ngành F3"></div>
       <div id="pf-f3-preview-empty" class="empty-hint" hidden>Không tải được danh sách ngành F3.</div>
@@ -2273,8 +2281,35 @@
 
     function resolveLoginUrl() {
       const u = (accountState.loginUrl || "").trim();
-      if (u.startsWith("https://") || u.startsWith("/")) return u;
+      if (u.startsWith("/")) return u;
+      if (u.startsWith("https://")) {
+        try {
+          // Tránh login_url trỏ host khác (vd. config còn dev.atz.vn khi đang ở atz.vn).
+          if (new URL(u).host !== location.host) return defaultOutpostLoginUrl();
+        } catch (_) {
+          return defaultOutpostLoginUrl();
+        }
+        return u;
+      }
       return defaultOutpostLoginUrl();
+    }
+
+    function resolveLogoutUrl() {
+      const u = (accountState.logoutUrl || "").trim();
+      const rd = location.origin + "/";
+      if (!u) {
+        return "/outpost.goauthentik.io/sign_out?rd=" + encodeURIComponent(rd);
+      }
+      try {
+        const parsed = new URL(u, location.origin);
+        if (parsed.host !== location.host) {
+          return "/outpost.goauthentik.io/sign_out?rd=" + encodeURIComponent(rd);
+        }
+        if (!parsed.searchParams.has("rd")) parsed.searchParams.set("rd", rd);
+        return parsed.pathname + parsed.search;
+      } catch (_) {
+        return "/outpost.goauthentik.io/sign_out?rd=" + encodeURIComponent(rd);
+      }
     }
 
     function triggerSystemLogin() {
@@ -2591,12 +2626,26 @@
     }
 
     async function deskLogout() {
+      const source = accountState.authSource;
+      let outpostPath = null;
       try {
-        await fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" });
+        const res = await fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" });
+        const data = await res.json().catch(() => ({}));
+        if (data && data.outpost_sign_out) outpostPath = String(data.outpost_sign_out);
       } catch (_) {}
-      const url = accountState.logoutUrl;
-      if (url) window.location.href = url;
-      else window.location.reload();
+      // Desk Session: cookie đã xóa — ở lại SPA (không SLO Authentik).
+      if (source === "desk_session") {
+        window.location.replace("/");
+        return;
+      }
+      // ForwardAuth: hủy cookie outpost/gateway rồi rd về SPA (tránh nửa phiên).
+      if (outpostPath && outpostPath.startsWith("/")) {
+        const rd = encodeURIComponent(location.origin + "/");
+        const join = outpostPath.includes("?") ? "&" : "?";
+        window.location.href = outpostPath + (outpostPath.includes("rd=") ? "" : join + "rd=" + rd);
+        return;
+      }
+      window.location.href = resolveLogoutUrl();
     }
 
     async function initAuthShell() {
@@ -2618,7 +2667,8 @@
       }
       renderAuthChrome();
       const form = document.getElementById("welcome-login-form");
-      if (form) form.style.display = accountState.deskSessionForm || !accountState.authenticated ? "" : "";
+      // Chỉ hiện form mật khẩu khi Desk Session bật — tránh atz.vn hard-auth POST → 302 Authentik.
+      if (form) form.style.display = accountState.deskSessionForm ? "" : "none";
       try { await loadUserWatchlists(); } catch (_) {}
     }
 
@@ -2692,12 +2742,26 @@
       if (btn) btn.disabled = true;
       if (mfaBtn) mfaBtn.disabled = true;
       try {
+        if (!accountState.deskSessionForm) {
+          if (errEl) errEl.textContent = "Form Desk Session tắt — dùng Đăng nhập hệ thống (Authentik).";
+          triggerSystemLogin();
+          return;
+        }
         const res = await fetch("/api/auth/login", {
           method: "POST",
           credentials: "same-origin",
+          redirect: "manual",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
         });
+        // Nginx hard ForwardAuth từng 302 → outpost; fetch follow → CORS → “không kết nối”.
+        if (res.type === "opaqueredirect" || (res.status >= 300 && res.status < 400)) {
+          if (errEl) {
+            errEl.textContent = "Máy chủ chuyển sang Authentik — mở Đăng nhập hệ thống.";
+          }
+          triggerSystemLogin();
+          return;
+        }
         const data = await res.json().catch(() => ({}));
         if (res.status === 202 && data.mfa_required && data.mfa_token) {
           deskMfaToken = String(data.mfa_token);
@@ -2715,9 +2779,16 @@
           }
           return;
         }
-        await finishDeskLoginOk(data, passEl);
-      } catch {
-        if (errEl) errEl.textContent = "Không kết nối được máy chủ đăng nhập";
+        // Cookie Set-Cookie đã có — hard navigate để /api/account/me + gate đồng bộ.
+        applyMePayload(data);
+        if (passEl) passEl.value = "";
+        window.location.replace("/");
+        return;
+      } catch (err) {
+        if (errEl) {
+          errEl.textContent = "Không kết nối được máy chủ đăng nhập"
+            + (err && err.message ? ` (${err.message})` : "");
+        }
       } finally {
         if (btn) btn.disabled = false;
         if (mfaBtn) mfaBtn.disabled = false;
@@ -6419,7 +6490,7 @@
 
     async function initPortfolioAuthSync() {
       try {
-        const meRes = await fetch("/api/account/me");
+        const meRes = await fetch("/api/account/me", { credentials: "same-origin" });
         const meData = await meRes.json();
         pfAuthenticated = meData.authenticated === true;
         if (!pfAuthenticated) {
@@ -6430,6 +6501,7 @@
         if (localItems.length) {
           const migRes = await fetch("/api/portfolio/positions/migrate", {
             method: "POST",
+            credentials: "same-origin",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ items: localItems }),
           });
@@ -6442,7 +6514,7 @@
             }
           }
         }
-        const res = await fetch("/api/portfolio/positions");
+        const res = await fetch("/api/portfolio/positions", { credentials: "same-origin" });
         if (res.ok) {
           const data = await res.json();
           if (data.ok && Array.isArray(data.items)) {
