@@ -304,6 +304,7 @@
       .app-shell[data-drawer="open"] .app-sidebar {
         transform: translateX(0);
       }
+      /* Stack: header 60 < drawer backdrop 65 < sidebar 70 << symbol-detail 9000 */
       .sidebar-backdrop {
         position: fixed;
         inset: 0;
@@ -316,6 +317,10 @@
       }
       .app-shell[data-drawer="open"] .sidebar-backdrop {
         display: block;
+      }
+      /* Tắt transition width khi đang mobile (tránh glitch lúc qua 768px) */
+      .app-shell.is-mq-crossing .app-sidebar {
+        transition: none !important;
       }
       /* Drawer luôn hiện label đầy đủ (không dùng mode icon-only) */
       .app-shell[data-sidebar="collapsed"] .sidebar-title { display: inline; }
@@ -1862,10 +1867,10 @@
   </div>
   <div id="app-shell" class="app-shell" data-sidebar="expanded" data-drawer="closed" data-atd-id="pb-ui:app.shell">
     <button type="button" id="sidebar-backdrop" class="sidebar-backdrop" hidden aria-label="Đóng menu" data-atd-id="pb-ui:app.sidebar.backdrop"></button>
-    <aside id="app-sidebar" class="app-sidebar" data-atd-id="pb-ui:app.sidebar" aria-label="Thanh bên">
+    <aside id="app-sidebar" class="app-sidebar" data-atd-id="pb-ui:app.sidebar" aria-label="Thanh bên" aria-hidden="false">
       <div class="sidebar-head">
-        <span class="sidebar-title">Menu</span>
-        <button type="button" class="icon-btn" id="btn-sidebar-collapse" data-atd-id="pb-ui:app.sidebar.collapse" aria-label="Thu gọn thanh bên" title="Thu gọn / Mở rộng">
+        <span class="sidebar-title" id="sidebar-title">Menu</span>
+        <button type="button" class="icon-btn" id="btn-sidebar-collapse" data-atd-id="pb-ui:app.sidebar.collapse" aria-label="Thu gọn thanh bên" aria-expanded="true" aria-controls="app-sidebar" title="Thu gọn / Mở rộng">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
             <path d="M4 6h16M4 12h10M4 18h16" stroke-linecap="round"></path>
           </svg>
@@ -2451,19 +2456,85 @@
       return next;
     }
 
-    function setSidebarDrawerOpen(open) {
+    function isSidebarDrawerOpen() {
       const shell = document.getElementById("app-shell");
+      return !!(shell && shell.getAttribute("data-drawer") === "open" && isMobileSidebar());
+    }
+
+    function isHigherModalOpen() {
+      const detail = document.getElementById("symbol-detail-backdrop");
+      if (detail && !detail.hasAttribute("hidden")) return true;
+      const welcome = document.getElementById("welcome-gate");
+      if (welcome && !welcome.hasAttribute("hidden")) return true;
+      const f3 = document.getElementById("pf-f3-popover");
+      if (f3 && !f3.hasAttribute("hidden")) return true;
+      const settings = document.getElementById("settings-menu");
+      if (settings && settings.classList.contains("open")) return true;
+      return false;
+    }
+
+    function syncSidebarA11y() {
+      const shell = document.getElementById("app-shell");
+      const aside = document.getElementById("app-sidebar");
       const backdrop = document.getElementById("sidebar-backdrop");
       const btnOpen = document.getElementById("btn-sidebar-open");
+      const btnCollapse = document.getElementById("btn-sidebar-collapse");
+      if (!shell || !aside) return;
+      const mobile = isMobileSidebar();
+      const drawerOn = shell.getAttribute("data-drawer") === "open";
+      const mode = shell.getAttribute("data-sidebar") === "collapsed" ? "collapsed" : "expanded";
+
+      if (mobile) {
+        // Drawer ẩn: aria-hidden; khi mở: lộ navigation.
+        aside.setAttribute("aria-hidden", drawerOn ? "false" : "true");
+        if (backdrop) {
+          backdrop.setAttribute("aria-hidden", drawerOn ? "false" : "true");
+        }
+      } else {
+        aside.setAttribute("aria-hidden", "false");
+        if (backdrop) backdrop.setAttribute("aria-hidden", "true");
+      }
+
+      if (btnOpen) {
+        btnOpen.setAttribute("aria-expanded", mobile && drawerOn ? "true" : "false");
+        btnOpen.setAttribute("aria-hidden", mobile ? "false" : "true");
+      }
+      if (btnCollapse) {
+        btnCollapse.setAttribute("aria-expanded", mode === "expanded" ? "true" : "false");
+        btnCollapse.setAttribute(
+          "aria-label",
+          mode === "collapsed" ? "Mở rộng thanh bên" : "Thu gọn thanh bên"
+        );
+        btnCollapse.title = mode === "collapsed" ? "Mở rộng" : "Thu gọn";
+        btnCollapse.setAttribute("aria-hidden", mobile ? "true" : "false");
+      }
+    }
+
+    function setSidebarDrawerOpen(open, { restoreFocus } = {}) {
+      const shell = document.getElementById("app-shell");
+      const backdrop = document.getElementById("sidebar-backdrop");
+      const aside = document.getElementById("app-sidebar");
       if (!shell) return;
+      const wasOpen = isSidebarDrawerOpen();
       const on = !!open && isMobileSidebar();
       shell.setAttribute("data-drawer", on ? "open" : "closed");
       if (backdrop) {
         if (on) backdrop.removeAttribute("hidden");
         else backdrop.setAttribute("hidden", "");
       }
-      if (btnOpen) btnOpen.setAttribute("aria-expanded", on ? "true" : "false");
       document.body.style.overflow = on ? "hidden" : "";
+      syncSidebarA11y();
+      if (on && aside) {
+        const active = aside.querySelector(".app-tab.is-active") || aside.querySelector(".app-tab:not([hidden])");
+        if (active && typeof active.focus === "function") {
+          try { active.focus({ preventScroll: true }); } catch { active.focus(); }
+        }
+      } else if (wasOpen && restoreFocus !== false) {
+        const btnOpen = document.getElementById("btn-sidebar-open");
+        if (btnOpen && isMobileSidebar()) {
+          try { btnOpen.focus({ preventScroll: true }); } catch { btnOpen.focus(); }
+        }
+      }
     }
 
     function applySidebarMode(mode, { persist } = { persist: true }) {
@@ -2472,35 +2543,45 @@
       const next = mode === "collapsed" ? "collapsed" : "expanded";
       shell.setAttribute("data-sidebar", next);
       if (persist) writeSidebarPref(next);
-      const btn = document.getElementById("btn-sidebar-collapse");
-      if (btn) {
-        btn.setAttribute("aria-label", next === "collapsed" ? "Mở rộng thanh bên" : "Thu gọn thanh bên");
-        btn.title = next === "collapsed" ? "Mở rộng" : "Thu gọn";
-      }
       // Mobile: luôn đóng drawer khi đổi mode / resize — không chiếm workspace.
-      if (isMobileSidebar()) setSidebarDrawerOpen(false);
+      if (isMobileSidebar()) setSidebarDrawerOpen(false, { restoreFocus: false });
+      else syncSidebarA11y();
     }
 
     function initSidebarChrome() {
       applySidebarMode(readSidebarPref(), { persist: false });
-      setSidebarDrawerOpen(false);
+      setSidebarDrawerOpen(false, { restoreFocus: false });
       document.getElementById("btn-sidebar-collapse")?.addEventListener("click", () => {
         if (isMobileSidebar()) return;
         const cur = document.getElementById("app-shell")?.getAttribute("data-sidebar") || "expanded";
         applySidebarMode(cur === "collapsed" ? "expanded" : "collapsed", { persist: true });
       });
       document.getElementById("btn-sidebar-open")?.addEventListener("click", () => {
+        if (isHigherModalOpen()) return;
         setSidebarDrawerOpen(true);
       });
       document.getElementById("sidebar-backdrop")?.addEventListener("click", () => {
         setSidebarDrawerOpen(false);
       });
       document.addEventListener("keydown", (ev) => {
-        if (ev.key === "Escape") setSidebarDrawerOpen(false);
-      });
-      const onMq = () => {
-        applySidebarMode(readSidebarPref(), { persist: false });
+        if (ev.key !== "Escape") return;
+        // Không cướp Esc khi modal cao hơn đang mở (symbol-detail / welcome / F3 / settings).
+        if (isHigherModalOpen()) return;
+        if (!isSidebarDrawerOpen()) return;
+        ev.preventDefault();
         setSidebarDrawerOpen(false);
+      });
+      let mqTimer = 0;
+      const onMq = () => {
+        const shell = document.getElementById("app-shell");
+        if (shell) shell.classList.add("is-mq-crossing");
+        applySidebarMode(readSidebarPref(), { persist: false });
+        setSidebarDrawerOpen(false, { restoreFocus: false });
+        window.clearTimeout(mqTimer);
+        mqTimer = window.setTimeout(() => {
+          shell?.classList.remove("is-mq-crossing");
+          syncSidebarA11y();
+        }, 180);
       };
       if (typeof SIDEBAR_MQ.addEventListener === "function") SIDEBAR_MQ.addEventListener("change", onMq);
       else if (typeof SIDEBAR_MQ.addListener === "function") SIDEBAR_MQ.addListener(onMq);
@@ -2703,7 +2784,7 @@
       btn.addEventListener("click", () => {
         setAppTab(btn.dataset.app);
         // Mobile drawer: auto-close sau khi chọn tab để trả full workspace.
-        if (isMobileSidebar()) setSidebarDrawerOpen(false);
+        if (isMobileSidebar()) setSidebarDrawerOpen(false, { restoreFocus: true });
       });
     });
 
