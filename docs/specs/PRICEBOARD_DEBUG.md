@@ -32,6 +32,7 @@ Registry trong code: [`backend/observability/codes.py`](../../backend/observabil
 | ERR-BRIEF-000 | Morning brief generate thất bại (generic) | Log CLI / `POST /api/admin/briefs/run` |
 | ERR-BRIEF-011 | Thiếu OHLCV index (VNINDEX) | Seed `data/ohlcv`, `OHLCV_BARS_DIR` |
 | ERR-BRIEF-020 | Chưa có / không tìm thấy brief | Chạy cron hoặc admin run |
+| ERR-BRIEF-021 | `date` không đúng `YYYY-MM-DD` | Sửa query `/api/briefs?date=` hoặc `/api/news?date=` |
 
 **Dữ liệu thật / đóng cửa:** mặc định `PRICEBOARD_SOURCE=ssi`, `PRICEBOARD_REST_BOOTSTRAP=1` — worker gọi `indexSummary` + `securitiesSummary` khi hash thiếu giá. Fake depth UI: chỉ `?fake_depth=1` hoặc `localStorage pb_fake_depth=1`.
 

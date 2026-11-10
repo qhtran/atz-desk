@@ -112,6 +112,7 @@ GET `/api/admin/briefs/config` **mask** key (`••••xxxx` + `gemini_api_ke
 | `ERR-BRIEF-010` | `enabled=false` |
 | `ERR-BRIEF-011` | Thiếu OHLCV index |
 | `ERR-BRIEF-020` | Chưa có brief |
+| `ERR-BRIEF-021` | `date` không đúng `YYYY-MM-DD` (archive) |
 | `ERR-BRIEF-030…033` | Lỗi gọi Gemini → fallback Mode 1 |
 | `ERR-BRIEF-034` | Bật AI nhưng thiếu key |
 

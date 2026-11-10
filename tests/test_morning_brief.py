@@ -25,6 +25,7 @@ from backend.morning_brief_store import (
     get_config,
     get_latest_brief,
     init_brief_store,
+    list_brief_archive,
     list_watchbook,
     put_config,
     replace_watchbook,
@@ -111,6 +112,80 @@ def test_daily_brief_unique_by_date(tmp_path: Path):
     assert item is not None
     assert item["title"] == "t2"
     assert get_latest_brief(db_path=db)["title"] == "t2"
+
+
+def test_list_brief_archive_order_and_limit(tmp_path: Path):
+    db = tmp_path / "signals.db"
+    for day, title in (
+        ("2026-11-06", "d6"),
+        ("2026-11-08", "d8"),
+        ("2026-11-07", "d7"),
+    ):
+        save_daily_brief(
+            brief_date=day,
+            title=title,
+            body_markdown="body-" + day,
+            db_path=db,
+        )
+    items = list_brief_archive(limit=2, db_path=db)
+    assert [x["brief_date"] for x in items] == ["2026-11-08", "2026-11-07"]
+    assert "body_markdown" not in items[0]
+    assert items[0]["title"] == "d8"
+    assert list_brief_archive(limit=90, db_path=db)[2]["brief_date"] == "2026-11-06"
+
+
+def test_briefs_archive_http_routes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from backend.routers.briefs import register_brief_routes
+
+    db = tmp_path / "signals.db"
+    save_daily_brief(
+        brief_date="2026-11-09",
+        title="news-day",
+        body_markdown="## hello",
+        db_path=db,
+    )
+    monkeypatch.setattr(
+        "backend.routers.briefs.list_brief_archive",
+        lambda limit=30: list_brief_archive(limit=limit, db_path=db),
+    )
+    monkeypatch.setattr(
+        "backend.routers.briefs.get_brief_by_date",
+        lambda date: get_brief_by_date(date, db_path=db),
+    )
+    monkeypatch.setattr(
+        "backend.routers.briefs.get_latest_brief",
+        lambda: get_latest_brief(db_path=db),
+    )
+
+    app = FastAPI()
+    register_brief_routes(app, require_admin=lambda _req: "admin")
+    client = TestClient(app)
+
+    arch = client.get("/api/briefs/archive?limit=10")
+    assert arch.status_code == 200
+    payload = arch.json()
+    assert payload["ok"] is True
+    assert payload["count"] == 1
+    assert payload["items"][0]["brief_date"] == "2026-11-09"
+
+    alias = client.get("/api/news/archive")
+    assert alias.status_code == 200
+    assert alias.json()["count"] == 1
+
+    by_date = client.get("/api/briefs?date=2026-11-09")
+    assert by_date.status_code == 200
+    assert by_date.json()["brief"]["title"] == "news-day"
+    assert "## hello" in by_date.json()["brief"]["body_markdown"]
+
+    news_alias = client.get("/api/news?date=2026-11-09")
+    assert news_alias.status_code == 200
+    assert news_alias.json()["brief"]["brief_date"] == "2026-11-09"
+
+    bad = client.get("/api/briefs?date=11-09-2026")
+    assert bad.status_code == 400
 
 
 def test_evaluate_watch_status_levels():
