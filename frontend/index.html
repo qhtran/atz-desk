@@ -2461,13 +2461,17 @@
       return !!(shell && shell.getAttribute("data-drawer") === "open" && isMobileSidebar());
     }
 
+    function isElShown(el) {
+      if (!el) return false;
+      // Ưu tiên IDL .hidden (closeSymbolDetail gán property); fallback attribute.
+      if (typeof el.hidden === "boolean") return !el.hidden;
+      return !el.hasAttribute("hidden");
+    }
+
     function isHigherModalOpen() {
-      const detail = document.getElementById("symbol-detail-backdrop");
-      if (detail && !detail.hasAttribute("hidden")) return true;
-      const welcome = document.getElementById("welcome-gate");
-      if (welcome && !welcome.hasAttribute("hidden")) return true;
-      const f3 = document.getElementById("pf-f3-popover");
-      if (f3 && !f3.hasAttribute("hidden")) return true;
+      if (isElShown(document.getElementById("symbol-detail-backdrop"))) return true;
+      if (isElShown(document.getElementById("welcome-gate"))) return true;
+      if (isElShown(document.getElementById("pf-f3-popover"))) return true;
       const settings = document.getElementById("settings-menu");
       if (settings && settings.classList.contains("open")) return true;
       return false;
@@ -2563,14 +2567,16 @@
       document.getElementById("sidebar-backdrop")?.addEventListener("click", () => {
         setSidebarDrawerOpen(false);
       });
+      // Capture phase: chạy TRƯỚC handler Esc của symbol-detail (bubble).
+      // Nếu modal cao hơn đang mở → bỏ qua (Esc chỉ đóng modal, không đụng drawer).
       document.addEventListener("keydown", (ev) => {
         if (ev.key !== "Escape") return;
-        // Không cướp Esc khi modal cao hơn đang mở (symbol-detail / welcome / F3 / settings).
         if (isHigherModalOpen()) return;
         if (!isSidebarDrawerOpen()) return;
         ev.preventDefault();
+        ev.stopPropagation();
         setSidebarDrawerOpen(false);
-      });
+      }, true);
       let mqTimer = 0;
       const onMq = () => {
         const shell = document.getElementById("app-shell");
