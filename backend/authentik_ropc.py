@@ -303,7 +303,7 @@ def _finish_after_auth_stages(
             payload = _post_flow(
                 session,
                 flow_url,
-                {"component": "ak-stage-user-login", "remember_me": False},
+                {"component": "ak-stage-user-login", "remember_me": True},
                 timeout=timeout,
             )
             continue

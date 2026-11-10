@@ -168,6 +168,8 @@ def normalize_control_plane_body(body: dict[str, Any] | None) -> dict[str, Any]:
         out["risk"] = raw["risk"]
     if "min_traded_value" in raw:
         out["min_traded_value"] = raw.get("min_traded_value")
+    if isinstance(raw.get("auth"), dict):
+        out["auth"] = raw["auth"]
     return out
 
 
@@ -312,6 +314,8 @@ def effective_risk_config(overlay_path: Path | None = None) -> dict[str, Any]:
 
 
 def get_control_plane(overlay_path: Path | None = None) -> dict[str, Any]:
+    from backend.auth_policy import effective_auth_policy
+
     overlay = _read_overlay(overlay_path)
     stream = effective_stream_config(overlay_path)
     return {
@@ -320,6 +324,7 @@ def get_control_plane(overlay_path: Path | None = None) -> dict[str, Any]:
         "screening_filters": flatten_screening_filters(stream),
         "risk": effective_risk_config(overlay_path),
         "min_traded_value": effective_liquidity_config(overlay_path),
+        "auth": effective_auth_policy(overlay_path),
         "overlay_path": str(overlay_path or DEFAULT_OVERLAY),
         "has_overlay": bool(overlay),
         "config_reload_channel": config_reload_channel(),
@@ -343,6 +348,11 @@ def put_control_plane(
     liquidity_patch = sanitize_min_traded_value(
         normalized.get("min_traded_value") if isinstance(normalized.get("min_traded_value"), dict) else None
     )
+    from backend.auth_policy import sanitize_auth_patch
+
+    auth_patch = sanitize_auth_patch(
+        normalized.get("auth") if isinstance(normalized.get("auth"), dict) else None
+    )
 
     if stream_patch:
         prev = current.get("stream_alerts") if isinstance(current.get("stream_alerts"), dict) else {}
@@ -353,6 +363,9 @@ def put_control_plane(
     if liquidity_patch:
         prev_l = current.get("min_traded_value") if isinstance(current.get("min_traded_value"), dict) else {}
         current["min_traded_value"] = {**prev_l, **liquidity_patch}
+    if auth_patch:
+        prev_a = current.get("auth") if isinstance(current.get("auth"), dict) else {}
+        current["auth"] = {**prev_a, **auth_patch}
 
     _write_overlay(current, overlay_path)
     return get_control_plane(overlay_path)

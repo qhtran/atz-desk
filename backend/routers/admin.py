@@ -21,6 +21,7 @@ class AdminControlPlaneBody(BaseModel):
 
     stream_alerts: dict[str, Any] | None = None
     risk: dict[str, Any] | None = None
+    auth: dict[str, Any] | None = None
     screening_filters: dict[str, Any] | None = None
     # Flat aliases (also accepted at top level)
     rsi_length: float | None = None

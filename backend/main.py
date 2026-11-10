@@ -34,8 +34,14 @@ from backend.core.logging_middleware import TraceMiddleware
 from backend.debug_ui import public_debug_ui_config
 from backend.portfolio_alerts import position_alert
 from backend.account_config import load_account_config
+from backend.auth_policy import mfa_remember_sec, session_ttl_sec
 from backend.desk_session import COOKIE_NAME as DESK_COOKIE, desk_session_enabled, issue_session_value
 from backend.identity import is_admin_user, resolve_me, roles_for_user
+from backend.mfa_trust import (
+    COOKIE_NAME as MFA_TRUST_COOKIE,
+    issue_trust_value,
+    trust_matches_username,
+)
 from backend.portfolio_f3 import batch_f3_alerts, load_f3_sector_themes
 from backend.portfolio_quotes import normalize_symbols, resolve_portfolio_quotes
 from backend.daily_signals import ALLOWED_FILTERS, scan_daily_signals
@@ -239,12 +245,15 @@ def _require_admin(request: Request) -> str:
 def _account_payload(me: dict[str, Any] | None, cfg: dict[str, Any]) -> dict[str, Any]:
     from backend.core.trading_config import risk_meta_for_user
 
+    from backend.auth_policy import effective_auth_policy
+
     auth_urls = {
         "login_url": cfg.get("login_url") or "",
         "logout_url": cfg.get("logout_url") or "",
         "password_flow_url": cfg.get("password_flow_url") or "",
         "mfa_flow_url": cfg.get("mfa_flow_url") or "",
         "desk_session_form": bool(cfg.get("desk_session_form")),
+        "auth_policy": effective_auth_policy(),
     }
     if not me:
         return {
@@ -290,7 +299,17 @@ class DeskLoginBody(BaseModel):
     code: str | None = Field(default=None, max_length=16)
 
 
-def _issue_desk_cookie(response: Response, profile: dict[str, Any]) -> dict[str, Any]:
+def _cookie_secure() -> bool:
+    return (os.getenv("DESK_SESSION_SECURE") or "1").strip() not in ("0", "false", "no")
+
+
+def _issue_desk_cookie(
+    response: Response,
+    profile: dict[str, Any],
+    *,
+    set_mfa_trust: bool = False,
+) -> dict[str, Any]:
+    ttl = session_ttl_sec()
     token = issue_session_value(
         username=profile["username"],
         email=profile.get("email") or "",
@@ -298,8 +317,9 @@ def _issue_desk_cookie(response: Response, profile: dict[str, Any]) -> dict[str,
         uid=profile.get("uid") or "",
         groups=list(profile.get("groups") or []),
         is_superuser=bool(profile.get("is_superuser")),
+        ttl_sec=ttl,
     )
-    secure = (os.getenv("DESK_SESSION_SECURE") or "1").strip() not in ("0", "false", "no")
+    secure = _cookie_secure()
     response.set_cookie(
         key=DESK_COOKIE,
         value=token,
@@ -307,8 +327,21 @@ def _issue_desk_cookie(response: Response, profile: dict[str, Any]) -> dict[str,
         secure=secure,
         samesite="lax",
         path="/",
-        max_age=int(os.getenv("DESK_SESSION_TTL_SEC") or 12 * 3600),
+        max_age=ttl,
     )
+    remember_ttl = mfa_remember_sec()
+    if set_mfa_trust and remember_ttl > 0:
+        trust = issue_trust_value(profile, ttl_sec=remember_ttl)
+        if trust:
+            response.set_cookie(
+                key=MFA_TRUST_COOKIE,
+                value=trust,
+                httponly=True,
+                secure=secure,
+                samesite="lax",
+                path="/",
+                max_age=remember_ttl,
+            )
     cfg = load_account_config()
     me = {
         "username": profile["username"],
@@ -318,7 +351,12 @@ def _issue_desk_cookie(response: Response, profile: dict[str, Any]) -> dict[str,
         "groups": list(profile.get("groups") or []),
         "source": "desk_session",
     }
-    return {"success": True, **_account_payload(me, cfg)}
+    return {
+        "success": True,
+        "session_ttl_sec": ttl,
+        "mfa_remember_sec": remember_ttl if set_mfa_trust else 0,
+        **_account_payload(me, cfg),
+    }
 
 
 register_admin_routes(
@@ -330,8 +368,12 @@ register_brief_routes(app, require_admin=_require_admin)
 
 
 @app.post("/api/auth/login", response_model=None)
-async def desk_auth_login(body: DeskLoginBody, response: Response):
-    """DEV headless login: Authentik Flow (+ optional TOTP) → ``atz_desk_session``."""
+async def desk_auth_login(request: Request, body: DeskLoginBody, response: Response):
+    """DEV headless login: Authentik Flow (+ optional TOTP) → ``atz_desk_session``.
+
+    Sau TOTP thành công: gắn cookie tin cậy MFA (TTL Admin/env, mặc định 7 ngày).
+    Lần login sau trong cửa sổ đó: password OK + trust cookie → bỏ qua OTP.
+    """
     if not desk_session_enabled() or not ropc_configured():
         raise HTTPException(status_code=503, detail="Desk session login disabled on this host")
 
@@ -339,28 +381,35 @@ async def desk_auth_login(body: DeskLoginBody, response: Response):
     code = (body.code or "").strip()
     username = (body.username or "").strip()
     password = body.password or ""
+    trust_raw = request.cookies.get(MFA_TRUST_COOKIE)
 
     try:
         if mfa_token or code:
             if not mfa_token or not code:
                 raise HTTPException(status_code=400, detail="Thiếu mfa_token hoặc mã OTP")
             profile = await asyncio.to_thread(mfa_grant, mfa_token, code)
-            return _issue_desk_cookie(response, profile)
+            return _issue_desk_cookie(response, profile, set_mfa_trust=True)
 
         if not username or not password:
             raise HTTPException(status_code=400, detail="Nhập tài khoản và mật khẩu")
-        profile = await asyncio.to_thread(password_grant, username, password)
-        return _issue_desk_cookie(response, profile)
-    except MfaRequired as exc:
-        return JSONResponse(
-            status_code=202,
-            content={
-                "success": False,
-                "mfa_required": True,
-                "mfa_token": exc.mfa_token,
-                "detail": "Nhập mã xác thực (TOTP)",
-            },
-        )
+        try:
+            profile = await asyncio.to_thread(password_grant, username, password)
+            # Password-only (no TOTP on account) — vẫn gắn trust để đồng nhất thiết bị.
+            return _issue_desk_cookie(response, profile, set_mfa_trust=True)
+        except MfaRequired as exc:
+            trusted = trust_matches_username(trust_raw, username)
+            if trusted:
+                # Password đã được Authentik xác nhận; thiết bị tin cậy → bỏ OTP.
+                return _issue_desk_cookie(response, trusted, set_mfa_trust=True)
+            return JSONResponse(
+                status_code=200,
+                content={
+                    "success": False,
+                    "mfa_required": True,
+                    "mfa_token": exc.mfa_token,
+                    "detail": "Mật khẩu đúng — nhập mã TOTP để hoàn tất",
+                },
+            )
     except HTTPException:
         raise
     except RopcConfigError as exc:
@@ -378,9 +427,10 @@ async def desk_auth_login(body: DeskLoginBody, response: Response):
 
 @app.post("/api/auth/logout")
 async def desk_auth_logout(response: Response) -> dict:
-    """Xóa cookie desk session (DEV). Outpost logout vẫn dùng logout_url nếu cần."""
-    response.delete_cookie(DESK_COOKIE, path="/")
-    return {"ok": True, "success": True}
+    """Xóa desk session. Giữ MFA trust cookie để lần login sau (trong 7 ngày) không hỏi OTP."""
+    secure = _cookie_secure()
+    response.delete_cookie(DESK_COOKIE, path="/", secure=secure, httponly=True, samesite="lax")
+    return {"ok": True, "success": True, "desk_cookie_cleared": True, "mfa_trust_kept": True}
 
 
 @app.get("/api/account/me")

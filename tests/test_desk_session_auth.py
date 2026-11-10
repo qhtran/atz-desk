@@ -143,7 +143,7 @@ def test_login_mfa_challenge_then_otp(desk_env, monkeypatch):
     monkeypatch.setattr("backend.main.mfa_grant", finish_mfa)
     client = TestClient(app)
     res1 = client.post("/api/auth/login", json={"username": "hoa", "password": "secret"})
-    assert res1.status_code == 202
+    assert res1.status_code == 200
     body1 = res1.json()
     assert body1["mfa_required"] is True
     assert body1["mfa_token"] == "tok-abc"
@@ -352,3 +352,73 @@ def test_flow_password_grant_bad_password(desk_env, monkeypatch):
     monkeypatch.setattr(mod.requests, "Session", FakeSession)
     with pytest.raises(mod.RopcAuthError, match="invalid credentials"):
         mod.password_grant("hoa", "wrong")
+
+
+def test_default_session_ttl_is_seven_days(desk_env):
+    from backend.auth_policy import DEFAULT_SESSION_TTL_SEC, session_ttl_sec
+    from backend.desk_session import DEFAULT_TTL_SEC
+
+    assert DEFAULT_TTL_SEC == 7 * 24 * 3600
+    assert DEFAULT_SESSION_TTL_SEC == 7 * 24 * 3600
+    assert session_ttl_sec() == 7 * 24 * 3600
+
+
+def test_mfa_trust_skips_otp_on_next_login(desk_env, monkeypatch):
+    from backend.authentik_ropc import MfaRequired
+    from backend.mfa_trust import COOKIE_NAME as TRUST_COOKIE
+
+    def need_mfa(username, password, **kwargs):
+        raise MfaRequired("tok-trust")
+
+    def finish_mfa(mfa_token, code, **kwargs):
+        return {
+            "username": "hoa",
+            "email": "hoa@example.com",
+            "name": "Hoa",
+            "uid": "u1",
+            "groups": ["admin"],
+            "is_superuser": False,
+        }
+
+    monkeypatch.setattr("backend.main.password_grant", need_mfa)
+    monkeypatch.setattr("backend.main.mfa_grant", finish_mfa)
+    client = TestClient(app)
+
+    challenge = client.post("/api/auth/login", json={"username": "hoa", "password": "secret"})
+    assert challenge.status_code == 200
+    assert challenge.json()["mfa_required"] is True
+
+    done = client.post("/api/auth/login", json={"mfa_token": "tok-trust", "code": "123456"})
+    assert done.status_code == 200
+    assert done.json()["success"] is True
+    assert TRUST_COOKIE in done.cookies
+    assert COOKIE_NAME in done.cookies
+
+    # Logout clears desk session but keeps trust (browser jar in TestClient keeps cookies unless deleted).
+    client.post("/api/auth/logout")
+    # Simulate kept trust + cleared desk: TestClient may still have both; force drop desk cookie.
+    client.cookies.delete(COOKIE_NAME)
+
+    again = client.post("/api/auth/login", json={"username": "hoa", "password": "secret"})
+    assert again.status_code == 200
+    body = again.json()
+    assert body.get("success") is True
+    assert body.get("mfa_required") is not True
+    assert body["user"]["username"] == "hoa"
+
+
+def test_admin_auth_policy_overlay(desk_env, tmp_path, monkeypatch):
+    from backend.admin_config_store import get_control_plane, put_control_plane
+    from backend.auth_policy import session_ttl_sec
+
+    overlay = tmp_path / "admin_runtime_config.json"
+    monkeypatch.setenv("ADMIN_RUNTIME_CONFIG", str(overlay))
+    # Re-import path uses DEFAULT_OVERLAY from env at module load — pass overlay_path explicitly.
+    put_control_plane(
+        {"auth": {"session_ttl_sec": 3 * 24 * 3600, "mfa_remember_sec": 2 * 24 * 3600, "mfa_remember_enabled": True}},
+        overlay_path=overlay,
+    )
+    cp = get_control_plane(overlay)
+    assert cp["auth"]["session_ttl_sec"] == 3 * 24 * 3600
+    assert cp["auth"]["mfa_remember_sec"] == 2 * 24 * 3600
+    assert session_ttl_sec(overlay) == 3 * 24 * 3600
