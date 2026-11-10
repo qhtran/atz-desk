@@ -10,6 +10,7 @@ from fastapi.testclient import TestClient
 from backend.desk_scoring_engine import (
     DEFAULT_SEED_RULES,
     decision_from_score_pct,
+    decision_label_vi,
     evaluate_rules,
 )
 from backend.desk_scoring_store import (
@@ -36,6 +37,11 @@ def test_decision_bands():
     assert decision_from_score_pct(40) == "HOLD"
     assert decision_from_score_pct(20) == "TRIM"
     assert decision_from_score_pct(5) == "SELL"
+    assert decision_label_vi("STRONG_BUY") == "Mua mạnh"
+    assert decision_label_vi("ACCUMULATE") == "Tích lũy"
+    assert decision_label_vi("HOLD") == "Giữ"
+    assert decision_label_vi("TRIM") == "Giảm"
+    assert decision_label_vi("SELL") == "Bán"
 
 
 def test_evaluate_rules_hit_and_miss(db: Path):
@@ -165,6 +171,7 @@ def test_presets_catalog_and_profile_evaluate(monkeypatch, tmp_path: Path):
     assert body["profile"] == "default"
     assert body["score_pct"] == pytest.approx(100)
     assert body["decision"] == "STRONG_BUY"
+    assert body["decision_label"] == "Mua mạnh"
     assert len(body["breakdown"]) == 5
 
     # mean_reversion: oversold + below MA

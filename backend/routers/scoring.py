@@ -10,7 +10,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field, field_validator
 
-from backend.desk_scoring_engine import DEFAULT_SEED_RULES, evaluate_rules
+from backend.desk_scoring_engine import DEFAULT_SEED_RULES, decision_label_vi, evaluate_rules
 from backend.desk_scoring_presets import get_preset_rules, list_presets
 from backend.desk_scoring_store import (
     init_desk_scoring_store,
@@ -148,6 +148,8 @@ def _do_evaluate(body: EvaluateBody) -> dict:
         "max_score": result["max_score"],
         "score_pct": result["score_pct"],
         "decision": result["decision"],
+        "decision_label": result.get("decision_label")
+        or decision_label_vi(str(result.get("decision") or "")),
         "breakdown": result["breakdown"],
         "saved_id": saved["id"] if saved else None,
         "disclaimer": "Tham khảo định lượng — không phải lệnh mua/bán tự động.",

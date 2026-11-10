@@ -927,6 +927,8 @@
       color: #ffd900;
     }
     button.pf-score-badge.is-empty { color: #737373; }
+    button.pf-score-badge.dec-strong_buy,
+    button.pf-score-badge.dec-accumulate,
     button.pf-score-badge.dec-buy { border-color: #166534; color: #4ade80; }
     button.pf-score-badge.dec-hold { border-color: #854d0e; color: #facc15; }
     button.pf-score-badge.dec-trim,
@@ -6065,17 +6067,16 @@
         return;
       }
       const pct = Number(body.score_pct);
-      const decision = String(body.decision || "—");
-      const decClass = "dec-" + decision.toLowerCase();
+      const dec = pfDecisionMeta(body.decision, body.decision_label);
       if (status) {
         const prof = body.profile ? ` · ${body.profile}` : "";
-        status.textContent = `${body.symbol}${prof}: ${Number(body.total_score).toFixed(1)} / ${Number(body.max_score).toFixed(1)}`;
+        status.textContent = `${body.symbol}${prof}: ${Number(body.total_score).toFixed(1)} / ${Number(body.max_score).toFixed(1)} · ${dec.label}`;
       }
       if (kpi) {
         kpi.hidden = false;
         kpi.innerHTML =
           `<span class="score-pct">${Number.isFinite(pct) ? pct.toFixed(1) : "—"}%</span>` +
-          `<span class="symbol-detail-score-badge ${decClass}">${decision}</span>`;
+          `<span class="symbol-detail-score-badge ${dec.decClass}">${dec.label}</span>`;
       }
       const rows = Array.isArray(body.breakdown) ? body.breakdown : [];
       if (tbody) {
@@ -7114,6 +7115,25 @@
       mean_reversion: "MR",
       trend_following: "Trend",
     };
+    /** Khớp backend DECISION_LABELS_VI — hiện trên badge, không chỉ tooltip. */
+    const PF_DECISION_VI = {
+      STRONG_BUY: "Mua mạnh",
+      ACCUMULATE: "Tích lũy",
+      HOLD: "Giữ",
+      TRIM: "Giảm",
+      SELL: "Bán",
+    };
+
+    function pfDecisionMeta(decision, decisionLabel) {
+      const raw = String(decision || "").trim().toUpperCase();
+      const fromApi = String(decisionLabel || "").trim();
+      const label =
+        fromApi ||
+        PF_DECISION_VI[raw] ||
+        (raw && raw !== "—" ? raw : "—");
+      const decClass = raw && raw !== "—" ? "dec-" + raw.toLowerCase() : "is-empty";
+      return { raw, label, decClass };
+    }
 
     function loadPfScoreViewPrefs() {
       let raw = null;
@@ -7233,28 +7253,35 @@
       const entry = getPfScoreEntry(symbol, presetId);
       const short = pfScoreShortLabel(presetId);
       if (!entry) {
-        return `<button type="button" class="pf-score-badge is-empty" data-pf-score-open="${symbol}" data-preset="${presetId}" title="Chưa có điểm — chờ làm mới">${short} —</button>`;
+        return `<button type="button" class="pf-score-badge is-empty" data-pf-score-open="${symbol}" data-preset="${presetId}" title="Chưa có điểm — chờ làm mới hoặc bấm ↻ Điểm">${short} —</button>`;
       }
       if (entry.err) {
-        return `<button type="button" class="pf-score-badge is-empty" data-pf-score-open="${symbol}" data-preset="${presetId}" title="${String(entry.err).replace(/"/g, "&quot;")}">${short} —</button>`;
+        const tip = entry.err === "auth"
+          ? "Cần đăng nhập để chấm điểm danh mục"
+          : String(entry.err);
+        return `<button type="button" class="pf-score-badge is-empty" data-pf-score-open="${symbol}" data-preset="${presetId}" title="${tip.replace(/"/g, "&quot;")}">${short} —</button>`;
       }
       const pct = Number(entry.pct);
-      const decision = String(entry.decision || "—");
-      const decClass = "dec-" + decision.toLowerCase();
-      const label = Number.isFinite(pct) ? pct.toFixed(0) : "—";
-      return `<button type="button" class="pf-score-badge ${decClass}" data-pf-score-open="${symbol}" data-preset="${presetId}" title="${short}: ${Number.isFinite(pct) ? pct.toFixed(1) : "—"}% · ${decision}">${short} ${label}</button>`;
+      const dec = pfDecisionMeta(entry.decision, entry.decision_label);
+      const pctTxt = Number.isFinite(pct) ? pct.toFixed(0) + "%" : "—";
+      const text = `${short} ${pctTxt} · ${dec.label}`;
+      const tip = `${short}: ${Number.isFinite(pct) ? pct.toFixed(1) : "—"}% · ${dec.label} (${dec.raw || "—"}) — tham khảo định lượng`;
+      return `<button type="button" class="pf-score-badge ${dec.decClass}" data-pf-score-open="${symbol}" data-preset="${presetId}" title="${tip.replace(/"/g, "&quot;")}">${text}</button>`;
     }
 
     function formatPfScoreCompareCell(symbol, presetId) {
       const entry = getPfScoreEntry(symbol, presetId);
       if (!entry || entry.err) {
-        return `<button type="button" class="pf-score-badge is-empty" data-pf-score-open="${symbol}" data-preset="${presetId}" title="${entry && entry.err ? String(entry.err).replace(/"/g, "&quot;") : "Chưa có điểm"}">—</button>`;
+        const tip = entry && entry.err
+          ? (entry.err === "auth" ? "Cần đăng nhập để chấm điểm" : String(entry.err))
+          : "Chưa có điểm";
+        return `<button type="button" class="pf-score-badge is-empty" data-pf-score-open="${symbol}" data-preset="${presetId}" title="${tip.replace(/"/g, "&quot;")}">—</button>`;
       }
       const pct = Number(entry.pct);
-      const decision = String(entry.decision || "—");
-      const decClass = "dec-" + decision.toLowerCase();
-      const label = Number.isFinite(pct) ? pct.toFixed(0) + "%" : "—";
-      return `<button type="button" class="pf-score-badge ${decClass}" data-pf-score-open="${symbol}" data-preset="${presetId}" title="${decision}">${label}</button>`;
+      const dec = pfDecisionMeta(entry.decision, entry.decision_label);
+      const pctTxt = Number.isFinite(pct) ? pct.toFixed(0) + "%" : "—";
+      const text = `${pctTxt} · ${dec.label}`;
+      return `<button type="button" class="pf-score-badge ${dec.decClass}" data-pf-score-open="${symbol}" data-preset="${presetId}" title="${dec.label} (${dec.raw})">${text}</button>`;
     }
 
     function buildPfScoreCellsHtml(symbol) {
@@ -7341,15 +7368,7 @@
     async function runPfScoreJob(job) {
       const { symbol, presetId, gen } = job;
       try {
-        if (!accountState.authenticated) {
-          setPfScoreEntry(symbol, presetId, {
-            pct: null,
-            decision: "—",
-            err: "auth",
-            ts: Date.now(),
-          });
-          return;
-        }
+        // evaluate + persist:false không bắt buộc login — chấm được danh mục local.
         const bars = await fetchBarsForScoring(symbol);
         if (gen !== pfScoreGen) return;
         const quoteRow = state.get(symbol);
@@ -7399,6 +7418,7 @@
           total: Number(data.total_score),
           max: Number(data.max_score),
           decision: String(data.decision || "—"),
+          decision_label: String(data.decision_label || ""),
           ts: Date.now(),
         });
       } catch (err) {
