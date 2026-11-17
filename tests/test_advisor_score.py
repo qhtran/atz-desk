@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pandas as pd
+
 from engine.advisor_score import compute_advisor_score, min_bars_needed, resolve_advisor_params
 from tests.bars import frame
 

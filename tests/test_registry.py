@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from filters import load_registry
-from filters.base import FilterSpec, SignalResult
 
 
 def test_package_registry_lists_the_six_filters() -> None:

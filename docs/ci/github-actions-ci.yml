@@ -1,0 +1,62 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - master
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-test:
+    name: ruff + pytest (desk subset)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements-dev.txt
+            backend/requirements.txt
+
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Secret path guard
+        run: |
+          chmod +x scripts/ci_secret_guard.sh
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            ./scripts/ci_secret_guard.sh "origin/${{ github.base_ref }}...HEAD"
+          else
+            ./scripts/ci_secret_guard.sh "HEAD~1...HEAD"
+          fi
+
+      - name: Ruff (backend + tests)
+        run: ruff check backend tests
+
+      - name: Pytest (stable desk subset)
+        env:
+          PYTHONPATH: ".:src/atz"
+        run: |
+          # Subset không phụ thuộc Redis/SSI/live secrets — chặn regression cho agent CI.
+          pytest -q \
+            tests/test_pwa_assets.py \
+            tests/test_logging_middleware.py \
+            tests/test_tick_contract.py \
+            tests/test_board_universe.py \
+            tests/test_alerts_ws_alias.py \
+            tests/test_debug_ui.py

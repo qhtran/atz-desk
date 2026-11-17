@@ -45,7 +45,6 @@ from backend.tick_contract import (
     parse_ssi_envelope,
     ssi_envelope_has_symbol,
     tick_has_payload,
-    tick_kind_for_symbol,
 )
 from backend.ssi_rest_bootstrap import (
     SsiRestClient,

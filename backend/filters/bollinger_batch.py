@@ -12,7 +12,6 @@ from backend.portfolio_f3 import _ensure_legacy_path
 
 def _default_params() -> dict[str, Any]:
     _ensure_legacy_path()
-    import config as C
     from filters.bollinger import FILTER
     from filters.base import resolve_params
 

@@ -1,7 +1,6 @@
 """Index sparkline: T1 parse provider + failover, T2 spark/ref split/rollover, T3 UI 6 thẻ + stale/fallback, T4 provider down."""
 from __future__ import annotations
 
-import json
 import time
 from datetime import datetime
 from zoneinfo import ZoneInfo

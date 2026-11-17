@@ -14,7 +14,7 @@ import random
 import signal
 import time
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Protocol
 
 import redis.asyncio as aioredis
 
