@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import pytest
 
 from backend.index_spark import (
-    in_trading_session,
     is_frozen,
     is_index_spark_symbol,
     record_index_spark_tick,

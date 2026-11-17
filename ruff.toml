@@ -1,0 +1,42 @@
+# Hard constraints for agents (atz-desk).
+# Scope: backend/ + tests/. Frontend SPA monolith is out of scope.
+
+target-version = "py312"
+line-length = 120
+src = ["backend", "tests"]
+
+extend-exclude = [
+  ".venv",
+  "data",
+  "tmp",
+  "src",
+  "frontend",
+  "deploy",
+  "scripts",
+]
+
+[lint]
+# Fail-loud but not aggressive: syntax/undefined, unused imports, print in library code, banned legacy imports.
+select = [
+  "E9",    # runtime syntax errors
+  "F63",   # invalid print/assert
+  "F7",    # syntax errors
+  "F82",   # undefined names in __all__ etc.
+  "F401",  # unused import
+  "F821",  # undefined name
+  "T20",   # flake8-print
+  "TID251",# banned-api
+]
+
+[lint.flake8-tidy-imports.banned-api]
+"src".msg = "Legacy `src.*` ngoài phạm vi active dev (dev.atz.vn)."
+"src.atz".msg = "Legacy prod `src.atz` ngoài scope — xem .cursor/rules/dev-atz-scope.mdc."
+
+[lint.per-file-ignores]
+# CLI / seed entrypoints — print() là output người dùng, không phải debug rò.
+"backend/ohlcv_seed.py" = ["T20"]
+"backend/build_core_symbols.py" = ["T20"]
+"backend/morning_brief.py" = ["T20"]
+# Legacy test scripts dùng print làm assertion/log.
+"tests/**" = ["T20"]
+"tests/conftest.py" = ["F401"]

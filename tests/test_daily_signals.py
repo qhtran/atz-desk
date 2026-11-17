@@ -187,7 +187,6 @@ def test_native_bollinger_matches_legacy():
     _ensure_legacy_path()
     from filters.bollinger import evaluate as legacy_bollinger
 
-    import pandas as pd
 
     samples = {
         "AAA": frame([10.0 - i * 0.5 for i in range(25)]),
