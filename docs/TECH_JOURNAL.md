@@ -14,7 +14,7 @@ Không thay ADR; không dump changelog dài. Mỗi mục: ngày · phạm vi · 
 - CI thêm secret path guard (`.env*`, `.pip_index`, key/pem).
 - Judgment rules giữ prose (`CLAUDE.md` + `.cursorrules` / `.cursor/rules/*`).
 
-**File neo:** `ruff.toml`, `requirements-dev.txt`, `.github/workflows/ci.yml`, `scripts/ci_secret_guard.sh`, `CLAUDE.md`
+**File neo:** `ruff.toml`, `requirements-dev.txt`, `docs/ci/github-actions-ci.yml` (canonical `.github/workflows/ci.yml` khi bật), `scripts/ci_secret_guard.sh`, `CLAUDE.md`
 
 **Follow-up (P2):** mở rộng pytest subset; cân nhắc ESLint cho SPA khi tách module khỏi `frontend/index.html`.
 

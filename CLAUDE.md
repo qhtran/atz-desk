@@ -12,7 +12,7 @@ Active scope: **dev.atz.vn** (`backend/`, `frontend/`, `docker-compose.dev.yml`)
 | Unused import / undefined name | Ruff `F401` / `F821` (+ `E9`/`F7`/`F82`) |
 | Cấm import legacy `src` / `src.atz` từ `backend/` + `tests/` | Ruff `TID251` |
 | Không đưa `.env*`, `.pip_index`, `*.key`/`.pem` vào PR | `scripts/ci_secret_guard.sh` trong CI |
-| Lint/test fail → CI đỏ | `.github/workflows/ci.yml` |
+| Lint/test fail → CI đỏ | `docs/ci/github-actions-ci.yml` (copy → `docs/ci/github-actions-ci.yml → .github/workflows/ci.yml` khi PAT có `workflow` scope) |
 
 Chạy local:
 

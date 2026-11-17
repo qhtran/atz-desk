@@ -1,7 +1,7 @@
 # Cursor AI — token & scope rules (vnstocks)
 
 > **Hard constraints:** một số luật machine-checkable đã chuyển sang **Ruff + CI**
-> (`ruff.toml`, `.github/workflows/ci.yml`, `scripts/ci_secret_guard.sh`).
+> (`ruff.toml`, `docs/ci/github-actions-ci.yml` / `.github/workflows/ci.yml`, `scripts/ci_secret_guard.sh`).
 > Xem tóm tắt trong `CLAUDE.md`. Các rule token/DBG/deny-list bên dưới **vẫn bắt buộc** cho hành vi agent.
 
 Repo lớn. **Không** quét full workspace trừ khi user yêu cầu rõ.
