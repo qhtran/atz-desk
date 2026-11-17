@@ -5,6 +5,19 @@ Không thay ADR; không dump changelog dài. Mỗi mục: ngày · phạm vi · 
 
 ---
 
+## 2026-11-17 — Agent hard constraints (Ruff + CI)
+
+**Phạm vi:** quy trình agent / chất lượng merge cho `backend/` + `tests/` (dev.atz.vn).
+
+**Quyết định**
+- Luật machine-checkable chuyển sang Ruff (`T20`/`F401`/`F821`/`TID251`) + GitHub Actions fail-on-lint.
+- CI thêm secret path guard (`.env*`, `.pip_index`, key/pem).
+- Judgment rules giữ prose (`CLAUDE.md` + `.cursorrules` / `.cursor/rules/*`).
+
+**File neo:** `ruff.toml`, `requirements-dev.txt`, `.github/workflows/ci.yml`, `scripts/ci_secret_guard.sh`, `CLAUDE.md`
+
+**Follow-up (P2):** mở rộng pytest subset; cân nhắc ESLint cho SPA khi tách module khỏi `frontend/index.html`.
+
 ## 2026-11-09 — Morning brief full-auto session_facts
 
 **Phạm vi:** `dev.atz.vn` Bản tin sáng — số liệu thị trường không nhập tay.
